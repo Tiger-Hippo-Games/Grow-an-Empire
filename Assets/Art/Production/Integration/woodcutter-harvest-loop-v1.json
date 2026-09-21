@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "id": "woodcutter-harvest-loop-v1",
+  "character": "WoodcutterMale01",
+  "runtimeBinding": {
+    "status": "engine-project-required",
+    "reason": "This workspace contains art and pipeline files but no game-engine project or gameplay code.",
+    "unloadedTravelFallback": "Use the directional idle pose while moving until a dedicated woodcutter walk cycle is produced."
+  },
+  "render": {
+    "runtimeCanvasByClip": {
+      "idle": [192, 256],
+      "animatedFrame": [256, 256],
+      "animatedSheet": [1024, 512]
+    },
+    "sheetGrid": [4, 2],
+    "footAnchorPixels": [128, 236],
+    "directions": {
+      "southeast": [1, 1],
+      "southwest": [-1, 1],
+      "northeast": [1, -1],
+      "northwest": [-1, -1]
+    }
+  },
+  "clips": {
+    "idle": {
+      "frameCount": 1,
+      "fps": 1,
+      "loop": true,
+      "files": {
+        "southeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Idle/woodcutter-male-01-idle-southeast-2x-v1.png",
+        "southwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Idle/woodcutter-male-01-idle-southwest-2x-v1.png",
+        "northeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Idle/woodcutter-male-01-idle-northeast-2x-v1.png",
+        "northwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Idle/woodcutter-male-01-idle-northwest-2x-v1.png"
+      }
+    },
+    "chop": {
+      "frameCount": 8,
+      "fps": 9.5238,
+      "loop": true,
+      "eventFrame": 4,
+      "event": "apply_tree_damage",
+      "sheets": {
+        "southeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-chop-southeast-sheet-2x-v1.png",
+        "southwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-chop-southwest-sheet-2x-v1.png",
+        "northeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-chop-northeast-sheet-2x-v1.png",
+        "northwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-chop-northwest-sheet-2x-v1.png"
+      }
+    },
+    "pickup": {
+      "frameCount": 8,
+      "fps": 8,
+      "loop": false,
+      "eventFrame": 8,
+      "event": "attach_log",
+      "sheets": {
+        "southeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-pickup-log-southeast-sheet-2x-v1.png",
+        "southwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-pickup-log-southwest-sheet-2x-v1.png",
+        "northeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-pickup-log-northeast-sheet-2x-v1.png",
+        "northwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-pickup-log-northwest-sheet-2x-v1.png"
+      }
+    },
+    "carry": {
+      "frameCount": 8,
+      "fps": 9.0909,
+      "loop": true,
+      "sheets": {
+        "southeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-carry-log-southeast-sheet-2x-v1.png",
+        "southwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-carry-log-southwest-sheet-2x-v1.png",
+        "northeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-carry-log-northeast-sheet-2x-v1.png",
+        "northwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-carry-log-northwest-sheet-2x-v1.png"
+      }
+    },
+    "deliver": {
+      "sourceClip": "pickup",
+      "reverse": true,
+      "fps": 8,
+      "loop": false,
+      "eventFrame": 8,
+      "event": "detach_log_and_advance_stockpile"
+    }
+  },
+  "worldAssets": {
+    "treeStates": [
+      "Assets/Art/Production/Environment/Trees/Deciduous01/Runtime2x/deciduous-01-healthy-2x-v1.png",
+      "Assets/Art/Production/Environment/Trees/Deciduous01/Runtime2x/deciduous-01-notched-2x-v1.png",
+      "Assets/Art/Production/Environment/Trees/Deciduous01/Runtime2x/deciduous-01-falling-southeast-2x-v1.png",
+      "Assets/Art/Production/Environment/Trees/Deciduous01/Runtime2x/deciduous-01-felled-2x-v1.png"
+    ],
+    "portableLog": "Assets/Art/Production/Resources/Logs/Portable01/Runtime2x/portable-log-01-2x-v1.png",
+    "stockpileStates": [
+      "Assets/Art/Production/Props/LogStockpile01/Runtime2x/log-stockpile-01-state-01-2x-v1.png",
+      "Assets/Art/Production/Props/LogStockpile01/Runtime2x/log-stockpile-01-state-02-2x-v1.png",
+      "Assets/Art/Production/Props/LogStockpile01/Runtime2x/log-stockpile-01-state-03-2x-v1.png",
+      "Assets/Art/Production/Props/LogStockpile01/Runtime2x/log-stockpile-01-state-04-2x-v1.png"
+    ]
+  },
+  "stateMachine": {
+    "initial": "idle",
+    "states": {
+      "idle": {"clip": "idle", "next": "travel_to_tree"},
+      "travel_to_tree": {"clip": "idle", "movement": "unloaded", "next": "chop"},
+      "chop": {"clip": "chop", "until": "tree_health_zero", "next": "tree_falling"},
+      "tree_falling": {"worldSequence": "treeStates", "next": "pickup"},
+      "pickup": {"clip": "pickup", "next": "travel_to_stockpile"},
+      "travel_to_stockpile": {"clip": "carry", "movement": "loaded", "next": "deliver"},
+      "deliver": {"clip": "deliver", "next": "stockpile_growth"},
+      "stockpile_growth": {"worldSequence": "stockpileStates", "next": "idle"}
+    }
+  }
+}
