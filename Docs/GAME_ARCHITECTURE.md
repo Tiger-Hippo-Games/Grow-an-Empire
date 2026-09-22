@@ -23,6 +23,12 @@ The central civic site has nine states: the Level 0 Founding Campsite and eight 
 - Civic level equals completed moves and reaches Level 8 on the final move.
 - The final state stops new decisions; selected buildings, villagers, and production remain active.
 
+## Spatial layout
+
+Building placement is keyed by building identity rather than move order. The Town Hall and Marketplace occupy the civic core; Woodcutter and Sawmill share the forest edge; Farm, Bakery, and Granary share the northwest agricultural quarter; Orchard, Winery, Swine Farm, and Butchery occupy the southwest; Quarry, Blacksmith, Weapons Workshop, and Barracks form the southeast industrial quarter.
+
+Five main road corridors radiate from the civic plaza. A district road and its short building connector become visible only when that district is occupied, allowing the road network to grow with the player's chosen city instead of revealing routes to unbuilt sites.
+
 ## Next production work
 
 1. Add save-state serialization and deterministic automated simulation tests.

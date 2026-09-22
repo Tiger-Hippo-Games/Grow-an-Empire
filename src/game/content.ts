@@ -1,6 +1,6 @@
 export const TOTAL_MOVES = 8;
 export const TOTAL_SETTLEMENT_LEVELS = 9;
-export const CONSTRUCTION_DURATION_SECONDS = 4;
+export const CONSTRUCTION_DURATION_SECONDS = 30;
 
 export type ResourceName =
   | "wood"

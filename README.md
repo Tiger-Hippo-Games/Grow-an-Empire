@@ -9,6 +9,7 @@ The playable slice includes:
 - nine civic states: Level 0 campsite plus one upgrade per move, ending at the Grand Town Hall;
 - prerequisite-driven offers such as Farm → Bakery, Orchard → Winery, and Blacksmith → Weapons Workshop → Barracks;
 - visible autonomous population growth from 1 villager at Level 0 to 37 villagers at Level 8;
+- semantic city districts with five roads that grow toward occupied civic, forest, farm, southwest, and industrial quarters;
 - autonomous resource production and complementary-building bonuses;
 - a 30-second default construction cadence with pause, restart, 0.5–8× speed, and grid controls;
 - a hard decision stop after Move 8, with the chosen buildings continuing to operate.
