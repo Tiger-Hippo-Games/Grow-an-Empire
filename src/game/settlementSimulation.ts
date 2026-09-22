@@ -1,8 +1,9 @@
 import {
   BUILDINGS,
-  BUILD_INTRODUCTION_BY_MOVE,
   CONSTRUCTION_DURATION_SECONDS,
+  nextBuildingOffer,
   OPENING_BUILD_OPTIONS,
+  populationForLevel,
   TOTAL_MOVES,
   type ResourceName,
 } from "./content";
@@ -34,14 +35,14 @@ export interface SettlementState {
   productionElapsed: Record<string, number>;
 }
 
-const emptyResources = (): ResourceLedger => ({ wood: 0, grain: 0, food: 0, stone: 0, planks: 0, wealth: 0, tools: 0 });
+const emptyResources = (): ResourceLedger => ({ wood: 0, grain: 0, food: 0, stone: 0, planks: 0, wealth: 0, tools: 0, fruit: 0, wine: 0, arms: 0, defense: 0 });
 
 export class SettlementSimulation {
   readonly state: SettlementState = {
     mode: "awaiting-choice",
     move: 1,
     civicLevel: 0,
-    population: 2,
+    population: 1,
     resources: emptyResources(),
     builtBuildingIds: [],
     availableBuildingIds: [...OPENING_BUILD_OPTIONS],
@@ -71,7 +72,7 @@ export class SettlementSimulation {
       mode: "awaiting-choice",
       move: 1,
       civicLevel: 0,
-      population: 2,
+      population: 1,
       resources: emptyResources(),
       builtBuildingIds: [],
       availableBuildingIds: [...OPENING_BUILD_OPTIONS],
@@ -94,7 +95,6 @@ export class SettlementSimulation {
     const buildingId = this.state.selectedBuildingId!;
     const plotIndex = this.state.activePlotIndex!;
     const completedMove = this.state.move;
-    const definition = BUILDINGS[buildingId];
     this.state.builtBuildingIds.push(buildingId);
     this.state.productionElapsed[buildingId] = 0;
     this.state.civicLevel = completedMove;
@@ -103,11 +103,8 @@ export class SettlementSimulation {
     this.state.constructionElapsed = 0;
     events.push({ type: "construction-complete", buildingId, plotIndex });
     events.push({ type: "civic-upgraded", level: this.state.civicLevel });
-
-    if (definition.populationGain) {
-      this.state.population += definition.populationGain;
-      events.push({ type: "population-changed", total: this.state.population });
-    }
+    this.state.population = populationForLevel(this.state.civicLevel);
+    events.push({ type: "population-changed", total: this.state.population });
 
     if (completedMove >= TOTAL_MOVES) {
       this.state.mode = "complete";
@@ -116,7 +113,13 @@ export class SettlementSimulation {
     }
 
     this.state.move = completedMove + 1;
-    this.state.availableBuildingIds.push(...(BUILD_INTRODUCTION_BY_MOVE[this.state.move] ?? []));
+    const nextOffer = nextBuildingOffer(
+      this.state.builtBuildingIds,
+      this.state.availableBuildingIds,
+      this.state.move,
+      buildingId,
+    );
+    if (nextOffer) this.state.availableBuildingIds.push(nextOffer);
     this.state.mode = "awaiting-choice";
     events.push({ type: "choices-ready", move: this.state.move, options: [...this.state.availableBuildingIds] });
     return events;
@@ -125,6 +128,10 @@ export class SettlementSimulation {
   private updateProduction(seconds: number, events: SimulationEvent[]): void {
     const hasFarm = this.state.builtBuildingIds.includes("farm");
     const hasWoodcutter = this.state.builtBuildingIds.includes("woodcutter");
+    const hasSwineFarm = this.state.builtBuildingIds.includes("swine-farm");
+    const hasOrchard = this.state.builtBuildingIds.includes("fruit-orchard");
+    const hasBlacksmith = this.state.builtBuildingIds.includes("blacksmith");
+    const hasWeaponsWorkshop = this.state.builtBuildingIds.includes("weapons-workshop");
     const toolBoost = 1 + this.state.resources.tools * 0.04;
 
     for (const buildingId of this.state.builtBuildingIds) {
@@ -138,6 +145,10 @@ export class SettlementSimulation {
       let amount = cycles * building.productionAmount;
       if (buildingId === "bakery" && hasFarm) amount *= 2;
       if (buildingId === "sawmill" && hasWoodcutter) amount *= 2;
+      if (buildingId === "butchery" && hasSwineFarm) amount *= 2;
+      if (buildingId === "winery" && hasOrchard) amount *= 2;
+      if (buildingId === "weapons-workshop" && hasBlacksmith) amount *= 2;
+      if (buildingId === "barracks" && hasWeaponsWorkshop) amount *= 2;
       this.state.resources[building.resource] += amount;
       events.push({ type: "resource-produced", buildingId, resource: building.resource, total: this.state.resources[building.resource] });
     }

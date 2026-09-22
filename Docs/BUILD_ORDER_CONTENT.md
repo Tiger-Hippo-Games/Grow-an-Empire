@@ -1,18 +1,33 @@
-# Opening build-order content
+# Eight-move branching build order
 
-The settlement uses a rolling three-card pool. A selected building leaves the pool; the two unchosen cards remain; one new building is introduced on the next move.
+The settlement begins at civic Level 0 with one visible villager. Each completed move upgrades the civic center, adds the level number in new villagers, and presents the next rolling three-card choice. The population sequence is therefore 1, 2, 4, 7, 11, 16, 22, 29, and 37.
 
-| Move | New card(s) | Strategic role | Production status |
-| --- | --- | --- | --- |
-| 1 | Woodcutter, Farm, Swine Farm | Wood vs grain vs food opening | Playable with construction art |
-| 2 | Bakery | Converts grain into higher-value food | Content definition ready; art next |
-| 3 | Quarry | Adds stone for durable construction | Proposed |
-| 4 | House | Raises population capacity | Proposed |
-| 5 | Sawmill | Multiplies timber value | Proposed |
-| 6 | Granary | Protects and expands food storage | Proposed |
-| 7 | Marketplace | Unlocks commerce and wealth | Proposed |
-| 8 | Blacksmith | Improves the basic industries | Proposed |
+## Offer contract
 
-On Move 8, the original Campsite also upgrades automatically into the Town Hall. This civic upgrade does not consume one of the three choice cards.
+- Move 1 always offers Woodcutter's Hut, Farm, and Swine Farm.
+- The selected card is built and leaves the pool; the two unselected cards persist.
+- Exactly one eligible new card is added before the next move.
+- A newly unlocked follow-up is prioritized, so choosing Farm immediately introduces Bakery, for example.
+- The run stops after the eighth completed choice. Seven of the fifteen possible district buildings remain unbuilt, making the resulting city a record of the player's decisions.
 
-The Move 3–8 names are a coherent first-pass economy ladder, not locked creative decisions. Their definitions live in `src/game/content.ts` so they can be renamed or reordered without rewriting presentation code.
+## Dependency graph
+
+| Building | Eligibility | What it enables |
+| --- | --- | --- |
+| Woodcutter's Hut | Opening choice | Sawmill |
+| Farm | Opening choice | Bakery, Granary |
+| Swine Farm | Opening choice | Butchery |
+| Sawmill | Woodcutter built | Plank synergy |
+| Bakery | Farm built | Food synergy |
+| Butchery | Swine Farm built | Food synergy |
+| Fruit Orchard | Move 3 onward | Winery, Granary |
+| Winery | Orchard built | Wine synergy |
+| Quarry | Move 3 onward | Blacksmith |
+| House | Move 3 onward | Residential identity |
+| Granary | Farm or Orchard built; Move 4 onward | Grain storage |
+| Marketplace | Move 4 onward | Wealth production |
+| Blacksmith | Quarry built; Move 4 onward | Weapons Workshop |
+| Weapons Workshop | Blacksmith built; Move 5 onward | Barracks |
+| Barracks | Weapons Workshop built; Move 6 onward | Defense production |
+
+The catalog order breaks ties between equally eligible buildings, keeping runs deterministic while the player's prior choices determine which branches can enter the pool.

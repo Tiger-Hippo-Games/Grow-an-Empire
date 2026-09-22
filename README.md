@@ -1,19 +1,19 @@
 # Grow an Empire
 
-The current vertical slice now begins with a real three-card decision: Woodcutter, Farm, or Swine Farm. Each has four construction stages and starts its own automatic resource loop after completion. See `Docs/BUILD_ORDER_CONTENT.md` for the rolling choice pool and proposed eight-move opening.
+An HTML5/Three.js vertical slice of a branching eight-move city. The player makes one strategic building choice per move while the settlement constructs, produces, upgrades, and populates itself automatically.
 
-An HTML5/Three.js vertical slice for the opening settlement decision. The current prototype demonstrates:
+The playable slice includes:
 
-- a persistent campsite as the Move 0 settlement core;
-- the mandatory Move 1 Woodcutter build-order choice;
-- automatic site selection and three visible construction stages;
-- automatic worker assignment, harvesting, hauling, and storage;
-- Move 2 unlocking once the first industry is operating;
-- pause, restart, speed, and isometric-grid controls.
+- a rolling three-card build pool across eight moves;
+- fifteen possible district buildings, with eight selected in any one city;
+- nine civic states: Level 0 campsite plus one upgrade per move, ending at the Grand Town Hall;
+- prerequisite-driven offers such as Farm → Bakery, Orchard → Winery, and Blacksmith → Weapons Workshop → Barracks;
+- visible autonomous population growth from 1 villager at Level 0 to 37 villagers at Level 8;
+- autonomous resource production and complementary-building bonuses;
+- a 30-second default construction cadence with pause, restart, 0.5–8× speed, and grid controls;
+- a hard decision stop after Move 8, with the chosen buildings continuing to operate.
 
-The intended player role is strategic: the player chooses one building every 30–90 seconds and watches the settlement execute that decision automatically. Development speed controls make the complete opening loop testable in seconds.
-
-The default orthographic camera uses a 35-world-unit vertical view. This is a 3× zoom-in from the first city-overview experiment while remaining roughly 4× farther out than the original character showcase. The opening sites are distributed across the frame so the campsite, first industry, forest, and future expansion space remain visible together.
+See `Docs/BUILD_ORDER_CONTENT.md` for the offer rules and `Docs/GAME_ARCHITECTURE.md` for runtime boundaries.
 
 ## Run locally
 
@@ -31,12 +31,6 @@ pnpm run build
 python Tools/ArtPipeline/validate_harvest_loop.py
 ```
 
-The Three.js presentation bootstrap lives in `src/main.ts`. Runtime clip and harvesting metadata is recorded in `Assets/Art/Production/Integration/woodcutter-harvest-loop-v1.json`.
-
-Production responsibilities are being separated into data-driven content (`src/game/content.ts`), a deterministic simulation (`src/game/settlementSimulation.ts`), the Three.js presentation layer (`src/main.ts`), and runtime asset discovery (`src/render/assetCatalog.ts`). See `Docs/GAME_ARCHITECTURE.md` for boundaries and invariants.
-
-Opening progression: `Campsite (Move 0) → Woodcutter (Move 1) → Move 2 unlocked`. The original campsite remains the civic core and is reserved for its Town Hall transformation on Move 8.
-
 ## Asset workflow
 
-See `Assets/Art/ART_DIRECTION.md` for visual rules and `Assets/Art/ART_PIPELINE.md` for export, naming, and validation conventions.
+See `Assets/Art/ART_DIRECTION.md`, `Assets/Art/ART_PIPELINE.md`, and `Assets/Art/Production/Buildings/EIGHT_MOVE_GENERATION_NOTES.md`.

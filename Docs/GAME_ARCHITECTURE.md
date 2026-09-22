@@ -2,47 +2,30 @@
 
 ## Product contract
 
-The player is the settlement’s strategic authority. Every 30–90 seconds the game presents a build-order decision; after the player chooses, villagers execute the decision autonomously. Direct unit control is not part of the core loop.
+The player is the settlement's strategic authority. They choose one building on each of eight moves; villagers execute it autonomously. The two unchosen cards carry forward and one prerequisite-valid card enters the pool. Direct unit control is outside the core loop.
 
-Opening progression:
-
-1. Move 0: the campsite already exists.
-2. Move 1: build the Woodcutter.
-3. Moves 2–7: reserved for decisions approved by the creative authority.
-4. Move 8: upgrade the original campsite in place into the Town Hall.
+The central civic site has nine states: the Level 0 Founding Campsite and eight incremental upgrades. Move 8 produces the Grand Town Hall and ends further decisions. The resulting city contains eight of the fifteen possible districts.
 
 ## Runtime layers
 
-### Content — `src/game/content.ts`
-
-Owns declarative building definitions, move assignments, unlocks, construction timings, and production phase definitions. New buildings should enter the game through content data rather than new conditionals in the renderer.
-
-### Simulation — `src/game/settlementSimulation.ts`
-
-Owns authoritative settlement state and deterministic time advancement. It has no DOM, Three.js, or asset dependencies. Given the same initial state and elapsed time it must produce the same resources, phases, and events.
-
-### Presentation — `src/main.ts`
-
-Currently owns Three.js scene setup and translates simulation state into sprites, construction stages, animation frames, HUD values, and milestone panels. This layer must not award resources or advance moves on its own.
-
-### Asset catalog — `src/render/assetCatalog.ts`
-
-Owns Vite asset discovery and filename-to-runtime-URL resolution. Art paths remain separate from simulation rules.
+- `src/game/content.ts`: building catalog, prerequisites, offer priority, production rules, civic names, population curve, and pacing.
+- `src/game/settlementSimulation.ts`: deterministic construction, rolling offers, resources, synergies, population, and completion.
+- `src/main.ts`: Three.js scene, building stages, worker and crowd animation, civic sprites, HUD, cards, and milestones.
+- `src/render/assetCatalog.ts`: Vite asset discovery and runtime URL resolution.
 
 ## Invariants
 
-- Simulation time is authoritative; rendering never changes the economy.
-- A building choice is accepted once for its intended move.
-- Construction completion emits the move transition.
-- Wood is produced only when the stockpile phase begins.
-- The campsite remains present through Moves 0–7 and is replaced in place on Move 8.
-- Development speed changes elapsed simulation time, not game rules.
+- Simulation time is authoritative; rendering never awards resources.
+- A move accepts exactly one currently available card.
+- Unchosen cards persist and one eligible new option restores the next pool to three cards.
+- Prerequisite chains cannot be offered before their dependency is built.
+- Population at civic level `n` is `1 + n(n+1)/2`.
+- Civic level equals completed moves and reaches Level 8 on the final move.
+- The final state stops new decisions; selected buildings, villagers, and production remain active.
 
-## Production roadmap
+## Next production work
 
-1. Extract the remaining Three.js presentation code into scene systems.
-2. Add automated simulation tests and save-state serialization.
-3. Approve the mechanics and identities of Moves 2–7.
-4. Implement an eight-move playthrough using placeholder presentation assets.
-5. Replace placeholders with final art one approved building at a time.
-6. Add camera navigation, sound, balancing tools, performance budgets, and release packaging.
+1. Add save-state serialization and deterministic automated simulation tests.
+2. Add building-specific jobs and worker animation beyond the Woodcutter.
+3. Balance offer priority, production rates, and dependency bonuses through playtesting.
+4. Add camera navigation, sound, accessibility settings, and performance budgets.

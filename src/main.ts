@@ -19,6 +19,7 @@ type ConstructionStage = "foundation" | "frame" | "late" | "complete";
 interface SheetClip { texture: THREE.Texture; fps: number; frames: number; }
 interface SpriteAsset { texture: THREE.Texture; aspect: number; }
 interface CropSpec { image: [number, number]; bbox: [number, number, number, number]; height: number; }
+interface Villager { sprite: THREE.Sprite; texture: THREE.Texture; phase: number; speed: number; }
 
 function requireElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -106,6 +107,11 @@ function setSheetFrame(clip: SheetClip, frame: number): void {
   clip.texture.offset.set((normalized % 4) * 0.25, Math.floor(normalized / 4) === 0 ? 0.5 : 0);
 }
 
+function setTextureFrame(texture: THREE.Texture, frame: number): void {
+  const normalized = ((frame % 8) + 8) % 8;
+  texture.offset.set((normalized % 4) * 0.25, Math.floor(normalized / 4) === 0 ? 0.5 : 0);
+}
+
 function createIsoGrid(): THREE.Group {
   const group = new THREE.Group();
   const positions: number[] = [];
@@ -123,10 +129,12 @@ function createIsoGrid(): THREE.Group {
   return group;
 }
 
-const civicGround = new THREE.Vector2(-6.8, -2.7);
+const civicGround = new THREE.Vector2(-3.8, -0.4);
 const buildingPlots = [
-  new THREE.Vector2(-0.7, -1.8), new THREE.Vector2(4.1, -3.7), new THREE.Vector2(7.5, 0.1), new THREE.Vector2(4.5, 4.2),
-  new THREE.Vector2(-0.4, 5.6), new THREE.Vector2(-5.2, 3.4), new THREE.Vector2(-9.2, 1.0), new THREE.Vector2(-2.9, -5.8),
+  new THREE.Vector2(0.5, -1.8), new THREE.Vector2(4.8, -3.8), new THREE.Vector2(8.7, -1.7), new THREE.Vector2(10.5, 2.0),
+  new THREE.Vector2(7.4, 5.4), new THREE.Vector2(2.9, 7.2), new THREE.Vector2(-2.1, 7.0), new THREE.Vector2(-6.8, 5.1),
+  new THREE.Vector2(-10.1, 2.2), new THREE.Vector2(-10.7, -2.3), new THREE.Vector2(-7.6, -5.5), new THREE.Vector2(-3.0, -6.5),
+  new THREE.Vector2(1.8, -6.4), new THREE.Vector2(7.0, -6.0), new THREE.Vector2(12.1, 0.0),
 ];
 const treeGround = new THREE.Vector2(10.8, 4.5);
 const workerFootOffset = 0.95;
@@ -145,6 +153,7 @@ const civicSprites: THREE.Sprite[] = [];
 const plotSprites = new Map<number, Record<ConstructionStage, THREE.Sprite>>();
 const plotBuildingIds = new Map<number, string>();
 const productionPulseUntil = new Map<string, number>();
+const villagers: Villager[] = [];
 let treeSprite: THREE.Sprite;
 
 const workerMaterial = new THREE.SpriteMaterial({ transparent: true, depthTest: false });
@@ -205,9 +214,47 @@ function frameFor(name: AnimatedClipName, direction: Direction, elapsed: number)
   return clip ? Math.floor(elapsed * clip.fps) % clip.frames : 0;
 }
 
+function createVillager(index: number): Villager {
+  const walk = clips.get("walk:southeast")!;
+  const texture = walk.texture.clone();
+  texture.needsUpdate = true;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
+  const scale = 1.05 + (index % 4) * 0.045;
+  sprite.scale.set(scale, scale, 1);
+  sprite.renderOrder = 40 + index;
+  scene.add(sprite);
+  return { sprite, texture, phase: (index * 0.61803398875) % 1, speed: 0.055 + (index % 7) * 0.006 };
+}
+
+function syncVillagers(targetPopulation: number): void {
+  while (villagers.length < targetPopulation) villagers.push(createVillager(villagers.length));
+  villagers.forEach((villager, index) => { villager.sprite.visible = index < targetPopulation; });
+}
+
+function renderVillagers(): void {
+  const destinations = [civicGround, ...buildingPlots.slice(0, simulation.state.builtBuildingIds.length)];
+  for (let index = 0; index < villagers.length; index += 1) {
+    const villager = villagers[index];
+    if (!villager.sprite.visible) continue;
+    const origin = destinations[index % destinations.length];
+    const angle = (index / Math.max(1, villagers.length)) * Math.PI * 2;
+    const fallback = new THREE.Vector2(civicGround.x + Math.cos(angle) * 3.4, civicGround.y + Math.sin(angle) * 2.1);
+    const destination = destinations.length > 1 ? destinations[(index * 5 + 1) % destinations.length] : fallback;
+    const rawProgress = (animationElapsed * villager.speed + villager.phase) % 1;
+    const progress = 0.5 - Math.cos(rawProgress * Math.PI * 2) * 0.5;
+    const lane = ((index % 5) - 2) * 0.16;
+    const x = THREE.MathUtils.lerp(origin.x, destination.x, progress);
+    const y = THREE.MathUtils.lerp(origin.y, destination.y, progress) + lane;
+    villager.sprite.position.set(x, y + 0.55, 2.4);
+    const movingRight = destination.x >= origin.x ? rawProgress < 0.5 : rawProgress >= 0.5;
+    villager.sprite.scale.x = Math.abs(villager.sprite.scale.x) * (movingRight ? 1 : -1);
+    setTextureFrame(villager.texture, Math.floor(animationElapsed * (7.5 + (index % 4)) + index));
+  }
+}
+
 function setCivicLevel(level: number): void {
   civicSprites.forEach((sprite, index) => { sprite.visible = index === level; });
-  civicLabel.textContent = `${level} / ${TOTAL_MOVES}`;
+  civicLabel.textContent = `${level} / ${TOTAL_SETTLEMENT_LEVELS - 1}`;
   levelTrackLabel.textContent = `LEVEL ${level} · ${CIVIC_LEVEL_NAMES[level].toUpperCase()}`;
   [...levelPips.children].forEach((pip, index) => pip.classList.toggle("active", index <= level));
 }
@@ -248,7 +295,7 @@ function showMilestone(title: string, copy: string, final = false): void {
   milestoneTitle.textContent = title;
   milestoneCopy.textContent = copy;
   milestone.classList.add("visible");
-  milestoneUntil = final ? Number.POSITIVE_INFINITY : animationElapsed + 3.5;
+  milestoneUntil = animationElapsed + (final ? 6 : 3.5);
 }
 
 function renderBuildPanel(): void {
@@ -265,7 +312,9 @@ function renderBuildPanel(): void {
     buildOptions.appendChild(button);
   }
   buildPanel.classList.remove("hidden");
-  setStatus(`Move ${simulation.state.move} ready — choose one of three buildings`, 0);
+  const optionCount = simulation.state.availableBuildingIds.length;
+  const choiceCopy = optionCount === 1 ? "build the final remaining district" : `choose one of ${optionCount} buildings`;
+  setStatus(`Move ${simulation.state.move} ready — ${choiceCopy}`, 0);
 }
 
 function beginConstruction(buildingId: string): void {
@@ -327,7 +376,7 @@ function renderWoodcutterActivity(): void {
   const home = buildingPlots[plotIndex];
   const cycleDuration = HARVEST_PHASES.reduce((sum, phase) => sum + phase.duration, 0);
   let cursor = animationElapsed % cycleDuration;
-  let phase = HARVEST_PHASES[0];
+  let phase: (typeof HARVEST_PHASES)[number] = HARVEST_PHASES[0];
   for (const candidate of HARVEST_PHASES) {
     if (cursor <= candidate.duration) { phase = candidate; break; }
     cursor -= candidate.duration;
@@ -357,7 +406,11 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
     if (event.type === "construction-complete") {
       placementPad.visible = false;
       showPlotStage(event.plotIndex, "complete");
-      showMilestone(BUILDINGS[event.buildingId].name, `Completed on Move ${simulation.state.civicLevel}. The civic center also advanced.`);
+      const completedMove = event.plotIndex + 1;
+      const copy = completedMove <= 8
+        ? `Completed on Move ${completedMove}. The civic center also advanced.`
+        : `Completed on Move ${completedMove}. The Grand Town Hall now anchors the expanding city.`;
+      showMilestone(BUILDINGS[event.buildingId].name, copy);
     } else if (event.type === "civic-upgraded") {
       setCivicLevel(event.level);
     } else if (event.type === "choices-ready") {
@@ -367,11 +420,12 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       productionPulseUntil.set(event.buildingId, animationElapsed + 0.8);
     } else if (event.type === "population-changed") {
       populationLabel.textContent = String(event.total);
+      syncVillagers(event.total);
     } else if (event.type === "game-complete") {
       worker.visible = false;
       buildPanel.classList.add("hidden");
-      showMilestone("Grand Town Hall complete", "Eight decisions shaped a working town. Every chosen industry continues producing.", true);
-      setStatus("The settlement has become a town", 1);
+      showMilestone("Opening city established", "Eight chosen districts surround the Grand Town Hall. The seven unbuilt districts remain possibilities for another city.", true);
+      setStatus("Eight chosen city buildings are operating", 1);
     }
   }
   updateHud();
@@ -404,6 +458,7 @@ function resetSettlement(): void {
   milestone.classList.remove("visible");
   setCivicLevel(0);
   updateHud();
+  syncVillagers(simulation.state.population);
   worker.visible = true;
   placeWorker(civicGround);
   useClip("walk", "southeast", 0);
@@ -415,7 +470,7 @@ function resize(): void {
   const height = viewport.clientHeight;
   renderer.setSize(width, height, false);
   const aspect = width / Math.max(height, 1);
-  const viewHeight = 35;
+  const viewHeight = 40;
   camera.left = (-viewHeight * aspect) / 2;
   camera.right = (viewHeight * aspect) / 2;
   camera.top = viewHeight / 2;
@@ -481,6 +536,7 @@ renderer.setAnimationLoop((timestamp) => {
     handleSimulationEvents(simulation.update(delta * speed));
     if (simulation.state.mode === "construction") renderConstruction();
     else if (simulation.state.mode !== "complete") renderWoodcutterActivity();
+    renderVillagers();
     if (milestone.classList.contains("visible") && animationElapsed >= milestoneUntil) milestone.classList.remove("visible");
     renderProductionPulses();
   }
