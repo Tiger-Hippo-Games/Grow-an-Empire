@@ -1,5 +1,7 @@
 # Grow an Empire
 
+The current vertical slice now begins with a real three-card decision: Woodcutter, Farm, or Swine Farm. Each has four construction stages and starts its own automatic resource loop after completion. See `Docs/BUILD_ORDER_CONTENT.md` for the rolling choice pool and proposed eight-move opening.
+
 An HTML5/Three.js vertical slice for the opening settlement decision. The current prototype demonstrates:
 
 - a persistent campsite as the Move 0 settlement core;

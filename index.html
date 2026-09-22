@@ -22,6 +22,8 @@
         <div class="metrics" aria-label="Settlement metrics">
           <div><span>Move</span><strong id="move">1</strong></div>
           <div><span>Wood</span><strong id="wood">0</strong></div>
+          <div><span>Grain</span><strong id="grain">0</strong></div>
+          <div><span>Food</span><strong id="food">0</strong></div>
           <div><span>People</span><strong id="population">2</strong></div>
         </div>
       </section>
@@ -32,15 +34,7 @@
         <div class="move-chip">MOVE 1 OF 8</div>
         <p class="decision-kicker">First expansion</p>
         <h2 id="build-title">Choose the settlement’s first industry</h2>
-        <button id="build-woodcutter" class="build-card" type="button">
-          <img id="build-card-art" alt="Woodcutter lodge" />
-          <span class="build-copy">
-            <span class="build-name">Woodcutter</span>
-            <span class="build-description">Establishes a renewable timber supply.</span>
-            <span class="build-benefit"><b>Unlocks</b> automatic wood production</span>
-          </span>
-          <span class="build-cta">Build</span>
-        </button>
+        <div id="build-options" class="build-options" role="list"></div>
       </aside>
 
       <aside id="milestone" class="milestone" aria-live="polite">

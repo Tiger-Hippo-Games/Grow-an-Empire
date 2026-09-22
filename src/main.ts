@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { OPENING_BUILD_ID } from "./game/content";
+import { BUILDINGS, OPENING_BUILD_OPTIONS } from "./game/content";
 import { SettlementSimulation, type SimulationEvent } from "./game/settlementSimulation";
 import { assetUrl } from "./render/assetCatalog";
 import "./styles.css";
@@ -31,9 +31,10 @@ const phaseLabel = requireElement<HTMLElement>("#phase");
 const progressFill = requireElement<HTMLElement>("#phase-progress");
 const moveLabel = requireElement<HTMLElement>("#move");
 const woodLabel = requireElement<HTMLElement>("#wood");
+const grainLabel = requireElement<HTMLElement>("#grain");
+const foodLabel = requireElement<HTMLElement>("#food");
 const buildPanel = requireElement<HTMLElement>("#build-panel");
-const buildButton = requireElement<HTMLButtonElement>("#build-woodcutter");
-const buildArt = requireElement<HTMLImageElement>("#build-card-art");
+const buildOptions = requireElement<HTMLElement>("#build-options");
 const milestone = requireElement<HTMLElement>("#milestone");
 const playToggle = requireElement<HTMLButtonElement>("#play-toggle");
 const restartButton = requireElement<HTMLButtonElement>("#restart");
@@ -125,7 +126,7 @@ scene.add(placementPad);
 
 const clips = new Map<string, SheetClip>();
 const treeSprites: Record<string, THREE.Sprite> = {};
-const buildingSprites: Record<string, THREE.Sprite> = {};
+const buildingSprites: Record<string, Record<string, THREE.Sprite>> = {};
 const stockpileSprites: THREE.Sprite[] = [];
 let campsiteSprite: THREE.Sprite;
 
@@ -162,8 +163,10 @@ function showOnlyTree(name: string): void {
   for (const [key, sprite] of Object.entries(treeSprites)) sprite.visible = key === name;
 }
 
-function showWoodcutterBuilding(name: string | null): void {
-  for (const [key, sprite] of Object.entries(buildingSprites)) sprite.visible = key === name;
+function showBuilding(buildingId: string | null, stage: string | null): void {
+  for (const [id, stages] of Object.entries(buildingSprites)) {
+    for (const [key, sprite] of Object.entries(stages)) sprite.visible = id === buildingId && key === stage;
+  }
 }
 
 function showStockpile(level: number | null): void {
@@ -184,44 +187,47 @@ function frameFor(name: AnimatedClipName, direction: Direction, elapsed: number)
   return Math.floor(elapsed * clip.fps) % clip.frames;
 }
 
-function beginConstruction(): void {
-  if (simulation.chooseBuilding(OPENING_BUILD_ID).length === 0) return;
+function beginConstruction(buildingId: string): void {
+  if (simulation.chooseBuilding(buildingId).length === 0) return;
+  const building = BUILDINGS[buildingId];
   buildPanel.classList.add("hidden");
   milestone.classList.remove("visible");
   placementPad.visible = true;
   worker.visible = true;
   placeWorker(workerHome);
-  showWoodcutterBuilding("foundation");
+  showBuilding(buildingId, "foundation");
   useClip("walk", "southeast", 0);
-  setStatus("Woodcutter approved — builders mobilizing", 0);
+  setStatus(`${building.name} approved — builders mobilizing`, 0);
 }
 
 function renderConstruction(): void {
   const elapsed = simulation.state.constructionElapsed;
   const progress = simulation.constructionProgress;
+  const buildingId = simulation.state.selectedBuildingId!;
+  const buildingName = BUILDINGS[buildingId].name;
   placementMaterial.opacity = 0.13 + Math.sin(elapsed * 5) * 0.05;
 
   if (progress < 0.22) {
-    setStatus("Surveying the Woodcutter site", progress);
+    setStatus(`Surveying the ${buildingName} site`, progress);
     moveWorker(workerHome, builderPosition, progress / 0.22);
     useClip("walk", "southeast", frameFor("walk", "southeast", elapsed));
-    showWoodcutterBuilding("foundation");
+    showBuilding(buildingId, "foundation");
   } else if (progress < 0.48) {
-    setStatus("Laying the Woodcutter foundation", progress);
+    setStatus(`Laying the ${buildingName} foundation`, progress);
     placeWorker(builderPosition);
     useClip("chop", "southwest", frameFor("chop", "southwest", elapsed));
-    showWoodcutterBuilding("foundation");
+    showBuilding(buildingId, "foundation");
   } else if (progress < 0.74) {
     setStatus("Raising the timber frame", progress);
     useClip("chop", "southwest", frameFor("chop", "southwest", elapsed));
-    showWoodcutterBuilding("frame");
+    showBuilding(buildingId, "frame");
   } else if (progress < 0.92) {
-    setStatus("Finishing the Woodcutter lodge", progress);
+    setStatus(`Finishing the ${buildingName}`, progress);
     useClip("chop", "southwest", frameFor("chop", "southwest", elapsed));
-    showWoodcutterBuilding("late");
+    showBuilding(buildingId, "late");
   } else {
-    setStatus("Assigning the settlement’s first woodcutter", progress);
-    showWoodcutterBuilding("complete");
+    setStatus(`Opening the new ${buildingName}`, progress);
+    showBuilding(buildingId, "complete");
   }
 
 }
@@ -286,21 +292,28 @@ function renderHarvest(): void {
 
 }
 
-function finishConstruction(): void {
+function finishConstruction(buildingId: string): void {
   moveLabel.textContent = String(simulation.state.move);
   placementPad.visible = false;
-  showWoodcutterBuilding("complete");
-  showStockpile(1);
+  showBuilding(buildingId, "complete");
+  showStockpile(buildingId === "woodcutter" ? 1 : null);
+  milestone.querySelector("strong")!.textContent = `${BUILDINGS[buildingId].name} established`;
+  milestone.querySelector("p")!.textContent = "The two unchosen cards will carry into Move 2, where Bakery joins the build order.";
   milestone.classList.add("visible");
-  enterHarvestPhase();
+  if (buildingId === "woodcutter") enterHarvestPhase();
+  else {
+    worker.visible = false;
+    setStatus(`${BUILDINGS[buildingId].name} producing automatically`, 0);
+  }
 }
 
 function handleSimulationEvents(events: SimulationEvent[]): void {
   for (const event of events) {
-    if (event.type === "construction-complete") finishConstruction();
-    else if (event.type === "wood-produced") {
-      woodLabel.textContent = String(event.total);
-      showStockpile(Math.min(4, event.total + 1));
+    if (event.type === "construction-complete") finishConstruction(event.buildingId);
+    else if (event.type === "resource-produced") {
+      const label = event.resource === "wood" ? woodLabel : event.resource === "grain" ? grainLabel : foodLabel;
+      label.textContent = String(event.total);
+      if (event.resource === "wood") showStockpile(Math.min(4, event.total + 1));
     }
   }
 }
@@ -312,10 +325,12 @@ function resetSettlement(): void {
   playToggle.textContent = "Pause";
   moveLabel.textContent = String(simulation.state.move);
   woodLabel.textContent = String(simulation.state.wood);
+  grainLabel.textContent = String(simulation.state.grain);
+  foodLabel.textContent = String(simulation.state.food);
   buildPanel.classList.remove("hidden");
   milestone.classList.remove("visible");
   placementPad.visible = false;
-  showWoodcutterBuilding(null);
+  showBuilding(null, null);
   showStockpile(null);
   showOnlyTree("healthy");
   worker.visible = true;
@@ -350,19 +365,36 @@ async function initialize(): Promise<void> {
   campsiteSprite.renderOrder = 4;
   scene.add(campsiteSprite);
 
-  const buildingSpecs: Record<string, [string, CropSpec]> = {
-    foundation: ["woodcutter-construction-01-foundation-2x-v1.png", { image: [768, 640], bbox: [93, 165, 674, 635], height: 2.45 }],
-    frame: ["woodcutter-construction-02-frame-2x-v1.png", { image: [768, 640], bbox: [131, 151, 691, 602], height: 2.75 }],
-    late: ["woodcutter-construction-03-late-2x-v1.png", { image: [768, 640], bbox: [124, 148, 676, 616], height: 2.95 }],
-    complete: ["woodcutter-level-1-2x-v1.png", { image: [768, 640], bbox: [112, 149, 655, 610], height: 3.05 }],
+  const buildingSpecs: Record<string, Record<string, [string, CropSpec]>> = {
+    woodcutter: {
+      foundation: ["woodcutter-construction-01-foundation-2x-v1.png", { image: [768, 640], bbox: [93, 165, 674, 635], height: 2.45 }],
+      frame: ["woodcutter-construction-02-frame-2x-v1.png", { image: [768, 640], bbox: [131, 151, 691, 602], height: 2.75 }],
+      late: ["woodcutter-construction-03-late-2x-v1.png", { image: [768, 640], bbox: [124, 148, 676, 616], height: 2.95 }],
+      complete: ["woodcutter-level-1-2x-v1.png", { image: [768, 640], bbox: [112, 149, 655, 610], height: 3.05 }],
+    },
+    farm: {
+      foundation: ["farm-construction-01-foundation-2x-v1.png", { image: [768, 512], bbox: [90, 114, 726, 512], height: 2.45 }],
+      frame: ["farm-construction-02-frame-2x-v1.png", { image: [768, 512], bbox: [24, 20, 692, 512], height: 2.8 }],
+      late: ["farm-construction-03-late-2x-v1.png", { image: [768, 512], bbox: [90, 0, 754, 456], height: 3.0 }],
+      complete: ["farm-level-1-2x-v1.png", { image: [768, 512], bbox: [28, 0, 712, 468], height: 3.15 }],
+    },
+    "swine-farm": {
+      foundation: ["swine-farm-construction-01-foundation-2x-v1.png", { image: [768, 512], bbox: [60, 72, 714, 512], height: 2.45 }],
+      frame: ["swine-farm-construction-02-frame-2x-v1.png", { image: [768, 512], bbox: [56, 32, 712, 512], height: 2.8 }],
+      late: ["swine-farm-construction-03-late-2x-v1.png", { image: [768, 512], bbox: [58, 0, 720, 462], height: 3.0 }],
+      complete: ["swine-farm-level-1-2x-v1.png", { image: [768, 512], bbox: [52, 0, 720, 462], height: 3.15 }],
+    },
   };
-  for (const [name, [filename, crop]] of Object.entries(buildingSpecs)) {
-    const sprite = await loadCroppedSprite(filename, crop);
-    sprite.position.set(buildingGround.x, buildingGround.y + sprite.scale.y / 2, 1.5);
-    sprite.renderOrder = 6;
-    sprite.visible = false;
-    buildingSprites[name] = sprite;
-    scene.add(sprite);
+  for (const [buildingId, stages] of Object.entries(buildingSpecs)) {
+    buildingSprites[buildingId] = {};
+    for (const [stage, [filename, crop]] of Object.entries(stages)) {
+      const sprite = await loadCroppedSprite(filename, crop);
+      sprite.position.set(buildingGround.x, buildingGround.y + sprite.scale.y / 2, 1.5);
+      sprite.renderOrder = 6;
+      sprite.visible = false;
+      buildingSprites[buildingId][stage] = sprite;
+      scene.add(sprite);
+    }
   }
 
   const treeSpecs: Record<string, [string, CropSpec]> = {
@@ -394,13 +426,25 @@ async function initialize(): Promise<void> {
     scene.add(sprite);
   }
 
-  buildArt.src = assetUrl("woodcutter-level-1-2x-v1.png");
+  const cardArt: Record<string, string> = {
+    woodcutter: "woodcutter-level-1-2x-v1.png",
+    farm: "farm-level-1-2x-v1.png",
+    "swine-farm": "swine-farm-level-1-2x-v1.png",
+  };
+  for (const buildingId of OPENING_BUILD_OPTIONS) {
+    const building = BUILDINGS[buildingId];
+    const button = document.createElement("button");
+    button.className = "build-card";
+    button.type = "button";
+    button.innerHTML = `<img src="${assetUrl(cardArt[buildingId])}" alt="${building.name}" /><span class="build-copy"><span class="build-name">${building.name}</span><span class="build-description">${building.description}</span><span class="build-benefit"><b>Unlocks</b> ${building.benefit}</span></span><span class="build-cta">Build</span>`;
+    button.addEventListener("click", () => beginConstruction(buildingId));
+    buildOptions.appendChild(button);
+  }
   resetSettlement();
   resize();
   loading.classList.add("hidden");
 }
 
-buildButton.addEventListener("click", beginConstruction);
 playToggle.addEventListener("click", () => {
   playing = !playing;
   playToggle.textContent = playing ? "Pause" : "Play";
@@ -424,6 +468,9 @@ renderer.setAnimationLoop((timestamp) => {
     else if (simulation.state.mode === "harvesting") {
       if (renderedHarvestPhaseIndex !== simulation.state.harvestPhaseIndex) enterHarvestPhase();
       renderHarvest();
+    } else if (simulation.state.mode === "operating") {
+      const resource = simulation.state.selectedBuildingId === "farm" ? "grain" : "food";
+      setStatus(`${BUILDINGS[simulation.state.selectedBuildingId!].name} producing ${resource} automatically`, simulation.state.productionElapsed / 8);
     }
   }
   renderer.render(scene, camera);

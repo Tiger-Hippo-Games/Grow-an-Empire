@@ -1,27 +1,30 @@
 import {
   CONSTRUCTION_DURATION_SECONDS,
   HARVEST_PHASES,
-  OPENING_BUILD_ID,
+  OPENING_BUILD_OPTIONS,
   type HarvestPhaseDefinition,
 } from "./content";
 
-export type SimulationMode = "awaiting-choice" | "construction" | "harvesting";
+export type SimulationMode = "awaiting-choice" | "construction" | "harvesting" | "operating";
 
 export type SimulationEvent =
   | { type: "construction-started"; buildingId: string }
   | { type: "construction-complete"; buildingId: string }
   | { type: "harvest-phase-changed"; phase: HarvestPhaseDefinition }
-  | { type: "wood-produced"; total: number };
+  | { type: "resource-produced"; resource: "wood" | "grain" | "food"; total: number };
 
 export interface SettlementState {
   mode: SimulationMode;
   move: number;
   wood: number;
+  grain: number;
+  food: number;
   population: number;
   selectedBuildingId: string | null;
   constructionElapsed: number;
   harvestPhaseIndex: number;
   harvestElapsed: number;
+  productionElapsed: number;
 }
 
 export class SettlementSimulation {
@@ -29,11 +32,14 @@ export class SettlementSimulation {
     mode: "awaiting-choice",
     move: 1,
     wood: 0,
+    grain: 0,
+    food: 0,
     population: 2,
     selectedBuildingId: null,
     constructionElapsed: 0,
     harvestPhaseIndex: 0,
     harvestElapsed: 0,
+    productionElapsed: 0,
   };
 
   get constructionProgress(): number {
@@ -49,7 +55,7 @@ export class SettlementSimulation {
   }
 
   chooseBuilding(buildingId: string): SimulationEvent[] {
-    if (this.state.mode !== "awaiting-choice" || buildingId !== OPENING_BUILD_ID) return [];
+    if (this.state.mode !== "awaiting-choice" || !OPENING_BUILD_OPTIONS.includes(buildingId as typeof OPENING_BUILD_OPTIONS[number])) return [];
     this.state.mode = "construction";
     this.state.selectedBuildingId = buildingId;
     this.state.constructionElapsed = 0;
@@ -61,11 +67,14 @@ export class SettlementSimulation {
       mode: "awaiting-choice",
       move: 1,
       wood: 0,
+      grain: 0,
+      food: 0,
       population: 2,
       selectedBuildingId: null,
       constructionElapsed: 0,
       harvestPhaseIndex: 0,
       harvestElapsed: 0,
+      productionElapsed: 0,
     });
   }
 
@@ -80,12 +89,13 @@ export class SettlementSimulation {
       this.state.constructionElapsed += consumed;
       remaining -= consumed;
       if (this.state.constructionElapsed >= CONSTRUCTION_DURATION_SECONDS) {
-        this.state.mode = "harvesting";
+        const completedBuildingId = this.state.selectedBuildingId!;
+        this.state.mode = completedBuildingId === "woodcutter" ? "harvesting" : "operating";
         this.state.move = 2;
         this.state.harvestPhaseIndex = 0;
         this.state.harvestElapsed = 0;
-        events.push({ type: "construction-complete", buildingId: OPENING_BUILD_ID });
-        events.push({ type: "harvest-phase-changed", phase: this.harvestPhase });
+        events.push({ type: "construction-complete", buildingId: completedBuildingId });
+        if (this.state.mode === "harvesting") events.push({ type: "harvest-phase-changed", phase: this.harvestPhase });
       }
     }
 
@@ -99,9 +109,19 @@ export class SettlementSimulation {
         this.state.harvestPhaseIndex = (this.state.harvestPhaseIndex + 1) % HARVEST_PHASES.length;
         if (this.harvestPhase.name === "stockpile") {
           this.state.wood += 1;
-          events.push({ type: "wood-produced", total: this.state.wood });
+          events.push({ type: "resource-produced", resource: "wood", total: this.state.wood });
         }
         events.push({ type: "harvest-phase-changed", phase: this.harvestPhase });
+      }
+    }
+
+    if (remaining > 0 && this.state.mode === "operating") {
+      this.state.productionElapsed += remaining;
+      while (this.state.productionElapsed >= 8) {
+        this.state.productionElapsed -= 8;
+        const resource = this.state.selectedBuildingId === "farm" ? "grain" : "food";
+        this.state[resource] += 1;
+        events.push({ type: "resource-produced", resource, total: this.state[resource] });
       }
     }
 

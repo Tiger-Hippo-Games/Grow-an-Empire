@@ -5,6 +5,8 @@ const importedAssets = import.meta.glob<string>(
     "../../Assets/Art/Production/Props/LogStockpile01/Runtime2x/log-stockpile-01-state-*.png",
     "../../Assets/Art/Production/Buildings/Woodcutter/Runtime2x/*.png",
     "../../Assets/Art/Production/Buildings/Campsite/Runtime2x/*.png",
+    "../../Assets/Art/Production/Buildings/Farm/Runtime2x/*.png",
+    "../../Assets/Art/Production/Buildings/SwineFarm/Runtime2x/*.png",
   ],
   { eager: true, query: "?url", import: "default" },
 );
