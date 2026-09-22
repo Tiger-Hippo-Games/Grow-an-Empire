@@ -1,21 +1,16 @@
 import * as THREE from "three";
+import { OPENING_BUILD_ID } from "./game/content";
+import { SettlementSimulation, type SimulationEvent } from "./game/settlementSimulation";
+import { assetUrl } from "./render/assetCatalog";
 import "./styles.css";
 
 type Direction = "southeast" | "southwest";
 type AnimatedClipName = "walk" | "chop" | "pickup" | "carry";
-type GameStage = "awaiting-choice" | "construction" | "harvesting";
-type HarvestPhaseName = "travel" | "chop" | "fall" | "pickup" | "carry" | "deliver" | "stockpile";
 
 interface SheetClip {
   texture: THREE.Texture;
   fps: number;
   frames: number;
-}
-
-interface HarvestPhase {
-  name: HarvestPhaseName;
-  label: string;
-  duration: number;
 }
 
 interface CropSpec {
@@ -45,23 +40,6 @@ const restartButton = requireElement<HTMLButtonElement>("#restart");
 const speedInput = requireElement<HTMLInputElement>("#speed");
 const speedValue = requireElement<HTMLOutputElement>("#speed-value");
 const gridToggle = requireElement<HTMLInputElement>("#grid-toggle");
-
-const importedAssets = import.meta.glob<string>(
-  [
-    "../Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/*.png",
-    "../Assets/Art/Production/Environment/Trees/Deciduous01/Runtime2x/*.png",
-    "../Assets/Art/Production/Props/LogStockpile01/Runtime2x/log-stockpile-01-state-*.png",
-    "../Assets/Art/Production/Buildings/Woodcutter/Runtime2x/*.png",
-    "../Assets/Art/Production/Buildings/Campsite/Runtime2x/*.png",
-  ],
-  { eager: true, query: "?url", import: "default" },
-);
-
-function assetUrl(filename: string): string {
-  const match = Object.entries(importedAssets).find(([path]) => path.endsWith(filename));
-  if (!match) throw new Error(`Bundled asset not found: ${filename}`);
-  return match[1];
-}
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -158,22 +136,8 @@ worker.position.set(workerHome.x, workerHome.y + workerFootOffset, 3);
 worker.renderOrder = 20;
 scene.add(worker);
 
-const harvestPhases: HarvestPhase[] = [
-  { name: "travel", label: "Woodcutter walking to the forest", duration: 2.4 },
-  { name: "chop", label: "Woodcutter harvesting timber", duration: 2.4 },
-  { name: "fall", label: "Tree falling", duration: 1.05 },
-  { name: "pickup", label: "Collecting the felled log", duration: 0.9 },
-  { name: "carry", label: "Carrying timber to the lodge", duration: 2.5 },
-  { name: "deliver", label: "Delivering timber", duration: 0.8 },
-  { name: "stockpile", label: "Wood added to settlement stores", duration: 0.75 },
-];
-
-let gameStage: GameStage = "awaiting-choice";
-let constructionElapsed = 0;
-const constructionDuration = 12;
-let harvestPhaseIndex = 0;
-let harvestElapsed = 0;
-let wood = 0;
+const simulation = new SettlementSimulation();
+let renderedHarvestPhaseIndex = -1;
 let playing = true;
 let speed = 1;
 
@@ -221,9 +185,7 @@ function frameFor(name: AnimatedClipName, direction: Direction, elapsed: number)
 }
 
 function beginConstruction(): void {
-  if (gameStage !== "awaiting-choice") return;
-  gameStage = "construction";
-  constructionElapsed = 0;
+  if (simulation.chooseBuilding(OPENING_BUILD_ID).length === 0) return;
   buildPanel.classList.add("hidden");
   milestone.classList.remove("visible");
   placementPad.visible = true;
@@ -234,39 +196,39 @@ function beginConstruction(): void {
   setStatus("Woodcutter approved — builders mobilizing", 0);
 }
 
-function updateConstruction(delta: number): void {
-  constructionElapsed += delta * speed;
-  const progress = THREE.MathUtils.clamp(constructionElapsed / constructionDuration, 0, 1);
-  placementMaterial.opacity = 0.13 + Math.sin(constructionElapsed * 5) * 0.05;
+function renderConstruction(): void {
+  const elapsed = simulation.state.constructionElapsed;
+  const progress = simulation.constructionProgress;
+  placementMaterial.opacity = 0.13 + Math.sin(elapsed * 5) * 0.05;
 
   if (progress < 0.22) {
     setStatus("Surveying the Woodcutter site", progress);
     moveWorker(workerHome, builderPosition, progress / 0.22);
-    useClip("walk", "southeast", frameFor("walk", "southeast", constructionElapsed));
+    useClip("walk", "southeast", frameFor("walk", "southeast", elapsed));
     showWoodcutterBuilding("foundation");
   } else if (progress < 0.48) {
     setStatus("Laying the Woodcutter foundation", progress);
     placeWorker(builderPosition);
-    useClip("chop", "southwest", frameFor("chop", "southwest", constructionElapsed));
+    useClip("chop", "southwest", frameFor("chop", "southwest", elapsed));
     showWoodcutterBuilding("foundation");
   } else if (progress < 0.74) {
     setStatus("Raising the timber frame", progress);
-    useClip("chop", "southwest", frameFor("chop", "southwest", constructionElapsed));
+    useClip("chop", "southwest", frameFor("chop", "southwest", elapsed));
     showWoodcutterBuilding("frame");
   } else if (progress < 0.92) {
     setStatus("Finishing the Woodcutter lodge", progress);
-    useClip("chop", "southwest", frameFor("chop", "southwest", constructionElapsed));
+    useClip("chop", "southwest", frameFor("chop", "southwest", elapsed));
     showWoodcutterBuilding("late");
   } else {
     setStatus("Assigning the settlement’s first woodcutter", progress);
     showWoodcutterBuilding("complete");
   }
 
-  if (progress >= 1) finishConstruction();
 }
 
 function enterHarvestPhase(): void {
-  const phase = harvestPhases[harvestPhaseIndex];
+  const phase = simulation.harvestPhase;
+  renderedHarvestPhaseIndex = simulation.state.harvestPhaseIndex;
   phaseLabel.textContent = phase.label;
   if (phase.name === "travel") {
     showOnlyTree("healthy");
@@ -291,30 +253,23 @@ function enterHarvestPhase(): void {
     placeWorker(builderPosition);
     useClip("pickup", "southwest", 7);
   } else {
-    wood += 1;
-    woodLabel.textContent = String(wood);
-    showStockpile(Math.min(4, wood + 1));
+    woodLabel.textContent = String(simulation.state.wood);
+    showStockpile(Math.min(4, simulation.state.wood + 1));
     worker.visible = true;
   }
 }
 
-function advanceHarvestPhase(): void {
-  harvestElapsed = 0;
-  harvestPhaseIndex = (harvestPhaseIndex + 1) % harvestPhases.length;
-  enterHarvestPhase();
-}
-
-function updateHarvest(delta: number): void {
-  harvestElapsed += delta * speed;
-  const phase = harvestPhases[harvestPhaseIndex];
-  const progress = THREE.MathUtils.clamp(harvestElapsed / phase.duration, 0, 1);
+function renderHarvest(): void {
+  const phase = simulation.harvestPhase;
+  const elapsed = simulation.state.harvestElapsed;
+  const progress = simulation.harvestProgress;
   setStatus(phase.label, progress);
 
   if (phase.name === "travel") {
     moveWorker(builderPosition, treeWorkPosition, progress);
-    useClip("walk", "southeast", frameFor("walk", "southeast", harvestElapsed));
+    useClip("walk", "southeast", frameFor("walk", "southeast", elapsed));
   } else if (phase.name === "chop") {
-    useClip("chop", "southeast", frameFor("chop", "southeast", harvestElapsed));
+    useClip("chop", "southeast", frameFor("chop", "southeast", elapsed));
     if (progress > 0.32) showOnlyTree("notched");
   } else if (phase.name === "fall") {
     if (progress < 0.34) showOnlyTree("notched");
@@ -324,36 +279,39 @@ function updateHarvest(delta: number): void {
     useClip("pickup", "southeast", Math.min(7, Math.floor(progress * 8)));
   } else if (phase.name === "carry") {
     moveWorker(treeWorkPosition, builderPosition, progress);
-    useClip("carry", "southwest", frameFor("carry", "southwest", harvestElapsed));
+    useClip("carry", "southwest", frameFor("carry", "southwest", elapsed));
   } else if (phase.name === "deliver") {
     useClip("pickup", "southwest", 7 - Math.min(7, Math.floor(progress * 8)));
   }
 
-  if (harvestElapsed >= phase.duration) advanceHarvestPhase();
 }
 
 function finishConstruction(): void {
-  gameStage = "harvesting";
-  moveLabel.textContent = "2";
+  moveLabel.textContent = String(simulation.state.move);
   placementPad.visible = false;
   showWoodcutterBuilding("complete");
   showStockpile(1);
   milestone.classList.add("visible");
-  harvestPhaseIndex = 0;
-  harvestElapsed = 0;
   enterHarvestPhase();
 }
 
+function handleSimulationEvents(events: SimulationEvent[]): void {
+  for (const event of events) {
+    if (event.type === "construction-complete") finishConstruction();
+    else if (event.type === "wood-produced") {
+      woodLabel.textContent = String(event.total);
+      showStockpile(Math.min(4, event.total + 1));
+    }
+  }
+}
+
 function resetSettlement(): void {
-  gameStage = "awaiting-choice";
-  constructionElapsed = 0;
-  harvestPhaseIndex = 0;
-  harvestElapsed = 0;
-  wood = 0;
+  simulation.reset();
+  renderedHarvestPhaseIndex = -1;
   playing = true;
   playToggle.textContent = "Pause";
-  moveLabel.textContent = "1";
-  woodLabel.textContent = "0";
+  moveLabel.textContent = String(simulation.state.move);
+  woodLabel.textContent = String(simulation.state.wood);
   buildPanel.classList.remove("hidden");
   milestone.classList.remove("visible");
   placementPad.visible = false;
@@ -461,8 +419,12 @@ renderer.setAnimationLoop((timestamp) => {
   timer.update(timestamp);
   const delta = Math.min(timer.getDelta(), 0.05);
   if (playing && loading.classList.contains("hidden")) {
-    if (gameStage === "construction") updateConstruction(delta);
-    else if (gameStage === "harvesting") updateHarvest(delta);
+    handleSimulationEvents(simulation.update(delta * speed));
+    if (simulation.state.mode === "construction") renderConstruction();
+    else if (simulation.state.mode === "harvesting") {
+      if (renderedHarvestPhaseIndex !== simulation.state.harvestPhaseIndex) enterHarvestPhase();
+      renderHarvest();
+    }
   }
   renderer.render(scene, camera);
 });

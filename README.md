@@ -29,7 +29,9 @@ pnpm run build
 python Tools/ArtPipeline/validate_harvest_loop.py
 ```
 
-The Three.js settlement state machine lives in `src/main.ts`. Runtime clip and harvesting metadata is recorded in `Assets/Art/Production/Integration/woodcutter-harvest-loop-v1.json`.
+The Three.js presentation bootstrap lives in `src/main.ts`. Runtime clip and harvesting metadata is recorded in `Assets/Art/Production/Integration/woodcutter-harvest-loop-v1.json`.
+
+Production responsibilities are being separated into data-driven content (`src/game/content.ts`), a deterministic simulation (`src/game/settlementSimulation.ts`), the Three.js presentation layer (`src/main.ts`), and runtime asset discovery (`src/render/assetCatalog.ts`). See `Docs/GAME_ARCHITECTURE.md` for boundaries and invariants.
 
 Opening progression: `Campsite (Move 0) → Woodcutter (Move 1) → Move 2 unlocked`. The original campsite remains the civic core and is reserved for its Town Hall transformation on Move 8.
 
