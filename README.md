@@ -29,6 +29,7 @@ Open `http://127.0.0.1:4173/`.
 
 ```powershell
 pnpm run build
+pnpm test
 python Tools/ArtPipeline/validate_harvest_loop.py
 ```
 

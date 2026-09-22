@@ -12,7 +12,7 @@
       <section class="hud" aria-label="Settlement status">
         <div class="brand">
           <span class="eyebrow">GROW AN EMPIRE</span>
-          <h1>The First Settlement</h1>
+          <h1>Campaign 1 · The First Muster</h1>
         </div>
         <div class="status-block">
           <span class="status-label">SETTLEMENT ACTIVITY</span>
@@ -32,6 +32,7 @@
         <div id="move-chip" class="move-chip">MOVE 1 OF 8</div>
         <p class="decision-kicker">Settlement council</p>
         <h2 id="build-title">Choose the next building</h2>
+        <p class="campaign-briefing">The Ashfang Raiders arrive after Move 8. Build an army that is equipped, supplied, and defended.</p>
         <div id="build-options" class="build-options"></div>
       </aside>
 
@@ -43,9 +44,26 @@
         <p id="milestone-copy">The settlement center has advanced.</p>
       </aside>
 
+      <aside id="army-report" class="army-report hidden" aria-labelledby="army-report-title">
+        <p class="decision-kicker">CAMPAIGN 1 · ARMY MUSTER</p>
+        <div class="army-report-heading">
+          <div>
+            <h2 id="army-report-title">The First Muster</h2>
+            <strong id="army-outcome">Victory</strong>
+          </div>
+          <div class="army-score"><span>Campaign score</span><b id="army-score">0</b></div>
+        </div>
+        <p id="army-summary" class="army-summary"></p>
+        <div id="army-units" class="army-units"></div>
+        <div id="army-stats" class="army-stats"></div>
+        <ul id="army-explanations" class="army-explanations"></ul>
+        <button id="view-city" type="button">View the completed city</button>
+      </aside>
+
       <section class="controls" aria-label="Simulation controls">
         <button id="play-toggle" type="button">Pause</button>
         <button id="restart" type="button">Restart settlement</button>
+        <button id="muster-toggle" class="hidden" type="button">Army report</button>
         <label class="speed-control">
           <span>Speed</span>
           <input id="speed" type="range" min="0.5" max="8" step="0.5" value="1" />

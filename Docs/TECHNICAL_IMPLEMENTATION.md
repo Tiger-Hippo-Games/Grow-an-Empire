@@ -43,13 +43,25 @@ There is no framework such as React. DOM UI and Three.js rendering are managed d
 ```text
 index.html
 src/
-  main.ts                         Three.js scene, UI, animation, spatial layout
+  main.ts                         Orchestrator: wires simulation events to render/UI modules, animation loop
   styles.css                      HUD, build cards, controls, responsive layout
   game/
     content.ts                    Building catalog and gameplay constants
-    settlementSimulation.ts      Deterministic simulation/state machine
+    settlementSimulation.ts      Deterministic simulation/state machine + save-state serialization
+    saveGame.ts                  localStorage read/write around the simulation's snapshot format
+    __tests__/                   Vitest suites (see section 24)
   render/
-    assetCatalog.ts              Vite asset discovery and URL resolution
+    sceneSetup.ts                 Renderer, scene, camera, resize
+    spriteAssets.ts               Texture loading/configuration, sprite-sheet frame addressing
+    cityLayout.ts                 Plot positions, districts, grid, roads, placement indicator, forest
+    civicCenter.ts                Nine stacked civic-center appearances
+    workerAnimation.ts            Shared "active builder" sprite + clips
+    constructionView.ts           Per-plot construction sprites, phase presentation, Woodcutter loop, production pulses
+    villagers.ts                  Population crowd sprites and orbit animation
+    assetCatalog.ts              Vite asset discovery and filename -> URL resolution
+  ui/
+    dom.ts                        requireElement() helper
+    hud.ts                        All DOM/HUD state; no Three.js or simulation dependency
 Assets/Art/
   Masters/                        Source art masters
   Production/
@@ -63,6 +75,8 @@ Docs/
   GAME_ARCHITECTURE.md            Concise runtime architecture
   TECHNICAL_IMPLEMENTATION.md     This handoff
 ```
+
+`main.ts` was previously a single ~680-line file combining every concern above; it has been split into the cohesive modules listed here (section 21's item 3 from the prior revision of this document), with no intended runtime behavior change. See section 19 for how that was verified.
 
 ## 4. Runtime lifecycle
 
@@ -101,6 +115,8 @@ interface SettlementState {
 ```
 
 Rendering observes state and reacts to emitted simulation events. Rendering never awards resources or advances gameplay.
+
+`SettlementSimulation` also exposes `serialize()` / `loadSnapshot()` / `isValidSnapshot()` for save-state, and `buildOrderSummary()` for a move-ordered list of completed buildings. See section 25.
 
 ### Simulation events
 
@@ -370,7 +386,9 @@ Runtime lookup is filename-based:
 export function assetUrl(filename: string): string
 ```
 
-Missing art fails fast with `Bundled asset not found`, which is surfaced in the loading overlay.
+Missing art fails fast with `Bundled asset not found`, which is surfaced in the loading overlay. A duplicate filename across two different source folders also fails fast at module load, since lookups are by filename only.
+
+The filename → URL map is built once when the module loads (`assetUrlByFilename`), not rescanned per `assetUrl()` call.
 
 Asset groups currently bundled:
 
@@ -461,10 +479,16 @@ Verified examples include:
 - production TypeScript/Vite build passing;
 - Woodcutter art contract validation passing.
 
+Additionally, as of the `main.ts` modularization and save-state work:
+
+- `pnpm test` (vitest): 46 tests across three suites, including an exhaustive enumeration of all 3^8 = 6,561 possible eight-move build orders (see section 24) — all pass.
+- `tsc --noEmit` (strict mode, `noUnusedLocals`/`noUnusedParameters`) passes against the fully modularized `src/`.
+- A headless Playwright smoke test (not checked into the repo; synthetic placeholder art was substituted for the real Assets masters, which weren't available in the environment that ran it) drove a full eight-move playthrough end to end against a production `vite build`, including a mid-game page reload and a post-completion page reload, and confirmed: no console or page errors, correct HUD state at every move, save/resume producing byte-for-byte identical HUD state across a reload, and the completed-city visuals (roads, plots, HUD) rendering correctly. This is evidence the module split preserved behavior, but it used placeholder art, not the production sprites — a manual pass with real art in a real browser is still worth doing before shipping.
+
 ## 20. Known limitations and technical debt
 
-1. There are no automated simulation unit tests yet.
-2. Save/load and deterministic replay are not implemented.
+1. ~~There are no automated simulation unit tests yet.~~ Resolved: 46 vitest tests, see section 24.
+2. ~~Save/load and deterministic replay are not implemented.~~ Resolved for save/load: see section 25. `buildOrderSummary()` gives a move-ordered replay record; there is no UI to browse or share it yet.
 3. The simulation is deterministic but has no explicit seeded random system because offers are currently priority-driven.
 4. Only the Woodcutter has a profession-specific work loop.
 5. Generic villagers all reuse one walking appearance.
@@ -473,36 +497,40 @@ Verified examples include:
 8. Economy balance is prototype-grade.
 9. There is no audio, localization, tutorial system, analytics, or accessibility settings panel.
 10. Camera pan/zoom and responsive mobile interaction are not implemented.
-11. Asset lookup scans eager glob entries by filename on every request; a precomputed filename map would scale better.
-12. `src/main.ts` currently owns several responsibilities and should eventually be split into scene, UI, animation, and layout modules.
+11. ~~Asset lookup scans eager glob entries by filename on every request; a precomputed filename map would scale better.~~ Resolved: `assetUrlByFilename` is built once at module load.
+12. ~~`src/main.ts` currently owns several responsibilities and should eventually be split into scene, UI, animation, and layout modules.~~ Resolved: see the file tree in section 3.
 13. The bundled JavaScript exceeds Vite's default 500 kB warning threshold, primarily because of Three.js and eager asset inclusion.
+14. Autosave writes to localStorage on every "structural" simulation event (a move completing, choices refreshing, game completion) plus on `beforeunload`, but not on every resource-production tick, to avoid excessive synchronous storage writes at high speed multipliers. Worst case, a hard crash mid-construction loses at most a few seconds of `constructionElapsed`/resource accumulation, never a completed building.
+15. There's no explicit save-schema migration path yet — `loadSnapshot()` throws on a `schemaVersion` mismatch and `saveGame.ts` treats that as "no save" (falls back to a fresh game) rather than attempting a migration. Fine for a single-schema vertical slice; worth revisiting once the state shape needs to change under players with existing saves.
 
 ## 21. Recommended next implementation sequence
 
-1. Add deterministic unit tests for all possible eight-move offer paths.
-2. Add save-state serialization and a replayable build-order summary.
-3. Split `main.ts` into `scene`, `cityLayout`, `villagers`, `constructionView`, and `ui` modules.
+1. ~~Add deterministic unit tests for all possible eight-move offer paths.~~ Done — `src/game/__tests__/eightMoveOfferPaths.test.ts`.
+2. ~~Add save-state serialization and a replayable build-order summary.~~ Done — `serialize`/`loadSnapshot` plus `buildOrderSummary()` in `settlementSimulation.ts`, wired to localStorage autosave/resume in `main.ts`. Still open: a UI to actually show the build-order summary/replay to the player, and result scoring (item 7 below still applies).
+3. ~~Split `main.ts` into `scene`, `cityLayout`, `villagers`, `constructionView`, and `ui` modules.~~ Done, with `sceneSetup`, `civicCenter`, and `workerAnimation` as additional modules beyond the original list (see section 3).
 4. Create profession-specific activity contracts for Farm, Sawmill, Quarry, Market, and military buildings.
 5. Replace straight road planes with reusable isometric path tiles or a small road-mesh generator.
 6. Add construction costs and explicit resource-chain balance.
-7. Add player-facing result scoring so different eight-building cities can be compared.
+7. Add player-facing result scoring so different eight-building cities can be compared, likely building on `buildOrderSummary()`.
 8. Add sound, camera controls, onboarding, and accessibility options.
 9. Introduce lazy asset loading or route-specific bundles if startup size becomes a problem.
+10. Add a save-schema migration path once the state shape needs to change (see known limitation 15).
+11. Wire the vitest suite and `tsc --noEmit` into CI so both run on every change, not just locally on request.
 
 ## 22. Suggested Claude review questions
 
 Please review the implementation with particular attention to:
 
-1. Is the simulation/rendering boundary sufficiently deterministic and testable?
-2. Can the rolling-card algorithm ever produce fewer than three valid choices before Move 8?
-3. What is the cleanest modular decomposition of `src/main.ts` without adding unnecessary framework complexity?
-4. Should civic progression and population remain tied directly to completed move number?
-5. How should construction costs and resource prerequisites integrate without weakening the simple *GROW*-style choice loop?
-6. What save-state schema would remain forward-compatible as buildings and eras are added?
-7. Are the current texture-cloning and eager-loading strategies acceptable for approximately 37 animated villagers and fifteen building sets?
-8. What road representation will preserve the hand-painted isometric look while supporting future branching layouts?
-9. What automated test matrix should cover all dependency and offer-order edge cases?
-10. Which performance and accessibility risks should be addressed before expanding beyond the vertical slice?
+1. Is the simulation/rendering boundary sufficiently deterministic and testable? — **Answered:** yes. The simulation has zero Three.js/DOM imports, and `src/game/__tests__/` exercises it in isolation in milliseconds.
+2. Can the rolling-card algorithm ever produce fewer than three valid choices before Move 8? — **Answered, exhaustively:** no, not for the current 15-building catalog. `eightMoveOfferPaths.test.ts` walks all 3^8 = 6,561 reachable build orders and asserts the pool is exactly 3 before every move but the last. This is a proof for today's catalog, not a general guarantee — adding a building with narrow eligibility could reintroduce the risk, which is exactly what that test now guards against.
+3. What is the cleanest modular decomposition of `src/main.ts` without adding unnecessary framework complexity? — **Answered:** see section 3's file tree. Each render/UI concern is a factory function returning a small API and owning its own state via closures (no DI container, no framework), and `main.ts` is now ~250 lines of pure orchestration.
+4. Should civic progression and population remain tied directly to completed move number? — Still open; unchanged in this pass.
+5. How should construction costs and resource prerequisites integrate without weakening the simple *GROW*-style choice loop? — Still open; unchanged in this pass.
+6. What save-state schema would remain forward-compatible as buildings and eras are added? — **Partially answered:** see section 25. `SettlementSnapshot` wraps a versioned `schemaVersion` around a structural clone of `SettlementState`; a future incompatible change bumps `SAVE_SCHEMA_VERSION` and either migrates or rejects older saves in `loadSnapshot`/`isValidSnapshot`. No migration logic exists yet (known limitation 15).
+7. Are the current texture-cloning and eager-loading strategies acceptable for approximately 37 animated villagers and fifteen building sets? — Still open; unchanged in this pass beyond the O(1) asset-filename lookup (known limitation 11, resolved).
+8. What road representation will preserve the hand-painted isometric look while supporting future branching layouts? — Still open; unchanged in this pass.
+9. What automated test matrix should cover all dependency and offer-order edge cases? — **Answered:** see section 24; the exhaustive all-paths suite plus targeted catalog/production/save unit tests.
+10. Which performance and accessibility risks should be addressed before expanding beyond the vertical slice? — Still open; unchanged in this pass beyond item 7 above.
 
 ## 23. Design invariants to preserve
 
@@ -515,3 +543,33 @@ Please review the implementation with particular attention to:
 - Every move visibly improves the central settlement.
 - The city remains alive and observable after the final decision.
 - Building locations communicate their functional relationships at a glance.
+
+## 24. Automated testing
+
+`pnpm test` runs the vitest suite in `src/game/__tests__/`, three files, 46 tests, all pure logic (no Three.js, no DOM, no jsdom needed):
+
+- `content.test.ts` — catalog integrity (every `requiresAll`/`requiresAny` id exists and isn't self-referential, every `offerPriority` is unique, `offerMove` is within range), plus focused unit tests for `isBuildingEligible` and `nextBuildingOffer`'s tie-breaking (direct dependent first, then earliest `offerMove`, then lowest `offerPriority`).
+- `settlementSimulation.test.ts` — `chooseBuilding` guard conditions, construction/move progression (including the fractional-time carry across the completion boundary), resource production math (whole-cycle flooring via `Math.floor(elapsed / productionSeconds)`, remainder carry, the `tools` global speed boost, and synergy doubling verified in isolation), `reset()` returning to an identical fresh state, `buildOrderSummary()`, and the save/load round trip — including through a real `JSON.stringify`/`JSON.parse` cycle, since that's what `saveGame.ts` actually does via localStorage.
+- `eightMoveOfferPaths.test.ts` — the exhaustive proof described in section 22, question 2. It also asserts every completed city has exactly 8 distinct buildings and that all 6,561 build orders are pairwise distinct (no two branches collapse to the same city).
+
+These tests run in under two seconds and have no external dependencies, so they're a good candidate for a pre-commit hook or CI step even before a full CI pipeline exists (see section 21, item 11).
+
+Everything under `src/render/` and `src/ui/` remains untested by an automated suite — that layer was instead verified once, manually, via the headless Playwright smoke test described in section 19, using synthetic placeholder art. It is not wired into `pnpm test` and doesn't run automatically; treat visual/rendering regressions as something a human (or a future Playwright suite checked into the repo, with real art) needs to catch.
+
+## 25. Save-state schema
+
+`SettlementSimulation.serialize()` returns:
+
+```ts
+interface SettlementSnapshot {
+  schemaVersion: 1;       // SAVE_SCHEMA_VERSION
+  savedAt: string;        // ISO timestamp, informational only
+  state: SettlementState; // structuredClone of the full simulation state
+}
+```
+
+`state` is exactly the `SettlementState` interface from section 5 — no derived or render-side data. `loadSnapshot()` throws if `schemaVersion` doesn't match; `isValidSnapshot()` is the safe runtime guard for data coming from outside the simulation (localStorage, a future uploaded save file) and simply rejects anything that doesn't shape-check, including a version mismatch, rather than partially trusting it.
+
+`src/game/saveGame.ts` wraps this with localStorage under the key `grow-an-empire:save:v1`, wrapping every read/write in try/catch so a browser with storage disabled degrades to "no autosave" instead of crashing. `main.ts` autosaves after any simulation event batch other than a pure `resource-produced` tick (see known limitation 14), after a successful `chooseBuilding`, and on `beforeunload`; on startup it loads a save if present and calls `hydrateFromLoadedState()` instead of `resetSettlement()`, which rebuilds every plot sprite, road, civic sprite, and HUD element from the restored state without replaying construction animation. The restart button explicitly clears the save before resetting, so a manual restart is never overridden by a stale autosave on the next load.
+
+If `SettlementState`'s shape needs to change in a way an old save can't satisfy, bump `SAVE_SCHEMA_VERSION` and add a branch in `loadSnapshot`/`isValidSnapshot` (and probably `saveGame.ts`) to either migrate the old shape or discard it as "no save" — there is no migration path implemented today (known limitation 15).
