@@ -1,130 +1,145 @@
 import {
+  BUILDINGS,
+  BUILD_INTRODUCTION_BY_MOVE,
   CONSTRUCTION_DURATION_SECONDS,
-  HARVEST_PHASES,
   OPENING_BUILD_OPTIONS,
-  type HarvestPhaseDefinition,
+  TOTAL_MOVES,
+  type ResourceName,
 } from "./content";
 
-export type SimulationMode = "awaiting-choice" | "construction" | "harvesting" | "operating";
+export type SimulationMode = "awaiting-choice" | "construction" | "complete";
 
 export type SimulationEvent =
-  | { type: "construction-started"; buildingId: string }
-  | { type: "construction-complete"; buildingId: string }
-  | { type: "harvest-phase-changed"; phase: HarvestPhaseDefinition }
-  | { type: "resource-produced"; resource: "wood" | "grain" | "food"; total: number };
+  | { type: "construction-started"; buildingId: string; plotIndex: number }
+  | { type: "construction-complete"; buildingId: string; plotIndex: number }
+  | { type: "civic-upgraded"; level: number }
+  | { type: "choices-ready"; move: number; options: string[] }
+  | { type: "resource-produced"; buildingId: string; resource: ResourceName; total: number }
+  | { type: "population-changed"; total: number }
+  | { type: "game-complete" };
+
+export type ResourceLedger = Record<ResourceName, number>;
 
 export interface SettlementState {
   mode: SimulationMode;
   move: number;
-  wood: number;
-  grain: number;
-  food: number;
+  civicLevel: number;
   population: number;
+  resources: ResourceLedger;
+  builtBuildingIds: string[];
+  availableBuildingIds: string[];
   selectedBuildingId: string | null;
+  activePlotIndex: number | null;
   constructionElapsed: number;
-  harvestPhaseIndex: number;
-  harvestElapsed: number;
-  productionElapsed: number;
+  productionElapsed: Record<string, number>;
 }
+
+const emptyResources = (): ResourceLedger => ({ wood: 0, grain: 0, food: 0, stone: 0, planks: 0, wealth: 0, tools: 0 });
 
 export class SettlementSimulation {
   readonly state: SettlementState = {
     mode: "awaiting-choice",
     move: 1,
-    wood: 0,
-    grain: 0,
-    food: 0,
+    civicLevel: 0,
     population: 2,
+    resources: emptyResources(),
+    builtBuildingIds: [],
+    availableBuildingIds: [...OPENING_BUILD_OPTIONS],
     selectedBuildingId: null,
+    activePlotIndex: null,
     constructionElapsed: 0,
-    harvestPhaseIndex: 0,
-    harvestElapsed: 0,
-    productionElapsed: 0,
+    productionElapsed: {},
   };
 
   get constructionProgress(): number {
     return Math.min(1, this.state.constructionElapsed / CONSTRUCTION_DURATION_SECONDS);
   }
 
-  get harvestPhase(): HarvestPhaseDefinition {
-    return HARVEST_PHASES[this.state.harvestPhaseIndex];
-  }
-
-  get harvestProgress(): number {
-    return Math.min(1, this.state.harvestElapsed / this.harvestPhase.duration);
-  }
-
   chooseBuilding(buildingId: string): SimulationEvent[] {
-    if (this.state.mode !== "awaiting-choice" || !OPENING_BUILD_OPTIONS.includes(buildingId as typeof OPENING_BUILD_OPTIONS[number])) return [];
+    if (this.state.mode !== "awaiting-choice" || !this.state.availableBuildingIds.includes(buildingId)) return [];
+    const plotIndex = this.state.builtBuildingIds.length;
     this.state.mode = "construction";
     this.state.selectedBuildingId = buildingId;
+    this.state.activePlotIndex = plotIndex;
     this.state.constructionElapsed = 0;
-    return [{ type: "construction-started", buildingId }];
+    this.state.availableBuildingIds = this.state.availableBuildingIds.filter((id) => id !== buildingId);
+    return [{ type: "construction-started", buildingId, plotIndex }];
   }
 
   reset(): void {
     Object.assign(this.state, {
       mode: "awaiting-choice",
       move: 1,
-      wood: 0,
-      grain: 0,
-      food: 0,
+      civicLevel: 0,
       population: 2,
+      resources: emptyResources(),
+      builtBuildingIds: [],
+      availableBuildingIds: [...OPENING_BUILD_OPTIONS],
       selectedBuildingId: null,
+      activePlotIndex: null,
       constructionElapsed: 0,
-      harvestPhaseIndex: 0,
-      harvestElapsed: 0,
-      productionElapsed: 0,
+      productionElapsed: {},
     });
   }
 
   update(seconds: number): SimulationEvent[] {
-    if (!Number.isFinite(seconds) || seconds <= 0 || this.state.mode === "awaiting-choice") return [];
+    if (!Number.isFinite(seconds) || seconds <= 0) return [];
     const events: SimulationEvent[] = [];
-    let remaining = seconds;
+    this.updateProduction(seconds, events);
 
-    if (this.state.mode === "construction") {
-      const untilComplete = CONSTRUCTION_DURATION_SECONDS - this.state.constructionElapsed;
-      const consumed = Math.min(remaining, untilComplete);
-      this.state.constructionElapsed += consumed;
-      remaining -= consumed;
-      if (this.state.constructionElapsed >= CONSTRUCTION_DURATION_SECONDS) {
-        const completedBuildingId = this.state.selectedBuildingId!;
-        this.state.mode = completedBuildingId === "woodcutter" ? "harvesting" : "operating";
-        this.state.move = 2;
-        this.state.harvestPhaseIndex = 0;
-        this.state.harvestElapsed = 0;
-        events.push({ type: "construction-complete", buildingId: completedBuildingId });
-        if (this.state.mode === "harvesting") events.push({ type: "harvest-phase-changed", phase: this.harvestPhase });
-      }
+    if (this.state.mode !== "construction") return events;
+    this.state.constructionElapsed += seconds;
+    if (this.state.constructionElapsed < CONSTRUCTION_DURATION_SECONDS) return events;
+
+    const buildingId = this.state.selectedBuildingId!;
+    const plotIndex = this.state.activePlotIndex!;
+    const completedMove = this.state.move;
+    const definition = BUILDINGS[buildingId];
+    this.state.builtBuildingIds.push(buildingId);
+    this.state.productionElapsed[buildingId] = 0;
+    this.state.civicLevel = completedMove;
+    this.state.selectedBuildingId = null;
+    this.state.activePlotIndex = null;
+    this.state.constructionElapsed = 0;
+    events.push({ type: "construction-complete", buildingId, plotIndex });
+    events.push({ type: "civic-upgraded", level: this.state.civicLevel });
+
+    if (definition.populationGain) {
+      this.state.population += definition.populationGain;
+      events.push({ type: "population-changed", total: this.state.population });
     }
 
-    while (remaining > 0 && this.state.mode === "harvesting") {
-      const untilNextPhase = this.harvestPhase.duration - this.state.harvestElapsed;
-      const consumed = Math.min(remaining, untilNextPhase);
-      this.state.harvestElapsed += consumed;
-      remaining -= consumed;
-      if (this.state.harvestElapsed >= this.harvestPhase.duration) {
-        this.state.harvestElapsed = 0;
-        this.state.harvestPhaseIndex = (this.state.harvestPhaseIndex + 1) % HARVEST_PHASES.length;
-        if (this.harvestPhase.name === "stockpile") {
-          this.state.wood += 1;
-          events.push({ type: "resource-produced", resource: "wood", total: this.state.wood });
-        }
-        events.push({ type: "harvest-phase-changed", phase: this.harvestPhase });
-      }
+    if (completedMove >= TOTAL_MOVES) {
+      this.state.mode = "complete";
+      events.push({ type: "game-complete" });
+      return events;
     }
 
-    if (remaining > 0 && this.state.mode === "operating") {
-      this.state.productionElapsed += remaining;
-      while (this.state.productionElapsed >= 8) {
-        this.state.productionElapsed -= 8;
-        const resource = this.state.selectedBuildingId === "farm" ? "grain" : "food";
-        this.state[resource] += 1;
-        events.push({ type: "resource-produced", resource, total: this.state[resource] });
-      }
-    }
-
+    this.state.move = completedMove + 1;
+    this.state.availableBuildingIds.push(...(BUILD_INTRODUCTION_BY_MOVE[this.state.move] ?? []));
+    this.state.mode = "awaiting-choice";
+    events.push({ type: "choices-ready", move: this.state.move, options: [...this.state.availableBuildingIds] });
     return events;
+  }
+
+  private updateProduction(seconds: number, events: SimulationEvent[]): void {
+    const hasFarm = this.state.builtBuildingIds.includes("farm");
+    const hasWoodcutter = this.state.builtBuildingIds.includes("woodcutter");
+    const toolBoost = 1 + this.state.resources.tools * 0.04;
+
+    for (const buildingId of this.state.builtBuildingIds) {
+      const building = BUILDINGS[buildingId];
+      if (!building.resource || !building.productionSeconds || !building.productionAmount) continue;
+      const elapsed = (this.state.productionElapsed[buildingId] ?? 0) + seconds * toolBoost;
+      const cycles = Math.floor(elapsed / building.productionSeconds);
+      this.state.productionElapsed[buildingId] = elapsed - cycles * building.productionSeconds;
+      if (cycles === 0) continue;
+
+      let amount = cycles * building.productionAmount;
+      if (buildingId === "bakery" && hasFarm) amount *= 2;
+      if (buildingId === "sawmill" && hasWoodcutter) amount *= 2;
+      this.state.resources[building.resource] += amount;
+      events.push({ type: "resource-produced", buildingId, resource: building.resource, total: this.state.resources[building.resource] });
+    }
   }
 }

@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#13271b" />
-    <meta name="description" content="Grow an Empire — automated settlement vertical slice" />
-    <title>Grow an Empire — First Build</title>
+    <meta name="description" content="Grow an Empire — eight-move automated settlement slice" />
+    <title>Grow an Empire — Nine Settlement Levels</title>
   </head>
   <body>
     <main id="app">
@@ -20,10 +20,8 @@
           <div class="progress-track" aria-hidden="true"><div id="phase-progress" class="progress-fill"></div></div>
         </div>
         <div class="metrics" aria-label="Settlement metrics">
-          <div><span>Move</span><strong id="move">1</strong></div>
-          <div><span>Wood</span><strong id="wood">0</strong></div>
-          <div><span>Grain</span><strong id="grain">0</strong></div>
-          <div><span>Food</span><strong id="food">0</strong></div>
+          <div><span>Move</span><strong id="move">1 / 8</strong></div>
+          <div><span>Civic</span><strong id="civic-level">0 / 8</strong></div>
           <div><span>People</span><strong id="population">2</strong></div>
         </div>
       </section>
@@ -31,16 +29,18 @@
       <section id="viewport" class="viewport" aria-label="Three.js settlement viewport"></section>
 
       <aside id="build-panel" class="build-panel" aria-labelledby="build-title">
-        <div class="move-chip">MOVE 1 OF 8</div>
-        <p class="decision-kicker">First expansion</p>
-        <h2 id="build-title">Choose the settlement’s first industry</h2>
-        <div id="build-options" class="build-options" role="list"></div>
+        <div id="move-chip" class="move-chip">MOVE 1 OF 8</div>
+        <p class="decision-kicker">Settlement council</p>
+        <h2 id="build-title">Choose the next building</h2>
+        <div id="build-options" class="build-options"></div>
       </aside>
 
+      <aside id="resource-ledger" class="resource-ledger" aria-label="Settlement resources"></aside>
+
       <aside id="milestone" class="milestone" aria-live="polite">
-        <span>MOVE 2 READY</span>
-        <strong>Timber production established</strong>
-        <p>The settlement is running on its own. The next build-order choice is unlocked.</p>
+        <span id="milestone-kicker">CIVIC UPGRADE</span>
+        <strong id="milestone-title">Organized Camp</strong>
+        <p id="milestone-copy">The settlement center has advanced.</p>
       </aside>
 
       <section class="controls" aria-label="Simulation controls">
@@ -48,19 +48,20 @@
         <button id="restart" type="button">Restart settlement</button>
         <label class="speed-control">
           <span>Speed</span>
-          <input id="speed" type="range" min="0.5" max="4" step="0.5" value="1" />
+          <input id="speed" type="range" min="0.5" max="8" step="0.5" value="1" />
           <output id="speed-value">1×</output>
         </label>
         <label class="toggle-control"><input id="grid-toggle" type="checkbox" checked /><span>Grid</span></label>
       </section>
 
-      <aside class="legend" aria-label="Settlement progression">
-        <strong>Campsite</strong><i></i><span>Woodcutter</span><i></i><span>Moves 2–7</span><i></i><span>Town Hall at Move 8</span>
+      <aside class="level-track" aria-label="Nine settlement levels">
+        <span id="level-track-label">LEVEL 0 · FOUNDING CAMPSITE</span>
+        <div id="level-pips" class="level-pips" aria-hidden="true"></div>
       </aside>
 
       <div id="loading" class="loading" role="status">
         <div class="loading-mark" aria-hidden="true"></div>
-        <span>Preparing the first settlement…</span>
+        <span>Preparing all nine settlement levels…</span>
       </div>
     </main>
     <script type="module" src="/src/main.ts"></script>
