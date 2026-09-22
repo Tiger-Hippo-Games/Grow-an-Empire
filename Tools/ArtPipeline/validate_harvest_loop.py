@@ -23,6 +23,15 @@ def validate_image(relative_path: str, expected_size: tuple[int, int] | None = N
 manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
 clips = manifest["clips"]
 
+runtime = manifest["runtimeBinding"]
+if runtime.get("status") != "integrated":
+    raise ValueError("Harvest loop is not marked as runtime-integrated")
+if runtime.get("engine") != "three.js":
+    raise ValueError("Runtime binding must target three.js")
+entry_point = PROJECT / runtime["entryPoint"]
+if not entry_point.is_file():
+    raise ValueError(f"Missing runtime entry point: {runtime['entryPoint']}")
+
 for clip_name in ("idle", "walk", "chop", "pickup", "carry"):
     clip = clips[clip_name]
     mapping_key = "files" if clip_name == "idle" else "sheets"
@@ -65,4 +74,4 @@ if current != machine["initial"] or visited != set(states):
 
 print(f"PASS: {manifest['id']}")
 print(f"Validated {len(clips)} clips, {len(states)} states, and all referenced assets")
-print("Runtime binding pending: add or identify the game-engine project")
+print(f"Runtime binding: {runtime['engine']} via {runtime['entryPoint']}")

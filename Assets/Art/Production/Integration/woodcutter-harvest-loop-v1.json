@@ -3,8 +3,10 @@
   "id": "woodcutter-harvest-loop-v1",
   "character": "WoodcutterMale01",
   "runtimeBinding": {
-    "status": "engine-project-required",
-    "reason": "This workspace contains art and pipeline files but no game-engine project or gameplay code."
+    "status": "integrated",
+    "engine": "three.js",
+    "entryPoint": "src/main.ts",
+    "prototype": "woodcutter-harvest-loop"
   },
   "render": {
     "runtimeCanvasByClip": {
