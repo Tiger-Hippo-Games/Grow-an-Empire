@@ -69,3 +69,7 @@ Directional chopping is complete and validated against the notched tree. Chop ex
 The engine-neutral harvesting-loop contract is stored at `Production/Integration/woodcutter-harvest-loop-v1.json`. Run `Tools/ArtPipeline/validate_harvest_loop.py` before importing it into an engine.
 
 Unloaded and loaded locomotion are both complete. The integration contract uses the directional walk cycle when traveling to the tree and the carry cycle when returning to the stockpile.
+
+## Three.js opening vertical slice
+
+The runtime now begins at a persistent campsite, presents the Woodcutter as the Move 1 build-order decision, plays the foundation/frame/late construction assets, assigns the worker automatically, and advances to Move 2 while timber production continues. The campsite runtime cutout is stored under `Production/Buildings/Campsite/Runtime2x/` and is reserved for an in-place Town Hall upgrade at Move 8.
