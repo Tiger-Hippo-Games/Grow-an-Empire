@@ -51,3 +51,16 @@ Generated masters:
 Final prompt set: preserve the exact WoodcutterMale01 identity, clothing, single wood-handled steel axe, fixed isometric camera, upper-left light, palette, and eight action beats from the southeast master; change only the gameplay direction to southwest, northeast, or northwest; maintain a natural two-handed grip and complete axe silhouette in every frame; use a four-by-two sheet with exactly eight full-body poses; no tree, log, text, borders, extra limbs, detached axe, or watermark; produce genuine transparent RGBA.
 
 Runtime exports use uniform source scale `0.45`, a 256 x 256 canvas, and y = 236 foot anchoring. This preserves the established southeast character-to-tree scale instead of fitting every pose independently.
+
+## 2026-09-22 — unloaded directional walk completion
+
+Mode: built-in image generation/editing. Each direction used two references: the WoodcutterMale01 turnaround for identity, clothing, gloves, pouch, tool loop, palette, and proportions; and the corresponding SettlerMale01 walk master for direction-specific eight-frame gait timing.
+
+Generated masters:
+
+- `../Animations/woodcutter-male-01-walk-southeast-master-v1.png`
+- `../Animations/woodcutter-male-01-walk-southwest-master-v1.png`
+- `../Animations/woodcutter-male-01-walk-northeast-master-v1.png`
+- `../Animations/woodcutter-male-01-walk-northwest-master-v1.png`
+
+Final prompt set: transfer the reference walk's natural eight-beat leg and arm cadence onto the exact WoodcutterMale01 occupational design; preserve face, hair, beard, cream shirt, rust-brown vest, belt, pouch, tool loop, blue trousers, brown gloves, and boots in every frame; empty hands with natural alternating arm swing; fixed orthographic isometric camera, four-by-two sheet, consistent scale and ground contact, upper-left lighting, genuine transparent RGBA; no axe, log, held tools, extra limbs, text, borders, or watermark.

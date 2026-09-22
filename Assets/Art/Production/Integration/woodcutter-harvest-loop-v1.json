@@ -4,8 +4,7 @@
   "character": "WoodcutterMale01",
   "runtimeBinding": {
     "status": "engine-project-required",
-    "reason": "This workspace contains art and pipeline files but no game-engine project or gameplay code.",
-    "unloadedTravelFallback": "Use the directional idle pose while moving until a dedicated woodcutter walk cycle is produced."
+    "reason": "This workspace contains art and pipeline files but no game-engine project or gameplay code."
   },
   "render": {
     "runtimeCanvasByClip": {
@@ -32,6 +31,17 @@
         "southwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Idle/woodcutter-male-01-idle-southwest-2x-v1.png",
         "northeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Idle/woodcutter-male-01-idle-northeast-2x-v1.png",
         "northwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Idle/woodcutter-male-01-idle-northwest-2x-v1.png"
+      }
+    },
+    "walk": {
+      "frameCount": 8,
+      "fps": 9.0909,
+      "loop": true,
+      "sheets": {
+        "southeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-walk-southeast-sheet-2x-v1.png",
+        "southwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-walk-southwest-sheet-2x-v1.png",
+        "northeast": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-walk-northeast-sheet-2x-v1.png",
+        "northwest": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-walk-northwest-sheet-2x-v1.png"
       }
     },
     "chop": {
@@ -99,7 +109,7 @@
     "initial": "idle",
     "states": {
       "idle": {"clip": "idle", "next": "travel_to_tree"},
-      "travel_to_tree": {"clip": "idle", "movement": "unloaded", "next": "chop"},
+      "travel_to_tree": {"clip": "walk", "movement": "unloaded", "next": "chop"},
       "chop": {"clip": "chop", "until": "tree_health_zero", "next": "tree_falling"},
       "tree_falling": {"worldSequence": "treeStates", "next": "pickup"},
       "pickup": {"clip": "pickup", "next": "travel_to_stockpile"},

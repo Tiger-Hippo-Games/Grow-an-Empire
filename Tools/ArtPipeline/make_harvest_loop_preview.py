@@ -59,6 +59,9 @@ def character(action: str, direction: str, frame: int | None = None) -> Image.Im
     if action == "chop":
         name = f"woodcutter-male-01-chop-{direction}-frame-{frame:02d}-2x-v1.png"
         return Image.open(WOODCUTTER / "Chop" / folder / name).convert("RGBA")
+    if action == "walk":
+        name = f"woodcutter-male-01-walk-{direction}-frame-{frame:02d}-2x-v1.png"
+        return Image.open(WOODCUTTER / "Walk" / folder / name).convert("RGBA")
     name = f"woodcutter-male-01-{action}-log-{direction}-{frame:02d}-2x-v1.png"
     action_folder = "Pickup" if action == "pickup" else "Carry"
     return Image.open(WOODCUTTER / action_folder / folder / name).convert("RGBA")
@@ -95,11 +98,16 @@ def compose(
 
 frames: list[Image.Image] = []
 
-# Temporary unloaded-travel fallback documented in the integration manifest.
 idle = character("idle", "southeast")
-for index in range(8):
-    x = round(245 + (570 - 245) * index / 7)
-    frames.append(compose("TRAVEL TO TREE", worker=idle, worker_x=x))
+for index in range(1, 9):
+    x = round(245 + (570 - 245) * (index - 1) / 7)
+    frames.append(
+        compose(
+            "TRAVEL TO TREE",
+            worker=character("walk", "southeast", index),
+            worker_x=x,
+        )
+    )
 
 for index in range(1, 9):
     tree_state = "healthy" if index < 4 else "notched"

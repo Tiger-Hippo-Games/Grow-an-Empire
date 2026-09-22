@@ -75,6 +75,14 @@ def make_parallel_preview(
 
 
 make_parallel_preview(
+    action_folder="Walk",
+    filename_pattern="woodcutter-male-01-walk-{slug}-frame-{frame:02d}-2x-v1.png",
+    title="UNLOADED WALK — FOUR DIRECTIONS IN PARALLEL",
+    output_name="woodcutter-walk-four-directions-parallel-v1.gif",
+    duration=110,
+)
+
+make_parallel_preview(
     action_folder="Carry",
     filename_pattern="woodcutter-male-01-carry-log-{slug}-{frame:02d}-2x-v1.png",
     title="LOADED WALK — FOUR DIRECTIONS IN PARALLEL",

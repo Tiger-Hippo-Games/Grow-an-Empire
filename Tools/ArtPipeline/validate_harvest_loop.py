@@ -23,7 +23,7 @@ def validate_image(relative_path: str, expected_size: tuple[int, int] | None = N
 manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
 clips = manifest["clips"]
 
-for clip_name in ("idle", "chop", "pickup", "carry"):
+for clip_name in ("idle", "walk", "chop", "pickup", "carry"):
     clip = clips[clip_name]
     mapping_key = "files" if clip_name == "idle" else "sheets"
     mapping = clip[mapping_key]

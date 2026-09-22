@@ -59,6 +59,7 @@ These commands generate the four-direction blade/contact board, the complete 54-
 | Action | SE | SW | NE | NW |
 |---|---:|---:|---:|---:|
 | Idle | yes | yes | yes | yes |
+| Walk unloaded | 8 | 8 | 8 | 8 |
 | Carry log | 8 | 8 | 8 | 8 |
 | Pickup / delivery | 8 | 8 | 8 | 8 |
 | Chop | 8 | 8 | 8 | 8 |
@@ -67,4 +68,4 @@ Directional chopping is complete and validated against the notched tree. Chop ex
 
 The engine-neutral harvesting-loop contract is stored at `Production/Integration/woodcutter-harvest-loop-v1.json`. Run `Tools/ArtPipeline/validate_harvest_loop.py` before importing it into an engine.
 
-The remaining animation polish gap is an unloaded woodcutter walk. Until it is produced, the integration contract uses the directional idle pose during movement to the tree; loaded travel uses the completed carry cycle.
+Unloaded and loaded locomotion are both complete. The integration contract uses the directional walk cycle when traveling to the tree and the carry cycle when returning to the stockpile.
