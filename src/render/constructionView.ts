@@ -27,18 +27,35 @@ export function buildingFilename(buildingId: string, stage: ConstructionStage): 
  */
 export function createConstructionView(scene: THREE.Scene, workerAnimation: WorkerAnimation, cityLayout: CityLayout, setStatus: SetStatus) {
   const buildingAssets = new Map<string, Record<ConstructionStage, SpriteAsset>>();
+  const loadingAssets = new Map<string, Promise<void>>();
   const plotSprites = new Map<number, Record<ConstructionStage, THREE.Sprite>>();
   const plotBuildingIds = new Map<number, string>();
   const productionPulseUntil = new Map<string, number>();
 
-  async function loadBuildingAssets(): Promise<void> {
-    await Promise.all(Object.keys(BUILDINGS).map(async (buildingId) => {
+  // The full catalog is 15 buildings x 4 stages of real production art (tens of
+  // MB) — loading it all unconditionally at boot regardless of which buildings
+  // a given playthrough will ever touch is real, measured load-time and decode
+  // cost for no benefit. Buildings are loaded on demand instead: once when a
+  // building first becomes one of the offered choices (well before the player
+  // can click it), and defensively awaited again right before it's actually
+  // placed, so correctness never depends on timing.
+  function ensureBuildingAssetsLoaded(buildingId: string): Promise<void> {
+    if (buildingAssets.has(buildingId)) return Promise.resolve();
+    const inFlight = loadingAssets.get(buildingId);
+    if (inFlight) return inFlight;
+    const promise = (async () => {
       const stages = {} as Record<ConstructionStage, SpriteAsset>;
       await Promise.all(CONSTRUCTION_STAGES.map(async (stage) => {
         stages[stage] = await loadSpriteAsset(buildingFilename(buildingId, stage));
       }));
       buildingAssets.set(buildingId, stages);
-    }));
+    })();
+    loadingAssets.set(buildingId, promise);
+    return promise;
+  }
+
+  async function loadBuildingAssets(buildingIds: string[]): Promise<void> {
+    await Promise.all(buildingIds.map((buildingId) => ensureBuildingAssetsLoaded(buildingId)));
   }
 
   function createPlotSprites(buildingId: string, plotIndex: number): void {
@@ -158,6 +175,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
 
   return {
     loadBuildingAssets,
+    ensureBuildingAssetsLoaded,
     createPlotSprites,
     showPlotStage,
     clearPlots,

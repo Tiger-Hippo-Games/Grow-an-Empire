@@ -1,5 +1,5 @@
 import { Timer } from "three";
-import { BUILDINGS } from "./game/content";
+import { BUILDINGS, OPENING_BUILD_OPTIONS } from "./game/content";
 import { SettlementSimulation, type SimulationEvent } from "./game/settlementSimulation";
 import { clearSavedSnapshot, loadSavedSnapshot, saveSnapshot } from "./game/saveGame";
 import { createSceneSetup } from "./render/sceneSetup";
@@ -19,6 +19,7 @@ import "./styles.css";
 let playing = true;
 let speed = 1;
 let animationElapsed = 0;
+let resumeAfterTutorial = false;
 
 const simulation = new SettlementSimulation();
 
@@ -39,6 +40,17 @@ const hud = createHud({
     cityLayout.grid.visible = visible;
   },
   onSelectBuilding: (buildingId) => beginConstruction(buildingId),
+  onTutorialModalChange: (visible) => {
+    if (visible) {
+      resumeAfterTutorial = playing;
+      playing = false;
+      hud.setPlayingLabel(false);
+    } else if (resumeAfterTutorial) {
+      playing = true;
+      resumeAfterTutorial = false;
+      hud.setPlayingLabel(true);
+    }
+  },
 });
 
 const { renderer, scene, camera, resize } = createSceneSetup(hud.viewport);
@@ -69,10 +81,17 @@ function autosave(): void {
   saveSnapshot(simulation.serialize());
 }
 
-function beginConstruction(buildingId: string): void {
+async function beginConstruction(buildingId: string): Promise<void> {
   const events = simulation.chooseBuilding(buildingId);
   const event = events.find((item) => item.type === "construction-started");
   if (!event || event.type !== "construction-started") return;
+
+  // Assets for every currently-offered building are already being preloaded
+  // the moment the build panel appears (see the "choices-ready" handling
+  // below), so this normally resolves immediately. It's still awaited here
+  // as a defensive fallback rather than an assumption, so a building's
+  // construction can never begin against art that isn't loaded yet.
+  await constructionView.ensureBuildingAssetsLoaded(buildingId);
 
   constructionView.createPlotSprites(buildingId, event.plotIndex);
   cityLayout.showRoadForBuilding(buildingId);
@@ -105,6 +124,13 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       cityLayout.setCivicLevel(event.level);
       hud.setCivicLevel(event.level);
     } else if (event.type === "choices-ready") {
+      // Kick off loading for the newly-offered building(s) as soon as they can
+      // be picked, rather than blocking the build panel on it: the player
+      // reads the cards for a while before clicking, so this normally finishes
+      // well before it's needed. beginConstruction() awaits it again itself
+      // as a safety net, so this is purely a head start, not a correctness
+      // requirement.
+      constructionView.loadBuildingAssets(event.options).catch((error: unknown) => console.error(error));
       hud.renderBuildPanel(stateSnapshot());
     } else if (event.type === "economy-resolved") {
       for (const buildingId of event.activeBuildingIds) constructionView.markProduced(buildingId, animationElapsed);
@@ -126,6 +152,9 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
     }
   }
   hud.updateHud(stateSnapshot());
+  if (simulation.state.civicLevel === 1 && events.some((event) => event.type === "construction-complete")) {
+    hud.handleTutorialEvent("first-move-complete");
+  }
   if (events.length > 0) autosave();
 }
 
@@ -215,14 +244,29 @@ window.addEventListener("resize", resize);
 window.addEventListener("beforeunload", autosave);
 
 async function initialize(): Promise<void> {
+  // Load only the buildings this session can actually show right away: a
+  // fresh game only ever starts with the opening offer, and a resumed save
+  // only needs what's already built plus whatever is currently offered (and
+  // whatever is mid-construction). Everything else loads on demand as it's
+  // offered (see the "choices-ready" handling above) — there are 15 buildings
+  // x 4 stages of real art in the full catalog, and a single playthrough
+  // never touches more than a fraction of it.
+  const saved = loadSavedSnapshot();
+  const initialBuildingIds = saved
+    ? [...new Set([
+        ...saved.state.builtBuildingIds,
+        ...saved.state.availableBuildingIds,
+        ...(saved.state.selectedBuildingId ? [saved.state.selectedBuildingId] : []),
+      ])]
+    : OPENING_BUILD_OPTIONS;
+
   await Promise.all([
     workerAnimation.loadClips(),
-    constructionView.loadBuildingAssets(),
+    constructionView.loadBuildingAssets(initialBuildingIds),
     civicCenter.load(),
     loadForest(scene),
   ]);
 
-  const saved = loadSavedSnapshot();
   if (saved) {
     simulation.loadSnapshot(saved);
     hydrateFromLoadedState();
@@ -231,6 +275,7 @@ async function initialize(): Promise<void> {
   }
   resize();
   hud.loading.classList.add("hidden");
+  hud.maybeStartTutorial(!saved);
 }
 
 renderer.setAnimationLoop(() => {

@@ -18,6 +18,7 @@ export interface HudCallbacks {
   onSpeedChange(speed: number): void;
   onGridToggle(visible: boolean): void;
   onSelectBuilding(buildingId: string): void;
+  onTutorialModalChange(visible: boolean): void;
 }
 
 export interface HudStateSnapshot {
@@ -46,6 +47,10 @@ export function createHud(callbacks: HudCallbacks) {
   const buildOptions = requireElement<HTMLElement>("#build-options");
   const moveChip = requireElement<HTMLElement>("#move-chip");
   const resourceLedger = requireElement<HTMLElement>("#resource-ledger");
+  const resourceGrid = requireElement<HTMLElement>("#resource-grid");
+  const stockpileToggle = requireElement<HTMLButtonElement>("#stockpile-toggle");
+  const stockpileClose = requireElement<HTMLButtonElement>("#stockpile-close");
+  const stockpileTotal = requireElement<HTMLElement>("#stockpile-total");
   const milestone = requireElement<HTMLElement>("#milestone");
   const milestoneKicker = requireElement<HTMLElement>("#milestone-kicker");
   const milestoneTitle = requireElement<HTMLElement>("#milestone-title");
@@ -54,9 +59,9 @@ export function createHud(callbacks: HudCallbacks) {
   const levelPips = requireElement<HTMLElement>("#level-pips");
   const playToggle = requireElement<HTMLButtonElement>("#play-toggle");
   const restartButton = requireElement<HTMLButtonElement>("#restart");
-  const speedInput = requireElement<HTMLInputElement>("#speed");
-  const speedValue = requireElement<HTMLOutputElement>("#speed-value");
-  const gridToggle = requireElement<HTMLInputElement>("#grid-toggle");
+  const speedToggle = requireElement<HTMLButtonElement>("#speed-toggle");
+  const gridToggle = requireElement<HTMLButtonElement>("#grid-toggle");
+  const helpToggle = requireElement<HTMLButtonElement>("#help-toggle");
   const armyReport = requireElement<HTMLElement>("#army-report");
   const armyOutcome = requireElement<HTMLElement>("#army-outcome");
   const armyScore = requireElement<HTMLElement>("#army-score");
@@ -66,12 +71,20 @@ export function createHud(callbacks: HudCallbacks) {
   const armyExplanations = requireElement<HTMLElement>("#army-explanations");
   const viewCity = requireElement<HTMLButtonElement>("#view-city");
   const musterToggle = requireElement<HTMLButtonElement>("#muster-toggle");
+  const tutorialScrim = requireElement<HTMLElement>("#tutorial-scrim");
+  const tutorialCoach = requireElement<HTMLElement>("#tutorial-coach");
+  const tutorialStep = requireElement<HTMLElement>("#tutorial-step");
+  const tutorialCoachTitle = requireElement<HTMLElement>("#tutorial-coach-title");
+  const tutorialCoachCopy = requireElement<HTMLElement>("#tutorial-coach-copy");
+  const tutorialStart = requireElement<HTMLButtonElement>("#tutorial-start");
+  const tutorialSkip = requireElement<HTMLButtonElement>("#tutorial-skip");
+  const tutorialNext = requireElement<HTMLButtonElement>("#tutorial-next");
 
   const resourceElements = new Map<ResourceName, HTMLElement>();
   for (const resource of Object.keys(RESOURCE_LABELS) as ResourceName[]) {
     const item = document.createElement("div");
     item.innerHTML = `<span>${RESOURCE_LABELS[resource]}</span><strong>0</strong>`;
-    resourceLedger.appendChild(item);
+    resourceGrid.appendChild(item);
     resourceElements.set(resource, item.querySelector("strong")!);
   }
   for (let level = 0; level < TOTAL_SETTLEMENT_LEVELS; level += 1) {
@@ -81,6 +94,10 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   let milestoneUntil = 0;
+  let selectedSpeed = 1;
+  let gridVisible = true;
+  let tutorialActive = false;
+  const tutorialStorageKey = "grow-an-empire:tutorial:v1";
 
   function setStatus(label: string, progress: number): void {
     phaseLabel.textContent = label;
@@ -103,19 +120,27 @@ export function createHud(callbacks: HudCallbacks) {
     for (const resource of Object.keys(RESOURCE_LABELS) as ResourceName[]) {
       setResource(resource, snapshot.resources[resource]);
     }
+    stockpileTotal.textContent = String(Object.values(snapshot.resources).reduce((sum, amount) => sum + amount, 0));
   }
 
   function renderBuildPanel(snapshot: Pick<HudStateSnapshot, "mode" | "move" | "availableBuildingIds">): void {
     if (snapshot.mode !== "awaiting-choice") return;
     buildOptions.replaceChildren();
-    moveChip.textContent = `MOVE ${snapshot.move} OF ${TOTAL_MOVES}`;
+    moveChip.textContent = `${snapshot.move} OF ${TOTAL_MOVES}`;
     for (const buildingId of snapshot.availableBuildingIds) {
       const building = BUILDINGS[buildingId];
       const button = document.createElement("button");
       button.className = "build-card";
       button.type = "button";
-      button.innerHTML = `<img src="${assetUrl(buildingFilename(buildingId, "complete"))}" alt="${building.name}" /><span class="build-copy"><span class="build-name">${building.name}</span><span class="build-description">${building.description}</span><span class="build-benefit"><b>Role</b> ${building.benefit} · ${building.unlocks}</span></span><span class="build-cta">Build</span>`;
-      button.addEventListener("click", () => callbacks.onSelectBuilding(buildingId));
+      button.setAttribute("aria-label", `Build ${building.name}. ${building.benefit}. ${building.unlocks}`);
+      button.innerHTML = `<span class="build-art"><img src="${assetUrl(buildingFilename(buildingId, "complete"))}" alt="" /></span><span class="build-name">${building.name}</span><span class="build-benefit">${building.benefit}</span><span class="build-unlock">${building.unlocks}</span>`;
+      button.addEventListener("click", () => {
+        if (tutorialActive) {
+          tutorialCoach.classList.add("hidden");
+          buildPanel.classList.remove("tutorial-focus");
+        }
+        callbacks.onSelectBuilding(buildingId);
+      });
       buildOptions.appendChild(button);
     }
     buildPanel.classList.remove("hidden");
@@ -174,14 +199,89 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   function setSpeedLabel(speed: number): void {
-    speedInput.value = String(speed);
-    speedValue.value = `${speed}×`;
+    selectedSpeed = speed;
+    speedToggle.textContent = `Speed · ${speed}×`;
+  }
+
+  function setStockpileVisible(visible: boolean): void {
+    resourceLedger.classList.toggle("hidden", !visible);
+    stockpileToggle.setAttribute("aria-expanded", String(visible));
+    stockpileToggle.classList.toggle("active", visible);
+  }
+
+  function tutorialWasCompleted(): boolean {
+    try { return window.localStorage.getItem(tutorialStorageKey) === "complete"; } catch { return false; }
+  }
+
+  function finishTutorial(): void {
+    tutorialActive = false;
+    tutorialScrim.classList.add("hidden");
+    tutorialCoach.classList.add("hidden");
+    buildPanel.classList.remove("tutorial-focus");
+    callbacks.onTutorialModalChange(false);
+    try { window.localStorage.setItem(tutorialStorageKey, "complete"); } catch { /* Continue without persistence. */ }
+  }
+
+  function showTutorialWelcome(): void {
+    tutorialActive = true;
+    tutorialCoach.classList.add("hidden");
+    tutorialNext.classList.add("hidden");
+    buildPanel.classList.remove("tutorial-focus");
+    tutorialScrim.classList.remove("hidden");
+    callbacks.onTutorialModalChange(true);
+  }
+
+  function showChoiceCoach(): void {
+    tutorialScrim.classList.add("hidden");
+    callbacks.onTutorialModalChange(false);
+    tutorialStep.textContent = "STEP 1 OF 2";
+    tutorialCoachTitle.textContent = "Your first decision";
+    tutorialCoachCopy.textContent = "Choose one building. Earlier choices work for more moves, so watch what each option produces and unlocks.";
+    tutorialNext.classList.add("hidden");
+    tutorialCoach.dataset.step = "choice";
+    tutorialCoach.classList.remove("hidden");
+    buildPanel.classList.add("tutorial-focus");
+  }
+
+  function showGrowthCoach(): void {
+    tutorialScrim.classList.add("hidden");
+    callbacks.onTutorialModalChange(false);
+    tutorialStep.textContent = "STEP 2 OF 2";
+    tutorialCoachTitle.textContent = "Watch the whole city react";
+    tutorialCoachCopy.textContent = "Each move upgrades the Town Hall, adds villagers, and runs every completed building. The raiders arrive immediately after Move 8.";
+    tutorialNext.classList.remove("hidden");
+    tutorialCoach.dataset.step = "growth";
+    tutorialCoach.classList.remove("hidden");
+    buildPanel.classList.remove("tutorial-focus");
+  }
+
+  function maybeStartTutorial(isFreshCampaign: boolean): void {
+    if (isFreshCampaign && !tutorialWasCompleted()) showTutorialWelcome();
+  }
+
+  function handleTutorialEvent(event: "first-move-complete"): void {
+    if (event === "first-move-complete" && tutorialActive) showGrowthCoach();
   }
 
   playToggle.addEventListener("click", callbacks.onPlayToggle);
   restartButton.addEventListener("click", callbacks.onRestart);
-  speedInput.addEventListener("input", () => callbacks.onSpeedChange(Number(speedInput.value)));
-  gridToggle.addEventListener("change", () => callbacks.onGridToggle(gridToggle.checked));
+  speedToggle.addEventListener("click", () => {
+    const speeds = [1, 2, 4, 8];
+    const next = speeds[(speeds.indexOf(selectedSpeed) + 1) % speeds.length];
+    callbacks.onSpeedChange(next);
+  });
+  gridToggle.addEventListener("click", () => {
+    gridVisible = !gridVisible;
+    gridToggle.textContent = `Grid · ${gridVisible ? "On" : "Off"}`;
+    gridToggle.setAttribute("aria-pressed", String(gridVisible));
+    callbacks.onGridToggle(gridVisible);
+  });
+  stockpileToggle.addEventListener("click", () => setStockpileVisible(resourceLedger.classList.contains("hidden")));
+  stockpileClose.addEventListener("click", () => setStockpileVisible(false));
+  helpToggle.addEventListener("click", showTutorialWelcome);
+  tutorialStart.addEventListener("click", () => buildPanel.classList.contains("hidden") ? showGrowthCoach() : showChoiceCoach());
+  tutorialSkip.addEventListener("click", finishTutorial);
+  tutorialNext.addEventListener("click", finishTutorial);
   viewCity.addEventListener("click", hideArmyReport);
   musterToggle.addEventListener("click", () => armyReport.classList.toggle("hidden"));
 
@@ -202,7 +302,9 @@ export function createHud(callbacks: HudCallbacks) {
     renderArmyReport,
     hideArmyReport,
     resetArmyReport,
-    isGridChecked: () => gridToggle.checked,
+    maybeStartTutorial,
+    handleTutorialEvent,
+    isGridChecked: () => gridVisible,
   };
 }
 

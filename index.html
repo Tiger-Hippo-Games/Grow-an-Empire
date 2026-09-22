@@ -11,8 +11,8 @@
     <main id="app">
       <section class="hud" aria-label="Settlement status">
         <div class="brand">
-          <span class="eyebrow">GROW AN EMPIRE</span>
-          <h1>Campaign 1 · The First Muster</h1>
+          <span class="eyebrow">CAMPAIGN 1</span>
+          <h1>The First Muster</h1>
         </div>
         <div class="status-block">
           <span class="status-label">SETTLEMENT ACTIVITY</span>
@@ -26,17 +26,25 @@
         </div>
       </section>
 
+      <button id="stockpile-toggle" class="stockpile-toggle" type="button" aria-expanded="false" aria-controls="resource-ledger">
+        <span>Stockpile</span><strong id="stockpile-total">0</strong>
+      </button>
+
       <section id="viewport" class="viewport" aria-label="Three.js settlement viewport"></section>
 
       <aside id="build-panel" class="build-panel" aria-labelledby="build-title">
-        <div id="move-chip" class="move-chip">MOVE 1 OF 8</div>
-        <p class="decision-kicker">Settlement council</p>
-        <h2 id="build-title">Choose the next building</h2>
-        <p class="campaign-briefing">The Ashfang Raiders arrive after Move 8. Build an army that is equipped, supplied, and defended.</p>
+        <div class="decision-heading">
+          <div><p class="decision-kicker">Choose your next move</p><h2 id="build-title">What should the settlement build?</h2></div>
+          <div id="move-chip" class="move-chip">1 OF 8</div>
+        </div>
         <div id="build-options" class="build-options"></div>
+        <p class="decision-hint">Built earlier means more turns to produce and mature.</p>
       </aside>
 
-      <aside id="resource-ledger" class="resource-ledger" aria-label="Settlement resources"></aside>
+      <aside id="resource-ledger" class="resource-drawer hidden" aria-label="Settlement resources">
+        <div class="drawer-heading"><div><span>Settlement stockpile</span><small>Resolved after every move</small></div><button id="stockpile-close" type="button" aria-label="Close stockpile">Close</button></div>
+        <div id="resource-grid" class="resource-grid"></div>
+      </aside>
 
       <aside id="milestone" class="milestone" aria-live="polite">
         <span id="milestone-kicker">CIVIC UPGRADE</span>
@@ -62,19 +70,40 @@
 
       <section class="controls" aria-label="Simulation controls">
         <button id="play-toggle" type="button">Pause</button>
-        <button id="restart" type="button">Restart settlement</button>
+        <button id="speed-toggle" type="button" aria-label="Change simulation speed">Speed · 1×</button>
+        <button id="grid-toggle" type="button" aria-pressed="true">Grid · On</button>
         <button id="muster-toggle" class="hidden" type="button">Army report</button>
-        <label class="speed-control">
-          <span>Speed</span>
-          <input id="speed" type="range" min="0.5" max="8" step="0.5" value="1" />
-          <output id="speed-value">1×</output>
-        </label>
-        <label class="toggle-control"><input id="grid-toggle" type="checkbox" checked /><span>Grid</span></label>
+        <button id="help-toggle" type="button">How to play</button>
+        <button id="restart" class="quiet-control" type="button">Restart</button>
       </section>
 
       <aside class="level-track" aria-label="Nine settlement levels">
         <span id="level-track-label">LEVEL 0 · FOUNDING CAMPSITE</span>
         <div id="level-pips" class="level-pips" aria-hidden="true"></div>
+      </aside>
+
+      <div id="tutorial-scrim" class="tutorial-scrim hidden">
+        <section class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+          <span class="tutorial-kicker">Your first settlement</span>
+          <h2 id="tutorial-title">Choose. Watch. Adapt.</h2>
+          <p>You make only eight decisions. Each building keeps working on every later move, so the order shapes the city—and the army waiting at the end.</p>
+          <div class="tutorial-rules">
+            <div><b>1</b><span>Choose one building</span></div>
+            <div><b>2</b><span>Watch every building react</span></div>
+            <div><b>3</b><span>Prepare before the raiders arrive</span></div>
+          </div>
+          <div class="tutorial-actions">
+            <button id="tutorial-start" type="button">Begin the settlement</button>
+            <button id="tutorial-skip" type="button">Skip tutorial</button>
+          </div>
+        </section>
+      </div>
+
+      <aside id="tutorial-coach" class="tutorial-coach hidden" aria-live="polite">
+        <span id="tutorial-step">STEP 1 OF 2</span>
+        <strong id="tutorial-coach-title">Your first decision</strong>
+        <p id="tutorial-coach-copy">Choose one of the three building icons. There is no immediate wrong answer—the order creates the strategy.</p>
+        <button id="tutorial-next" class="hidden" type="button">Got it</button>
       </aside>
 
       <div id="loading" class="loading" role="status">
