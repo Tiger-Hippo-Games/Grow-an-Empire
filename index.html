@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#13271b" />
+    <meta
+      name="description"
+      content="Grow an Empire — Three.js woodcutter harvesting vertical slice"
+    />
+    <title>Grow an Empire — Harvesting Prototype</title>
+  </head>
+  <body>
+    <main id="app">
+      <section class="hud" aria-label="Game status">
+        <div class="brand">
+          <span class="eyebrow">GROW AN EMPIRE</span>
+          <h1>Woodcutter vertical slice</h1>
+        </div>
+        <div class="status-block">
+          <span class="status-label">CURRENT ACTION</span>
+          <strong id="phase">Loading assets…</strong>
+          <div class="progress-track" aria-hidden="true">
+            <div id="phase-progress" class="progress-fill"></div>
+          </div>
+        </div>
+        <div class="metrics" aria-label="Simulation metrics">
+          <div><span>Cycle</span><strong id="cycle">1</strong></div>
+          <div><span>Frame</span><strong id="frame">—</strong></div>
+          <div><span>Logs</span><strong id="logs">0 / 3</strong></div>
+        </div>
+      </section>
+
+      <section id="viewport" class="viewport" aria-label="Three.js game viewport"></section>
+
+      <section class="controls" aria-label="Simulation controls">
+        <button id="play-toggle" type="button">Pause</button>
+        <button id="restart" type="button">Restart loop</button>
+        <label class="speed-control">
+          <span>Speed</span>
+          <input id="speed" type="range" min="0.5" max="2" step="0.25" value="1" />
+          <output id="speed-value">1×</output>
+        </label>
+        <label class="toggle-control">
+          <input id="grid-toggle" type="checkbox" checked />
+          <span>Isometric grid</span>
+        </label>
+      </section>
+
+      <aside class="legend" aria-label="Harvest loop">
+        <span>Walk</span><i></i><span>Chop</span><i></i><span>Fall</span><i></i>
+        <span>Pickup</span><i></i><span>Carry</span><i></i><span>Deliver</span>
+      </aside>
+
+      <div id="loading" class="loading" role="status">
+        <div class="loading-mark" aria-hidden="true"></div>
+        <span>Preparing the settlement…</span>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
