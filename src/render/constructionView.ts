@@ -3,6 +3,7 @@ import { BUILDINGS, HARVEST_PHASES } from "../game/content";
 import { loadSpriteAsset, spriteFromAsset, type SpriteAsset } from "./spriteAssets";
 import { civicGround, getBuildingPosition, treeGround, type CityLayout } from "./cityLayout";
 import type { WorkerAnimation } from "./workerAnimation";
+import { CITY_ANIMATION } from "./animationDesign";
 
 export type ConstructionStage = "foundation" | "frame" | "late" | "complete";
 export type SetStatus = (label: string, progress: number) => void;
@@ -72,32 +73,32 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
   }
 
   function markProduced(buildingId: string, animationElapsed: number): void {
-    productionPulseUntil.set(buildingId, animationElapsed + 0.8);
+    productionPulseUntil.set(buildingId, animationElapsed + CITY_ANIMATION.productionPulseSeconds);
   }
 
   /** Drives the worker + plot-stage visuals for the building currently under construction. */
   function renderConstruction(buildingId: string, plotIndex: number, progress: number, constructionElapsed: number, animationElapsed: number): void {
     const plot = getBuildingPosition(buildingId);
     const name = BUILDINGS[buildingId].name;
-    cityLayout.placementMaterial.opacity = 0.13 + Math.sin(animationElapsed * 5) * 0.05;
+    cityLayout.placementMaterial.opacity = 0.13 + Math.sin(animationElapsed * Math.PI * 2 * CITY_ANIMATION.construction.placementPulseHz) * 0.05;
     workerAnimation.worker.visible = true;
 
-    if (progress < 0.22) {
+    if (progress < CITY_ANIMATION.construction.surveyEnd) {
       setStatus(`Surveying the ${name} site`, progress);
-      workerAnimation.moveWorker(civicGround, plot, progress / 0.22);
+      workerAnimation.moveWorker(civicGround, plot, progress / CITY_ANIMATION.construction.surveyEnd);
       workerAnimation.useClip("walk", "southeast", workerAnimation.frameFor("walk", "southeast", constructionElapsed));
       showPlotStage(plotIndex, "foundation");
-    } else if (progress < 0.5) {
+    } else if (progress < CITY_ANIMATION.construction.foundationEnd) {
       setStatus(`Laying the ${name} foundation`, progress);
       workerAnimation.placeWorker(plot);
       workerAnimation.useClip("chop", "southwest", workerAnimation.frameFor("chop", "southwest", constructionElapsed));
       showPlotStage(plotIndex, "foundation");
-    } else if (progress < 0.76) {
+    } else if (progress < CITY_ANIMATION.construction.frameEnd) {
       setStatus(`Raising the ${name} frame`, progress);
       workerAnimation.placeWorker(plot);
       workerAnimation.useClip("chop", "southwest", workerAnimation.frameFor("chop", "southwest", constructionElapsed));
       showPlotStage(plotIndex, "frame");
-    } else if (progress < 0.94) {
+    } else if (progress < CITY_ANIMATION.construction.finishingEnd) {
       setStatus(`Finishing the ${name}`, progress);
       workerAnimation.placeWorker(plot);
       workerAnimation.useClip("chop", "southwest", workerAnimation.frameFor("chop", "southwest", constructionElapsed));

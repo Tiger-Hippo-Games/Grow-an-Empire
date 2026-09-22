@@ -94,6 +94,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
     if (event.type === "construction-complete") {
       cityLayout.placementPad.visible = false;
       constructionView.showPlotStage(event.plotIndex, "complete");
+      cityLayout.syncBuiltBuildings(simulation.state.builtBuildingIds);
       const completedMove = event.plotIndex + 1;
       const copy = completedMove <= 8
         ? `Completed on Move ${completedMove}. The civic center also advanced.`
@@ -101,6 +102,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       hud.showMilestone(BUILDINGS[event.buildingId].name, copy, animationElapsed);
     } else if (event.type === "civic-upgraded") {
       civicCenter.setLevel(event.level);
+      cityLayout.setCivicLevel(event.level);
       hud.setCivicLevel(event.level);
     } else if (event.type === "choices-ready") {
       hud.renderBuildPanel(stateSnapshot());
@@ -109,6 +111,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
     } else if (event.type === "population-changed") {
       villagerField.syncVillagers(event.total);
     } else if (event.type === "army-mustered") {
+      villagerField.beginArmyMuster(event.report, animationElapsed);
       hud.renderArmyReport(event.report, simulation.buildOrderSummary().map(({ buildingId }) => BUILDINGS[buildingId].name));
     } else if (event.type === "game-complete") {
       workerAnimation.worker.visible = false;
@@ -130,6 +133,7 @@ function resetSettlement(): void {
   simulation.reset();
   constructionView.clearPlots();
   cityLayout.hideAllRoads();
+  cityLayout.setCivicLevel(0);
   animationElapsed = 0;
   playing = true;
   hud.setPlayingLabel(true);
@@ -141,6 +145,7 @@ function resetSettlement(): void {
   hud.setCivicLevel(0);
   hud.updateHud(stateSnapshot());
   villagerField.syncVillagers(simulation.state.population);
+  villagerField.clearArmyMuster();
   workerAnimation.worker.visible = true;
   workerAnimation.placeWorker(civicGround);
   workerAnimation.useClip("walk", "southeast", 0);
@@ -157,14 +162,17 @@ function hydrateFromLoadedState(): void {
   hud.setSpeedLabel(speed);
   hud.hideMilestone();
   hud.resetArmyReport();
+  villagerField.clearArmyMuster();
 
   simulation.state.builtBuildingIds.forEach((buildingId, plotIndex) => {
     constructionView.createPlotSprites(buildingId, plotIndex);
     cityLayout.showRoadForBuilding(buildingId);
     constructionView.showPlotStage(plotIndex, "complete");
   });
+  cityLayout.syncBuiltBuildings(simulation.state.builtBuildingIds);
 
   civicCenter.setLevel(simulation.state.civicLevel);
+  cityLayout.setCivicLevel(simulation.state.civicLevel);
   hud.setCivicLevel(simulation.state.civicLevel);
   hud.updateHud(stateSnapshot());
   villagerField.syncVillagers(simulation.state.population);
@@ -196,6 +204,7 @@ function hydrateFromLoadedState(): void {
     workerAnimation.worker.visible = false;
     hud.hideBuildPanel();
     if (simulation.state.armyReport) {
+      villagerField.beginArmyMuster(simulation.state.armyReport, animationElapsed);
       hud.renderArmyReport(simulation.state.armyReport, simulation.buildOrderSummary().map(({ buildingId }) => BUILDINGS[buildingId].name));
       hud.setStatus(`Campaign complete — ${simulation.state.armyReport.outcome}`, 1);
     }

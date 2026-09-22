@@ -13,8 +13,8 @@ export const treeGround = new THREE.Vector2(10.1, 5.6);
 export const workerFootOffset = 0.95;
 
 const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
-  marketplace: new THREE.Vector2(2.1, 0.2),
-  house: new THREE.Vector2(-3.5, 1.2),
+  marketplace: new THREE.Vector2(2.4, 0.25),
+  house: new THREE.Vector2(-3.4, 1.15),
   woodcutter: new THREE.Vector2(8.1, 5.0),
   sawmill: new THREE.Vector2(5.8, 3.6),
   farm: new THREE.Vector2(-8.4, 4.7),
@@ -30,16 +30,48 @@ const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
   barracks: new THREE.Vector2(7.5, -7.1),
 };
 
-const BUILDING_DISTRICTS: Record<string, string> = {
+export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry";
+
+const BUILDING_DISTRICTS: Record<string, CityDistrict> = {
   marketplace: "civic", house: "civic",
   woodcutter: "forest", sawmill: "forest",
   farm: "farms", bakery: "farms", granary: "farms",
-  "fruit-orchard": "southwest", winery: "southwest", "swine-farm": "southwest", butchery: "southwest",
+  "fruit-orchard": "provisions", winery: "provisions", "swine-farm": "provisions", butchery: "provisions",
   quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry", barracks: "industry",
 };
 
 export function getBuildingPosition(buildingId: string): THREE.Vector2 {
   return BUILDING_POSITIONS[buildingId] ?? civicGround;
+}
+
+export function getBuildingDistrict(buildingId: string): CityDistrict {
+  return BUILDING_DISTRICTS[buildingId] ?? "civic";
+}
+
+export const DISTRICT_JUNCTIONS: Record<CityDistrict, THREE.Vector2> = {
+  civic: new THREE.Vector2(1.75, 0.05),
+  forest: new THREE.Vector2(6.9, 4.15),
+  farms: new THREE.Vector2(-7.0, 3.75),
+  provisions: new THREE.Vector2(-6.1, -4.45),
+  industry: new THREE.Vector2(6.15, -5.0),
+};
+
+const DISTRICT_PATHS: Record<CityDistrict, THREE.Vector2[]> = {
+  civic: [civicGround, new THREE.Vector2(1.75, 0.05), new THREE.Vector2(3.7, 0.2)],
+  forest: [civicGround, new THREE.Vector2(3.25, 1.75), DISTRICT_JUNCTIONS.forest],
+  farms: [civicGround, new THREE.Vector2(-3.75, 1.95), DISTRICT_JUNCTIONS.farms],
+  provisions: [civicGround, new THREE.Vector2(-3.35, -2.05), DISTRICT_JUNCTIONS.provisions],
+  industry: [civicGround, new THREE.Vector2(3.05, -1.95), DISTRICT_JUNCTIONS.industry],
+};
+
+/** Road-following waypoints used by delivery villagers as well as the visible road mesh. */
+export function getRoadRoute(fromBuildingId: string, toBuildingId: string): THREE.Vector2[] {
+  const from = getBuildingPosition(fromBuildingId);
+  const to = getBuildingPosition(toBuildingId);
+  const fromDistrict = getBuildingDistrict(fromBuildingId);
+  const toDistrict = getBuildingDistrict(toBuildingId);
+  if (fromDistrict === toDistrict) return [from, DISTRICT_JUNCTIONS[fromDistrict], to];
+  return [from, DISTRICT_JUNCTIONS[fromDistrict], civicGround, DISTRICT_JUNCTIONS[toDistrict], to];
 }
 
 export function createIsoGrid(): THREE.Group {
@@ -114,6 +146,10 @@ export interface CityLayout {
   showRoadForBuilding(buildingId: string): void;
   /** Hides every road again, for a full settlement restart. */
   hideAllRoads(): void;
+  /** Reconciles every supply-chain connector with the buildings currently present. */
+  syncBuiltBuildings(buildingIds: string[]): void;
+  /** Reveals cumulative civic infrastructure for settlement levels 0–8. */
+  setCivicLevel(level: number): void;
 }
 
 /** Builds the static ground, forest, fields, roads, and placement indicator, and adds them all to `scene`. */
@@ -133,15 +169,90 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
 
   const districtRoads = new Map<string, THREE.Group>();
   const buildingRoads = new Map<string, THREE.Group>();
+  const workflowRoads = new Map<string, THREE.Group>();
+  const environmentStages = Array.from({ length: 9 }, () => new THREE.Group());
+  environmentStages.forEach((stage) => background.add(stage));
 
-  const districtPaths: Record<string, THREE.Vector2[]> = {
-    civic: [civicGround, new THREE.Vector2(3.8, 0.2)],
-    forest: [civicGround, new THREE.Vector2(3.3, 1.8), new THREE.Vector2(7.0, 4.3)],
-    farms: [civicGround, new THREE.Vector2(-3.8, 2.0), new THREE.Vector2(-7.1, 3.8)],
-    southwest: [civicGround, new THREE.Vector2(-3.4, -2.1), new THREE.Vector2(-6.2, -4.6)],
-    industry: [civicGround, new THREE.Vector2(3.1, -2.0), new THREE.Vector2(6.2, -5.1)],
+  const addGroundDisc = (stage: number, x: number, y: number, radius: number, color: number, opacity = 0.75): void => {
+    const disc = new THREE.Mesh(
+      new THREE.CircleGeometry(radius, 20),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthTest: false }),
+    );
+    disc.position.set(x, y, 0.1);
+    disc.scale.y = 0.6;
+    disc.renderOrder = -2;
+    environmentStages[stage].add(disc);
   };
-  for (const [district, points] of Object.entries(districtPaths)) {
+
+  // Level 0: the first fire and trampled campsite clearing.
+  addGroundDisc(0, civicGround.x + 0.7, civicGround.y - 0.75, 0.32, 0xd77a31, 0.8);
+  addGroundDisc(0, civicGround.x + 0.7, civicGround.y - 0.75, 0.16, 0xffd26a, 0.95);
+
+  // Level 1: a ring of boundary stones makes the founding claim legible.
+  for (let index = 0; index < 10; index += 1) {
+    const angle = (index / 10) * Math.PI * 2;
+    addGroundDisc(1, civicGround.x + Math.cos(angle) * 2.6, civicGround.y + Math.sin(angle) * 1.45, 0.13, 0x9a9078, 0.85);
+  }
+
+  // Level 2: timber fences establish the first civic enclosure.
+  const fenceMaterial = new THREE.MeshBasicMaterial({ color: 0x765233, transparent: true, opacity: 0.8, depthTest: false });
+  [[-3.2, -1.5, -1.1, -2.1], [1.0, 2.1, 2.7, 1.4], [-3.6, 1.2, -2.5, 2.1]].forEach(([x1, y1, x2, y2]) => {
+    const segment = createRoadSegment(new THREE.Vector2(x1, y1), new THREE.Vector2(x2, y2), 0.11, 0x765233, -2);
+    (segment.material as THREE.MeshBasicMaterial).copy(fenceMaterial);
+    environmentStages[2].add(segment);
+  });
+
+  // Level 4: a public well and meeting ring appear beside the council lodge.
+  const well = new THREE.Mesh(
+    new THREE.RingGeometry(0.32, 0.48, 24),
+    new THREE.MeshBasicMaterial({ color: 0xb8aa8d, transparent: true, opacity: 0.9, depthTest: false }),
+  );
+  well.position.set(civicGround.x + 1.45, civicGround.y - 0.65, 0.12);
+  well.scale.y = 0.58;
+  well.renderOrder = -1;
+  environmentStages[4].add(well);
+
+  // Level 5: market awnings turn the central road into a recognisable square.
+  [[1.0, 1.15, 0xb6543d], [1.75, 1.35, 0xd1a342], [2.45, 1.0, 0x587f54]].forEach(([x, y, color]) => {
+    const stall = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.65, 0.34),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthTest: false }),
+    );
+    stall.position.set(x, y, 0.13);
+    stall.rotation.z = -0.18;
+    stall.renderOrder = 2;
+    environmentStages[5].add(stall);
+  });
+
+  // Level 6: warm road lamps mark the five district approaches.
+  [[2.3, 1.15], [-2.7, 1.35], [-2.45, -1.45], [2.25, -1.35], [0.8, 0.15]].forEach(([x, y]) => {
+    addGroundDisc(6, x, y, 0.16, 0xf0c55f, 0.9);
+    addGroundDisc(6, x, y, 0.32, 0xf0c55f, 0.16);
+  });
+
+  // Level 7: council banners announce a defended town.
+  for (const side of [-1, 1]) {
+    const pole = createRoadSegment(
+      new THREE.Vector2(civicGround.x + side * 2.15, civicGround.y - 0.2),
+      new THREE.Vector2(civicGround.x + side * 2.15, civicGround.y + 1.2),
+      0.07, 0x5c4530, 3,
+    );
+    const banner = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.42, 0.5),
+      new THREE.MeshBasicMaterial({ color: 0xa54436, transparent: true, opacity: 0.95, depthTest: false }),
+    );
+    banner.position.set(civicGround.x + side * 1.98, civicGround.y + 0.82, 0.2);
+    banner.renderOrder = 4;
+    environmentStages[7].add(pole, banner);
+  }
+
+  // Level 8: paired stone gateposts finish every main approach to the Grand Town Hall.
+  for (const point of [new THREE.Vector2(3.05, -1.95), new THREE.Vector2(-3.35, -2.05), new THREE.Vector2(3.25, 1.75), new THREE.Vector2(-3.75, 1.95)]) {
+    addGroundDisc(8, point.x - 0.28, point.y, 0.24, 0x77736a, 0.95);
+    addGroundDisc(8, point.x + 0.28, point.y, 0.24, 0x77736a, 0.95);
+  }
+
+  for (const [district, points] of Object.entries(DISTRICT_PATHS)) {
     const roadGroup = new THREE.Group();
     addRoadPath(roadGroup, points, 0.78, 0xb28f5c, -6);
     addRoadPath(roadGroup, points, 0.22, 0xe1c78d, -5);
@@ -150,16 +261,44 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     background.add(roadGroup);
   }
 
-  const districtJunctions: Record<string, THREE.Vector2> = {
-    civic: new THREE.Vector2(1.8, 0.1), forest: new THREE.Vector2(7.0, 4.3), farms: new THREE.Vector2(-7.1, 3.8),
-    southwest: new THREE.Vector2(-6.2, -4.6), industry: new THREE.Vector2(6.2, -5.1),
-  };
   for (const [buildingId, position] of Object.entries(BUILDING_POSITIONS)) {
     const connector = new THREE.Group();
-    connector.add(createRoadSegment(districtJunctions[BUILDING_DISTRICTS[buildingId]], position, 0.28, 0xd2b57c, -4));
+    connector.add(createRoadSegment(DISTRICT_JUNCTIONS[BUILDING_DISTRICTS[buildingId]], position, 0.28, 0xd2b57c, -4));
     connector.visible = false;
     buildingRoads.set(buildingId, connector);
     background.add(connector);
+  }
+
+  const workflowLinks: Array<[string, string]> = [
+    ["woodcutter", "sawmill"], ["farm", "bakery"], ["farm", "granary"],
+    ["fruit-orchard", "winery"], ["swine-farm", "butchery"],
+    ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["weapons-workshop", "barracks"],
+    ["marketplace", "house"],
+  ];
+  for (const [fromId, toId] of workflowLinks) {
+    const group = new THREE.Group();
+    addRoadPath(group, getRoadRoute(fromId, toId), 0.16, 0xe0ca99, -3);
+    group.visible = false;
+    workflowRoads.set(`${fromId}:${toId}`, group);
+    background.add(group);
+  }
+
+  const districtGrounds: Array<[CityDistrict, THREE.Vector2, number, number]> = [
+    ["civic", new THREE.Vector2(0.1, 0), 4.4, 0xbfa76e],
+    ["forest", new THREE.Vector2(8, 5), 5.2, 0x456c3b],
+    ["farms", new THREE.Vector2(-7.4, 3.4), 5.0, 0x9b8948],
+    ["provisions", new THREE.Vector2(-6.2, -4.4), 5.0, 0x72834b],
+    ["industry", new THREE.Vector2(6.2, -5.0), 5.2, 0x77746a],
+  ];
+  for (const [, center, radius, color] of districtGrounds) {
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(radius, 40),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthTest: false }),
+    );
+    ground.position.set(center.x, center.y, 0.025);
+    ground.scale.y = 0.55;
+    ground.renderOrder = -9;
+    background.add(ground);
   }
 
   const forestFloor = new THREE.Mesh(
@@ -179,7 +318,7 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     ]);
     const line = new THREE.Line(geometry, fieldMaterial);
     line.renderOrder = -3;
-    background.add(line);
+    environmentStages[3].add(line);
   }
   scene.add(background);
 
@@ -202,6 +341,21 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     hideAllRoads(): void {
       districtRoads.forEach((road) => { road.visible = false; });
       buildingRoads.forEach((road) => { road.visible = false; });
+      workflowRoads.forEach((road) => { road.visible = false; });
+    },
+    syncBuiltBuildings(buildingIds: string[]): void {
+      const built = new Set(buildingIds);
+      districtRoads.forEach((road, district) => {
+        road.visible = buildingIds.some((id) => BUILDING_DISTRICTS[id] === district);
+      });
+      buildingRoads.forEach((road, id) => { road.visible = built.has(id); });
+      workflowRoads.forEach((road, key) => {
+        const [fromId, toId] = key.split(":");
+        road.visible = built.has(fromId) && built.has(toId);
+      });
+    },
+    setCivicLevel(level: number): void {
+      environmentStages.forEach((stage, index) => { stage.visible = index <= level; });
     },
   };
 }
