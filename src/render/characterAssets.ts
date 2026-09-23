@@ -41,6 +41,7 @@ const BUILDING_ROLES: Record<string, CharacterRole> = {
   blacksmith: "blacksmith",
   "weapons-workshop": "blacksmith",
   barracks: "spearman",
+  stable: "horseman",
 };
 
 export function roleForBuilding(buildingId: string): CharacterRole {
@@ -51,6 +52,8 @@ export function roleForBuilding(buildingId: string): CharacterRole {
 export function roleForArmyUnitAtIndex(units: ArmyUnits, index: number): CharacterRole {
   if (index < units.swordsmen) return "swordsman";
   index -= units.swordsmen;
+  if (index < units.horsemen) return "horseman";
+  index -= units.horsemen;
   if (index < units.archers) return "archer";
   index -= units.archers;
   if (index < units.spearmen) return "spearman";

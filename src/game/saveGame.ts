@@ -1,4 +1,4 @@
-import { describeSnapshotProblem, SAVE_SCHEMA_VERSION, type SettlementSnapshot } from "./settlementSimulation";
+import { describeSnapshotProblem, migrateSnapshot, SAVE_SCHEMA_VERSION, type SettlementSnapshot } from "./settlementSimulation";
 
 const SAVE_KEY = "grow-an-empire:save:v1";
 
@@ -45,8 +45,9 @@ export function loadSavedSnapshot(): SettlementSnapshot | null {
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
+    const migrated = migrateSnapshot(parsed);
+    if (migrated) return migrated;
     const problem = describeSnapshotProblem(parsed);
-    if (!problem) return parsed as SettlementSnapshot;
     if (isFromNewerVersion(parsed)) {
       console.warn("[Grow an Empire] The autosave is from a newer version of the game; leaving it untouched.");
       return null;

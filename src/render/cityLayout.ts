@@ -83,6 +83,7 @@ const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
   blacksmith: planPoint(1433, 657),
   "weapons-workshop": planPoint(1447, 797),
   barracks: planPoint(1693, 820),
+  stable: planPoint(1240, 900),
 };
 
 export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry";
@@ -92,7 +93,7 @@ const BUILDING_DISTRICTS: Record<string, CityDistrict> = {
   woodcutter: "forest", sawmill: "forest",
   farm: "farms", bakery: "farms", granary: "farms",
   "fruit-orchard": "provisions", winery: "provisions", "swine-farm": "provisions", butchery: "provisions",
-  quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry", barracks: "industry",
+  quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry", barracks: "industry", stable: "industry",
 };
 
 /** Ground position of a building (falls back to the civic center for unknown ids). Read-only. */
@@ -343,6 +344,7 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     ["woodcutter", "sawmill"], ["farm", "bakery"], ["farm", "granary"],
     ["fruit-orchard", "winery"], ["swine-farm", "butchery"],
     ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["blacksmith", "barracks"], ["weapons-workshop", "barracks"],
+    ["blacksmith", "stable"], ["weapons-workshop", "stable"],
     ["marketplace", "house"],
   ];
   for (const [fromId, toId] of workflowLinks) {

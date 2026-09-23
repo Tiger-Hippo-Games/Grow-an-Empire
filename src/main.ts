@@ -32,6 +32,7 @@ let playing = true;
 let speed = 1;
 /** Visual clock in seconds (scaled by speed, stops while paused). Drives every animation. */
 let animationElapsed = 0;
+let combatElapsed = 0;
 /** Whether to resume play when the tutorial modal closes (i.e. it was playing when it opened). */
 let resumeAfterTutorial = false;
 /**
@@ -183,6 +184,7 @@ let lastCombatStatus: string | null = null;
 function showBattleResult(): void {
   const report = simulation.state.armyReport;
   if (!report) return;
+  combatScene.clear();
   villagerField.setCombatActive(false);
   villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
   villagerField.beginArmyMuster(report, animationElapsed);
@@ -196,12 +198,14 @@ async function startCombat(report: NonNullable<SettlementSnapshot["state"]["army
   const startingRun = runId;
   hud.hideMilestone();
   hud.hideArmyReport();
-  hud.setStatus("Five raider swordsmen are attacking the clearing!", 0);
+  hud.setStatus("Raiders are approaching from the south!", 0);
   try {
     await combatScene.load();
     if (runId !== startingRun || simulation.state.mode !== "complete") return;
     villagerField.setCombatActive(true);
-    combatScene.start(report, animationElapsed);
+    combatElapsed = 0;
+    const view = viewBounds();
+    combatScene.start(report, combatElapsed, view.centerY - view.height / 2);
     lastCombatStatus = null;
     requestRender();
   } catch (error) {
@@ -329,6 +333,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       const newSoldiers = [
         simulation.state.builtBuildingIds.includes("blacksmith") && "1 swordsman",
         simulation.state.builtBuildingIds.includes("weapons-workshop") && "1 archer",
+        simulation.state.builtBuildingIds.includes("stable") && "2 horsemen",
       ].filter(Boolean).join(" and ");
       hud.showMilestone(BUILDINGS[event.buildingId].name, newSoldiers ? `${copy} ${newSoldiers} joined the garrison.` : copy, animationElapsed);
     } else if (event.type === "civic-upgraded") {
@@ -347,11 +352,11 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
     } else if (event.type === "economy-resolved") {
       for (const buildingId of event.activeBuildingIds) constructionView.markProduced(buildingId, animationElapsed);
     } else if (event.type === "population-changed") {
-      villagerField.syncVillagers(Math.max(0, event.total - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
+      villagerField.syncVillagers(Math.max(0, event.total - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
     } else if (event.type === "unit-trained") {
-      villagerField.syncGarrison(event.units);
-      const newUnits = [event.newSwordsmen && "1 swordsman", event.newArchers && "1 archer"].filter(Boolean).join(" and ");
-      hud.setStatus(`${newUnits} joined the Barracks garrison · ${event.units.swordsmen + event.units.archers} defenders`, 1);
+      villagerField.syncGarrison(event.units, animationElapsed, simulation.state.builtBuildingIds);
+      const newUnits = [event.newSwordsmen && "1 swordsman", event.newArchers && "1 archer", event.newHorsemen && "2 horsemen"].filter(Boolean).join(" and ");
+      hud.setStatus(`${newUnits} joined the town hall garrison · ${event.units.swordsmen + event.units.archers + event.units.horsemen} defenders`, 1);
     } else if (event.type === "army-mustered") {
       void startCombat(event.report);
     } else if (event.type === "game-complete") {
@@ -405,7 +410,7 @@ function resetSettlement(): void {
   hud.setCivicLevel(0);
   hud.updateHud(stateSnapshot());
   villagerField.clearArmyMuster();
-  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
+  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
   villagerField.syncGarrison(simulation.state.trainedUnits);
   workerAnimation.worker.visible = true;
   workerAnimation.placeWorker(civicGround);
@@ -444,7 +449,7 @@ function hydrateFromLoadedState(): void {
   cityLayout.setCivicLevel(simulation.state.civicLevel);
   hud.setCivicLevel(simulation.state.civicLevel);
   hud.updateHud(stateSnapshot());
-  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
+  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
   villagerField.syncGarrison(simulation.state.trainedUnits);
 
   const { selectedBuildingId: buildingId, activePlotIndex: plotIndex } = simulation.state;
@@ -686,6 +691,7 @@ function frame(): void {
   probeFrameTime(realDelta);
   session.addPlayTime(realDelta);
   animationElapsed += delta;
+  if (combatScene.active) combatElapsed += realDelta;
   handleSimulationEvents(simulation.update(delta));
   const { mode, selectedBuildingId, activePlotIndex } = simulation.state;
   if (mode === "construction" && selectedBuildingId !== null && activePlotIndex !== null) {
@@ -700,9 +706,9 @@ function frame(): void {
     constructionView.renderWoodcutterActivity(animationElapsed, simulation.state.builtBuildingIds);
   }
   villagerField.renderVillagers(animationElapsed, simulation.state.builtBuildingIds);
-  if (combatScene.update(animationElapsed)) showBattleResult();
+  if (combatScene.update(combatElapsed)) showBattleResult();
   else {
-    const combatStatus = combatScene.status(animationElapsed);
+    const combatStatus = combatScene.status(combatElapsed);
     if (combatStatus && combatStatus !== lastCombatStatus) {
       lastCombatStatus = combatStatus;
       hud.setStatus(combatStatus, 1);

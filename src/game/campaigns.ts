@@ -28,11 +28,11 @@ export const CAMPAIGN_1: CampaignDefinition = {
   moveLimit: 12,
   availableBuildingIds: [
     "woodcutter", "farm", "swine-farm", "bakery", "sawmill", "butchery", "fruit-orchard", "winery",
-    "quarry", "house", "granary", "marketplace", "blacksmith", "weapons-workshop", "barracks",
+    "quarry", "house", "granary", "marketplace", "blacksmith", "weapons-workshop", "barracks", "stable",
   ],
   objective: {
     enemyName: "The Ashfang Raiders",
-    briefing: "Five swordsmen attack after Move 12. Defend with six swordsmen, ten archers, or at least three of each.",
+    briefing: "Five swordsmen attack after Move 12. Defend with six swordsmen, ten archers, six horsemen, or at least three swordsmen and three archers.",
     strength: 5,
   },
 };

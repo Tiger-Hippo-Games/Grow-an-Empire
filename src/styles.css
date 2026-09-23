@@ -131,7 +131,7 @@ h1 { margin: 2px 0 0; font-size: clamp(.98rem,1.7vw,1.25rem); line-height: 1.1; 
 .army-score { min-width: 108px; padding: 10px; border-radius: 13px; color: #aebba9; background: rgba(255,255,255,.06); text-align: center; font-size: .7rem; text-transform: uppercase; }
 .army-score b { display: block; color: #f3ca71; font-size: 1.5rem; }
 .army-summary { margin: 12px 0; color: #cbd5c7; font-size: .78rem; line-height: 1.45; }
-.army-units,.army-stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 7px; margin-top: 10px; }
+.army-units,.army-stats { display: grid; grid-template-columns: repeat(6,1fr); gap: 7px; margin-top: 10px; }
 .army-units div,.army-stats div { padding: 9px 6px; border-radius: 10px; background: rgba(255,255,255,.06); text-align: center; }
 .army-units span,.army-stats span { display: block; color: #aebba9; font-size: .7rem; font-weight: 800; text-transform: uppercase; }
 .army-units b,.army-stats b { display: block; margin-top: 3px; color: #f3ca71; font-size: 1rem; }

@@ -7,7 +7,7 @@ This image is a composition study, not a replacement terrain or a finished game 
 ## Stage
 
 - Fight in the open lower-center ground between Butchery (plan point 441, 820) and Barracks (1693, 820). Keep the central clash around plan x 950–1130, y 760–870, clear of building footprints and roads.
-- Show 5–10 defenders from the Barracks side and 5–10 raiders from the Butchery side. If the final army contains more soldiers, show a representative squad while the report counts the full force.
+- Trained soldiers travel from the Barracks, or their training workshop before it exists, and form ranks below the Town Hall after each move. For the finale, defenders advance from the Town Hall while five raiders enter from the bottom edge of the current viewport. The report counts the full force while the clearing shows up to five swordsmen and five archers.
 - Put melee fighters in two loose front ranks. Keep archers behind them so arrows and targets read clearly at small size. Give each unit a slight y offset so sprites do not form a flat line.
 - No camera zoom: the user should still see the whole city. Hide the build-choice panel during combat; show the final army report after the action settles.
 
@@ -16,7 +16,7 @@ This image is a composition study, not a replacement terrain or a finished game 
 | Beat | Approximate time | Visual motion |
 | --- | --- | --- |
 | Alarm | 1.5 s | Barracks banner flicks, defenders turn toward incoming raiders, a small dust trail appears at the west edge. |
-| Approach | 2–3 s | Both ranks use their existing four-frame walk cycles and slow as they reach their opponents. Archers stop behind the front line. |
+| Approach | 2–3 s | Raiders move north from the screen edge; defenders move south from the Town Hall. Both ranks use their existing four-frame walk cycles and slow as they reach their opponents. Archers stop behind the front line. |
 | First volley | 1 s | Archers draw, loose two staggered arrows, and show narrow trails. A shield block answers one arrow. |
 | Melee exchange | 8–12 s | Paired fighters alternate windup, strike, impact, and recovery. Add one compact spark or dust puff at each contact; a brief recoil and a half-step back sell the hit. |
 | Outcome | 2–3 s | Losing fighters kneel/fall and fade or withdraw. Victors raise weapons briefly, then return to idle while the army report appears. |

@@ -14,6 +14,7 @@ describe("functional city routes", () => {
       "swine-farm": [206, 767], butchery: [441, 820],
       quarry: [1634, 611], blacksmith: [1433, 657],
       "weapons-workshop": [1447, 797], barracks: [1693, 820],
+      stable: [1240, 900],
     };
     const distinct = new Set<string>();
     expect(Object.keys(anchors).sort()).toEqual(Object.keys(BUILDINGS).sort());
@@ -63,9 +64,9 @@ describe("functional city routes", () => {
   });
 
   it("maps each final army unit to its own artwork", () => {
-    const units = { swordsmen: 1, archers: 1, spearmen: 1, militia: 1, mercenaries: 1 };
-    expect([0, 1, 2, 3, 4].map((index) => roleForArmyUnitAtIndex(units, index)))
-      .toEqual(["swordsman", "archer", "spearman", "militia", "horseman"]);
+    const units = { swordsmen: 1, archers: 1, horsemen: 1, spearmen: 1, militia: 1, mercenaries: 1 };
+    expect([0, 1, 2, 3, 4, 5].map((index) => roleForArmyUnitAtIndex(units, index)))
+      .toEqual(["swordsman", "horseman", "archer", "spearman", "militia", "horseman"]);
   });
 
   it("maps every character to a four-frame walk sheet", () => {

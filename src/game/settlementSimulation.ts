@@ -33,11 +33,11 @@ export type CampaignOutcome = "Settlement Lost" | "Costly Survival" | "Victory" 
 /** Stockpile of every resource. Always contains every key (missing keys from old saves are filled with 0). */
 export type ResourceLedger = Record<ResourceName, number>;
 /** Bump this when `SettlementState`'s shape changes incompatibly; older saves are then discarded. */
-export const SAVE_SCHEMA_VERSION = 4 as const;
+export const SAVE_SCHEMA_VERSION = 5 as const;
 
-export interface TrainedUnits { archers: number; swordsmen: number; }
+export interface TrainedUnits { archers: number; swordsmen: number; horsemen: number; }
 
-export interface ArmyUnits { militia: number; spearmen: number; archers: number; swordsmen: number; mercenaries: number; }
+export interface ArmyUnits { militia: number; spearmen: number; archers: number; swordsmen: number; horsemen: number; mercenaries: number; }
 /** The end-of-campaign result, computed once by `assembleArmy()` when the final move completes. */
 export interface ArmyReport {
   outcome: CampaignOutcome; score: number; enemyStrength: number; units: ArmyUnits; totalUnits: number;
@@ -58,7 +58,7 @@ export type SimulationEvent =
   | { type: "choices-ready"; move: number; options: string[] }
   | { type: "economy-resolved"; activeBuildingIds: string[] }
   | { type: "population-changed"; total: number }
-  | { type: "unit-trained"; units: TrainedUnits; newArchers: number; newSwordsmen: number }
+  | { type: "unit-trained"; units: TrainedUnits; newArchers: number; newSwordsmen: number; newHorsemen: number }
   | { type: "army-mustered"; report: ArmyReport }
   | { type: "game-complete" };
 
@@ -96,7 +96,7 @@ const createInitialState = (): SettlementState => ({
   mode: "awaiting-choice", move: 1, civicLevel: 0, population: 1, resources: emptyResources(),
   builtBuildingIds: [], availableBuildingIds: [...OPENING_BUILD_OPTIONS], selectedBuildingId: null,
   activePlotIndex: null, constructionElapsed: 0, buildingMaturity: {}, armyReport: null,
-  trainedUnits: { archers: 0, swordsmen: 0 },
+  trainedUnits: { archers: 0, swordsmen: 0, horsemen: 0 },
 });
 
 const clamp = (value: number, minimum: number, maximum: number): number => Math.max(minimum, Math.min(maximum, value));
@@ -130,7 +130,7 @@ export function describeSnapshotProblem(value: unknown): string | null {
   if (!isKnownIdList(state.availableBuildingIds)) return "availableBuildingIds contains unknown or duplicate buildings";
   if (!isPlainObject(state.resources) || !Object.values(state.resources).every((amount) => Number.isFinite(amount))) return "invalid resources";
   if (!isPlainObject(state.buildingMaturity) || !Object.values(state.buildingMaturity).every((amount) => Number.isFinite(amount))) return "invalid buildingMaturity";
-  if (!isPlainObject(state.trainedUnits) || !Number.isInteger(state.trainedUnits.archers) || (state.trainedUnits.archers as number) < 0 || !Number.isInteger(state.trainedUnits.swordsmen) || (state.trainedUnits.swordsmen as number) < 0) return "invalid trainedUnits";
+  if (!isPlainObject(state.trainedUnits) || !Number.isInteger(state.trainedUnits.archers) || (state.trainedUnits.archers as number) < 0 || !Number.isInteger(state.trainedUnits.swordsmen) || (state.trainedUnits.swordsmen as number) < 0 || !Number.isInteger(state.trainedUnits.horsemen) || (state.trainedUnits.horsemen as number) < 0) return "invalid trainedUnits";
   if (state.mode === "construction") {
     if (!isKnownBuildingId(state.selectedBuildingId)) return "construction without a known selected building";
     if (state.activePlotIndex !== state.builtBuildingIds.length) return "activePlotIndex does not match build order";
@@ -143,6 +143,23 @@ export function describeSnapshotProblem(value: unknown): string | null {
 /** Type guard: true when `value` can be passed to `loadSnapshot()` safely. */
 export function isValidSnapshot(value: unknown): value is SettlementSnapshot {
   return describeSnapshotProblem(value) === null;
+}
+
+/** Adds cavalry counters to v4 saves without changing their existing progress. */
+export function migrateSnapshot(value: unknown): SettlementSnapshot | null {
+  if (!isPlainObject(value)) return null;
+  if (value.schemaVersion === SAVE_SCHEMA_VERSION) return isValidSnapshot(value) ? value : null;
+  if (value.schemaVersion !== 4 || !isPlainObject(value.state)) return null;
+  const state = value.state;
+  if (!isPlainObject(state.trainedUnits)) return null;
+  const migrated = structuredClone(value);
+  const migratedState = migrated.state as Record<string, unknown>;
+  (migratedState.trainedUnits as Record<string, unknown>).horsemen = 0;
+  if (isPlainObject(migratedState.armyReport) && isPlainObject(migratedState.armyReport.units)) {
+    migratedState.armyReport.units.horsemen = 0;
+  }
+  migrated.schemaVersion = SAVE_SCHEMA_VERSION;
+  return isValidSnapshot(migrated) ? migrated : null;
 }
 
 /**
@@ -247,9 +264,11 @@ export class SettlementSimulation {
     events.push({ type: "economy-resolved", activeBuildingIds: [...this.state.builtBuildingIds] });
     const newArchers = this.state.builtBuildingIds.includes("weapons-workshop") ? 1 : 0;
     const newSwordsmen = this.state.builtBuildingIds.includes("blacksmith") ? 1 : 0;
+    const newHorsemen = this.state.builtBuildingIds.includes("stable") ? 2 : 0;
     this.state.trainedUnits.archers += newArchers;
     this.state.trainedUnits.swordsmen += newSwordsmen;
-    if (newArchers || newSwordsmen) events.push({ type: "unit-trained", units: { ...this.state.trainedUnits }, newArchers, newSwordsmen });
+    this.state.trainedUnits.horsemen += newHorsemen;
+    if (newArchers || newSwordsmen || newHorsemen) events.push({ type: "unit-trained", units: { ...this.state.trainedUnits }, newArchers, newSwordsmen, newHorsemen });
     const previousPopulation = this.state.population;
     const houseMaturity = this.state.buildingMaturity.house ?? 0;
     this.state.population = populationForLevel(this.state.civicLevel) + 2 * houseMaturity;
@@ -339,7 +358,7 @@ export class SettlementSimulation {
   /**
    * Resolves the settlement defense after the final move.
    *
-   * Trained archers and swordsmen carry through from completed moves. Remaining
+   * Trained archers, swordsmen, and horsemen carry through from completed moves. Remaining
    * recruits come from population above 8 (65%); arms can equip reserve spearmen.
    * Mercenaries are hired with wealth and rations if a Marketplace exists.
    * The score remains a campaign statistic; victory follows the army composition
@@ -348,7 +367,7 @@ export class SettlementSimulation {
   private assembleArmy(): ArmyReport {
     const built = new Set(this.state.builtBuildingIds);
     const resources = this.state.resources;
-    let recruits = Math.max(0, Math.floor((this.state.population - 8) * 0.65) - this.state.trainedUnits.archers - this.state.trainedUnits.swordsmen);
+    let recruits = Math.max(0, Math.floor((this.state.population - 8) * 0.65) - this.state.trainedUnits.archers - this.state.trainedUnits.swordsmen - this.state.trainedUnits.horsemen);
     const arms = resources.arms;
     // One reserve recruit can be equipped at the final muster. This makes the
     // 10-archer defense achievable in a 12-move run when the Workshop is built
@@ -357,14 +376,15 @@ export class SettlementSimulation {
     recruits -= reserveArcher;
     const archers = this.state.trainedUnits.archers + reserveArcher;
     const swordsmen = this.state.trainedUnits.swordsmen;
+    const horsemen = this.state.trainedUnits.horsemen;
     const spearmen = built.has("weapons-workshop") ? Math.min(arms, recruits) : 0;
     recruits -= spearmen;
     const militia = Math.floor(recruits * 0.6);
     const mercenaries = built.has("marketplace") ? Math.min(5, Math.floor(resources.wealth / 4), Math.floor(resources.rations / 2)) : 0;
-    const units: ArmyUnits = { militia, spearmen, archers, swordsmen, mercenaries };
+    const units: ArmyUnits = { militia, spearmen, archers, swordsmen, horsemen, mercenaries };
     const totalUnits = Object.values(units).reduce((sum, value) => sum + value, 0);
     const morale = clamp(50 + this.state.civicLevel * 3 + resources.wine * 4 + (built.has("marketplace") ? 8 : 0) + (built.has("house") ? 4 : 0), 40, 100);
-    const baseCombat = militia + spearmen * 3 + archers * 4 + swordsmen * 5 + mercenaries * 4;
+    const baseCombat = militia + spearmen * 3 + archers * 4 + swordsmen * 5 + horsemen * 7 + mercenaries * 4;
     const combatStrength = Math.round(baseCombat * (0.8 + morale / 250));
     const supplyTurns = Math.min(8, Math.floor(resources.rations / Math.max(1, Math.ceil(totalUnits / 4))));
     const cityDefense = resources.defense + Math.floor(resources.stone / 2) + Math.floor(resources.planks / 3) + this.state.civicLevel * 2;
@@ -374,8 +394,9 @@ export class SettlementSimulation {
 
     const explanations: string[] = [];
     explanations.push(`${this.state.trainedUnits.archers} archers and ${swordsmen} swordsmen trained one at a time across the completed moves.`);
+    if (horsemen) explanations.push(`${horsemen} horsemen trained at the Stable, two per completed move.`);
     if (reserveArcher) explanations.push("A final reserve archer joined the defense using stored planks.");
-    explanations.push(strategy === "swordsmen" ? "Six or more swordsmen held the raider line." : strategy === "archers" ? "Ten or more archers stopped the raiders with volleys." : strategy === "mixed" ? "At least three archers and three swordsmen combined to hold the clearing." : "The defense needed six swordsmen, ten archers, or at least three of each.");
+    explanations.push(strategy === "swordsmen" ? "Six or more swordsmen held the raider line." : strategy === "archers" ? "Ten or more archers stopped the raiders with volleys." : strategy === "horsemen" ? "Six or more horsemen broke the raider charge." : strategy === "mixed" ? "At least three archers and three swordsmen combined to hold the clearing." : "The defense needed six swordsmen, ten archers, six horsemen, or at least three swordsmen and three archers.");
     explanations.push(built.has("weapons-workshop") ? `The workshops forged ${resources.arms} standardized arms before the muster.` : "No Weapons Workshop was completed, so recruits lacked standardized equipment.");
     explanations.push(resources.rations > 0 ? `${resources.rations} stored rations can support the army for ${supplyTurns} campaign turn(s).` : "The city entered battle without preserved campaign rations.");
     if (built.has("marketplace")) explanations.push("Marketplace wealth allowed the city to supplement its ranks with mercenaries.");

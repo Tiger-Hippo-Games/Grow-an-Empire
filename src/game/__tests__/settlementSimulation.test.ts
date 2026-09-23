@@ -80,12 +80,12 @@ describe("move economy", () => {
 
   it("matures early buildings across subsequent moves", () => {
     const sim = new SettlementSimulation();
-    while (!sim.state.builtBuildingIds.includes("bakery")) {
-      const preference = ["woodcutter", "sawmill", "farm", "quarry", "bakery"];
+    while (!sim.state.builtBuildingIds.includes("sawmill")) {
+      const preference = ["woodcutter", "sawmill"];
       build(sim, preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0]);
     }
     expect(sim.state.buildingMaturity.woodcutter).toBe(sim.state.builtBuildingIds.length - sim.state.builtBuildingIds.indexOf("woodcutter"));
-    expect(sim.state.buildingMaturity.bakery).toBe(1);
+    expect(sim.state.buildingMaturity.sawmill).toBe(1);
   });
 
   it("adds exactly one archer and swordsman per move once their workshops exist", () => {
@@ -93,17 +93,20 @@ describe("move economy", () => {
     const preference = ["woodcutter", "sawmill", "quarry", "blacksmith", "weapons-workshop", "barracks"];
     let archers = 0;
     let swordsmen = 0;
+    let horsemen = 0;
     while (sim.state.mode !== "complete") {
       const choice = preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0];
       const events = build(sim, choice);
       if (sim.state.builtBuildingIds.includes("weapons-workshop")) archers += 1;
       if (sim.state.builtBuildingIds.includes("blacksmith")) swordsmen += 1;
-      expect(sim.state.trainedUnits).toEqual({ archers, swordsmen });
+      if (sim.state.builtBuildingIds.includes("stable")) horsemen += 2;
+      expect(sim.state.trainedUnits).toEqual({ archers, swordsmen, horsemen });
       const trained = events.find((event) => event.type === "unit-trained");
       expect(Boolean(trained)).toBe(Boolean(archers || swordsmen));
     }
     expect(archers).toBeGreaterThan(0);
     expect(swordsmen).toBeGreaterThan(0);
+    expect(sim.state.armyReport?.units.horsemen).toBe(horsemen);
     expect(sim.state.armyReport?.units.archers).toBe(archers + 1); // Final reserve recruit, separate from per-move training.
     expect(sim.state.armyReport?.units.swordsmen).toBe(swordsmen);
   });
@@ -152,6 +155,26 @@ describe("Campaign 1 finale", () => {
     expect(sim.state.armyReport?.enemyStrength).toBe(CAMPAIGN_1.objective.strength);
     expect(sim.state.armyReport?.supplyTurns).toBeGreaterThan(0);
     expect(sim.state.armyReport?.units.archers).toBeGreaterThan(0);
+  });
+
+  it("offers the Stable after both workshops and trains two horsemen per completed move", () => {
+    const sim = new SettlementSimulation();
+    const preference = ["woodcutter", "sawmill", "quarry", "blacksmith", "weapons-workshop", "stable"];
+    let previous = 0;
+    let stableBuilt = false;
+    while (sim.state.mode !== "complete") {
+      const choice = preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0];
+      if (choice === "stable") {
+        expect(sim.state.builtBuildingIds).toEqual(expect.arrayContaining(["blacksmith", "weapons-workshop"]));
+        stableBuilt = true;
+      }
+      build(sim, choice);
+      expect(sim.state.trainedUnits.horsemen - previous).toBe(stableBuilt ? 2 : 0);
+      previous = sim.state.trainedUnits.horsemen;
+    }
+    expect(stableBuilt).toBe(true);
+    expect(sim.state.armyReport?.units.horsemen).toBe(previous);
+    expect(previous).toBeGreaterThanOrEqual(6);
   });
 
   it("can reach the finale with no campaign supply turns", () => {

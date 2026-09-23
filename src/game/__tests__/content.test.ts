@@ -60,6 +60,7 @@ describe("isBuildingEligible", () => {
       "fruit-orchard": ["farm"], "swine-farm": ["farm"],
       house: ["sawmill", "quarry"], "weapons-workshop": ["sawmill", "quarry"],
       blacksmith: ["sawmill", "quarry"], barracks: ["sawmill", "quarry"],
+      stable: ["blacksmith", "weapons-workshop"],
       granary: ["farm", "sawmill", "quarry"], winery: ["farm", "sawmill", "quarry"],
       bakery: ["farm", "sawmill", "quarry"], butchery: ["swine-farm", "sawmill"],
       marketplace: ["farm", "butchery"],

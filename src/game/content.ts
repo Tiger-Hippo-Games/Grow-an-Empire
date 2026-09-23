@@ -75,6 +75,7 @@ export const BUILDINGS: Record<string, BuildingDefinition> = {
   blacksmith: building({ id: "blacksmith", name: "Blacksmith", description: "Stone-built forges turn materials into useful tools.", benefit: "+1 swordsman each move", unlocks: "Forges tools for the settlement", artKey: "blacksmith", offerMove: 3, offerPriority: 11, requiresAll: ["sawmill", "quarry"], resource: "tools" }),
   "weapons-workshop": building({ id: "weapons-workshop", name: "Weapons Workshop", description: "Specialist smiths prepare standardized arms.", benefit: "+1 archer each move", unlocks: "Forges arms for the reserve", artKey: "weapons-workshop", offerMove: 3, offerPriority: 10, requiresAll: ["sawmill", "quarry"], resource: "arms" }),
   barracks: building({ id: "barracks", name: "Barracks", description: "A disciplined garrison trains recruits every remaining move.", benefit: "+3 training and +2 defense each move", unlocks: "Stations the city's defenders", artKey: "barracks", offerMove: 3, offerPriority: 15, requiresAll: ["sawmill", "quarry"], resource: "training" }),
+  stable: building({ id: "stable", name: "Stable", description: "Warhorses and riders train for a cavalry charge.", benefit: "+2 horsemen each move", unlocks: "Requires Blacksmith and Weapons Workshop", artKey: "stable", offerMove: 5, offerPriority: 16, requiresAll: ["blacksmith", "weapons-workshop"], resource: "training" }),
 };
 
 /** The three cards offered on Move 1 of every run. */
@@ -123,7 +124,7 @@ export function nextBuildingOffer(
       && (!allowed || allowed.has(candidate.id))
       && isBuildingEligible(candidate, builtIds, move))
     .sort((a, b) => {
-      const urgency = (id: string): number => id === "barracks" && builtIds.some((built) => built === "blacksmith" || built === "weapons-workshop")
+      const urgency = (id: string): number => id === "stable" || id === "barracks" && builtIds.some((built) => built === "blacksmith" || built === "weapons-workshop")
         ? 0 : id === "blacksmith" || id === "weapons-workshop" ? 1 : 2;
       const priority = urgency(a.id) - urgency(b.id);
       if (priority) return priority;

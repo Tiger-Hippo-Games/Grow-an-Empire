@@ -52,6 +52,7 @@ export function createHud(callbacks: HudCallbacks) {
   const populationLabel = requireElement<HTMLElement>("#population");
   const archersLabel = requireElement<HTMLElement>("#archers");
   const swordsmenLabel = requireElement<HTMLElement>("#swordsmen");
+  const horsemenLabel = requireElement<HTMLElement>("#horsemen");
   const buildPanel = requireElement<HTMLElement>("#build-panel");
   const statusBar = requireElement<HTMLElement>(".hud");
   const settlementBar = requireElement<HTMLElement>(".settlement-hud");
@@ -148,6 +149,7 @@ export function createHud(callbacks: HudCallbacks) {
     populationLabel.textContent = String(snapshot.population);
     archersLabel.textContent = String(snapshot.trainedUnits.archers);
     swordsmenLabel.textContent = String(snapshot.trainedUnits.swordsmen);
+    horsemenLabel.textContent = String(snapshot.trainedUnits.horsemen);
     for (const resource of Object.keys(RESOURCE_LABELS) as ResourceName[]) {
       setResource(resource, snapshot.resources[resource]);
     }
@@ -245,10 +247,10 @@ export function createHud(callbacks: HudCallbacks) {
   function renderArmyReport(report: ArmyReport, buildOrder: string[], enemyName: string): void {
     armyOutcome.textContent = report.outcome;
     armyScore.textContent = String(report.enemyStrength);
-    armySummary.textContent = `${report.enemyStrength} swordsmen from ${enemyName} attacked. ${report.units.swordsmen} swordsmen and ${report.units.archers} archers defended the clearing. Build order: ${buildOrder.join(" → ")}.`;
+    armySummary.textContent = `${report.enemyStrength} swordsmen from ${enemyName} attacked. ${report.units.swordsmen} swordsmen, ${report.units.archers} archers, and ${report.units.horsemen} horsemen defended the clearing. Build order: ${buildOrder.join(" → ")}.`;
     const unitLabels: Array<[keyof ArmyReport["units"], string]> = [
       ["militia", "Militia"], ["spearmen", "Spearmen"], ["archers", "Archers"],
-      ["swordsmen", "Swordsmen"], ["mercenaries", "Mercenaries"],
+      ["swordsmen", "Swordsmen"], ["horsemen", "Horsemen"], ["mercenaries", "Mercenaries"],
     ];
     armyUnits.innerHTML = unitLabels.map(([key, label]) => `<div><span>${label}</span><b>${report.units[key]}</b></div>`).join("");
     armyStats.innerHTML = [

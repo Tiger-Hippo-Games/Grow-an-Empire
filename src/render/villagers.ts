@@ -31,10 +31,20 @@ interface Villager {
   speedVariation: number;
 }
 
+interface GarrisonSoldier {
+  sprite: THREE.Sprite;
+  role: "swordsman" | "archer" | "horseman";
+  bornAt: number | null;
+  frame: number;
+  route: THREE.Vector2[];
+  routeLength: number;
+}
+
 const SUPPLY_LINKS: Array<[string, string]> = [
   ["woodcutter", "sawmill"], ["farm", "bakery"], ["farm", "granary"],
   ["swine-farm", "butchery"], ["fruit-orchard", "winery"],
   ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["blacksmith", "barracks"], ["weapons-workshop", "barracks"],
+  ["blacksmith", "stable"], ["weapons-workshop", "stable"],
 ];
 
 /**
@@ -151,11 +161,12 @@ function pingPongProgress(elapsed: number, duration: number): { progress: number
  */
 export function createVillagerField(scene: THREE.Scene, characters: CharacterAssets) {
   const villagers: Villager[] = [];
-  const garrison: THREE.Sprite[] = [];
+  const garrison: GarrisonSoldier[] = [];
   let muster: { report: ArmyReport; startedAt: number } | null = null;
   let combatActive = false;
   const musterOrigin = new THREE.Vector2(civicGround.x + 0.2, civicGround.y - 2.0);
   let lastMusterElapsed: number | null = null;
+  let lastGarrisonElapsed: number | null = null;
 
   // Routes only change when a building completes, but used to be rebuilt (and
   // measured twice per villager) on every frame. They're now cached per build order.
@@ -209,51 +220,114 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     villagers.forEach((villager, index) => { villager.sprite.visible = index < targetPopulation; });
   }
 
-  /** Keep every earned archer and swordsman visible in the clearing outside the Barracks plot. */
-  function syncGarrison(units: TrainedUnits): void {
-    for (const sprite of garrison) {
-      scene.remove(sprite);
-      sprite.material.dispose();
+  function garrisonTarget(role: GarrisonSoldier["role"], index: number, swordsmen: number, archers: number): THREE.Vector2 {
+    const precedingRows = role === "archer" ? Math.ceil(swordsmen / 5) : role === "horseman" ? Math.ceil(swordsmen / 5) + Math.ceil(archers / 5) : 0;
+    const row = Math.floor(index / 5) + precedingRows;
+    const column = index % 5;
+    return new THREE.Vector2(civicGround.x + (column - 2) * (role === "horseman" ? 1.85 : 1.35), civicGround.y - 3.3 - row * 1.65);
+  }
+
+  /** Each trained soldier travels from the training building to the town hall formation. */
+  function syncGarrison(units: TrainedUnits, animationElapsed?: number, builtBuildingIds: string[] = []): void {
+    if (["swordsman", "archer", "horseman"].some((role) => garrison.filter((soldier) => soldier.role === role).length > units[role === "swordsman" ? "swordsmen" : role === "archer" ? "archers" : "horsemen"])) {
+      for (const soldier of garrison) { scene.remove(soldier.sprite); soldier.sprite.material.dispose(); }
+      garrison.length = 0;
     }
-    garrison.length = 0;
-    const barracks = getBuildingPosition("barracks");
-    const roles: CharacterRole[] = [
-      ...Array<CharacterRole>(units.swordsmen).fill("swordsman"),
-      ...Array<CharacterRole>(units.archers).fill("archer"),
-    ];
-    roles.forEach((role, index) => {
-      const size = 2.15;
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: characters.getFrame(role, 0), transparent: true, depthTest: false }));
-      const column = index % 3;
-      const row = Math.floor(index / 3);
-      sprite.scale.set(size, size, 1);
-      sprite.position.set(barracks.x + 3.4 + column * 1.1, barracks.y + 0.25 + row * 1.15 + size / 2, 2.6);
-      sprite.renderOrder = 60 + row;
-      sprite.visible = muster === null;
-      scene.add(sprite);
-      garrison.push(sprite);
-    });
+    for (const role of ["swordsman", "archer", "horseman"] as const) {
+      const targetCount = units[role === "swordsman" ? "swordsmen" : role === "archer" ? "archers" : "horsemen"];
+      let currentCount = garrison.filter((soldier) => soldier.role === role).length;
+      while (currentCount < targetCount) {
+        const size = role === "horseman" ? 2.95 : 2.15;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: characters.getFrame(role, 0), transparent: true, depthTest: false }));
+        const destination = garrisonTarget(role, currentCount, units.swordsmen, units.archers);
+        const source = role === "horseman" ? "stable" : builtBuildingIds.includes("barracks") ? "barracks" : role === "archer" ? "weapons-workshop" : "blacksmith";
+        const route = getServiceRoute(source).reverse();
+        const origin = animationElapsed === undefined ? destination : getBuildingPosition(source);
+        sprite.scale.set(size, size, 1);
+        sprite.position.set(origin.x, origin.y + size / 2, 2.6);
+        sprite.renderOrder = 60 + Math.floor(currentCount / 5);
+        sprite.visible = muster === null && !combatActive;
+        scene.add(sprite);
+        garrison.push({ sprite, role, bornAt: animationElapsed ?? null, frame: 0, route, routeLength: routeLength(route) });
+        currentCount += 1;
+      }
+    }
+    if (animationElapsed === undefined) {
+      lastGarrisonElapsed = null;
+        let swordIndex = 0;
+        let archerIndex = 0;
+        let horseIndex = 0;
+        for (const soldier of garrison) {
+        const index = soldier.role === "swordsman" ? swordIndex++ : soldier.role === "archer" ? archerIndex++ : horseIndex++;
+        const target = garrisonTarget(soldier.role, index, units.swordsmen, units.archers);
+        soldier.bornAt = null;
+        soldier.sprite.position.set(target.x, target.y + soldier.sprite.scale.y / 2, 2.6);
+        soldier.sprite.scale.x = Math.abs(soldier.sprite.scale.x);
+        soldier.sprite.material.map = characters.getFrame(soldier.role, 0);
+        soldier.sprite.material.needsUpdate = true;
+        soldier.frame = 0;
+      }
+    }
+  }
+
+  function renderGarrison(animationElapsed: number): void {
+    const delta = lastGarrisonElapsed === null ? 1 / 60 : Math.max(0, animationElapsed - lastGarrisonElapsed);
+    lastGarrisonElapsed = animationElapsed;
+    const blend = 1 - Math.pow(0.84, delta * 60);
+    const swordsmen = garrison.filter((soldier) => soldier.role === "swordsman").length;
+    const archers = garrison.filter((soldier) => soldier.role === "archer").length;
+    let swordIndex = 0;
+    let archerIndex = 0;
+    let horseIndex = 0;
+    for (const soldier of garrison) {
+      if (!soldier.sprite.visible) continue;
+      const index = soldier.role === "swordsman" ? swordIndex++ : soldier.role === "archer" ? archerIndex++ : horseIndex++;
+      const target = garrisonTarget(soldier.role, index, swordsmen, archers);
+      if (soldier.bornAt !== null) {
+        const travel = (animationElapsed - soldier.bornAt) / (soldier.routeLength / 5.5);
+        if (travel < 1) {
+          const direction = samplePolyline(soldier.route, soldier.routeLength, Math.max(0, travel), sampled);
+          soldier.sprite.position.set(sampled.x, sampled.y + soldier.sprite.scale.y / 2, 2.6);
+          soldier.sprite.scale.x = Math.abs(soldier.sprite.scale.x) * (direction < 0 ? -1 : 1);
+          const frame = Math.floor(animationElapsed * 7 + index) % 4;
+          if (frame !== soldier.frame) {
+            soldier.frame = frame;
+            soldier.sprite.material.map = characters.getFrame(soldier.role, frame);
+            soldier.sprite.material.needsUpdate = true;
+          }
+          continue;
+        }
+        soldier.bornAt = null;
+        soldier.sprite.position.set(civicGround.x, civicGround.y + soldier.sprite.scale.y / 2, 2.6);
+        soldier.sprite.material.map = characters.getFrame(soldier.role, 0);
+        soldier.sprite.material.needsUpdate = true;
+        soldier.frame = 0;
+      }
+      soldier.sprite.position.x = THREE.MathUtils.lerp(soldier.sprite.position.x, target.x, blend);
+      soldier.sprite.position.y = THREE.MathUtils.lerp(soldier.sprite.position.y, target.y + soldier.sprite.scale.y / 2, blend);
+      soldier.sprite.scale.x = Math.abs(soldier.sprite.scale.x);
+    }
   }
 
   /** Switches from commuting to the end-of-campaign formation. */
   function beginArmyMuster(report: ArmyReport, animationElapsed: number): void {
     muster = { report, startedAt: animationElapsed };
     lastMusterElapsed = null;
-    for (const soldier of garrison) soldier.visible = false;
+    for (const soldier of garrison) soldier.sprite.visible = false;
   }
 
   /** Returns to commuting on restart. */
   function clearArmyMuster(): void {
     muster = null;
     combatActive = false;
-    for (const soldier of garrison) soldier.visible = true;
+    for (const soldier of garrison) soldier.sprite.visible = true;
     for (const villager of villagers) { villager.sprite.visible = true; villager.material.color.setHex(0xffffff); }
   }
 
   function setCombatActive(value: boolean): void {
     combatActive = value;
     for (const villager of villagers) villager.sprite.visible = !value;
-    for (const soldier of garrison) soldier.visible = false;
+    for (const soldier of garrison) soldier.sprite.visible = false;
   }
 
   /**
@@ -305,6 +379,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
       renderMuster(animationElapsed);
       return;
     }
+    renderGarrison(animationElapsed);
     routesFor(builtBuildingIds);
     for (let index = 0; index < villagers.length; index += 1) {
       const villager = villagers[index];

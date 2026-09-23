@@ -1,4 +1,4 @@
-import { describeSnapshotProblem, type SettlementSnapshot } from "../game/settlementSimulation";
+import { migrateSnapshot, type SettlementSnapshot } from "../game/settlementSimulation";
 import { clearSavedSnapshot, hasNewerLocalSave, isFromNewerVersion, loadSavedSnapshot, saveSnapshot } from "../game/saveGame";
 import type { PlatformAdapter } from "./types";
 
@@ -53,8 +53,9 @@ export function newRunId(): string {
  * get defaults, so they still load (the portal keeps saves across updates).
  */
 export function toSavedGame(raw: unknown, campaignId: string): SavedGame | null {
-  if (describeSnapshotProblem(raw) !== null) return null;
-  const snapshot = raw as SavedGame;
+  const migrated = migrateSnapshot(raw);
+  if (!migrated) return null;
+  const snapshot = { ...(raw as SavedGame), ...migrated };
   if (snapshot.campaignId !== campaignId) return null;
   const settings = (snapshot.settings && typeof snapshot.settings === "object") ? snapshot.settings : DEFAULT_SETTINGS;
   const game: SavedGame = {

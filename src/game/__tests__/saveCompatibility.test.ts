@@ -19,6 +19,8 @@ describe("save compatibility", () => {
     expect(saved, "the v4 fixture must stay loadable").not.toBeNull();
     expect(saved?.runId).toBe("fixture-run");
     expect(saved?.settings.tutorialComplete).toBe(true);
+    expect(saved?.schemaVersion).toBe(5);
+    expect(saved?.state.trainedUnits.horsemen).toBe(0);
 
     const sim = new SettlementSimulation();
     sim.loadSnapshot(saved!);

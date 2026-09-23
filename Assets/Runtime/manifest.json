@@ -197,6 +197,12 @@
     "sourceBytes": 764446,
     "bytes": 110900
   },
+  "horseman-attack4.webp": {
+    "source": "Assets/Art/Generated 512/horseman-attack4.png",
+    "sha256": "1cb692bfa89528b0b29d03da3be9e8851fc27440deaabacf785acd87fef0e875",
+    "sourceBytes": 218758,
+    "bytes": 50454
+  },
   "horseman-walk4.webp": {
     "source": "Assets/Art/Generated 512/horseman-walk4.png",
     "sha256": "9fdda2b563722935cac6254694c0a5532236c5625c2a07d7d199a54578dbe462",
@@ -364,6 +370,30 @@
     "sha256": "ed47732c47ddcd6256aa4ba06886a7ed7919b92459804068e808a56ea7760631",
     "sourceBytes": 217795,
     "bytes": 43938
+  },
+  "stable-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Stable/Runtime2x/stable-construction-01-foundation-2x-v1.png",
+    "sha256": "61dd4c55062c6e631ef8321d16f54c77fa2f8d10582838713410607ef939eb46",
+    "sourceBytes": 2333527,
+    "bytes": 235110
+  },
+  "stable-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Stable/Runtime2x/stable-construction-02-frame-2x-v1.png",
+    "sha256": "1584b77397a5d287f35b73b1126ef87a488b91a6fb942a014ef8e1e44316057a",
+    "sourceBytes": 2514143,
+    "bytes": 258586
+  },
+  "stable-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Stable/Runtime2x/stable-construction-03-late-2x-v1.png",
+    "sha256": "4cb3648e5b42e75a82551aad6097bdcefaa862863eef9dca6feffd22ca5f228a",
+    "sourceBytes": 2492411,
+    "bytes": 237316
+  },
+  "stable-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Stable/Runtime2x/stable-level-1-2x-v1.png",
+    "sha256": "7c467dc7feb27c41bb5c7e4017281bd5a5944a8897b2d302751aaa03a3b41013",
+    "sourceBytes": 2543134,
+    "bytes": 264760
   },
   "swine-farm-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/SwineFarm/Runtime2x/swine-farm-construction-01-foundation-2x-v1.png",
