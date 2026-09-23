@@ -6,9 +6,22 @@ import * as THREE from "three";
  * else in `render/` and `main.ts` is handed the `scene` it returns and adds
  * its own objects to it.
  */
+export type QualityTier = "high" | "low";
+
 export function createSceneSetup(viewport: HTMLElement) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // MSAA mostly matters on 1x screens; on 2x+ screens the extra pixels already
+  // smooth sprite edges, so skip its cost there (MOBILE_PERFORMANCE §15).
+  const renderer = new THREE.WebGLRenderer({ antialias: window.devicePixelRatio < 2, alpha: false });
+  const requested = new URLSearchParams(window.location.search).get("quality");
+  const quality = {
+    tier: (requested === "low" ? "low" : "high") as QualityTier,
+    /** high: device pixel ratio capped at 2; low: 1x (about a quarter of the pixels on a phone). */
+    set(tier: QualityTier): void {
+      quality.tier = tier;
+      renderer.setPixelRatio(tier === "low" ? 1 : Math.min(window.devicePixelRatio, 2));
+    },
+  };
+  quality.set(quality.tier);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setClearColor(0x78945a, 1);
   viewport.appendChild(renderer.domElement);
@@ -37,5 +50,10 @@ export function createSceneSetup(viewport: HTMLElement) {
     camera.updateProjectionMatrix();
   }
 
-  return { renderer, scene, camera, resize };
+  /** The world-space rectangle the camera currently shows. */
+  function viewBounds(): { width: number; height: number; centerX: number; centerY: number } {
+    return { width: camera.right - camera.left, height: camera.top - camera.bottom, centerX: camera.position.x, centerY: camera.position.y };
+  }
+
+  return { renderer, scene, camera, resize, quality, viewBounds };
 }

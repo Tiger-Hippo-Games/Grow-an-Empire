@@ -1,0 +1,554 @@
+{
+  "archer-walk4.webp": {
+    "source": "Assets/Art/Generated 512/archer-walk4.png",
+    "sha256": "3c51fc646b1215a019b8ccf6825bd3a64aec39a8e74280708b7005379cea914d",
+    "sourceBytes": 159585,
+    "bytes": 40228
+  },
+  "bakery-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Bakery/Runtime2x/bakery-construction-01-foundation-2x-v1.png",
+    "sha256": "037e5c2a71782a862d936dc63d27db78b43c4b2ab9f87db4a021c6341f088337",
+    "sourceBytes": 324436,
+    "bytes": 45440
+  },
+  "bakery-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Bakery/Runtime2x/bakery-construction-02-frame-2x-v1.png",
+    "sha256": "5e75af6fb7c4dc7a22ab15e7f23615ff1e6c47193a3cb3d4d1851211355bd078",
+    "sourceBytes": 509566,
+    "bytes": 76694
+  },
+  "bakery-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Bakery/Runtime2x/bakery-construction-03-late-2x-v1.png",
+    "sha256": "5f54b907052936e8ae85d9e6e97f873b8ed6b2ded4096581cb571a9a82904bae",
+    "sourceBytes": 595657,
+    "bytes": 69470
+  },
+  "bakery-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Bakery/Runtime2x/bakery-level-1-2x-v1.png",
+    "sha256": "df61857e1ac2d7d4d840f27574fcff7b9c7738663527cf6adc4921e2d4378aba",
+    "sourceBytes": 638321,
+    "bytes": 79442
+  },
+  "barracks-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Barracks/Runtime2x/barracks-construction-01-foundation-2x-v1.png",
+    "sha256": "baeec2e1b7bdb84150393e1e715bd4ca27f814cb98b80f650c677f765f5244b3",
+    "sourceBytes": 611089,
+    "bytes": 82908
+  },
+  "barracks-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Barracks/Runtime2x/barracks-construction-02-frame-2x-v1.png",
+    "sha256": "2fc9e13391e78724022be2abfba512cf97ce5fc45fdc0463eff0bcd8e868f6fa",
+    "sourceBytes": 619108,
+    "bytes": 84556
+  },
+  "barracks-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Barracks/Runtime2x/barracks-construction-03-late-2x-v1.png",
+    "sha256": "1ec6eb0d8aeec9933cd1448fe839c8ead222396909147aa7ccbeccb6ec5b46fe",
+    "sourceBytes": 646048,
+    "bytes": 83516
+  },
+  "barracks-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Barracks/Runtime2x/barracks-level-1-2x-v1.png",
+    "sha256": "ca7b3570a66a355f41346f44c99fd431d90826cc9013fa098b60a9858e16d81c",
+    "sourceBytes": 704171,
+    "bytes": 95590
+  },
+  "blacksmith-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Blacksmith/Runtime2x/blacksmith-construction-01-foundation-2x-v1.png",
+    "sha256": "f572c50b14dc273870493620bdb4f02bd7eb322b44cc7680c1d7c135bd156e88",
+    "sourceBytes": 453911,
+    "bytes": 66282
+  },
+  "blacksmith-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Blacksmith/Runtime2x/blacksmith-construction-02-frame-2x-v1.png",
+    "sha256": "f4219db5b0625dd642cf40a73c225d8b0dbc7df4fce878054e252022cc76f96b",
+    "sourceBytes": 694214,
+    "bytes": 104220
+  },
+  "blacksmith-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Blacksmith/Runtime2x/blacksmith-construction-03-late-2x-v1.png",
+    "sha256": "c9bec22ae1895a31e7f450123f675b217c5e9949516e9eb47c910c25f840ca9d",
+    "sourceBytes": 728824,
+    "bytes": 100432
+  },
+  "blacksmith-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Blacksmith/Runtime2x/blacksmith-level-1-2x-v1.png",
+    "sha256": "26b9b5afa8d9666f3f50c761c968c54c9854ef3745ef5ec9181677be1e2ee9d1",
+    "sourceBytes": 777640,
+    "bytes": 103790
+  },
+  "butchery-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Butchery/Runtime2x/butchery-construction-01-foundation-2x-v1.png",
+    "sha256": "19db989390818b27c163507f2b2fdd3d75b0da8c215315dec3742072b989b31f",
+    "sourceBytes": 393434,
+    "bytes": 51718
+  },
+  "butchery-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Butchery/Runtime2x/butchery-construction-02-frame-2x-v1.png",
+    "sha256": "1d966a0cb1a0a8d52fd7899c1ee69e8b405eda757909d06bc613f8c67fe7e6b0",
+    "sourceBytes": 578312,
+    "bytes": 82492
+  },
+  "butchery-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Butchery/Runtime2x/butchery-construction-03-late-2x-v1.png",
+    "sha256": "b9aa32917053bd386546a547f07377450434122dae9b4de88b99149181b0588d",
+    "sourceBytes": 654685,
+    "bytes": 70502
+  },
+  "butchery-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Butchery/Runtime2x/butchery-level-1-2x-v1.png",
+    "sha256": "dc691a2b715f5113d669634e77c02e0b5a4b72a707c2df4a536e92fa94012255",
+    "sourceBytes": 677801,
+    "bytes": 77664
+  },
+  "deciduous-01-healthy-2x-v1.webp": {
+    "source": "Assets/Art/Production/Environment/Trees/Deciduous01/Runtime2x/deciduous-01-healthy-2x-v1.png",
+    "sha256": "36994d3c1cbcd22588f73821b04c6c6036453f817f6c5b6919643bde5ce5720c",
+    "sourceBytes": 256289,
+    "bytes": 46486
+  },
+  "farm-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Farm/Runtime2x/farm-construction-01-foundation-2x-v1.png",
+    "sha256": "58d363ec55f47b101b4e025a9efc9bbb21ba5f9b908c308e118de24284bbc10d",
+    "sourceBytes": 430893,
+    "bytes": 59298
+  },
+  "farm-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Farm/Runtime2x/farm-construction-02-frame-2x-v1.png",
+    "sha256": "33ab3cfe6210b3cb2ac1f830778f77e2ab4cd12ee5386b6cddf25206fad91e9b",
+    "sourceBytes": 567575,
+    "bytes": 86880
+  },
+  "farm-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Farm/Runtime2x/farm-construction-03-late-2x-v1.png",
+    "sha256": "0361ee6a79628b88e9d4b727151b43553823ea213234cfc6fe7e0e3f0137e603",
+    "sourceBytes": 616228,
+    "bytes": 81230
+  },
+  "farm-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Farm/Runtime2x/farm-level-1-2x-v1.png",
+    "sha256": "29f0ea4c7b1b928daa3cece581ec0a211b4ce03ea23a4f8728d63853f611f394",
+    "sourceBytes": 655745,
+    "bytes": 89068
+  },
+  "fruit-orchard-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/FruitOrchard/Runtime2x/fruit-orchard-construction-01-foundation-2x-v1.png",
+    "sha256": "b90d0c1d5662efffd57a7485204ebf5b15ae416df8258e66e657582cd08ffa04",
+    "sourceBytes": 558973,
+    "bytes": 88162
+  },
+  "fruit-orchard-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/FruitOrchard/Runtime2x/fruit-orchard-construction-02-frame-2x-v1.png",
+    "sha256": "aff7d0d6345ea08e8159a39407759a56e3ac7dbc3a1780b99a863afdf55caca3",
+    "sourceBytes": 641991,
+    "bytes": 107688
+  },
+  "fruit-orchard-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/FruitOrchard/Runtime2x/fruit-orchard-construction-03-late-2x-v1.png",
+    "sha256": "543b2cec49572a607a64b90aee11fcfa6a78e9a6f199ef069220f0c69e93b19e",
+    "sourceBytes": 747483,
+    "bytes": 121112
+  },
+  "fruit-orchard-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/FruitOrchard/Runtime2x/fruit-orchard-level-1-2x-v1.png",
+    "sha256": "f6e317c90a21ac7f3689c9d19ca1c818b96b889964f9b1b0bb328b45401fd4b3",
+    "sourceBytes": 747005,
+    "bytes": 121134
+  },
+  "granary-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Granary/Runtime2x/granary-construction-01-foundation-2x-v1.png",
+    "sha256": "4faa13a7c099238660513fefe59e15364458c5b026c142f503d5a7e9249a0914",
+    "sourceBytes": 369112,
+    "bytes": 63800
+  },
+  "granary-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Granary/Runtime2x/granary-construction-02-frame-2x-v1.png",
+    "sha256": "f3469ae2a2404928bc7c8f3c878e5f4186e88c56f4318e9431b3158ed0911f59",
+    "sourceBytes": 523953,
+    "bytes": 90956
+  },
+  "granary-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Granary/Runtime2x/granary-construction-03-late-2x-v1.png",
+    "sha256": "561ed745f0280425d14e313fd1279c7a450441da254b5817a260cd8cad1bf96d",
+    "sourceBytes": 653396,
+    "bytes": 87800
+  },
+  "granary-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Granary/Runtime2x/granary-level-1-2x-v1.png",
+    "sha256": "0a0302e61b6ca12dea977aa1401094380957236beb5aa9f7af881758ff4aec92",
+    "sourceBytes": 764446,
+    "bytes": 110900
+  },
+  "horseman-walk4.webp": {
+    "source": "Assets/Art/Generated 512/horseman-walk4.png",
+    "sha256": "9fdda2b563722935cac6254694c0a5532236c5625c2a07d7d199a54578dbe462",
+    "sourceBytes": 195129,
+    "bytes": 43312
+  },
+  "house-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/House/Runtime2x/house-construction-01-foundation-2x-v1.png",
+    "sha256": "63a13ef49373744ba529681fcb05e2576b62d14f0ffeb84f37e1f322d274ec4f",
+    "sourceBytes": 490208,
+    "bytes": 76680
+  },
+  "house-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/House/Runtime2x/house-construction-02-frame-2x-v1.png",
+    "sha256": "a40f45b6aaeca43473314374184adb8d6cb83f1e05ef57d3b6409e220ba2b98a",
+    "sourceBytes": 552325,
+    "bytes": 88156
+  },
+  "house-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/House/Runtime2x/house-construction-03-late-2x-v1.png",
+    "sha256": "caa0bc8cc234a43d5e52d3de23ae532251698cc0cd65f6ce7353bfa482073fa7",
+    "sourceBytes": 590289,
+    "bytes": 86250
+  },
+  "house-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/House/Runtime2x/house-level-1-2x-v1.png",
+    "sha256": "3275c27a673179cbb9fe42057763b787d3f869ca4dcfefbac5d2d56509e09a97",
+    "sourceBytes": 685133,
+    "bytes": 103064
+  },
+  "marketplace-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Marketplace/Runtime2x/marketplace-construction-01-foundation-2x-v1.png",
+    "sha256": "dcfda14dcb6035ae6a812fe32602bacbc0b4165a7b6fe77e00247af9d394eff7",
+    "sourceBytes": 463780,
+    "bytes": 63226
+  },
+  "marketplace-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Marketplace/Runtime2x/marketplace-construction-02-frame-2x-v1.png",
+    "sha256": "820ef8a6b30007e7effd84b4dbb7b7bb9c2ec0abcf18814f86cdb9e1285fd7e8",
+    "sourceBytes": 590251,
+    "bytes": 89266
+  },
+  "marketplace-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Marketplace/Runtime2x/marketplace-construction-03-late-2x-v1.png",
+    "sha256": "c4548b407986a1f8e54610e55eae152d6f31b75d6d95f7fe1c47e949c79c8aa4",
+    "sourceBytes": 643932,
+    "bytes": 77282
+  },
+  "marketplace-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Marketplace/Runtime2x/marketplace-level-1-2x-v1.png",
+    "sha256": "797f6c5500fad2be35de4c745ff17705299a63fd04ebe292e7abf15cf7f2287b",
+    "sourceBytes": 686750,
+    "bytes": 87968
+  },
+  "militia-walk4.webp": {
+    "source": "Assets/Art/Generated 512/militia-walk4.png",
+    "sha256": "002bd7b386828c891ae144ed01a048b4de6343bee5a5d2802995d708d571d054",
+    "sourceBytes": 209780,
+    "bytes": 42454
+  },
+  "quarry-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Quarry/Runtime2x/quarry-construction-01-foundation-2x-v1.png",
+    "sha256": "8efbc2896fe31a6fe24617fa8abb5afce7377906edc6e52399fd8b28eda67661",
+    "sourceBytes": 632696,
+    "bytes": 93714
+  },
+  "quarry-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Quarry/Runtime2x/quarry-construction-02-frame-2x-v1.png",
+    "sha256": "85507712249d818fcec1b1c332b563494c632d0c20b823e76473099937458e40",
+    "sourceBytes": 673498,
+    "bytes": 95574
+  },
+  "quarry-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Quarry/Runtime2x/quarry-construction-03-late-2x-v1.png",
+    "sha256": "2de026c6606225492122e8afee2f88fcf7957502ff11302bfceb1a69b05ff974",
+    "sourceBytes": 749852,
+    "bytes": 107470
+  },
+  "quarry-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Quarry/Runtime2x/quarry-level-1-2x-v1.png",
+    "sha256": "260707f80898362498af5163ab3aee644024e6d9f4825563d8b004518b5d0110",
+    "sourceBytes": 876121,
+    "bytes": 126460
+  },
+  "sawmill-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Sawmill/Runtime2x/sawmill-construction-01-foundation-2x-v1.png",
+    "sha256": "9fea5be1c0d21b0caa1f3ec8a96011843151edbe9067d5a755810e402507a338",
+    "sourceBytes": 441853,
+    "bytes": 61774
+  },
+  "sawmill-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Sawmill/Runtime2x/sawmill-construction-02-frame-2x-v1.png",
+    "sha256": "ba9a139fe3ef4de615faa6b181d3caf940bb66ca7ce763633e484b2895a56278",
+    "sourceBytes": 627813,
+    "bytes": 95718
+  },
+  "sawmill-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Sawmill/Runtime2x/sawmill-construction-03-late-2x-v1.png",
+    "sha256": "d884165e1638cde973e44e2a965b08d53d5b2fd04955c27678cf824c6273bfa2",
+    "sourceBytes": 679333,
+    "bytes": 90344
+  },
+  "sawmill-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Sawmill/Runtime2x/sawmill-level-1-2x-v1.png",
+    "sha256": "5c5819efaca22b9e379c940020a679cdfac5689b54519317951c0f3942e330c3",
+    "sourceBytes": 736640,
+    "bytes": 98780
+  },
+  "settlement-level-0-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/CivicCenter/Runtime2x/settlement-level-0-2x-v1.png",
+    "sha256": "4912d5ced90c7dfe3446a61a8ab68dfbd3b67da6681ed47d46462413e719e018",
+    "sourceBytes": 163847,
+    "bytes": 30382
+  },
+  "settlement-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/CivicCenter/Runtime2x/settlement-level-1-2x-v1.png",
+    "sha256": "17270cd8b0ea7fd1b3dbb373c88dabc1cf17f71f6e0f6e598dc5f21bc3c6866e",
+    "sourceBytes": 218284,
+    "bytes": 39380
+  },
+  "settlement-level-2-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/CivicCenter/Runtime2x/settlement-level-2-2x-v1.png",
+    "sha256": "3935155a7e3ea9a6b4496f091915865af1d2f5efb92fd1c6d9173b6f97cc39ad",
+    "sourceBytes": 234508,
+    "bytes": 40684
+  },
+  "settlement-level-3-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/CivicCenter/Runtime2x/settlement-level-3-2x-v1.png",
+    "sha256": "3f76280f7439ea52ab93d14397aa2567bce8c06c1f85761a9964445bdc2a5d22",
+    "sourceBytes": 279335,
+    "bytes": 52518
+  },
+  "settlement-level-4-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/CivicCenter/Runtime2x/settlement-level-4-2x-v1.png",
+    "sha256": "7be51d17e6be9c6a5e73ea16888ac56f28acc99dabb76ec5493142e262776f0b",
+    "sourceBytes": 268144,
+    "bytes": 46772
+  },
+  "settlement-level-5-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/CivicCenter/Runtime2x/settlement-level-5-2x-v1.png",
+    "sha256": "1ad7dbb839fdf98f769eededfaf37cdc271f4c64192bed6dfd9c370aae01cdc6",
+    "sourceBytes": 324870,
+    "bytes": 55718
+  },
+  "settlement-level-6-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/CivicCenter/Runtime2x/settlement-level-6-2x-v1.png",
+    "sha256": "f1e40825386951992ea5dca82400946a47096abc8b2b0d59c2cad0f6336011bd",
+    "sourceBytes": 355081,
+    "bytes": 58444
+  },
+  "settlement-level-7-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/CivicCenter/Runtime2x/settlement-level-7-2x-v1.png",
+    "sha256": "ec21b64f2b97762d55559bc57ec97e3a6bb6e863329c3cacaf1a6eb96eb0b4ce",
+    "sourceBytes": 355832,
+    "bytes": 59538
+  },
+  "settlement-level-8-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/CivicCenter/Runtime2x/settlement-level-8-2x-v1.png",
+    "sha256": "8bd04921fa7aad36b7d6168442abd42f8c9e3ff0acbb7f02a26f59f43e2c2863",
+    "sourceBytes": 388066,
+    "bytes": 65588
+  },
+  "spearman-walk4.webp": {
+    "source": "Assets/Art/Generated 512/spearman-walk4.png",
+    "sha256": "ed47732c47ddcd6256aa4ba06886a7ed7919b92459804068e808a56ea7760631",
+    "sourceBytes": 217795,
+    "bytes": 43938
+  },
+  "swine-farm-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/SwineFarm/Runtime2x/swine-farm-construction-01-foundation-2x-v1.png",
+    "sha256": "710d14518edd902f39384ea4ecbc1e7e83ee6cfaf332ceac7cd9c1a36dbb4799",
+    "sourceBytes": 458739,
+    "bytes": 69890
+  },
+  "swine-farm-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/SwineFarm/Runtime2x/swine-farm-construction-02-frame-2x-v1.png",
+    "sha256": "bb781832a877a7d70b6c447a10ab5e67af3cb127f88daeda6fb53132712ee882",
+    "sourceBytes": 543847,
+    "bytes": 85432
+  },
+  "swine-farm-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/SwineFarm/Runtime2x/swine-farm-construction-03-late-2x-v1.png",
+    "sha256": "c31579e5b3b8cce72942ad75d8eb03eb6b47350f91f231c6eb8d94dd74eeb615",
+    "sourceBytes": 603904,
+    "bytes": 83172
+  },
+  "swine-farm-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/SwineFarm/Runtime2x/swine-farm-level-1-2x-v1.png",
+    "sha256": "35c091b002e3a95779963eca7f5b2b80c45e24ce0a2211909af8f0150150aaac",
+    "sourceBytes": 621916,
+    "bytes": 84186
+  },
+  "swordsman-walk4.webp": {
+    "source": "Assets/Art/Generated 512/swordsman-walk4.png",
+    "sha256": "54eaa0a728948be47b470b6d7b57cc350fc253cdd4dbfb96c2d297e0b8d90253",
+    "sourceBytes": 196547,
+    "bytes": 40466
+  },
+  "village-empty-terrain-16x9-v2.webp": {
+    "source": "Assets/Art/Production/Environment/Terrain/village-empty-terrain-16x9-v2.png",
+    "sha256": "7797b65166096d5fcb9a654a6859a5c5e3cf8373158f295fc96ad193ffd4314e",
+    "sourceBytes": 3665147,
+    "bytes": 392278
+  },
+  "villager-baker-walk4.webp": {
+    "source": "Assets/Art/Generated 512/villager-baker-walk4.png",
+    "sha256": "572aecb97baba2e1197181851d1024eb3f1605c476fc89e5c2fea16537901170",
+    "sourceBytes": 279901,
+    "bytes": 52516
+  },
+  "villager-blacksmith-walk4.webp": {
+    "source": "Assets/Art/Generated 512/villager-blacksmith-walk4.png",
+    "sha256": "1f3804d2a8aad034086a97dbd35820bb255810756654897e0f573fa179c171c0",
+    "sourceBytes": 243537,
+    "bytes": 52036
+  },
+  "villager-builder-walk4.webp": {
+    "source": "Assets/Art/Generated 512/villager-builder-walk4.png",
+    "sha256": "6bdb27e089f47c9cca43890441d9cd7fb0d8cf73a149169f880f5959b7080abe",
+    "sourceBytes": 217054,
+    "bytes": 44766
+  },
+  "villager-farmer-walk4.webp": {
+    "source": "Assets/Art/Generated 512/villager-farmer-walk4.png",
+    "sha256": "52bf3b0bad99e4aa88efb85cf45fb62f91b9901b0ad46195dc0356b24b296c10",
+    "sourceBytes": 191788,
+    "bytes": 39920
+  },
+  "villager-iron-miner-walk4.webp": {
+    "source": "Assets/Art/Generated 512/villager-iron-miner-walk4.png",
+    "sha256": "aedf9e3828d43af5223e10dbb312c77cbafb9153966ab4c0425c038286222f6f",
+    "sourceBytes": 180884,
+    "bytes": 38868
+  },
+  "villager-merchant-walk4.webp": {
+    "source": "Assets/Art/Generated 512/villager-merchant-walk4.png",
+    "sha256": "a66bf7545f3f86a40f9e14b3e32e7b51fc11a7d4e3d621a21a7e3a79a90a366d",
+    "sourceBytes": 242578,
+    "bytes": 48852
+  },
+  "villager-quarry-worker-walk4.webp": {
+    "source": "Assets/Art/Generated 512/villager-quarry-worker-walk4.png",
+    "sha256": "954d4949e1f3cdf5834d2211fb2db409ce1c3db26cfaac5c3afc77df871832f1",
+    "sourceBytes": 203592,
+    "bytes": 40774
+  },
+  "villager-woodcutter-walk4.webp": {
+    "source": "Assets/Art/Generated 512/villager-woodcutter-walk4.png",
+    "sha256": "3f4d4e79b35af0cc5c4afdaf8e66ba77e52874577e9a8a036b18d06cf60d157f",
+    "sourceBytes": 191002,
+    "bytes": 39514
+  },
+  "weapons-workshop-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/WeaponsWorkshop/Runtime2x/weapons-workshop-construction-01-foundation-2x-v1.png",
+    "sha256": "65bf948c63874e56efd6076537748c43ad1574af8d27689d2292060299f993a8",
+    "sourceBytes": 436012,
+    "bytes": 57798
+  },
+  "weapons-workshop-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/WeaponsWorkshop/Runtime2x/weapons-workshop-construction-02-frame-2x-v1.png",
+    "sha256": "3b826fab0596d0411df1c3d1f190cc19826b2e4bfbb8ee4083aded55f54b7638",
+    "sourceBytes": 610998,
+    "bytes": 86654
+  },
+  "weapons-workshop-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/WeaponsWorkshop/Runtime2x/weapons-workshop-construction-03-late-2x-v1.png",
+    "sha256": "e8d0b52bca38a1d99d114034ac04bd58e01e4708bfc493a0e23f123ff399f9c4",
+    "sourceBytes": 675907,
+    "bytes": 73562
+  },
+  "weapons-workshop-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/WeaponsWorkshop/Runtime2x/weapons-workshop-level-1-2x-v1.png",
+    "sha256": "ebda26af0ba4b859990f954c87b89260cc261ecce5e83081534a1790ce75fd2c",
+    "sourceBytes": 691917,
+    "bytes": 82520
+  },
+  "winery-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Winery/Runtime2x/winery-construction-01-foundation-2x-v1.png",
+    "sha256": "5d1ee1fea7e31fa7092683dafb5b62bb1fcf4b6f77abafee98e24f6532380dbd",
+    "sourceBytes": 654519,
+    "bytes": 109974
+  },
+  "winery-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Winery/Runtime2x/winery-construction-02-frame-2x-v1.png",
+    "sha256": "2ba1097e3849da0f203c6ae74fe58d7205c41d547136fa6abe468bc4bd6035a5",
+    "sourceBytes": 715151,
+    "bytes": 125544
+  },
+  "winery-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Winery/Runtime2x/winery-construction-03-late-2x-v1.png",
+    "sha256": "2b6b9d3d2651eeb2f9309cd305bce39be7a7d4429bae2cfef47dc7297f90ca52",
+    "sourceBytes": 763104,
+    "bytes": 121472
+  },
+  "winery-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Winery/Runtime2x/winery-level-1-2x-v1.png",
+    "sha256": "0d834898aa4f0b91818c399cecec96f232f6d97236e3d85fe21b2e207b20a6cb",
+    "sourceBytes": 840192,
+    "bytes": 136092
+  },
+  "woodcutter-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Woodcutter/Runtime2x/woodcutter-construction-01-foundation-2x-v1.png",
+    "sha256": "11f05967ce0700f1418d53c1d2f922361ab35e999b1afbd6eb7ebd4130708d06",
+    "sourceBytes": 294119,
+    "bytes": 35360
+  },
+  "woodcutter-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Woodcutter/Runtime2x/woodcutter-construction-02-frame-2x-v1.png",
+    "sha256": "c9175aa8b77608b78b546ec6d3ef512be6e1e4ee27d5af7acf0a95c26abb539c",
+    "sourceBytes": 450393,
+    "bytes": 63722
+  },
+  "woodcutter-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Woodcutter/Runtime2x/woodcutter-construction-03-late-2x-v1.png",
+    "sha256": "3822fd7ccacc8d29b3e83e70a2a2cf92b5cfb0e3101a5b73248f7a7b22c942c7",
+    "sourceBytes": 479111,
+    "bytes": 61726
+  },
+  "woodcutter-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Woodcutter/Runtime2x/woodcutter-level-1-2x-v1.png",
+    "sha256": "df8be5deb323044e11ca66f37ec2a14876fca261030aa63c0cd875e929095b96",
+    "sourceBytes": 500076,
+    "bytes": 65382
+  },
+  "woodcutter-male-01-carry-log-southeast-sheet-2x-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-carry-log-southeast-sheet-2x-v1.png",
+    "sha256": "a62457cce490f23df4a8001ab4a958965442588d8742bab98a95165efade98ac",
+    "sourceBytes": 412729,
+    "bytes": 74078
+  },
+  "woodcutter-male-01-carry-log-southwest-sheet-2x-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-carry-log-southwest-sheet-2x-v1.png",
+    "sha256": "2117a6cee976a8b263f219c22bb7105127bb412c899d7fae9e8535d123c7a02d",
+    "sourceBytes": 379550,
+    "bytes": 65220
+  },
+  "woodcutter-male-01-chop-southeast-sheet-2x-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-chop-southeast-sheet-2x-v1.png",
+    "sha256": "6a064a2ddcc22a494c370c2bc888fd282f5168d2226aa04057f0aecf08682e6b",
+    "sourceBytes": 279777,
+    "bytes": 52092
+  },
+  "woodcutter-male-01-chop-southwest-sheet-2x-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-chop-southwest-sheet-2x-v1.png",
+    "sha256": "ab23ca2d1d0375b33b5dfe1a0fc1f765bd538b1a4213b0667c0785831c5f9a1d",
+    "sourceBytes": 312442,
+    "bytes": 69430
+  },
+  "woodcutter-male-01-pickup-log-southeast-sheet-2x-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-pickup-log-southeast-sheet-2x-v1.png",
+    "sha256": "c79a61319ad6ab04f7a357e6b41d5a2863772df70b4cfdd7113abb3b99d7767f",
+    "sourceBytes": 547942,
+    "bytes": 95258
+  },
+  "woodcutter-male-01-pickup-log-southwest-sheet-2x-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-pickup-log-southwest-sheet-2x-v1.png",
+    "sha256": "9f877f107a5ed77f4c332b48897de5afc2040881824ec7aaae23935485f4c3e5",
+    "sourceBytes": 458658,
+    "bytes": 85226
+  },
+  "woodcutter-male-01-walk-southeast-sheet-2x-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-walk-southeast-sheet-2x-v1.png",
+    "sha256": "9f279da9d651407327f7daf3c199fe023b81acb810d008dac03fdebcabaaad64",
+    "sourceBytes": 337981,
+    "bytes": 66932
+  },
+  "woodcutter-male-01-walk-southwest-sheet-2x-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/woodcutter-male-01-walk-southwest-sheet-2x-v1.png",
+    "sha256": "794fa8370997d9dbe633f8c4821c0b5a1ce018deb86fc1ce76860f08d607aa0f",
+    "sourceBytes": 337158,
+    "bytes": 68062
+  }
+}

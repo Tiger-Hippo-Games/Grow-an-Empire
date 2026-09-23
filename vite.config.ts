@@ -1,6 +1,34 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+
+import { readFileSync } from "node:fs";
+
+/**
+ * Locally there is no portal backend, so /api/v1/sdk/platform-sdk.js would
+ * otherwise fall through to index.html and fail as a script. Serve an empty
+ * stub instead; the game then runs offline (or with ?platform=mock).
+ */
+function goLiveSdkStub(): Plugin {
+  const handler = (req: { url?: string }, res: { setHeader(k: string, v: string): void; end(body: string): void }, next: () => void) => {
+    if (!req.url?.startsWith("/api/v1/sdk/platform-sdk.js")) return next();
+    res.setHeader("Content-Type", "application/javascript");
+    res.end("/* GoLive SDK stub: the real SDK is served by the portal. */\n");
+  };
+  return {
+    name: "golive-sdk-stub",
+    configureServer(server) { server.middlewares.use(handler); },
+    configurePreviewServer(server) { server.middlewares.use(handler); },
+  };
+}
+
+const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
 
 export default defineConfig({
+  // Relative paths: the portal serves the game from /api/v1/games/<slug>/play/,
+  // so absolute "/assets/..." URLs would 404 there (GAME_SUBMISSION_GUIDE §4).
+  base: "./",
+  plugins: [goLiveSdkStub()],
+  // Exposed to the game as __APP_VERSION__ and sent with analytics events.
+  define: { __APP_VERSION__: JSON.stringify(version) },
   build: {
     outDir: "dist",
     assetsDir: "assets",

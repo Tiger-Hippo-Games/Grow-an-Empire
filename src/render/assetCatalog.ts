@@ -1,38 +1,48 @@
 /**
- * The runtime art manifest. Vite resolves these globs at build time into
- * hashed URLs, so every image the game can load must match one of these
- * patterns. Lookups are by bare filename, which is why duplicates are rejected.
+ * The runtime art manifest.
+ *
+ * Game code asks for art by its production filename (e.g.
+ * `farm-level-1-2x-v1.png`), but what ships is the WebP copy in
+ * `Assets/Runtime/`, written by `Tools/ArtPipeline/export_runtime_webp.py`.
+ * WebP cuts the bundle from about 49 MB to about 7 MB, which keeps it under
+ * the portal's 50 MB upload limit and its 5-second load target.
+ *
+ * Vite resolves this glob at build time into hashed URLs. With `base: "./"`
+ * the URLs are relative, so the game works from the portal's sub-folder.
+ * Only files in Assets/Runtime are bundled, so unused art never ships.
  */
-const importedAssets = import.meta.glob<string>(
-  [
-    "../../Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/*.png",
-    "../../Assets/Art/Production/Environment/Trees/Deciduous01/Runtime2x/*.png",
-    "../../Assets/Art/Production/Environment/Terrain/village-empty-terrain-16x9-v2.png",
-    "../../Assets/Art/Production/Props/LogStockpile01/Runtime2x/log-stockpile-01-state-*.png",
-    "../../Assets/Art/Production/Buildings/*/Runtime2x/*.png",
-    "../../Assets/Art/Generated 512/*.png",
-  ],
-  { eager: true, query: "?url", import: "default" },
-);
+const importedAssets = import.meta.glob<string>("../../Assets/Runtime/*.webp", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
 
-// Built once at module load rather than rescanned on every assetUrl() call:
-// with ~15 buildings × 4 stages plus character/tree/prop art, a linear scan
-// per lookup adds up across the many sprites this game loads and clones.
-const assetUrlByFilename = new Map<string, string>();
+const assetUrlByName = new Map<string, string>();
 for (const [path, url] of Object.entries(importedAssets)) {
-  const filename = path.slice(path.lastIndexOf("/") + 1);
-  if (assetUrlByFilename.has(filename)) {
-    throw new Error(`Duplicate bundled asset filename "${filename}" (from ${path}); asset lookups are by filename only.`);
-  }
-  assetUrlByFilename.set(filename, url);
+  assetUrlByName.set(path.slice(path.lastIndexOf("/") + 1), url);
+}
+
+/** Maps a production filename to its runtime name: `x.png` → `x.webp`. */
+export function runtimeAssetName(filename: string): string {
+  return filename.replace(/\.png$/i, ".webp");
+}
+
+/** Every runtime filename that is bundled (used by tests and the load-progress counter). */
+export function bundledAssetNames(): string[] {
+  return [...assetUrlByName.keys()];
 }
 
 /**
- * Resolves a bundled asset's filename (e.g. `farm-level-1-2x-v1.png`) to its served URL.
- * @throws Error if no bundled asset has that name (usually a typo or a missing export).
+ * Resolves an art filename (e.g. `farm-level-1-2x-v1.png`) to its served URL.
+ * @throws Error if the art hasn't been exported to Assets/Runtime.
  */
 export function assetUrl(filename: string): string {
-  const url = assetUrlByFilename.get(filename);
-  if (!url) throw new Error(`Bundled asset not found: ${filename}`);
+  const url = assetUrlByName.get(runtimeAssetName(filename));
+  if (!url) {
+    throw new Error(
+      `Bundled asset not found: ${filename}. If this is new art, add it to SOURCES in `
+      + "Tools/ArtPipeline/export_runtime_webp.py and run: python Tools/ArtPipeline/export_runtime_webp.py",
+    );
+  }
   return url;
 }

@@ -18,16 +18,48 @@ export const treeGround = planPoint(1760, 263);
 /** Vertical offset from a ground point to the worker sprite's center, so its feet sit on the point. */
 export const workerFootOffset = 0.95;
 
-/** The 16:9 painted ground is drawn below every road, prop, sprite, and optional grid line. */
-export async function loadEmptyTerrain(scene: THREE.Scene): Promise<void> {
+/** World size of the painted 16:9 terrain; building positions are laid out on it (planPoint). */
+const TERRAIN_WIDTH = 40 * (16 / 9);
+const TERRAIN_HEIGHT = 40;
+
+/** Returned by {@link loadEmptyTerrain}; call `fit` whenever the camera's view changes. */
+export interface TerrainHandle {
+  fit(viewWidth: number, viewHeight: number, centerX: number, centerY: number): void;
+}
+
+/**
+ * The 16:9 painted ground, drawn below every road, prop, sprite, and optional grid line.
+ *
+ * The camera often shows more than 16:9 (portrait phones, near-square
+ * iframes), which used to leave flat green bands around the painting. The
+ * terrain now always covers the whole view: the painting stays exactly where
+ * the buildings expect it, and beyond its edges the texture continues as a
+ * mirror image, so there is no visible seam or band.
+ */
+export async function loadEmptyTerrain(scene: THREE.Scene): Promise<TerrainHandle> {
   const texture = await loadTexture("village-empty-terrain-16x9-v2.png");
+  texture.wrapS = THREE.MirroredRepeatWrapping;
+  texture.wrapT = THREE.MirroredRepeatWrapping;
+  texture.needsUpdate = true;
   const terrain = new THREE.Mesh(
-    new THREE.PlaneGeometry(40 * (16 / 9), 40),
+    new THREE.PlaneGeometry(1, 1),
     new THREE.MeshBasicMaterial({ map: texture, depthTest: false, depthWrite: false }),
   );
   terrain.position.z = -1;
   terrain.renderOrder = -100;
   scene.add(terrain);
+
+  function fit(viewWidth: number, viewHeight: number, centerX: number, centerY: number): void {
+    const width = Math.max(viewWidth, TERRAIN_WIDTH);
+    const height = Math.max(viewHeight, TERRAIN_HEIGHT);
+    terrain.scale.set(width, height, 1);
+    terrain.position.set(centerX, centerY, -1);
+    // Map the plane's UVs so the painting's own 0..1 range lands on its world rectangle.
+    texture.repeat.set(width / TERRAIN_WIDTH, height / TERRAIN_HEIGHT);
+    texture.offset.set((centerX - width / 2 + TERRAIN_WIDTH / 2) / TERRAIN_WIDTH, (centerY - height / 2 + TERRAIN_HEIGHT / 2) / TERRAIN_HEIGHT);
+  }
+  fit(TERRAIN_WIDTH, TERRAIN_HEIGHT, 0, 0);
+  return { fit };
 }
 
 /**

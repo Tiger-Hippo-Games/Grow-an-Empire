@@ -20,6 +20,10 @@ export interface HudCallbacks {
   onGridToggle(visible: boolean): void;
   onSelectBuilding(buildingId: string): void;
   onTutorialModalChange(visible: boolean): void;
+  /** The first-run tutorial opened (for analytics). */
+  onTutorialStarted(): void;
+  /** The tutorial was finished or skipped; the caller remembers it in the save. */
+  onTutorialFinished(result: { skipped: boolean; stepCount: number; seconds: number }): void;
 }
 
 /** The slice of simulation state the HUD displays. */
@@ -49,6 +53,9 @@ export function createHud(callbacks: HudCallbacks) {
   const archersLabel = requireElement<HTMLElement>("#archers");
   const swordsmenLabel = requireElement<HTMLElement>("#swordsmen");
   const buildPanel = requireElement<HTMLElement>("#build-panel");
+  const statusBar = requireElement<HTMLElement>(".hud");
+  const settlementBar = requireElement<HTMLElement>(".settlement-hud");
+  const app = requireElement<HTMLElement>("#app");
   const buildOptions = requireElement<HTMLElement>("#build-options");
   const moveChip = requireElement<HTMLElement>("#move-chip");
   const resourceLedger = requireElement<HTMLElement>("#resource-ledger");
@@ -102,12 +109,24 @@ export function createHud(callbacks: HudCallbacks) {
   let selectedSpeed = 1;
   let gridVisible = false;
   let tutorialActive = false;
-  const tutorialStorageKey = "grow-an-empire:tutorial:v1";
+  let tutorialStartedAt = 0;
+  let tutorialStepsSeen = 0;
 
   /** Sets the "Settlement activity" label and its progress bar (0–1, clamped). */
+  let lastStatusLabel = "";
+  let lastStatusWidth = "";
   function setStatus(label: string, progress: number): void {
-    phaseLabel.textContent = label;
-    progressFill.style.width = `${MathUtils.clamp(progress, 0, 1) * 100}%`;
+    // Called every frame during construction: only touch the DOM when the
+    // visible text or bar width actually changes (MOBILE_PERFORMANCE §27).
+    if (label !== lastStatusLabel) {
+      phaseLabel.textContent = label;
+      lastStatusLabel = label;
+    }
+    const width = `${(MathUtils.clamp(progress, 0, 1) * 100).toFixed(1)}%`;
+    if (width !== lastStatusWidth) {
+      progressFill.style.width = width;
+      lastStatusWidth = width;
+    }
   }
 
   /** Updates the civic level readout, level-track label, and pips. */
@@ -189,6 +208,12 @@ export function createHud(callbacks: HudCallbacks) {
     buildOptions.querySelectorAll("button").forEach((button) => { button.disabled = busy; });
   }
 
+  const loadingLabel = loading.querySelector("span");
+  /** Shows boot progress on the loading screen, e.g. "Preparing the city… 12 / 20". */
+  function setLoadingProgress(settled: number, requested: number): void {
+    if (loadingLabel && requested > 0) loadingLabel.textContent = `Preparing the city… ${settled} / ${requested}`;
+  }
+
   /** Replaces the loading screen's content with an error message and a reload button. */
   function showLoadError(message: string): void {
     const title = document.createElement("strong");
@@ -261,35 +286,64 @@ export function createHud(callbacks: HudCallbacks) {
     stockpileToggle.classList.toggle("active", visible);
   }
 
+  // --- Layout ---------------------------------------------------------------
+  // Publishes the real positions of the top bars and the build panel as CSS
+  // variables (see the "Mobile and portal layout" block in styles.css), so
+  // panels stack below/above them at any screen size instead of relying on
+  // fixed pixel offsets that break when text wraps on a phone.
+  function publishLayout(): void {
+    const appBox = app.getBoundingClientRect();
+    const root = document.documentElement.style;
+    const hudBox = statusBar.getBoundingClientRect();
+    const settlementBox = settlementBar.getBoundingClientRect();
+    if (hudBox.height > 0) root.setProperty("--hud-bottom", `${Math.round(hudBox.bottom - appBox.top)}px`);
+    if (settlementBox.height > 0) root.setProperty("--settlement-bottom", `${Math.round(settlementBox.bottom - appBox.top)}px`);
+    const panelBox = buildPanel.getBoundingClientRect();
+    if (panelBox.height > 0) root.setProperty("--build-panel-reach", `${Math.round(appBox.bottom - panelBox.top)}px`);
+  }
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(() => publishLayout());
+    for (const element of [app, statusBar, settlementBar, buildPanel]) observer.observe(element);
+  }
+  window.addEventListener("resize", publishLayout);
+  publishLayout();
+
   // --- First-run tutorial -------------------------------------------------
   // Welcome modal (pauses the game) → step 1 coach on the build panel →
-  // step 2 coach after the first construction completes → done (remembered in localStorage).
+  // step 2 coach after the first construction completes → done. main.ts
+  // remembers completion in the save (so it follows the player to the cloud).
 
-  function tutorialWasCompleted(): boolean {
-    try { return window.localStorage.getItem(tutorialStorageKey) === "complete"; } catch { return false; }
-  }
-
-  function finishTutorial(): void {
+  function finishTutorial(skipped: boolean): void {
+    const wasActive = tutorialActive;
     tutorialActive = false;
     tutorialScrim.classList.add("hidden");
     tutorialCoach.classList.add("hidden");
     buildPanel.classList.remove("tutorial-focus");
     callbacks.onTutorialModalChange(false);
-    try { window.localStorage.setItem(tutorialStorageKey, "complete"); } catch { /* Continue without persistence. */ }
+    if (wasActive) {
+      callbacks.onTutorialFinished({ skipped, stepCount: tutorialStepsSeen, seconds: Math.round((performance.now() - tutorialStartedAt) / 1000) });
+    }
   }
 
   function showTutorialWelcome(): void {
+    if (!tutorialActive) {
+      tutorialStartedAt = performance.now();
+      tutorialStepsSeen = 0;
+      callbacks.onTutorialStarted();
+    }
     tutorialActive = true;
     tutorialCoach.classList.add("hidden");
     tutorialNext.classList.add("hidden");
     buildPanel.classList.remove("tutorial-focus");
     tutorialScrim.classList.remove("hidden");
     callbacks.onTutorialModalChange(true);
+    tutorialStart.focus(); // Move focus into the dialog (QA_CHECKLIST §13: focus handling).
   }
 
   function showChoiceCoach(): void {
     tutorialScrim.classList.add("hidden");
     callbacks.onTutorialModalChange(false);
+    tutorialStepsSeen = Math.max(tutorialStepsSeen, 1);
     tutorialStep.textContent = "STEP 1 OF 2";
     tutorialCoachTitle.textContent = "Your first decision";
     tutorialCoachCopy.textContent = "Choose one building. Earlier choices work for more moves, so watch what each option produces and unlocks.";
@@ -302,6 +356,7 @@ export function createHud(callbacks: HudCallbacks) {
   function showGrowthCoach(): void {
     tutorialScrim.classList.add("hidden");
     callbacks.onTutorialModalChange(false);
+    tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
     tutorialStep.textContent = "STEP 2 OF 2";
     tutorialCoachTitle.textContent = "Watch the whole city react";
     tutorialCoachCopy.textContent = `Each move upgrades the settlement, adds villagers, and runs every completed building. The raiders arrive immediately after Move ${TOTAL_MOVES}.`;
@@ -312,13 +367,8 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   /** Opens the tutorial on a brand-new campaign, unless the player has finished or skipped it before. */
-  /** Forgets that the tutorial was completed, so it shows again on the next fresh campaign (used by `?reset`). */
-  function resetTutorialProgress(): void {
-    try { window.localStorage.removeItem(tutorialStorageKey); } catch { /* Storage unavailable. */ }
-  }
-
-  function maybeStartTutorial(isFreshCampaign: boolean): void {
-    if (isFreshCampaign && !tutorialWasCompleted()) showTutorialWelcome();
+  function maybeStartTutorial(isFreshCampaign: boolean, completedBefore: boolean): void {
+    if (isFreshCampaign && !completedBefore) showTutorialWelcome();
   }
 
   function handleTutorialEvent(event: "first-move-complete"): void {
@@ -342,14 +392,30 @@ export function createHud(callbacks: HudCallbacks) {
   stockpileClose.addEventListener("click", () => setStockpileVisible(false));
   helpToggle.addEventListener("click", showTutorialWelcome);
   tutorialStart.addEventListener("click", () => buildPanel.classList.contains("hidden") ? showGrowthCoach() : showChoiceCoach());
-  tutorialSkip.addEventListener("click", finishTutorial);
-  tutorialNext.addEventListener("click", finishTutorial);
+  tutorialSkip.addEventListener("click", () => finishTutorial(true));
+  // Keyboard support for the modal dialog: Esc skips it, Tab stays inside it.
+  tutorialScrim.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      finishTutorial(true);
+      helpToggle.focus();
+    } else if (event.key === "Tab") {
+      const focusable = [...tutorialScrim.querySelectorAll<HTMLElement>("button:not([disabled])")].filter((element) => element.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  });
+  tutorialNext.addEventListener("click", () => finishTutorial(false));
   viewCity.addEventListener("click", hideArmyReport);
   musterToggle.addEventListener("click", () => armyReport.classList.toggle("hidden"));
 
   return {
     viewport,
     loading,
+    setLoadingProgress,
     setStatus,
     setCivicLevel,
     setResource,
@@ -367,7 +433,6 @@ export function createHud(callbacks: HudCallbacks) {
     hideArmyReport,
     resetArmyReport,
     maybeStartTutorial,
-    resetTutorialProgress,
     handleTutorialEvent,
     isGridChecked: () => gridVisible,
   };

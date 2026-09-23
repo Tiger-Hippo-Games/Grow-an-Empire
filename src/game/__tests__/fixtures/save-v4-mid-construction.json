@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 4,
+  "savedAt": "2026-09-23T12:00:00.000Z",
+  "campaignId": "campaign-1-first-muster",
+  "state": {
+    "mode": "construction",
+    "move": 6,
+    "civicLevel": 5,
+    "population": 16,
+    "resources": {
+      "wood": 8,
+      "grain": 8,
+      "livestock": 2,
+      "rations": 0,
+      "stone": 6,
+      "planks": 6,
+      "wealth": 0,
+      "tools": 0,
+      "fruit": 0,
+      "wine": 0,
+      "arms": 0,
+      "training": 0,
+      "defense": 5
+    },
+    "builtBuildingIds": [
+      "woodcutter",
+      "farm",
+      "quarry",
+      "sawmill",
+      "swine-farm"
+    ],
+    "availableBuildingIds": [
+      "fruit-orchard",
+      "butchery"
+    ],
+    "selectedBuildingId": "house",
+    "activePlotIndex": 5,
+    "constructionElapsed": 12.5,
+    "buildingMaturity": {
+      "woodcutter": 5,
+      "farm": 4,
+      "quarry": 3,
+      "sawmill": 2,
+      "swine-farm": 1
+    },
+    "armyReport": null,
+    "trainedUnits": {
+      "archers": 0,
+      "swordsmen": 0
+    }
+  },
+  "runId": "fixture-run",
+  "settings": {
+    "tutorialComplete": true
+  }
+}

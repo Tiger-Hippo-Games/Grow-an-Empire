@@ -52,11 +52,35 @@ export function configureTexture(texture: THREE.Texture): THREE.Texture {
  */
 export async function loadTexture(filename: string): Promise<THREE.Texture> {
   const url = assetUrl(filename);
+  imagesRequested += 1;
+  notifyProgress();
   try {
     return configureTexture(await textureLoader.loadAsync(url));
   } catch (cause) {
     throw new Error(`Failed to load image "${filename}"`, { cause });
+  } finally {
+    imagesSettled += 1;
+    notifyProgress();
   }
+}
+
+// --- Load progress ---------------------------------------------------------
+// Counts every image request so the loading screen can show real progress and
+// the boot watchdog can tell "slow" from "stuck" (MOBILE_PERFORMANCE §42).
+
+type LoadProgressListener = (settled: number, requested: number) => void;
+let imagesRequested = 0;
+let imagesSettled = 0;
+const progressListeners = new Set<LoadProgressListener>();
+
+function notifyProgress(): void {
+  for (const listener of progressListeners) listener(imagesSettled, imagesRequested);
+}
+
+/** Calls `listener(settled, requested)` whenever an image starts or finishes loading. Returns an unsubscribe function. */
+export function onImageLoadProgress(listener: LoadProgressListener): () => void {
+  progressListeners.add(listener);
+  return () => progressListeners.delete(listener);
 }
 
 /** Loads an image as a {@link SpriteAsset} (texture + aspect ratio). */

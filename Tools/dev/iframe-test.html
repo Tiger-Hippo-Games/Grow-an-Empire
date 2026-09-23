@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+  Local portal simulator (GAME_SUBMISSION_GUIDE §6, step 2).
+
+  With the dev server running (pnpm dev / start-game.cmd), open:
+    http://127.0.0.1:4173/Tools/dev/iframe-test.html
+
+  It embeds the game in an iframe with the same permissions as the GoLive
+  portal, lets you switch between the portal's test resolutions, sends the
+  portal's GP_PAUSE / GP_RESUME / GP_SESSION_END messages, and shows every
+  call the game makes to the (mock) platform SDK.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GoLive iframe test · Grow an Empire</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0d1117; color: #e6edf3; font: 13px/1.5 ui-monospace, Consolas, monospace; display: grid; grid-template-columns: 1fr 360px; height: 100vh; }
+    #stage { display: grid; place-items: center; overflow: auto; padding: 16px; background: #111; }
+    iframe { border: 1px solid #30363d; background: #000; }
+    aside { border-left: 1px solid #21262d; display: flex; flex-direction: column; min-height: 0; }
+    section { padding: 12px 14px; border-bottom: 1px solid #21262d; }
+    h1 { font-size: 14px; margin: 0 0 8px; color: #58a6ff; }
+    h2 { font-size: 11px; margin: 0 0 6px; color: #8b949e; text-transform: uppercase; letter-spacing: .06em; }
+    button, select { font: inherit; color: inherit; background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 5px 9px; cursor: pointer; margin: 0 4px 4px 0; }
+    button:hover { background: #30363d; }
+    label { display: block; margin: 4px 0; }
+    #log { flex: 1; overflow: auto; padding: 10px 14px; margin: 0; white-space: pre-wrap; font-size: 12px; }
+    .portal { color: #d29922; } .sdk { color: #3fb950; } .game { color: #58a6ff; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <iframe id="game" width="1280" height="720" allow="autoplay; fullscreen; gamepad; microphone" allowfullscreen></iframe>
+  </div>
+  <aside>
+    <section>
+      <h1>GoLive iframe test</h1>
+      <label><input type="checkbox" id="mock" checked /> Mock platform SDK (<code>?platform=mock</code>)</label>
+      <label><input type="checkbox" id="fresh" /> Start as a first-time player (<code>?reset</code>)</label>
+      <button id="reload">Reload game</button>
+      <button id="clear-cloud">Clear mock cloud save</button>
+    </section>
+    <section>
+      <h2>Viewport (portal test sizes)</h2>
+      <select id="size">
+        <option value="1280x720">Desktop 1280 × 720</option>
+        <option value="1920x1080">Desktop HD 1920 × 1080</option>
+        <option value="1366x724">1366 × 768 minus portal bar</option>
+        <option value="390x800">iPhone 390 × 844 minus portal bar</option>
+        <option value="375x667">Mobile portrait 375 × 667</option>
+        <option value="667x375">Mobile landscape 667 × 375</option>
+      </select>
+    </section>
+    <section>
+      <h2>Portal → game messages</h2>
+      <button data-msg="GP_PAUSE">GP_PAUSE</button>
+      <button data-msg="GP_RESUME">GP_RESUME</button>
+      <button data-msg="GP_SESSION_END">GP_SESSION_END</button>
+    </section>
+    <pre id="log"></pre>
+  </aside>
+  <script>
+    const frame = document.getElementById("game");
+    const logEl = document.getElementById("log");
+    let seenCalls = 0;
+
+    function log(kind, text) {
+      const line = document.createElement("div");
+      line.className = kind;
+      line.textContent = `${new Date().toLocaleTimeString()}  ${text}`;
+      logEl.append(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function gameUrl() {
+      const params = new URLSearchParams();
+      if (document.getElementById("mock").checked) params.set("platform", "mock");
+      if (document.getElementById("fresh").checked) params.set("reset", "");
+      const query = params.toString().replace(/=(&|$)/g, "$1");
+      return "/" + (query ? `?${query}` : "");
+    }
+
+    function reload() {
+      seenCalls = 0;
+      frame.src = gameUrl();
+      log("game", `load ${frame.src}`);
+    }
+
+    function resize() {
+      const [width, height] = document.getElementById("size").value.split("x").map(Number);
+      frame.width = width;
+      frame.height = height;
+    }
+
+    document.getElementById("reload").onclick = reload;
+    document.getElementById("size").onchange = resize;
+    document.getElementById("clear-cloud").onclick = () => {
+      localStorage.removeItem("grow-an-empire:mock-cloud");
+      log("portal", "mock cloud save cleared");
+    };
+    document.querySelectorAll("[data-msg]").forEach((button) => {
+      button.onclick = () => {
+        frame.contentWindow.postMessage({ type: button.dataset.msg }, "*");
+        log("portal", `→ ${button.dataset.msg}`);
+      };
+    });
+    window.addEventListener("message", (event) => {
+      if (event.source === frame.contentWindow) log("game", `← ${JSON.stringify(event.data)}`);
+    });
+    // The mock SDK records every call on window.__goLiveMock (same origin, so readable here).
+    setInterval(() => {
+      const calls = frame.contentWindow?.__goLiveMock?.calls;
+      if (!calls) return;
+      for (; seenCalls < calls.length; seenCalls += 1) {
+        const { method, args } = calls[seenCalls];
+        log("sdk", `Platform.${method}(${args.map((a) => JSON.stringify(a)).join(", ")})`);
+      }
+    }, 250);
+
+    resize();
+    reload();
+  </script>
+</body>
+</html>

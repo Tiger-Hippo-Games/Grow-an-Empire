@@ -13,7 +13,10 @@
     "preview": "vite preview --host 127.0.0.1 --open",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "tsc --noEmit && vitest run"
+    "check": "tsc --noEmit && vitest run",
+    "package": "pnpm run build && node Tools/dev/package-bundle.mjs",
+    "validate:bundle": "node Tools/dev/validate-bundle.mjs",
+    "art:export": "python Tools/ArtPipeline/export_runtime_webp.py"
   },
   "dependencies": {
     "three": "0.186.0"

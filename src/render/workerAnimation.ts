@@ -39,8 +39,12 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
     const clip = clips.get(`${name}:${direction}`);
     if (!clip) return;
     setSheetFrame(clip, frame);
-    workerMaterial.map = clip.texture;
-    workerMaterial.needsUpdate = true;
+    // Changing the frame only moves the texture offset. The material itself only
+    // needs recompiling when the texture changes, not on every frame.
+    if (workerMaterial.map !== clip.texture) {
+      workerMaterial.map = clip.texture;
+      workerMaterial.needsUpdate = true;
+    }
   }
 
   /** Shows one of a profession's four walking poses. */

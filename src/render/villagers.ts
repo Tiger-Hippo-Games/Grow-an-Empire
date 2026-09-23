@@ -153,6 +153,8 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
   const villagers: Villager[] = [];
   const garrison: THREE.Sprite[] = [];
   let muster: { report: ArmyReport; startedAt: number } | null = null;
+  const musterOrigin = new THREE.Vector2(civicGround.x + 0.2, civicGround.y - 2.0);
+  let lastMusterElapsed: number | null = null;
 
   // Routes only change when a building completes, but used to be rebuilt (and
   // measured twice per villager) on every frame. They're now cached per build order.
@@ -235,6 +237,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
   /** Switches from commuting to the end-of-campaign formation. */
   function beginArmyMuster(report: ArmyReport, animationElapsed: number): void {
     muster = { report, startedAt: animationElapsed };
+    lastMusterElapsed = null;
     for (const soldier of garrison) soldier.visible = false;
   }
 
@@ -251,9 +254,17 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
    */
   function renderMuster(animationElapsed: number): void {
     if (!muster) return;
-    const armyCount = Math.min(muster.report.totalUnits, villagers.filter((villager) => villager.sprite.visible).length);
+    let visibleCount = 0;
+    for (const villager of villagers) if (villager.sprite.visible) visibleCount += 1;
+    const armyCount = Math.min(muster.report.totalUnits, visibleCount);
     const assembly = THREE.MathUtils.smoothstep(Math.min(1, (animationElapsed - muster.startedAt) / CITY_ANIMATION.muster.assemblySeconds), 0, 1);
-    const origin = new THREE.Vector2(civicGround.x + 0.2, civicGround.y - 2.0);
+    const origin = musterOrigin;
+    // Time-based easing (THREEJS_STANDARDS §15): the old per-frame factor
+    // (0.04-0.12 at 60 fps) converted to a rate, so 120 Hz screens aren't faster.
+    const dt = lastMusterElapsed === null ? 1 / 60 : Math.max(0, animationElapsed - lastMusterElapsed);
+    lastMusterElapsed = animationElapsed;
+    const perFrame = 0.04 + assembly * 0.08;
+    const blend = 1 - Math.pow(1 - perFrame, dt * 60);
     const columns = Math.min(6, Math.max(3, Math.ceil(Math.sqrt(Math.max(armyCount, 1)))));
     for (let index = 0; index < villagers.length; index += 1) {
       const villager = villagers[index];
@@ -266,8 +277,8 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
         const column = index % columns;
         const targetX = origin.x + (column - (Math.min(columns, armyCount - row * columns) - 1) / 2) * CITY_ANIMATION.muster.formationSpacingX;
         const targetY = origin.y - row * CITY_ANIMATION.muster.formationSpacingY;
-        villager.sprite.position.x = THREE.MathUtils.lerp(villager.sprite.position.x, targetX, 0.04 + assembly * 0.08);
-        villager.sprite.position.y = THREE.MathUtils.lerp(villager.sprite.position.y, targetY + Math.abs(villager.sprite.scale.y) / 2, 0.04 + assembly * 0.08);
+        villager.sprite.position.x = THREE.MathUtils.lerp(villager.sprite.position.x, targetX, blend);
+        villager.sprite.position.y = THREE.MathUtils.lerp(villager.sprite.position.y, targetY + Math.abs(villager.sprite.scale.y) / 2, blend);
         villager.material.color.setHex(0xffffff);
         villager.sprite.scale.x = Math.abs(villager.sprite.scale.x);
       } else {

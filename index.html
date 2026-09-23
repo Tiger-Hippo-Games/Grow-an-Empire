@@ -2,10 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#13271b" />
-    <meta name="description" content="Grow an Empire — a twelve-move city defense campaign" />
-    <title>Grow an Empire — The First Muster</title>
+    <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Plays in any orientation. -->
+    <meta name="orientation" content="any" />
+    <meta name="screen-orientation" content="any" />
+    <meta name="description" content="Build a medieval city one choice at a time. Pick twelve buildings, balance grain, timber and stone, and muster enough defenders to hold off the Ashfang Raiders. A short strategy game that plays in your browser on desktop and mobile." />
+    <title>Grow an Empire</title>
     <script>
       // Boot watchdog. main.ts shows its own error screen once it's running, but
       // if the game's code can't load or throws before that (e.g. a typo while
@@ -30,16 +33,38 @@
           loading.replaceChildren(title, body, retry);
         }
         window.addEventListener("error", function (event) {
-          if (event.target instanceof HTMLScriptElement) show("A script file failed to load.");
+          if (event.target instanceof HTMLScriptElement) {
+            // The portal SDK only exists on the portal; without it the game plays offline.
+            if ((event.target.src || "").indexOf("platform-sdk.js") !== -1) return;
+            show("A script file failed to load.");
+          }
           else if (event.message) show(event.message + ".");
         }, true);
         window.addEventListener("unhandledrejection", function (event) {
           var reason = event.reason;
           show((reason && reason.message ? reason.message : String(reason)) + ".");
         });
-        setTimeout(function () { show("It's still loading after 45 seconds."); }, 45000);
+        // Only complain if loading has *stalled*: a slow connection that is still
+        // making progress must not be reported as a failure. main.ts updates
+        // window.__gaeLoadActivityAt every time an image starts or finishes.
+        var startedAt = Date.now();
+        var stallTimer = setInterval(function () {
+          if (document.documentElement.dataset.booted) return clearInterval(stallTimer);
+          var lastActivity = window.__gaeLoadActivityAt || startedAt;
+          if (Date.now() - lastActivity > 20000) {
+            clearInterval(stallTimer);
+            show("Loading stopped making progress for 20 seconds. Check your connection.");
+          }
+        }, 2000);
       })();
     </script>
+    <!--
+      GoLive Platform SDK (common/GAME_SUBMISSION_GUIDE.md §5). This is the one
+      absolute path in the game on purpose: it is served by the portal itself,
+      not from our bundle. On the portal it defines window.Platform; locally it
+      is a harmless stub (see vite.config.ts) and the game plays offline.
+    -->
+    <script src="/api/v1/sdk/platform-sdk.js"></script>
   </head>
   <body>
     <main id="app">
