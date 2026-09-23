@@ -4,17 +4,23 @@ An HTML5/Three.js city defense game. The player makes one strategic building cho
 
 The playable slice includes:
 
-- a rolling build pool across twelve moves, with three cards offered whenever eligible choices remain;
+- a rolling build pool across twelve moves, with up to three prerequisite-valid cards offered;
 - fifteen possible district buildings, with twelve selected in any one city;
 - thirteen civic states: Level 0 campsite plus one upgrade per move, ending at the Grand Muster Hall;
-- prerequisite-driven offers such as Farm → Bakery, Orchard → Winery, and Blacksmith → Barracks or Weapons Workshop;
-- population growth from 1 villager at Level 0 to 79 at Level 12, with an early House adding 2 people per subsequent level;
+- prerequisite-driven offers: Farm opens Orchard and Swine Farm; Sawmill and Quarry open House, Blacksmith, Weapons Workshop, and Barracks;
+- population growth from 1 villager at Level 0 to 79 at Level 12, with a House adding 2 people per subsequent level;
 - semantic city districts with five roads that grow toward occupied civic, forest, farm, southwest, and industrial quarters;
 - autonomous resource production and complementary-building bonuses;
+- one swordsman per completed move from Blacksmith and one archer per completed move from Weapons Workshop, visible beside the Barracks plot;
+- distinct 512 × 512 four-frame walking sheets for builders, producers, craftspeople, traders, and army units;
 - a 30-second default construction cadence with pause, restart, 1–8× speed, and grid controls;
 - a final army muster after Move 12, scored against the approaching raiders.
 
 See `Docs/BUILD_ORDER_CONTENT.md` for the offer rules and `Docs/GAME_ARCHITECTURE.md` for runtime boundaries.
+
+Character cutouts and their `-walk4.png` sheets live in `Assets/Art/Generated 512`.
+Each sheet packs four 256 × 256 poses into one 512 × 512 PNG. After replacing a
+source cutout, regenerate the sheets with `pwsh -File art-tools/create-walk-sheets.ps1`.
 
 ## Run locally
 

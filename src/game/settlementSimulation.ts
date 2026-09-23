@@ -1,6 +1,8 @@
 import { CAMPAIGN_1, type CampaignDefinition } from "./campaigns";
 import {
   CONSTRUCTION_DURATION_SECONDS,
+  BUILDINGS,
+  isBuildingEligible,
   isKnownBuildingId,
   nextBuildingOffer,
   OPENING_BUILD_OPTIONS,
@@ -30,9 +32,11 @@ export type CampaignOutcome = "Settlement Lost" | "Costly Survival" | "Victory" 
 /** Stockpile of every resource. Always contains every key (missing keys from old saves are filled with 0). */
 export type ResourceLedger = Record<ResourceName, number>;
 /** Bump this when `SettlementState`'s shape changes incompatibly; older saves are then discarded. */
-export const SAVE_SCHEMA_VERSION = 3 as const;
+export const SAVE_SCHEMA_VERSION = 4 as const;
 
-export interface ArmyUnits { militia: number; spearmen: number; archers: number; veterans: number; mercenaries: number; }
+export interface TrainedUnits { archers: number; swordsmen: number; }
+
+export interface ArmyUnits { militia: number; spearmen: number; archers: number; swordsmen: number; mercenaries: number; }
 /** The end-of-campaign result, computed once by `assembleArmy()` when the final move completes. */
 export interface ArmyReport {
   outcome: CampaignOutcome; score: number; enemyStrength: number; units: ArmyUnits; totalUnits: number;
@@ -43,7 +47,7 @@ export interface BuildOrderEntry { move: number; buildingId: string; }
 /**
  * Everything the render/UI layers need to react to. Events from one `update()`
  * call are always emitted in this order:
- * construction-complete, civic-upgraded, economy-resolved, population-changed (if it changed),
+ * construction-complete, civic-upgraded, economy-resolved, unit-trained (if earned), population-changed (if it changed),
  * then either choices-ready or army-mustered + game-complete.
  */
 export type SimulationEvent =
@@ -53,6 +57,7 @@ export type SimulationEvent =
   | { type: "choices-ready"; move: number; options: string[] }
   | { type: "economy-resolved"; activeBuildingIds: string[] }
   | { type: "population-changed"; total: number }
+  | { type: "unit-trained"; units: TrainedUnits; newArchers: number; newSwordsmen: number }
   | { type: "army-mustered"; report: ArmyReport }
   | { type: "game-complete" };
 
@@ -70,6 +75,7 @@ export interface SettlementState {
   builtBuildingIds: string[]; availableBuildingIds: string[]; selectedBuildingId: string | null;
   activePlotIndex: number | null; constructionElapsed: number; buildingMaturity: Record<string, number>;
   armyReport: ArmyReport | null;
+  trainedUnits: TrainedUnits;
 }
 
 /** Versioned save-file wrapper around `SettlementState`. */
@@ -89,6 +95,7 @@ const createInitialState = (): SettlementState => ({
   mode: "awaiting-choice", move: 1, civicLevel: 0, population: 1, resources: emptyResources(),
   builtBuildingIds: [], availableBuildingIds: [...OPENING_BUILD_OPTIONS], selectedBuildingId: null,
   activePlotIndex: null, constructionElapsed: 0, buildingMaturity: {}, armyReport: null,
+  trainedUnits: { archers: 0, swordsmen: 0 },
 });
 
 const clamp = (value: number, minimum: number, maximum: number): number => Math.max(minimum, Math.min(maximum, value));
@@ -122,6 +129,7 @@ export function describeSnapshotProblem(value: unknown): string | null {
   if (!isKnownIdList(state.availableBuildingIds)) return "availableBuildingIds contains unknown or duplicate buildings";
   if (!isPlainObject(state.resources) || !Object.values(state.resources).every((amount) => Number.isFinite(amount))) return "invalid resources";
   if (!isPlainObject(state.buildingMaturity) || !Object.values(state.buildingMaturity).every((amount) => Number.isFinite(amount))) return "invalid buildingMaturity";
+  if (!isPlainObject(state.trainedUnits) || !Number.isInteger(state.trainedUnits.archers) || (state.trainedUnits.archers as number) < 0 || !Number.isInteger(state.trainedUnits.swordsmen) || (state.trainedUnits.swordsmen as number) < 0) return "invalid trainedUnits";
   if (state.mode === "construction") {
     if (!isKnownBuildingId(state.selectedBuildingId)) return "construction without a known selected building";
     if (state.activePlotIndex !== state.builtBuildingIds.length) return "activePlotIndex does not match build order";
@@ -187,6 +195,8 @@ export class SettlementSimulation {
    */
   chooseBuilding(buildingId: string): SimulationEvent[] {
     if (this.state.mode !== "awaiting-choice" || !this.state.availableBuildingIds.includes(buildingId)) return [];
+    const definition = BUILDINGS[buildingId];
+    if (!definition || !isBuildingEligible(definition, this.state.builtBuildingIds, this.state.move)) return [];
     const plotIndex = this.state.builtBuildingIds.length;
     this.state.mode = "construction";
     this.state.selectedBuildingId = buildingId;
@@ -231,6 +241,11 @@ export class SettlementSimulation {
 
     this.resolveMoveEconomy();
     events.push({ type: "economy-resolved", activeBuildingIds: [...this.state.builtBuildingIds] });
+    const newArchers = this.state.builtBuildingIds.includes("weapons-workshop") ? 1 : 0;
+    const newSwordsmen = this.state.builtBuildingIds.includes("blacksmith") ? 1 : 0;
+    this.state.trainedUnits.archers += newArchers;
+    this.state.trainedUnits.swordsmen += newSwordsmen;
+    if (newArchers || newSwordsmen) events.push({ type: "unit-trained", units: { ...this.state.trainedUnits }, newArchers, newSwordsmen });
     const previousPopulation = this.state.population;
     const houseMaturity = this.state.buildingMaturity.house ?? 0;
     this.state.population = populationForLevel(this.state.civicLevel) + 2 * houseMaturity;
@@ -320,8 +335,8 @@ export class SettlementSimulation {
   /**
    * Scores the settlement against the campaign enemy after the final move.
    *
-   * Recruits come from population above 8 (65%). Arms are handed out to specialists
-   * first (archers, then veterans, then spearmen); leftover recruits become militia.
+   * Trained archers and swordsmen carry through from completed moves. Remaining
+   * recruits come from population above 8 (65%); arms can equip reserve spearmen.
    * Mercenaries are hired with wealth and rations if a Marketplace exists.
    * The final score blends combat strength (65%), city defense (20%), supply turns
    * and morale, and maps to an outcome tier. This reads resources but does not
@@ -330,20 +345,18 @@ export class SettlementSimulation {
   private assembleArmy(): ArmyReport {
     const built = new Set(this.state.builtBuildingIds);
     const resources = this.state.resources;
-    let recruits = Math.max(0, Math.floor((this.state.population - 8) * 0.65));
+    let recruits = Math.max(0, Math.floor((this.state.population - 8) * 0.65) - this.state.trainedUnits.archers - this.state.trainedUnits.swordsmen);
     let arms = resources.arms;
-    const archers = built.has("woodcutter") && built.has("sawmill") && built.has("weapons-workshop") ? Math.min(6, Math.ceil(arms * 0.35), Math.max(resources.planks, Math.floor(resources.wood / 2)), recruits) : 0;
-    recruits -= archers; arms -= archers;
-    const veterans = built.has("barracks") ? Math.min(Math.floor(resources.training / 2), arms, recruits) : 0;
-    recruits -= veterans; arms -= veterans;
+    const archers = this.state.trainedUnits.archers;
+    const swordsmen = this.state.trainedUnits.swordsmen;
     const spearmen = built.has("weapons-workshop") ? Math.min(arms, recruits) : 0;
     recruits -= spearmen;
     const militia = Math.floor(recruits * 0.6);
     const mercenaries = built.has("marketplace") ? Math.min(5, Math.floor(resources.wealth / 4), Math.floor(resources.rations / 2)) : 0;
-    const units: ArmyUnits = { militia, spearmen, archers, veterans, mercenaries };
+    const units: ArmyUnits = { militia, spearmen, archers, swordsmen, mercenaries };
     const totalUnits = Object.values(units).reduce((sum, value) => sum + value, 0);
     const morale = clamp(50 + this.state.civicLevel * 3 + resources.wine * 4 + (built.has("marketplace") ? 8 : 0) + (built.has("house") ? 4 : 0), 40, 100);
-    const baseCombat = militia + spearmen * 3 + archers * 4 + veterans * 5 + mercenaries * 4;
+    const baseCombat = militia + spearmen * 3 + archers * 4 + swordsmen * 5 + mercenaries * 4;
     const combatStrength = Math.round(baseCombat * (0.8 + morale / 250));
     const supplyTurns = Math.min(8, Math.floor(resources.rations / Math.max(1, Math.ceil(totalUnits / 4))));
     const cityDefense = resources.defense + Math.floor(resources.stone / 2) + Math.floor(resources.planks / 3) + this.state.civicLevel * 2;
@@ -355,7 +368,7 @@ export class SettlementSimulation {
     else if (score >= this.campaign.objective.strength * 0.6) outcome = "Costly Survival";
 
     const explanations: string[] = [];
-    explanations.push(built.has("barracks") ? `The Barracks matured for ${this.state.buildingMaturity.barracks} move(s), producing ${resources.training} training.` : "Without a Barracks, the settlement relied on militia rather than professional veterans.");
+    explanations.push(`${archers} archers and ${swordsmen} swordsmen trained one at a time across the completed moves.`);
     explanations.push(built.has("weapons-workshop") ? `The workshops forged ${resources.arms} standardized arms before the muster.` : "No Weapons Workshop was completed, so recruits lacked standardized equipment.");
     explanations.push(resources.rations > 0 ? `${resources.rations} stored rations can support the army for ${supplyTurns} campaign turn(s).` : "The city entered battle without preserved campaign rations.");
     if (built.has("marketplace")) explanations.push("Marketplace wealth allowed the city to supplement its ranks with mercenaries.");

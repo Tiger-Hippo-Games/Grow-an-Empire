@@ -8,6 +8,7 @@ import { createCivicCenter } from "./render/civicCenter";
 import { createWorkerAnimation } from "./render/workerAnimation";
 import { createConstructionView } from "./render/constructionView";
 import { createVillagerField } from "./render/villagers";
+import { createCharacterAssets, roleForBuilding } from "./render/characterAssets";
 import { createHud, type HudStateSnapshot } from "./ui/hud";
 import "./styles.css";
 
@@ -79,9 +80,10 @@ const hud = createHud({
 const { renderer, scene, camera, resize } = createSceneSetup(hud.viewport);
 const cityLayout = createCityLayout(scene);
 const civicCenter = createCivicCenter(scene);
-const workerAnimation = createWorkerAnimation(scene);
+const characterAssets = createCharacterAssets();
+const workerAnimation = createWorkerAnimation(scene, characterAssets);
 const constructionView = createConstructionView(scene, workerAnimation, cityLayout, hud.setStatus);
-const villagerField = createVillagerField(scene, workerAnimation);
+const villagerField = createVillagerField(scene, characterAssets);
 
 const timer = new Timer();
 timer.connect(document); // Resets the delta when the tab becomes visible again, so a background tab doesn't cause a jump.
@@ -102,6 +104,7 @@ function stateSnapshot(): HudStateSnapshot {
     mode: simulation.state.mode,
     move: simulation.state.move,
     population: simulation.state.population,
+    trainedUnits: simulation.state.trainedUnits,
     resources: simulation.state.resources,
     availableBuildingIds: simulation.state.availableBuildingIds,
   };
@@ -160,7 +163,7 @@ async function beginConstruction(buildingId: string): Promise<void> {
   hud.hideMilestone();
   workerAnimation.worker.visible = true;
   workerAnimation.placeWorker(civicGround);
-  workerAnimation.useClip("walk", "southeast", 0);
+  workerAnimation.useCharacter(roleForBuilding(buildingId));
   hud.setStatus(`${name} approved — builders mobilizing`, 0);
   autosave();
 }
@@ -181,7 +184,11 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       const copy = completedMove < TOTAL_MOVES
         ? `Completed on Move ${completedMove}. The civic center also advanced.`
         : `Completed on Move ${completedMove}. The Grand Muster Hall stands ready to defend the city.`;
-      hud.showMilestone(BUILDINGS[event.buildingId].name, copy, animationElapsed);
+      const newSoldiers = [
+        simulation.state.builtBuildingIds.includes("blacksmith") && "1 swordsman",
+        simulation.state.builtBuildingIds.includes("weapons-workshop") && "1 archer",
+      ].filter(Boolean).join(" and ");
+      hud.showMilestone(BUILDINGS[event.buildingId].name, newSoldiers ? `${copy} ${newSoldiers} joined the garrison.` : copy, animationElapsed);
     } else if (event.type === "civic-upgraded") {
       civicCenter.setLevel(event.level);
       cityLayout.setCivicLevel(event.level);
@@ -198,7 +205,11 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
     } else if (event.type === "economy-resolved") {
       for (const buildingId of event.activeBuildingIds) constructionView.markProduced(buildingId, animationElapsed);
     } else if (event.type === "population-changed") {
-      villagerField.syncVillagers(event.total);
+      villagerField.syncVillagers(Math.max(0, event.total - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
+    } else if (event.type === "unit-trained") {
+      villagerField.syncGarrison(event.units);
+      const newUnits = [event.newSwordsmen && "1 swordsman", event.newArchers && "1 archer"].filter(Boolean).join(" and ");
+      hud.setStatus(`${newUnits} joined the Barracks garrison · ${event.units.swordsmen + event.units.archers} defenders`, 1);
     } else if (event.type === "army-mustered") {
       villagerField.beginArmyMuster(event.report, animationElapsed);
       hud.renderArmyReport(event.report, buildOrderNames(), simulation.campaign.objective.enemyName);
@@ -245,11 +256,12 @@ function resetSettlement(): void {
   civicCenter.setLevel(0);
   hud.setCivicLevel(0);
   hud.updateHud(stateSnapshot());
-  villagerField.syncVillagers(simulation.state.population);
+  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
+  villagerField.syncGarrison(simulation.state.trainedUnits);
   villagerField.clearArmyMuster();
   workerAnimation.worker.visible = true;
   workerAnimation.placeWorker(civicGround);
-  workerAnimation.useClip("walk", "southeast", 0);
+  workerAnimation.useCharacter("builder");
   hud.renderBuildPanel(stateSnapshot());
 }
 
@@ -280,7 +292,8 @@ function hydrateFromLoadedState(): void {
   cityLayout.setCivicLevel(simulation.state.civicLevel);
   hud.setCivicLevel(simulation.state.civicLevel);
   hud.updateHud(stateSnapshot());
-  villagerField.syncVillagers(simulation.state.population);
+  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
+  villagerField.syncGarrison(simulation.state.trainedUnits);
 
   const { selectedBuildingId: buildingId, activePlotIndex: plotIndex } = simulation.state;
   if (simulation.state.mode === "construction" && buildingId !== null && plotIndex !== null) {
@@ -301,7 +314,7 @@ function hydrateFromLoadedState(): void {
     cityLayout.placementPad.visible = false;
     workerAnimation.worker.visible = true;
     workerAnimation.placeWorker(civicGround);
-    workerAnimation.useClip("walk", "southeast", 0);
+    workerAnimation.useCharacter("builder");
     hud.renderBuildPanel(stateSnapshot());
   } else {
     cityLayout.placementPad.visible = false;
@@ -385,6 +398,7 @@ async function initialize(): Promise<void> {
   const saved = loadSavedSnapshot();
   await Promise.all([
     workerAnimation.loadClips(),
+    characterAssets.load(),
     constructionView.loadBuildingAssets(saved ? buildingsNeededFor(saved) : OPENING_BUILD_OPTIONS),
     civicCenter.load(),
     loadEmptyTerrain(scene),

@@ -7,7 +7,7 @@ import {
   TOTAL_SETTLEMENT_LEVELS,
   type ResourceName,
 } from "../game/content";
-import type { ArmyReport, SimulationMode, ResourceLedger } from "../game/settlementSimulation";
+import type { ArmyReport, SimulationMode, ResourceLedger, TrainedUnits } from "../game/settlementSimulation";
 import { assetUrl } from "../render/assetCatalog";
 import { buildingFilename } from "../render/constructionView";
 import { requireElement } from "./dom";
@@ -27,6 +27,7 @@ export interface HudStateSnapshot {
   mode: SimulationMode;
   move: number;
   population: number;
+  trainedUnits: TrainedUnits;
   resources: ResourceLedger;
   availableBuildingIds: string[];
 }
@@ -45,6 +46,8 @@ export function createHud(callbacks: HudCallbacks) {
   const moveLabel = requireElement<HTMLElement>("#move");
   const civicLabel = requireElement<HTMLElement>("#civic-level");
   const populationLabel = requireElement<HTMLElement>("#population");
+  const archersLabel = requireElement<HTMLElement>("#archers");
+  const swordsmenLabel = requireElement<HTMLElement>("#swordsmen");
   const buildPanel = requireElement<HTMLElement>("#build-panel");
   const buildOptions = requireElement<HTMLElement>("#build-options");
   const moveChip = requireElement<HTMLElement>("#move-chip");
@@ -121,9 +124,11 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   /** Refreshes the move counter, population, and every stockpile total. */
-  function updateHud(snapshot: Pick<HudStateSnapshot, "move" | "population" | "resources">): void {
+  function updateHud(snapshot: Pick<HudStateSnapshot, "move" | "population" | "resources" | "trainedUnits">): void {
     moveLabel.textContent = `${Math.min(snapshot.move, TOTAL_MOVES)} / ${TOTAL_MOVES}`;
     populationLabel.textContent = String(snapshot.population);
+    archersLabel.textContent = String(snapshot.trainedUnits.archers);
+    swordsmenLabel.textContent = String(snapshot.trainedUnits.swordsmen);
     for (const resource of Object.keys(RESOURCE_LABELS) as ResourceName[]) {
       setResource(resource, snapshot.resources[resource]);
     }
@@ -170,7 +175,7 @@ export function createHud(callbacks: HudCallbacks) {
       setStatus(`Move ${snapshot.move}: no buildings are available. Press Restart to begin a new settlement.`, 0);
       return;
     }
-    const choiceCopy = optionCount === 1 ? "build the final remaining district" : `choose one of ${optionCount} buildings`;
+    const choiceCopy = optionCount === 1 ? "choose the available building" : `choose one of ${optionCount} buildings`;
     setStatus(`Move ${snapshot.move} ready — ${choiceCopy}`, 0);
   }
 
@@ -200,7 +205,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   /** Shows the milestone toast for 3.5s (6s for the final one), measured in animation time. */
   function showMilestone(title: string, copy: string, animationElapsed: number, final = false): void {
-    milestoneKicker.textContent = final ? "EIGHT MOVES COMPLETE" : "CIVIC UPGRADE";
+    milestoneKicker.textContent = final ? "TWELVE MOVES COMPLETE" : "CIVIC UPGRADE";
     milestoneTitle.textContent = title;
     milestoneCopy.textContent = copy;
     milestone.classList.add("visible");
@@ -218,7 +223,7 @@ export function createHud(callbacks: HudCallbacks) {
     armySummary.textContent = `${report.totalUnits} troops answer the muster against ${enemyName}. Build order: ${buildOrder.join(" → ")}.`;
     const unitLabels: Array<[keyof ArmyReport["units"], string]> = [
       ["militia", "Militia"], ["spearmen", "Spearmen"], ["archers", "Archers"],
-      ["veterans", "Veterans"], ["mercenaries", "Mercenaries"],
+      ["swordsmen", "Swordsmen"], ["mercenaries", "Mercenaries"],
     ];
     armyUnits.innerHTML = unitLabels.map(([key, label]) => `<div><span>${label}</span><b>${report.units[key]}</b></div>`).join("");
     armyStats.innerHTML = [

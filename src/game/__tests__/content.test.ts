@@ -45,7 +45,7 @@ describe("building catalog integrity", () => {
   });
 
   it("matches the documented opening three-card offer", () => {
-    expect(OPENING_BUILD_OPTIONS).toEqual(["woodcutter", "farm", "house"]);
+    expect(OPENING_BUILD_OPTIONS).toEqual(["woodcutter", "farm", "quarry"]);
   });
 
   it("names exactly one civic level label per settlement level", () => {
@@ -54,60 +54,50 @@ describe("building catalog integrity", () => {
 });
 
 describe("isBuildingEligible", () => {
-  it("rejects a building before its offerMove", () => {
-    expect(isBuildingEligible(BUILDINGS["weapons-workshop"], ["blacksmith"], 4)).toBe(false);
-    expect(isBuildingEligible(BUILDINGS["weapons-workshop"], ["blacksmith"], 5)).toBe(true);
-    expect(isBuildingEligible(BUILDINGS.barracks, [], 5)).toBe(false);
-    expect(isBuildingEligible(BUILDINGS.barracks, ["blacksmith"], 5)).toBe(true);
-    expect(isBuildingEligible(BUILDINGS.barracks, ["weapons-workshop"], 5)).toBe(true);
-  });
-
-  it("enforces requiresAll (every dependency must be built)", () => {
-    expect(isBuildingEligible(BUILDINGS.bakery, [], 4)).toBe(false);
-    expect(isBuildingEligible(BUILDINGS.bakery, ["farm"], 4)).toBe(true);
-  });
-
-  it("enforces requiresAny (at least one dependency must be built)", () => {
-    expect(isBuildingEligible(BUILDINGS.granary, [], 4)).toBe(false);
-    expect(isBuildingEligible(BUILDINGS.granary, ["farm"], 4)).toBe(true);
-    expect(isBuildingEligible(BUILDINGS.granary, ["fruit-orchard"], 4)).toBe(true);
-  });
-
-  it("has no requirement at all for opening buildings", () => {
-    expect(isBuildingEligible(BUILDINGS.woodcutter, [], 1)).toBe(true);
+  it("applies the exact settlement building dependencies", () => {
+    const required: Record<string, string[]> = {
+      woodcutter: [], farm: [], quarry: [], sawmill: ["woodcutter"],
+      "fruit-orchard": ["farm"], "swine-farm": ["farm"],
+      house: ["sawmill", "quarry"], "weapons-workshop": ["sawmill", "quarry"],
+      blacksmith: ["sawmill", "quarry"], barracks: ["sawmill", "quarry"],
+      granary: ["farm", "sawmill", "quarry"], winery: ["farm", "sawmill", "quarry"],
+      bakery: ["farm", "sawmill", "quarry"], butchery: ["swine-farm", "sawmill"],
+      marketplace: ["farm", "butchery"],
+    };
+    expect(Object.keys(required).sort()).toEqual(Object.keys(BUILDINGS).sort());
+    for (const [id, dependencies] of Object.entries(required)) {
+      expect(BUILDINGS[id].requiresAll ?? [], id).toEqual(dependencies);
+      expect(BUILDINGS[id].requiresAny ?? [], id).toEqual([]);
+      expect(isBuildingEligible(BUILDINGS[id], dependencies, 12), id).toBe(true);
+      for (const missing of dependencies) {
+        expect(isBuildingEligible(BUILDINGS[id], dependencies.filter((item) => item !== missing), 12), `${id} without ${missing}`).toBe(false);
+      }
+    }
   });
 });
 
 describe("nextBuildingOffer", () => {
-  it("offers Barracks immediately after completing Blacksmith", () => {
-    const built = ["quarry", "blacksmith"];
-    expect(nextBuildingOffer(built, ["farm", "marketplace"], 5, "blacksmith")).toBe("barracks");
-  });
-
-  it("prioritizes a building that directly follows from the one just completed", () => {
-    // Farm unlocks Bakery and Granary; Quarry is unrelated but has an earlier offerMove.
-    const offer = nextBuildingOffer(["farm"], ["woodcutter", "swine-farm"], 2, "farm");
-    expect(offer).toBe("bakery");
+  it("offers dependent buildings when their final prerequisite is completed", () => {
+    expect(nextBuildingOffer(["woodcutter"], ["farm", "quarry"], 2, "woodcutter")).toBe("sawmill");
+    expect(nextBuildingOffer(["farm"], ["woodcutter", "quarry"], 2, "farm")).toBe("swine-farm");
+    expect(nextBuildingOffer(["woodcutter", "sawmill", "quarry"], ["farm", "swine-farm"], 4, "quarry")).toBe("house");
   });
 
   it("never re-offers a built or already-available building", () => {
     const offer = nextBuildingOffer(
-      ["woodcutter", "farm", "swine-farm"],
-      ["bakery", "sawmill"],
-      2,
+      ["woodcutter", "farm", "sawmill", "swine-farm"],
+      ["quarry", "fruit-orchard"],
+      5,
       "swine-farm",
     );
-    expect(offer).not.toBe("bakery");
-    expect(offer).not.toBe("sawmill");
+    expect(offer).not.toBe("quarry");
+    expect(offer).not.toBe("fruit-orchard");
     expect(offer).toBe("butchery");
   });
 
   it("falls back to earliest offerMove then lowest offerPriority when nothing depends on the last build", () => {
-    // Nothing depends directly on House. Of the buildings not yet built or
-    // offered, Bakery and Butchery are also eligible (Sawmill is excluded
-    // because it's already in the current pool); Bakery wins on offerMove.
-    const offer = nextBuildingOffer(["woodcutter", "farm", "swine-farm", "house"], ["sawmill"], 4, "house");
-    expect(offer).toBe("bakery");
+    const offer = nextBuildingOffer(["woodcutter", "sawmill", "quarry", "house"], ["farm"], 5, "house");
+    expect(offer).toBe("blacksmith");
   });
 
   it("returns undefined when every eligible building is already built or offered", () => {

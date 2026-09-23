@@ -10,6 +10,7 @@ const importedAssets = import.meta.glob<string>(
     "../../Assets/Art/Production/Environment/Terrain/village-empty-terrain-16x9-v2.png",
     "../../Assets/Art/Production/Props/LogStockpile01/Runtime2x/log-stockpile-01-state-*.png",
     "../../Assets/Art/Production/Buildings/*/Runtime2x/*.png",
+    "../../Assets/Art/Generated 512/*.png",
   ],
   { eager: true, query: "?url", import: "default" },
 );

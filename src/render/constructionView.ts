@@ -4,13 +4,14 @@ import { loadSpriteAsset, spriteFromAsset, type SpriteAsset } from "./spriteAsse
 import { getBuildingPosition, getServiceRoute, treeGround, type CityLayout } from "./cityLayout";
 import type { WorkerAnimation } from "./workerAnimation";
 import { CITY_ANIMATION } from "./animationDesign";
+import { roleForBuilding } from "./characterAssets";
 
 /** The four art states of a building plot, in order. */
 export type ConstructionStage = "foundation" | "frame" | "late" | "complete";
 /** Callback that updates the HUD's activity label and progress bar. */
 export type SetStatus = (label: string, progress: number) => void;
 
-const STAGE_HEIGHTS: Record<ConstructionStage, number> = { foundation: 2.7, frame: 3.0, late: 3.15, complete: 3.25 };
+const STAGE_HEIGHTS: Record<ConstructionStage, number> = { foundation: 5.4, frame: 6.0, late: 6.3, complete: 6.5 };
 const CONSTRUCTION_STAGES: ConstructionStage[] = ["foundation", "frame", "late", "complete"];
 
 /**
@@ -151,30 +152,35 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
     if (progress < CITY_ANIMATION.construction.surveyEnd) {
       setStatus(`Surveying the ${name} site`, progress);
       workerAnimation.moveWorkerAlong(getServiceRoute(buildingId), progress / CITY_ANIMATION.construction.surveyEnd);
-      workerAnimation.useClip("walk", "southeast", workerAnimation.frameFor("walk", "southeast", constructionElapsed));
+      workerAnimation.useCharacter(roleForBuilding(buildingId), Math.floor(constructionElapsed * 8));
       showPlotStage(plotIndex, "foundation");
     } else if (progress < CITY_ANIMATION.construction.foundationEnd) {
       setStatus(`Laying the ${name} foundation`, progress);
       workerAnimation.placeWorker(plot);
-      workerAnimation.useClip("chop", "southwest", workerAnimation.frameFor("chop", "southwest", constructionElapsed));
+      workerAnimation.useCharacter("builder", Math.floor(constructionElapsed * 5));
       showPlotStage(plotIndex, "foundation");
     } else if (progress < CITY_ANIMATION.construction.frameEnd) {
       setStatus(`Raising the ${name} frame`, progress);
       workerAnimation.placeWorker(plot);
-      workerAnimation.useClip("chop", "southwest", workerAnimation.frameFor("chop", "southwest", constructionElapsed));
+      workerAnimation.useCharacter("builder", Math.floor(constructionElapsed * 5));
       showPlotStage(plotIndex, "frame");
     } else if (progress < CITY_ANIMATION.construction.finishingEnd) {
       setStatus(`Finishing the ${name}`, progress);
       workerAnimation.placeWorker(plot);
-      workerAnimation.useClip("chop", "southwest", workerAnimation.frameFor("chop", "southwest", constructionElapsed));
+      workerAnimation.useCharacter("builder", Math.floor(constructionElapsed * 5));
       showPlotStage(plotIndex, "late");
     } else {
       setStatus(`Opening the new ${name}`, progress);
+      workerAnimation.placeWorker(plot);
+      workerAnimation.useCharacter(roleForBuilding(buildingId), 0);
       showPlotStage(plotIndex, "complete");
+    }
+    if (progress >= CITY_ANIMATION.construction.surveyEnd && progress < CITY_ANIMATION.construction.finishingEnd) {
+      workerAnimation.worker.position.y += Math.sin(constructionElapsed * 8) * 0.06;
     }
   }
 
-  /** The Woodcutter's dedicated travel -> chop -> pickup -> carry -> deposit loop; the only profession-specific animation today. */
+  /** The Woodcutter's frame-animated travel -> chop -> pickup -> carry -> deposit loop. */
   function renderWoodcutterActivity(animationElapsed: number, builtBuildingIds: string[]): void {
     const plotIndex = builtBuildingIds.indexOf("woodcutter");
     if (plotIndex < 0) {

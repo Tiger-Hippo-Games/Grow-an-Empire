@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { loadSheet, setSheetFrame, type SheetClip } from "./spriteAssets";
 import { workerFootOffset } from "./cityLayout";
+import type { CharacterAssets, CharacterRole } from "./characterAssets";
 
 export type Direction = "southeast" | "southwest";
 export type AnimatedClipName = "walk" | "chop" | "pickup" | "carry";
@@ -14,12 +15,10 @@ const CLIP_DEFINITIONS: Array<[AnimatedClipName, number]> = [
 const DIRECTIONS: Direction[] = ["southeast", "southwest"];
 
 /**
- * The single roaming "active builder" sprite used for both the construction
- * animation and the Woodcutter's dedicated harvest loop, plus the sprite-sheet
- * clips it plays. Only one of these is ever on screen at a time, standing in
- * for whichever crew is currently doing visible work.
+ * The focused worker sprite: specialists survey their building sites, the
+ * builder constructs them, and an animated woodcutter tends the forest.
  */
-export function createWorkerAnimation(scene: THREE.Scene) {
+export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterAssets) {
   const clips = new Map<string, SheetClip>();
   const workerMaterial = new THREE.SpriteMaterial({ transparent: true, depthTest: false });
   const worker = new THREE.Sprite(workerMaterial);
@@ -27,7 +26,7 @@ export function createWorkerAnimation(scene: THREE.Scene) {
   worker.renderOrder = 100;
   scene.add(worker);
 
-  /** Loads every clip x direction sheet the worker uses (8 sheets). Must finish before villagers are created. */
+  /** Loads the forest worker's frame animation sheets before the scene starts. */
   async function loadClips(): Promise<void> {
     await Promise.all(CLIP_DEFINITIONS.flatMap(([name, fps]) => DIRECTIONS.map(async (direction) => {
       const action = name === "pickup" || name === "carry" ? `${name}-log` : name;
@@ -41,6 +40,14 @@ export function createWorkerAnimation(scene: THREE.Scene) {
     if (!clip) return;
     setSheetFrame(clip, frame);
     workerMaterial.map = clip.texture;
+    workerMaterial.needsUpdate = true;
+  }
+
+  /** Shows one of a profession's four walking poses. */
+  function useCharacter(role: CharacterRole, frame = 0): void {
+    const texture = characters.getFrame(role, frame);
+    if (workerMaterial.map === texture) return;
+    workerMaterial.map = texture;
     workerMaterial.needsUpdate = true;
   }
 
@@ -78,14 +85,7 @@ export function createWorkerAnimation(scene: THREE.Scene) {
     placeWorker(points[0]);
   }
 
-  /** The walk cycle clip, shared as the base texture villagers clone from. */
-  function getWalkClip(): SheetClip {
-    const clip = clips.get("walk:southeast");
-    if (!clip) throw new Error("Walk clip requested before worker clips finished loading");
-    return clip;
-  }
-
-  return { worker, loadClips, useClip, frameFor, placeWorker, moveWorker, moveWorkerAlong, getWalkClip };
+  return { worker, loadClips, useClip, useCharacter, frameFor, placeWorker, moveWorker, moveWorkerAlong };
 }
 
 export type WorkerAnimation = ReturnType<typeof createWorkerAnimation>;

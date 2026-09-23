@@ -14,7 +14,7 @@ function midConstructionSnapshot(): SettlementSnapshot {
   const sim = new SettlementSimulation();
   sim.chooseBuilding("farm");
   sim.update(CONSTRUCTION_DURATION_SECONDS);
-  sim.chooseBuilding("bakery");
+  sim.chooseBuilding("swine-farm");
   sim.update(5);
   return JSON.parse(JSON.stringify(sim.serialize()));
 }

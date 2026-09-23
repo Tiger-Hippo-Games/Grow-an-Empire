@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BUILDINGS } from "../../game/content";
 import { civicGround, getBuildingPosition, getRoadRoute, getServiceRoute, getVisibleRoadSegments } from "../cityLayout";
 import { buildFunctionalRoutes } from "../villagers";
+import { CHARACTER_FILES, roleForArmyUnitAtIndex, roleForBuilding, walkSheetFilename } from "../characterAssets";
 
 describe("functional city routes", () => {
   it("places every building at its reserved anchor in the 1920 × 1080 plan", () => {
@@ -45,6 +46,33 @@ describe("functional city routes", () => {
     const built = ["woodcutter", "sawmill", "farm", "bakery"];
     const ids = buildFunctionalRoutes(built).map((route) => route.id);
     for (const buildingId of built) expect(ids).toContain(`service:${buildingId}`);
+  });
+
+  it("assigns matching professions to farm, forge, quarry, and market routes", () => {
+    const routes = buildFunctionalRoutes(["farm", "bakery", "quarry", "blacksmith", "marketplace"]);
+    const profession = (id: string) => routes.find((route) => route.id === id)?.profession;
+    expect(profession("service:farm")).toBe("farmer");
+    expect(profession("service:bakery")).toBe("baker");
+    expect(profession("service:blacksmith")).toBe("blacksmith");
+    expect(profession("supply:quarry:blacksmith")).toBe("miner");
+    expect(profession("trade:bakery")).toBe("merchant");
+    for (const id of Object.keys(BUILDINGS)) {
+      expect(CHARACTER_FILES[roleForBuilding(id)]).toMatch(/\.png$/);
+      if (id !== "house") expect(roleForBuilding(id)).not.toBe("builder");
+    }
+  });
+
+  it("maps each final army unit to its own artwork", () => {
+    const units = { swordsmen: 1, archers: 1, spearmen: 1, militia: 1, mercenaries: 1 };
+    expect([0, 1, 2, 3, 4].map((index) => roleForArmyUnitAtIndex(units, index)))
+      .toEqual(["swordsman", "archer", "spearman", "militia", "horseman"]);
+  });
+
+  it("maps every character to a four-frame walk sheet", () => {
+    expect(Object.keys(CHARACTER_FILES)).toHaveLength(13);
+    for (const role of Object.keys(CHARACTER_FILES) as Array<keyof typeof CHARACTER_FILES>) {
+      expect(walkSheetFilename(role)).toBe(CHARACTER_FILES[role].replace(/\.png$/, "-walk4.png"));
+    }
   });
 
   it("keeps the first villager in the civic clearing before any path exists", () => {

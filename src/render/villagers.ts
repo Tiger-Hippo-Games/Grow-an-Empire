@@ -1,9 +1,8 @@
 import * as THREE from "three";
-import type { ArmyReport } from "../game/settlementSimulation";
-import { civicGround, getRoadRoute, getServiceRoute } from "./cityLayout";
-import { setTextureFrame } from "./spriteAssets";
-import type { WorkerAnimation } from "./workerAnimation";
+import type { ArmyReport, TrainedUnits } from "../game/settlementSimulation";
+import { civicGround, getBuildingPosition, getRoadRoute, getServiceRoute } from "./cityLayout";
 import { CITY_ANIMATION } from "./animationDesign";
+import { roleForArmyUnitAtIndex, roleForBuilding, type CharacterAssets, type CharacterRole } from "./characterAssets";
 
 /**
  * Kinds of commute a villager can walk:
@@ -17,6 +16,7 @@ export type WorkRouteKind = "service" | "supply" | "civic";
 export interface WorkRoute {
   id: string;
   kind: WorkRouteKind;
+  profession: CharacterRole;
   points: THREE.Vector2[];
   speed: number;
 }
@@ -24,7 +24,9 @@ export interface WorkRoute {
 interface Villager {
   sprite: THREE.Sprite;
   material: THREE.SpriteMaterial;
-  texture: THREE.Texture;
+  profession: CharacterRole;
+  frame: number;
+  baseSize: number;
   phase: number;
   speedVariation: number;
 }
@@ -32,7 +34,7 @@ interface Villager {
 const SUPPLY_LINKS: Array<[string, string]> = [
   ["woodcutter", "sawmill"], ["farm", "bakery"], ["farm", "granary"],
   ["swine-farm", "butchery"], ["fruit-orchard", "winery"],
-  ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["weapons-workshop", "barracks"],
+  ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["blacksmith", "barracks"], ["weapons-workshop", "barracks"],
 ];
 
 /**
@@ -48,19 +50,27 @@ export function buildFunctionalRoutes(builtBuildingIds: string[]): WorkRoute[] {
     routes.push({
       id: `service:${buildingId}`,
       kind: "service",
+      profession: roleForBuilding(buildingId),
       points: getServiceRoute(buildingId),
       speed: CITY_ANIMATION.routes.serviceSpeed,
     });
   }
   for (const [fromId, toId] of SUPPLY_LINKS) {
     if (!built.has(fromId) || !built.has(toId)) continue;
-    routes.push({ id: `supply:${fromId}:${toId}`, kind: "supply", points: getRoadRoute(fromId, toId), speed: CITY_ANIMATION.routes.supplySpeed });
+    routes.push({
+      id: `supply:${fromId}:${toId}`,
+      kind: "supply",
+      profession: fromId === "quarry" ? "miner" : toId === "barracks" ? "spearman" : roleForBuilding(fromId),
+      points: getRoadRoute(fromId, toId),
+      speed: CITY_ANIMATION.routes.supplySpeed,
+    });
   }
   if (built.has("marketplace")) {
     for (const supplierId of ["sawmill", "bakery", "butchery", "winery"]) {
       if (built.has(supplierId)) routes.push({
         id: `trade:${supplierId}`,
         kind: "civic",
+        profession: "merchant",
         points: getRoadRoute(supplierId, "marketplace"),
         speed: CITY_ANIMATION.routes.tradeSpeed,
       });
@@ -69,6 +79,7 @@ export function buildFunctionalRoutes(builtBuildingIds: string[]): WorkRoute[] {
   if (built.has("house") && built.has("marketplace")) routes.push({
     id: "civic:house:marketplace",
     kind: "civic",
+    profession: "merchant",
     points: getRoadRoute("house", "marketplace"),
     speed: CITY_ANIMATION.routes.civicSpeed,
   });
@@ -76,6 +87,7 @@ export function buildFunctionalRoutes(builtBuildingIds: string[]): WorkRoute[] {
   if (routes.length === 0) routes.push({
     id: "founders",
     kind: "civic",
+    profession: "builder",
     points: [civicGround],
     speed: CITY_ANIMATION.routes.serviceSpeed,
   });
@@ -134,12 +146,12 @@ function pingPongProgress(elapsed: number, duration: number): { progress: number
 /**
  * Functional population renderer: citizens commute, deliver goods, then form the final army.
  *
- * Each villager owns a *clone* of the walk-sheet texture. Sharing one texture
- * would be cheaper, but Three.js stores the frame offset on the texture itself,
- * so every villager would show whichever frame was set last.
+ * Citizens share each profession's four frame textures but own materials, so
+ * their walking phases can differ without cloning a texture per villager.
  */
-export function createVillagerField(scene: THREE.Scene, workerAnimation: WorkerAnimation) {
+export function createVillagerField(scene: THREE.Scene, characters: CharacterAssets) {
   const villagers: Villager[] = [];
+  const garrison: THREE.Sprite[] = [];
   let muster: { report: ArmyReport; startedAt: number } | null = null;
 
   // Routes only change when a building completes, but used to be rebuilt (and
@@ -158,16 +170,34 @@ export function createVillagerField(scene: THREE.Scene, workerAnimation: WorkerA
   }
 
   function createVillager(index: number): Villager {
-    const walk = workerAnimation.getWalkClip();
-    const texture = walk.texture.clone();
-    texture.needsUpdate = true;
-    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    const material = new THREE.SpriteMaterial({ map: characters.getFrame("builder", 0), transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(material);
-    const scale = 0.9 + (index % 4) * 0.035;
+    const scale = 2.15 + (index % 4) * 0.08;
     sprite.scale.set(scale, scale, 1);
-    sprite.renderOrder = 40 + index;
+    sprite.renderOrder = 40 + (index % 4);
     scene.add(sprite);
-    return { sprite, material, texture, phase: (index * 0.61803398875) % 1, speedVariation: 0.92 + (index % 7) * 0.025 };
+    return { sprite, material, profession: "builder", frame: 0, baseSize: scale, phase: (index * 0.61803398875) % 1, speedVariation: 0.92 + (index % 7) * 0.025 };
+  }
+
+  function setProfession(villager: Villager, profession: CharacterRole): void {
+    if (villager.profession === profession) return;
+    villager.profession = profession;
+    villager.frame = -1;
+    const size = villager.baseSize * (profession === "horseman" ? 1.35 : 1);
+    villager.sprite.scale.set(size, size, 1);
+  }
+
+  function setFrame(villager: Villager, frame: number): void {
+    const normalized = ((Math.floor(frame) % 4) + 4) % 4;
+    if (villager.frame === normalized) return;
+    villager.frame = normalized;
+    villager.material.map = characters.getFrame(villager.profession, normalized);
+    villager.material.needsUpdate = true;
+  }
+
+  const residentialRoles: CharacterRole[] = ["builder", "farmer", "woodcutter", "quarry"];
+  function routeProfession(route: WorkRoute, index: number): CharacterRole {
+    return route.id === "service:house" ? residentialRoles[index % residentialRoles.length] : route.profession;
   }
 
   /** Grows the crowd to `targetPopulation` (creating sprites as needed) and hides any extras. */
@@ -176,20 +206,48 @@ export function createVillagerField(scene: THREE.Scene, workerAnimation: WorkerA
     villagers.forEach((villager, index) => { villager.sprite.visible = index < targetPopulation; });
   }
 
+  /** Keep every earned archer and swordsman visible in the clearing outside the Barracks plot. */
+  function syncGarrison(units: TrainedUnits): void {
+    for (const sprite of garrison) {
+      scene.remove(sprite);
+      sprite.material.dispose();
+    }
+    garrison.length = 0;
+    const barracks = getBuildingPosition("barracks");
+    const roles: CharacterRole[] = [
+      ...Array<CharacterRole>(units.swordsmen).fill("swordsman"),
+      ...Array<CharacterRole>(units.archers).fill("archer"),
+    ];
+    roles.forEach((role, index) => {
+      const size = 2.15;
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: characters.getFrame(role, 0), transparent: true, depthTest: false }));
+      const column = index % 3;
+      const row = Math.floor(index / 3);
+      sprite.scale.set(size, size, 1);
+      sprite.position.set(barracks.x + 3.4 + column * 1.1, barracks.y + 0.25 + row * 1.15 + size / 2, 2.6);
+      sprite.renderOrder = 60 + row;
+      sprite.visible = muster === null;
+      scene.add(sprite);
+      garrison.push(sprite);
+    });
+  }
+
   /** Switches from commuting to the end-of-campaign formation. */
   function beginArmyMuster(report: ArmyReport, animationElapsed: number): void {
     muster = { report, startedAt: animationElapsed };
+    for (const soldier of garrison) soldier.visible = false;
   }
 
-  /** Returns to commuting (on restart) and clears army tinting. */
+  /** Returns to commuting on restart. */
   function clearArmyMuster(): void {
     muster = null;
+    for (const soldier of garrison) soldier.visible = true;
     for (const villager of villagers) villager.material.color.setHex(0xffffff);
   }
 
   /**
    * Army formation: the first `totalUnits` visible villagers glide into a block
-   * in front of the Town Hall (veterans gold, archers green), and the rest orbit as civilians.
+   * in front of the Town Hall using each unit's own art.
    */
   function renderMuster(animationElapsed: number): void {
     if (!muster) return;
@@ -201,18 +259,22 @@ export function createVillagerField(scene: THREE.Scene, workerAnimation: WorkerA
       const villager = villagers[index];
       if (!villager.sprite.visible) continue;
       if (index < armyCount) {
+        const profession = roleForArmyUnitAtIndex(muster.report.units, index);
+        setProfession(villager, profession);
+        setFrame(villager, assembly < 0.96 ? Math.floor(animationElapsed * 7 + villager.phase * 4) : 0);
         const row = Math.floor(index / columns);
         const column = index % columns;
         const targetX = origin.x + (column - (Math.min(columns, armyCount - row * columns) - 1) / 2) * CITY_ANIMATION.muster.formationSpacingX;
         const targetY = origin.y - row * CITY_ANIMATION.muster.formationSpacingY;
         villager.sprite.position.x = THREE.MathUtils.lerp(villager.sprite.position.x, targetX, 0.04 + assembly * 0.08);
-        villager.sprite.position.y = THREE.MathUtils.lerp(villager.sprite.position.y, targetY + 0.5, 0.04 + assembly * 0.08);
-        villager.material.color.setHex(index < muster.report.units.veterans ? 0xd9b15e : index < muster.report.units.veterans + muster.report.units.archers ? 0x8faf75 : 0xd8d2bd);
+        villager.sprite.position.y = THREE.MathUtils.lerp(villager.sprite.position.y, targetY + Math.abs(villager.sprite.scale.y) / 2, 0.04 + assembly * 0.08);
+        villager.material.color.setHex(0xffffff);
         villager.sprite.scale.x = Math.abs(villager.sprite.scale.x);
-        setTextureFrame(villager.texture, Math.floor(animationElapsed * 3 + index));
       } else {
+        setProfession(villager, "builder");
+        setFrame(villager, Math.floor(animationElapsed * 6 + villager.phase * 4));
         const angle = animationElapsed * CITY_ANIMATION.muster.civilianOrbitSpeed + villager.phase * Math.PI * 2;
-        villager.sprite.position.set(civicGround.x + Math.cos(angle) * 4.2, civicGround.y + Math.sin(angle) * 1.9 + 0.5, 2.4);
+        villager.sprite.position.set(civicGround.x + Math.cos(angle) * 4.2, civicGround.y + Math.sin(angle) * 1.9 + Math.abs(villager.sprite.scale.y) / 2, 2.4);
       }
     }
   }
@@ -229,18 +291,19 @@ export function createVillagerField(scene: THREE.Scene, workerAnimation: WorkerA
       if (!villager.sprite.visible) continue;
       const routeIndex = index % routes.length;
       const route = routes[routeIndex];
+      setProfession(villager, routeProfession(route, index));
       const length = routeLengths[routeIndex];
       const staggered = animationElapsed + villager.phase * Math.max(4, length / route.speed);
       const duration = Math.max(4.5, (length * 2) / (route.speed * villager.speedVariation));
       const journey = pingPongProgress(staggered, duration);
+      setFrame(villager, journey.moving && length > 0 ? Math.floor(animationElapsed * 7 + villager.phase * 4) : 0);
       const direction = samplePolyline(route.points, length, journey.progress, sampled);
-      villager.sprite.position.set(sampled.x, sampled.y + 0.5, 2.4);
+      const stepLift = journey.moving && length > 0 && villager.frame % 2 === 1 ? 0.055 : 0;
+      villager.sprite.position.set(sampled.x, sampled.y + Math.abs(villager.sprite.scale.y) / 2 + stepLift, 2.4);
       villager.sprite.scale.x = Math.abs(villager.sprite.scale.x) * ((direction >= 0) === journey.outbound ? 1 : -1);
-      villager.material.color.setHex(route.kind === "supply" ? 0xe4d2a0 : route.kind === "civic" ? 0xc9d9b0 : 0xffffff);
-      const fps = journey.moving && length > 0 ? CITY_ANIMATION.routes.walkingFps + (index % 3) : CITY_ANIMATION.routes.workingFps;
-      setTextureFrame(villager.texture, Math.floor(animationElapsed * fps + index));
+      villager.material.color.setHex(0xffffff);
     }
   }
 
-  return { syncVillagers, renderVillagers, beginArmyMuster, clearArmyMuster };
+  return { syncVillagers, syncGarrison, renderVillagers, beginArmyMuster, clearArmyMuster };
 }
