@@ -8,10 +8,18 @@ import { loadCroppedSprite } from "./spriteAssets";
  * being told which building or district just became active.
  */
 
+/** Ground point of the Town Hall; the hub every cross-district route passes through. */
 export const civicGround = new THREE.Vector2(-0.8, -0.3);
+/** Ground point of the tree the Woodcutter harvests. */
 export const treeGround = new THREE.Vector2(10.1, 5.6);
+/** Vertical offset from a ground point to the worker sprite's center, so its feet sit on the point. */
 export const workerFootOffset = 0.95;
 
+/**
+ * Fixed ground position of every building. Positions are keyed by building
+ * (not by move), so a Farm always sits in the farm district whichever move it's built on.
+ * These vectors are shared: treat them as read-only (clone before mutating).
+ */
 const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
   marketplace: new THREE.Vector2(2.4, 0.25),
   house: new THREE.Vector2(-3.4, 1.15),
@@ -40,14 +48,17 @@ const BUILDING_DISTRICTS: Record<string, CityDistrict> = {
   quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry", barracks: "industry",
 };
 
+/** Ground position of a building (falls back to the civic center for unknown ids). Read-only. */
 export function getBuildingPosition(buildingId: string): THREE.Vector2 {
   return BUILDING_POSITIONS[buildingId] ?? civicGround;
 }
 
+/** Which district a building belongs to (unknown ids count as civic). */
 export function getBuildingDistrict(buildingId: string): CityDistrict {
   return BUILDING_DISTRICTS[buildingId] ?? "civic";
 }
 
+/** Where each district's road meets its buildings' connector paths. */
 export const DISTRICT_JUNCTIONS: Record<CityDistrict, THREE.Vector2> = {
   civic: new THREE.Vector2(1.75, 0.05),
   forest: new THREE.Vector2(6.9, 4.15),
@@ -64,7 +75,11 @@ const DISTRICT_PATHS: Record<CityDistrict, THREE.Vector2[]> = {
   industry: [civicGround, new THREE.Vector2(3.05, -1.95), DISTRICT_JUNCTIONS.industry],
 };
 
-/** Road-following waypoints used by delivery villagers as well as the visible road mesh. */
+/**
+ * Road-following waypoints from one building to another, used by delivery
+ * villagers as well as the visible road mesh. Buildings in the same district
+ * connect through their junction; otherwise the route goes through the Town Hall.
+ */
 export function getRoadRoute(fromBuildingId: string, toBuildingId: string): THREE.Vector2[] {
   const from = getBuildingPosition(fromBuildingId);
   const to = getBuildingPosition(toBuildingId);
@@ -74,6 +89,7 @@ export function getRoadRoute(fromBuildingId: string, toBuildingId: string): THRE
   return [from, DISTRICT_JUNCTIONS[fromDistrict], civicGround, DISTRICT_JUNCTIONS[toDistrict], to];
 }
 
+/** The faint diagonal grid lines on the ground (toggled by the Grid button). */
 export function createIsoGrid(): THREE.Group {
   const group = new THREE.Group();
   const positions: number[] = [];
@@ -195,10 +211,9 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
   }
 
   // Level 2: timber fences establish the first civic enclosure.
-  const fenceMaterial = new THREE.MeshBasicMaterial({ color: 0x765233, transparent: true, opacity: 0.8, depthTest: false });
   [[-3.2, -1.5, -1.1, -2.1], [1.0, 2.1, 2.7, 1.4], [-3.6, 1.2, -2.5, 2.1]].forEach(([x1, y1, x2, y2]) => {
     const segment = createRoadSegment(new THREE.Vector2(x1, y1), new THREE.Vector2(x2, y2), 0.11, 0x765233, -2);
-    (segment.material as THREE.MeshBasicMaterial).copy(fenceMaterial);
+    (segment.material as THREE.MeshBasicMaterial).opacity = 0.8;
     environmentStages[2].add(segment);
   });
 

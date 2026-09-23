@@ -7,6 +7,7 @@ import { civicGround } from "./cityLayout";
 export function createCivicCenter(scene: THREE.Scene) {
   const sprites: THREE.Sprite[] = [];
 
+  /** Loads all nine civic-center sprites. All are hidden until `setLevel()` is called. */
   async function load(): Promise<void> {
     await Promise.all(Array.from({ length: TOTAL_SETTLEMENT_LEVELS }, async (_, level) => {
       const asset = await loadSpriteAsset(`settlement-level-${level}-2x-v1.png`);
@@ -19,7 +20,9 @@ export function createCivicCenter(scene: THREE.Scene) {
     }));
   }
 
+  /** Shows the sprite for `level` (clamped to 0–8) and hides the rest. */
   function setLevel(level: number): void {
+    level = Math.max(0, Math.min(TOTAL_SETTLEMENT_LEVELS - 1, Math.floor(level)));
     sprites.forEach((sprite, index) => { sprite.visible = index === level; });
   }
 

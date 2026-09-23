@@ -12,6 +12,7 @@ import { assetUrl } from "../render/assetCatalog";
 import { buildingFilename } from "../render/constructionView";
 import { requireElement } from "./dom";
 
+/** User actions the HUD reports back to `main.ts`. The HUD never changes game state itself. */
 export interface HudCallbacks {
   onPlayToggle(): void;
   onRestart(): void;
@@ -21,6 +22,7 @@ export interface HudCallbacks {
   onTutorialModalChange(visible: boolean): void;
 }
 
+/** The slice of simulation state the HUD displays. */
 export interface HudStateSnapshot {
   mode: SimulationMode;
   move: number;
@@ -99,36 +101,52 @@ export function createHud(callbacks: HudCallbacks) {
   let tutorialActive = false;
   const tutorialStorageKey = "grow-an-empire:tutorial:v1";
 
+  /** Sets the "Settlement activity" label and its progress bar (0–1, clamped). */
   function setStatus(label: string, progress: number): void {
     phaseLabel.textContent = label;
     progressFill.style.width = `${MathUtils.clamp(progress, 0, 1) * 100}%`;
   }
 
+  /** Updates the civic level readout, level-track label, and pips. */
   function setCivicLevel(level: number): void {
     civicLabel.textContent = `${level} / ${TOTAL_SETTLEMENT_LEVELS - 1}`;
-    levelTrackLabel.textContent = `LEVEL ${level} · ${CIVIC_LEVEL_NAMES[level].toUpperCase()}`;
+    levelTrackLabel.textContent = `LEVEL ${level} · ${(CIVIC_LEVEL_NAMES[level] ?? "").toUpperCase()}`;
     [...levelPips.children].forEach((pip, index) => pip.classList.toggle("active", index <= level));
   }
 
+  /** Updates one stockpile cell. Missing or non-numeric totals display as 0. */
   function setResource(resource: ResourceName, total: number): void {
-    resourceElements.get(resource)!.textContent = String(total);
+    const element = resourceElements.get(resource);
+    if (element) element.textContent = String(Number.isFinite(total) ? total : 0);
   }
 
+  /** Refreshes the move counter, population, and every stockpile total. */
   function updateHud(snapshot: Pick<HudStateSnapshot, "move" | "population" | "resources">): void {
     moveLabel.textContent = `${Math.min(snapshot.move, TOTAL_MOVES)} / ${TOTAL_MOVES}`;
     populationLabel.textContent = String(snapshot.population);
     for (const resource of Object.keys(RESOURCE_LABELS) as ResourceName[]) {
       setResource(resource, snapshot.resources[resource]);
     }
-    stockpileTotal.textContent = String(Object.values(snapshot.resources).reduce((sum, amount) => sum + amount, 0));
+    stockpileTotal.textContent = String(Object.values(snapshot.resources).reduce((sum, amount) => sum + (Number.isFinite(amount) ? amount : 0), 0));
   }
 
+  /**
+   * Rebuilds the choice cards for the current move and shows the panel.
+   * Only acts while the simulation is awaiting a choice. Clicking a card calls
+   * `onSelectBuilding`; the panel stays open until `main.ts` hides it, so a
+   * failed selection can be retried.
+   */
   function renderBuildPanel(snapshot: Pick<HudStateSnapshot, "mode" | "move" | "availableBuildingIds">): void {
     if (snapshot.mode !== "awaiting-choice") return;
     buildOptions.replaceChildren();
+    buildPanel.removeAttribute("aria-busy");
     moveChip.textContent = `${snapshot.move} OF ${TOTAL_MOVES}`;
     for (const buildingId of snapshot.availableBuildingIds) {
       const building = BUILDINGS[buildingId];
+      if (!building) {
+        console.warn(`Skipping unknown building card "${buildingId}"`);
+        continue;
+      }
       const button = document.createElement("button");
       button.className = "build-card";
       button.type = "button";
@@ -144,7 +162,14 @@ export function createHud(callbacks: HudCallbacks) {
       buildOptions.appendChild(button);
     }
     buildPanel.classList.remove("hidden");
-    const optionCount = snapshot.availableBuildingIds.length;
+    const optionCount = buildOptions.childElementCount;
+    if (optionCount === 0) {
+      // The exhaustive offer test proves this can't happen with the current
+      // catalog, but a future content change could starve the pool. Say so
+      // instead of showing an empty panel with no way forward.
+      setStatus(`Move ${snapshot.move}: no buildings are available. Press Restart to begin a new settlement.`, 0);
+      return;
+    }
     const choiceCopy = optionCount === 1 ? "build the final remaining district" : `choose one of ${optionCount} buildings`;
     setStatus(`Move ${snapshot.move} ready — ${choiceCopy}`, 0);
   }
@@ -153,6 +178,27 @@ export function createHud(callbacks: HudCallbacks) {
     buildPanel.classList.add("hidden");
   }
 
+  /** Disables the choice cards while a selection is being prepared (prevents double-clicks). */
+  function setBuildPanelBusy(busy: boolean): void {
+    buildPanel.toggleAttribute("aria-busy", busy);
+    buildOptions.querySelectorAll("button").forEach((button) => { button.disabled = busy; });
+  }
+
+  /** Replaces the loading screen's content with an error message and a reload button. */
+  function showLoadError(message: string): void {
+    const title = document.createElement("strong");
+    title.textContent = "Could not load the settlement.";
+    const detail = document.createElement("span");
+    detail.textContent = message;
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "Reload";
+    retry.addEventListener("click", () => window.location.reload());
+    loading.replaceChildren(title, detail, retry);
+    loading.classList.remove("hidden");
+  }
+
+  /** Shows the milestone toast for 3.5s (6s for the final one), measured in animation time. */
   function showMilestone(title: string, copy: string, animationElapsed: number, final = false): void {
     milestoneKicker.textContent = final ? "EIGHT MOVES COMPLETE" : "CIVIC UPGRADE";
     milestoneTitle.textContent = title;
@@ -165,10 +211,11 @@ export function createHud(callbacks: HudCallbacks) {
     milestone.classList.remove("visible");
   }
 
-  function renderArmyReport(report: ArmyReport, buildOrder: string[]): void {
+  /** Fills in and opens the end-of-campaign army report. `buildOrder` is building names, move 1 first. */
+  function renderArmyReport(report: ArmyReport, buildOrder: string[], enemyName: string): void {
     armyOutcome.textContent = report.outcome;
     armyScore.textContent = `${report.score} / ${report.enemyStrength}`;
-    armySummary.textContent = `${report.totalUnits} troops answer the muster against the Ashfang Raiders. Build order: ${buildOrder.join(" → ")}.`;
+    armySummary.textContent = `${report.totalUnits} troops answer the muster against ${enemyName}. Build order: ${buildOrder.join(" → ")}.`;
     const unitLabels: Array<[keyof ArmyReport["units"], string]> = [
       ["militia", "Militia"], ["spearmen", "Spearmen"], ["archers", "Archers"],
       ["veterans", "Veterans"], ["mercenaries", "Mercenaries"],
@@ -208,6 +255,10 @@ export function createHud(callbacks: HudCallbacks) {
     stockpileToggle.setAttribute("aria-expanded", String(visible));
     stockpileToggle.classList.toggle("active", visible);
   }
+
+  // --- First-run tutorial -------------------------------------------------
+  // Welcome modal (pauses the game) → step 1 coach on the build panel →
+  // step 2 coach after the first construction completes → done (remembered in localStorage).
 
   function tutorialWasCompleted(): boolean {
     try { return window.localStorage.getItem(tutorialStorageKey) === "complete"; } catch { return false; }
@@ -255,6 +306,7 @@ export function createHud(callbacks: HudCallbacks) {
     buildPanel.classList.remove("tutorial-focus");
   }
 
+  /** Opens the tutorial on a brand-new campaign, unless the player has finished or skipped it before. */
   function maybeStartTutorial(isFreshCampaign: boolean): void {
     if (isFreshCampaign && !tutorialWasCompleted()) showTutorialWelcome();
   }
@@ -294,6 +346,8 @@ export function createHud(callbacks: HudCallbacks) {
     updateHud,
     renderBuildPanel,
     hideBuildPanel,
+    setBuildPanelBusy,
+    showLoadError,
     showMilestone,
     hideMilestone,
     updateMilestoneVisibility,

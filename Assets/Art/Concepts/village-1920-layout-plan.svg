@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-label="Planning diagram for a 1920 by 1080 medieval village game screen">
+  <defs>
+    <pattern id="grass" width="70" height="70" patternUnits="userSpaceOnUse"><rect width="70" height="70" fill="#8c9d6c"/><path d="M8 16l4-7m24 48l3-9m20-25l4-7M13 65l2-6" stroke="#6f8756" stroke-width="2" opacity=".45"/></pattern>
+    <filter id="soft"><feGaussianBlur stdDeviation="18"/></filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0l10 5-10 5z" fill="#f8edd2"/></marker>
+    <style>
+      text{font-family:Segoe UI,Arial,sans-serif;fill:#19312b}.title{font-size:30px;font-weight:800}.sub{font-size:18px}.zone{font-size:27px;font-weight:800;letter-spacing:1px}.label{font-size:18px;font-weight:700}.small{font-size:15px}.plot{fill:#fbf4df;fill-opacity:.72;stroke:#385047;stroke-width:2;stroke-dasharray:7 6}.mainroad{fill:none;stroke:#e7ce91;stroke-width:18;stroke-dasharray:18 13;stroke-linecap:round;opacity:.75}.spur{fill:none;stroke:#f4e6c1;stroke-width:7;stroke-dasharray:7 9;stroke-linecap:round;opacity:.8}.zonebox{fill-opacity:.18;stroke-width:3;stroke-dasharray:10 10}
+    </style>
+  </defs>
+  <rect width="1920" height="1080" fill="#203a32"/>
+  <rect x="42" y="77" width="1836" height="800" rx="28" fill="url(#grass)"/>
+  <path d="M45 74h1830" stroke="#d6e0c3" opacity=".4"/>
+  <rect x="42" y="13" width="1836" height="55" rx="12" fill="#f3edd7"/>
+  <text x="68" y="49" class="title">GROW AN EMPIRE  /  1920 × 1080 VILLAGE PLAN</text>
+  <text x="1518" y="47" class="sub">TOP STATUS STRIP</text>
+  <rect x="42" y="895" width="1836" height="167" rx="18" fill="#efe4c7"/>
+  <text x="80" y="933" class="zone">BUILD CHOICES</text>
+  <rect x="77" y="954" width="380" height="84" rx="10" fill="#d7c7a5"/><rect x="480" y="954" width="380" height="84" rx="10" fill="#d7c7a5"/><rect x="883" y="954" width="380" height="84" rx="10" fill="#d7c7a5"/>
+  <text x="1306" y="982" class="sub">Pause · Speed · Stockpile</text>
+  <text x="1306" y="1011" class="small">Dock hides while the world animates</text>
+
+  <ellipse cx="352" cy="329" rx="300" ry="231" fill="#d8b660" class="zonebox" stroke="#a78233"/>
+  <ellipse cx="1570" cy="328" rx="300" ry="225" fill="#476f4b" class="zonebox" stroke="#315839"/>
+  <ellipse cx="346" cy="677" rx="292" ry="184" fill="#9aad57" class="zonebox" stroke="#587444"/>
+  <ellipse cx="1572" cy="677" rx="292" ry="183" fill="#85887b" class="zonebox" stroke="#60645d"/>
+  <ellipse cx="959" cy="462" rx="260" ry="251" fill="#d8b889" class="zonebox" stroke="#9c7144"/>
+
+  <text x="130" y="166" class="zone">FARM QUARTER</text>
+  <text x="1390" y="166" class="zone">FOREST QUARTER</text>
+  <text x="107" y="831" class="zone">PROVISIONS</text>
+  <text x="1424" y="831" class="zone">INDUSTRY</text>
+  <text x="849" y="270" class="zone">CIVIC CORE</text>
+
+  <g filter="url(#soft)" opacity=".38"><circle cx="1690" cy="214" r="65" fill="#214e31"/><circle cx="1790" cy="350" r="70" fill="#214e31"/><circle cx="1590" cy="138" r="48" fill="#214e31"/><circle cx="1690" cy="707" r="60" fill="#68675d"/></g>
+  <g fill="#315e3c"><circle cx="1775" cy="200" r="26"/><circle cx="1717" cy="125" r="22"/><circle cx="1817" cy="292" r="29"/><circle cx="1508" cy="127" r="20"/></g>
+  <g fill="#898b80"><path d="M1740 638l24-32 26 30zM1800 738l29-34 24 33zM1729 798l20-27 30 30z"/></g>
+
+  <path class="mainroad" d="M950 460Q731 369 572 365L402 366"/><path class="mainroad" d="M970 440Q1160 345 1350 350L1530 350"/>
+  <path class="mainroad" d="M930 488Q722 606 560 663L391 695"/><path class="mainroad" d="M990 488Q1198 591 1361 661L1540 699"/>
+  <path class="spur" d="M574 364L309 253M574 364L405 427M1353 352L1600 255M1353 352L1536 434M560 661L306 584M560 661L310 744M1361 661L1559 579M1361 661L1560 751"/>
+
+  <g text-anchor="middle">
+    <rect class="plot" x="832" y="344" width="255" height="134" rx="15"/><text x="959" y="403" class="label">TOWN HALL</text><text x="959" y="429" class="small">built from campsite</text>
+    <rect class="plot" x="1039" y="500" width="171" height="80" rx="13"/><text x="1124" y="548" class="label">MARKETPLACE</text>
+    <rect class="plot" x="713" y="509" width="150" height="78" rx="13"/><text x="788" y="556" class="label">HOUSE</text>
+    <circle cx="963" cy="555" r="24" fill="#d6e1d6" stroke="#718477" stroke-width="4"/><text x="963" y="606" class="small">future well</text>
+
+    <rect class="plot" x="110" y="218" width="197" height="76" rx="13"/><text x="208" y="263" class="label">FARM</text>
+    <rect class="plot" x="311" y="301" width="174" height="73" rx="13"/><text x="398" y="345" class="label">GRANARY</text>
+    <rect class="plot" x="417" y="403" width="165" height="73" rx="13"/><text x="499" y="447" class="label">BAKERY</text>
+
+    <rect class="plot" x="1531" y="219" width="216" height="73" rx="13"/><text x="1639" y="263" class="label">WOODCUTTER</text>
+    <rect class="plot" x="1369" y="381" width="194" height="73" rx="13"/><text x="1466" y="425" class="label">SAWMILL</text>
+
+    <rect class="plot" x="116" y="536" width="210" height="73" rx="13"/><text x="221" y="580" class="label">FRUIT ORCHARD</text>
+    <rect class="plot" x="334" y="584" width="181" height="73" rx="13"/><text x="424" y="628" class="label">WINERY</text>
+    <rect class="plot" x="102" y="694" width="208" height="73" rx="13"/><text x="206" y="738" class="label">SWINE FARM</text>
+    <rect class="plot" x="351" y="747" width="181" height="73" rx="13"/><text x="441" y="791" class="label">BUTCHERY</text>
+
+    <rect class="plot" x="1547" y="538" width="174" height="73" rx="13"/><text x="1634" y="582" class="label">QUARRY</text>
+    <rect class="plot" x="1333" y="584" width="201" height="73" rx="13"/><text x="1433" y="628" class="label">BLACKSMITH</text>
+    <rect class="plot" x="1337" y="724" width="220" height="73" rx="13"/><text x="1447" y="755" class="label">WEAPONS</text><text x="1447" y="779" class="small">WORKSHOP</text>
+    <rect class="plot" x="1601" y="747" width="185" height="73" rx="13"/><text x="1693" y="791" class="label">BARRACKS</text>
+  </g>
+  <rect x="626" y="706" width="652" height="128" rx="17" fill="#193f36" opacity=".89"/>
+  <text x="652" y="743" class="sub" fill="#fff7e6" style="fill:#fff7e6;font-weight:700">IN-GAME START STATE: MOST OF THIS IS BARE LAND</text>
+  <text x="652" y="774" class="small" fill="#fff7e6" style="fill:#fff7e6">Dashed plots and roads are designer guides; hide them until construction.</text>
+  <text x="652" y="801" class="small" fill="#fff7e6" style="fill:#fff7e6">Built roads and villager routes must use the same graph edges.</text>
+</svg>

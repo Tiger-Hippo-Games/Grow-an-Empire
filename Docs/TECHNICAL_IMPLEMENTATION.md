@@ -500,8 +500,8 @@ Additionally, as of the `main.ts` modularization and save-state work:
 11. ~~Asset lookup scans eager glob entries by filename on every request; a precomputed filename map would scale better.~~ Resolved: `assetUrlByFilename` is built once at module load.
 12. ~~`src/main.ts` currently owns several responsibilities and should eventually be split into scene, UI, animation, and layout modules.~~ Resolved: see the file tree in section 3.
 13. The bundled JavaScript exceeds Vite's default 500 kB warning threshold, primarily because of Three.js and eager asset inclusion.
-14. Autosave writes to localStorage on every "structural" simulation event (a move completing, choices refreshing, game completion) plus on `beforeunload`, but not on every resource-production tick, to avoid excessive synchronous storage writes at high speed multipliers. Worst case, a hard crash mid-construction loses at most a few seconds of `constructionElapsed`/resource accumulation, never a completed building.
-15. There's no explicit save-schema migration path yet — `loadSnapshot()` throws on a `schemaVersion` mismatch and `saveGame.ts` treats that as "no save" (falls back to a fresh game) rather than attempting a migration. Fine for a single-schema vertical slice; worth revisiting once the state shape needs to change under players with existing saves.
+14. Autosave writes to localStorage on every simulation event batch (a move completing, choices refreshing, game completion), after a building is chosen, and on `pagehide` / tab-hidden (replacing the less reliable `beforeunload`), but not on every resource-production tick, to avoid excessive synchronous storage writes at high speed multipliers. Worst case, a hard crash mid-construction loses at most a few seconds of `constructionElapsed`/resource accumulation, never a completed building.
+15. There's no explicit save-schema migration path yet — a `schemaVersion` mismatch (or any other problem reported by `describeSnapshotProblem()`) makes `saveGame.ts` discard the save and start a fresh game rather than attempting a migration. Within one schema version, `loadSnapshot()` does tolerate *additive* changes: missing resource keys default to 0 and missing fields take their initial values. Fine for a single-schema vertical slice; worth revisiting once the state shape needs to change under players with existing saves.
 
 ## 21. Recommended next implementation sequence
 
@@ -546,7 +546,7 @@ Please review the implementation with particular attention to:
 
 ## 24. Automated testing
 
-`pnpm test` runs the vitest suite in `src/game/__tests__/`, three files, 46 tests, all pure logic (no Three.js, no DOM, no jsdom needed):
+`pnpm test` runs the vitest suites in `src/game/__tests__/` and `src/render/__tests__/` (five files, 56 tests as of 2026-09-23; `robustness.test.ts` covers save validation, legacy-save loading, the campaign whitelist, and the storage wrapper), all pure logic (no Three.js, no DOM, no jsdom needed):
 
 - `content.test.ts` — catalog integrity (every `requiresAll`/`requiresAny` id exists and isn't self-referential, every `offerPriority` is unique, `offerMove` is within range), plus focused unit tests for `isBuildingEligible` and `nextBuildingOffer`'s tie-breaking (direct dependent first, then earliest `offerMove`, then lowest `offerPriority`).
 - `settlementSimulation.test.ts` — `chooseBuilding` guard conditions, construction/move progression (including the fractional-time carry across the completion boundary), resource production math (whole-cycle flooring via `Math.floor(elapsed / productionSeconds)`, remainder carry, the `tools` global speed boost, and synergy doubling verified in isolation), `reset()` returning to an identical fresh state, `buildOrderSummary()`, and the save/load round trip — including through a real `JSON.stringify`/`JSON.parse` cycle, since that's what `saveGame.ts` actually does via localStorage.
@@ -568,8 +568,23 @@ interface SettlementSnapshot {
 }
 ```
 
-`state` is exactly the `SettlementState` interface from section 5 — no derived or render-side data. `loadSnapshot()` throws if `schemaVersion` doesn't match; `isValidSnapshot()` is the safe runtime guard for data coming from outside the simulation (localStorage, a future uploaded save file) and simply rejects anything that doesn't shape-check, including a version mismatch, rather than partially trusting it.
+`state` is exactly the `SettlementState` interface from section 5 — no derived or render-side data. `describeSnapshotProblem()` is the runtime guard for data coming from outside the simulation (localStorage, a future uploaded save file). It returns a human-readable reason, or `null` if the save is usable, and `isValidSnapshot()` is its boolean form. Beyond shape, it rejects unknown or duplicate building ids, non-numeric resources, out-of-range levels, and inconsistent construction state (construction with no selection, or a plot index that doesn't follow the build order), because any of those would crash the renderer on every load. `loadSnapshot()` throws with that reason and leaves the current state untouched.
 
-`src/game/saveGame.ts` wraps this with localStorage under the key `grow-an-empire:save:v1`, wrapping every read/write in try/catch so a browser with storage disabled degrades to "no autosave" instead of crashing. `main.ts` autosaves after any simulation event batch other than a pure `resource-produced` tick (see known limitation 14), after a successful `chooseBuilding`, and on `beforeunload`; on startup it loads a save if present and calls `hydrateFromLoadedState()` instead of `resetSettlement()`, which rebuilds every plot sprite, road, civic sprite, and HUD element from the restored state without replaying construction animation. The restart button explicitly clears the save before resetting, so a manual restart is never overridden by a stale autosave on the next load.
+`src/game/saveGame.ts` wraps this with localStorage under the key `grow-an-empire:save:v1`, wrapping every read/write in try/catch so a browser with storage disabled degrades to "no autosave" instead of crashing. `main.ts` autosaves after any simulation event batch other than a pure `resource-produced` tick (see known limitation 14), after a successful `chooseBuilding`, and on `pagehide` / tab-hidden (never before boot has finished, so a failed or interrupted load can't overwrite a real save with a blank one); on startup it loads a save if present and calls `hydrateFromLoadedState()` instead of `resetSettlement()`, which rebuilds every plot sprite, road, civic sprite, and HUD element from the restored state without replaying construction animation. The restart button explicitly clears the save before resetting, so a manual restart is never overridden by a stale autosave on the next load.
 
 If `SettlementState`'s shape needs to change in a way an old save can't satisfy, bump `SAVE_SCHEMA_VERSION` and add a branch in `loadSnapshot`/`isValidSnapshot` (and probably `saveGame.ts`) to either migrate the old shape or discard it as "no save" — there is no migration path implemented today (known limitation 15).
+
+## 26. Error handling (added 2026-09-23)
+
+Failure policy, from most to least recoverable:
+
+| Failure | What the player sees | What happens to the save |
+|---|---|---|
+| A building's art fails to load when its card is clicked | "Couldn't load the X artwork… choose again"; the cards stay open | Unchanged. The choice is only committed to the simulation *after* its art has loaded, so construction time can't run out on an invisible building. Failed loads are dropped from the cache, so clicking again retries. |
+| The autosave is corrupt, from an old schema, or references unknown buildings | A fresh settlement, with a status line saying the save couldn't be restored | Deleted (otherwise it would block every future visit). |
+| Shared art (civic center, worker sheets, trees, the save's buildings) fails at boot | Loading screen shows "Could not load the settlement" + the failing filename + a Reload button | Kept. Autosave is disabled until boot finishes, so nothing overwrites it. |
+| An exception inside the frame loop | Game pauses; status says to Restart or reload | The last event-time autosave is intact. |
+| localStorage unavailable or full | Game plays normally without autosave | n/a |
+
+Supporting changes: `loadTexture()` in `spriteAssets.ts` turns Three's bare `Event` rejections into `Error`s that name the file; `buildingFilename()` / `createPlotSprites()` / `getWalkClip()` throw descriptive errors instead of relying on `!` assertions; the HUD has `setBuildPanelBusy()` (prevents double-clicks during a load) and `showLoadError()` (uses `textContent`, not `innerHTML`). `nextBuildingOffer()` now takes an optional campaign whitelist, so a campaign that excludes the top-ranked building falls through to the next eligible one instead of offering only two cards. This doesn't affect Campaign 1, which allows every building: the exhaustive 6,561-path test is unchanged.
+

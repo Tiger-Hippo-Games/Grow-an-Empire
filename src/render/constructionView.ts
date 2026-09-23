@@ -5,14 +5,22 @@ import { civicGround, getBuildingPosition, treeGround, type CityLayout } from ".
 import type { WorkerAnimation } from "./workerAnimation";
 import { CITY_ANIMATION } from "./animationDesign";
 
+/** The four art states of a building plot, in order. */
 export type ConstructionStage = "foundation" | "frame" | "late" | "complete";
+/** Callback that updates the HUD's activity label and progress bar. */
 export type SetStatus = (label: string, progress: number) => void;
 
 const STAGE_HEIGHTS: Record<ConstructionStage, number> = { foundation: 2.7, frame: 3.0, late: 3.15, complete: 3.25 };
 const CONSTRUCTION_STAGES: ConstructionStage[] = ["foundation", "frame", "late", "complete"];
 
+/**
+ * Art filename for a building at a construction stage, e.g. `farm-construction-02-frame-2x-v1.png`.
+ * @throws Error for an id that isn't in the building catalog.
+ */
 export function buildingFilename(buildingId: string, stage: ConstructionStage): string {
-  const prefix = BUILDINGS[buildingId].artKey;
+  const definition = BUILDINGS[buildingId];
+  if (!definition) throw new Error(`Unknown building "${buildingId}"`);
+  const prefix = definition.artKey;
   if (stage === "complete") return `${prefix}-level-1-2x-v1.png`;
   const suffix = stage === "foundation" ? "01-foundation" : stage === "frame" ? "02-frame" : "03-late";
   return `${prefix}-construction-${suffix}-2x-v1.png`;
@@ -39,6 +47,12 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
   // building first becomes one of the offered choices (well before the player
   // can click it), and defensively awaited again right before it's actually
   // placed, so correctness never depends on timing.
+  //
+  // A failed load is removed from the in-flight cache, so the next call retries
+  // instead of returning the same rejected promise forever. That matters on a
+  // flaky connection: one dropped request shouldn't make a building unbuildable
+  // for the rest of the session.
+  /** Loads (once) and caches all four stage images for one building. Safe to call repeatedly. */
   function ensureBuildingAssetsLoaded(buildingId: string): Promise<void> {
     if (buildingAssets.has(buildingId)) return Promise.resolve();
     const inFlight = loadingAssets.get(buildingId);
@@ -51,15 +65,32 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
       buildingAssets.set(buildingId, stages);
     })();
     loadingAssets.set(buildingId, promise);
+    promise.then(
+      () => loadingAssets.delete(buildingId),
+      () => loadingAssets.delete(buildingId),
+    );
     return promise;
   }
 
+  /** True once a building's art is cached, so plot sprites can be created synchronously. */
+  function hasBuildingAssets(buildingId: string): boolean {
+    return buildingAssets.has(buildingId);
+  }
+
+  /** Loads several buildings in parallel. Rejects if any of them fails (the others still get cached). */
   async function loadBuildingAssets(buildingIds: string[]): Promise<void> {
     await Promise.all(buildingIds.map((buildingId) => ensureBuildingAssetsLoaded(buildingId)));
   }
 
+  /**
+   * Creates the four (initially hidden) stage sprites for a plot.
+   * If the plot already has sprites (e.g. re-hydrating), they are replaced rather than duplicated.
+   * @throws Error if the building's art hasn't been loaded; await `ensureBuildingAssetsLoaded` first.
+   */
   function createPlotSprites(buildingId: string, plotIndex: number): void {
-    const assets = buildingAssets.get(buildingId)!;
+    const assets = buildingAssets.get(buildingId);
+    if (!assets) throw new Error(`Art for "${buildingId}" must be loaded before its plot is created`);
+    removePlot(plotIndex);
     const sprites = {} as Record<ConstructionStage, THREE.Sprite>;
     const plot = getBuildingPosition(buildingId);
     for (const stage of CONSTRUCTION_STAGES) {
@@ -74,26 +105,43 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
     plotBuildingIds.set(plotIndex, buildingId);
   }
 
+  /** Shows exactly one stage sprite for a plot. A no-op for a plot that doesn't exist. */
   function showPlotStage(plotIndex: number, stage: ConstructionStage): void {
     const sprites = plotSprites.get(plotIndex);
     if (!sprites) return;
     for (const [key, sprite] of Object.entries(sprites)) sprite.visible = key === stage;
   }
 
-  function clearPlots(): void {
-    for (const sprites of plotSprites.values()) {
-      for (const sprite of Object.values(sprites)) scene.remove(sprite);
+  /** Removes one plot's sprites from the scene and frees their materials (textures stay cached for reuse). */
+  function removePlot(plotIndex: number): void {
+    const sprites = plotSprites.get(plotIndex);
+    if (!sprites) return;
+    for (const sprite of Object.values(sprites)) {
+      scene.remove(sprite);
+      sprite.material.dispose();
     }
+    plotSprites.delete(plotIndex);
+    plotBuildingIds.delete(plotIndex);
+  }
+
+  /** Removes every plot (used on restart and before re-hydrating a save). */
+  function clearPlots(): void {
+    for (const plotIndex of [...plotSprites.keys()]) removePlot(plotIndex);
     plotSprites.clear();
     plotBuildingIds.clear();
     productionPulseUntil.clear();
   }
 
+  /** Starts a short scale "pulse" on a completed building to show it produced this move. */
   function markProduced(buildingId: string, animationElapsed: number): void {
     productionPulseUntil.set(buildingId, animationElapsed + CITY_ANIMATION.productionPulseSeconds);
   }
 
-  /** Drives the worker + plot-stage visuals for the building currently under construction. */
+  /**
+   * Drives the worker + plot-stage visuals for the building under construction.
+   * `progress` (0–1) selects the phase using the thresholds in `CITY_ANIMATION.construction`:
+   * survey (walk to site) → foundation → frame → finishing → opening.
+   */
   function renderConstruction(buildingId: string, plotIndex: number, progress: number, constructionElapsed: number, animationElapsed: number): void {
     const plot = getBuildingPosition(buildingId);
     const name = BUILDINGS[buildingId].name;
@@ -161,6 +209,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
     }
   }
 
+  /** Per-frame: applies the production pulse scale to completed buildings. */
   function renderProductionPulses(animationElapsed: number): void {
     for (const [plotIndex, buildingId] of plotBuildingIds) {
       const sprite = plotSprites.get(plotIndex)?.complete;
@@ -176,6 +225,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
   return {
     loadBuildingAssets,
     ensureBuildingAssetsLoaded,
+    hasBuildingAssets,
     createPlotSprites,
     showPlotStage,
     clearPlots,

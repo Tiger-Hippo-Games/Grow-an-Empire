@@ -5,8 +5,15 @@ import { setTextureFrame } from "./spriteAssets";
 import type { WorkerAnimation } from "./workerAnimation";
 import { CITY_ANIMATION } from "./animationDesign";
 
+/**
+ * Kinds of commute a villager can walk:
+ * - `service`: Town Hall ↔ a building (every completed building gets one);
+ * - `supply`: producer ↔ processor (e.g. Farm → Bakery), once both exist;
+ * - `civic`: trade to the Marketplace and House ↔ Marketplace traffic.
+ */
 export type WorkRouteKind = "service" | "supply" | "civic";
 
+/** A polyline a villager walks back and forth along. `speed` is in world units per second. */
 export interface WorkRoute {
   id: string;
   kind: WorkRouteKind;
@@ -28,7 +35,11 @@ const SUPPLY_LINKS: Array<[string, string]> = [
   ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["weapons-workshop", "barracks"],
 ];
 
-/** Pure route plan: the visible workforce only uses roads that exist for the current build order. */
+/**
+ * Pure route plan for the current build order: the visible workforce only uses
+ * roads that exist. With nothing built yet, a single "founders" route keeps the
+ * first villager moving. Villager N walks route `N % routes.length`.
+ */
 export function buildFunctionalRoutes(builtBuildingIds: string[]): WorkRoute[] {
   const built = new Set(builtBuildingIds);
   const routes: WorkRoute[] = [];
@@ -72,14 +83,20 @@ export function buildFunctionalRoutes(builtBuildingIds: string[]): WorkRoute[] {
   return routes;
 }
 
+/** Total length of a polyline in world units. */
 function routeLength(points: THREE.Vector2[]): number {
   let total = 0;
   for (let index = 1; index < points.length; index += 1) total += points[index - 1].distanceTo(points[index]);
   return total;
 }
 
-function samplePolyline(points: THREE.Vector2[], progress: number): { position: THREE.Vector2; direction: number } {
-  const total = routeLength(points);
+/**
+ * Writes the point `progress` (0–1) of the way along a polyline into `out`,
+ * and returns the x-direction of the segment it lies on (for sprite flipping).
+ * `total` is the precomputed `routeLength(points)`; `out` is reused to avoid a
+ * per-villager, per-frame allocation.
+ */
+function samplePolyline(points: THREE.Vector2[], total: number, progress: number, out: THREE.Vector2): number {
   let remaining = progress * total;
   for (let index = 1; index < points.length; index += 1) {
     const from = points[index - 1];
@@ -87,13 +104,20 @@ function samplePolyline(points: THREE.Vector2[], progress: number): { position: 
     const segmentLength = from.distanceTo(to);
     if (remaining <= segmentLength || index === points.length - 1) {
       const segmentProgress = segmentLength > 0 ? Math.min(1, remaining / segmentLength) : 1;
-      return { position: from.clone().lerp(to, segmentProgress), direction: to.x - from.x };
+      out.copy(from).lerp(to, segmentProgress);
+      return to.x - from.x;
     }
     remaining -= segmentLength;
   }
-  return { position: points.at(-1)!.clone(), direction: 1 };
+  out.copy(points[points.length - 1]);
+  return 1;
 }
 
+/**
+ * Converts a looping clock into an out-and-back trip with a short pause at
+ * each end (`endpointDwellFraction` of the cycle). `progress` is 0 at the
+ * route start and 1 at its end; `outbound` says which way the villager faces.
+ */
 function pingPongProgress(elapsed: number, duration: number): { progress: number; moving: boolean; outbound: boolean } {
   const phase = (elapsed % duration) / duration;
   const dwell = CITY_ANIMATION.routes.endpointDwellFraction;
@@ -104,10 +128,31 @@ function pingPongProgress(elapsed: number, duration: number): { progress: number
   return { progress: 1 - (phase - 0.5 - dwell) / travel, moving: true, outbound: false };
 }
 
-/** Functional population renderer: citizens commute, deliver goods, then form the final army. */
+/**
+ * Functional population renderer: citizens commute, deliver goods, then form the final army.
+ *
+ * Each villager owns a *clone* of the walk-sheet texture. Sharing one texture
+ * would be cheaper, but Three.js stores the frame offset on the texture itself,
+ * so every villager would show whichever frame was set last.
+ */
 export function createVillagerField(scene: THREE.Scene, workerAnimation: WorkerAnimation) {
   const villagers: Villager[] = [];
   let muster: { report: ArmyReport; startedAt: number } | null = null;
+
+  // Routes only change when a building completes, but used to be rebuilt (and
+  // measured twice per villager) on every frame. They're now cached per build order.
+  let routeKey: string | null = null;
+  let routes: WorkRoute[] = [];
+  let routeLengths: number[] = [];
+  const sampled = new THREE.Vector2();
+
+  function routesFor(builtBuildingIds: string[]): void {
+    const key = builtBuildingIds.join("|");
+    if (key === routeKey) return;
+    routeKey = key;
+    routes = buildFunctionalRoutes(builtBuildingIds);
+    routeLengths = routes.map((route) => routeLength(route.points));
+  }
 
   function createVillager(index: number): Villager {
     const walk = workerAnimation.getWalkClip();
@@ -122,20 +167,27 @@ export function createVillagerField(scene: THREE.Scene, workerAnimation: WorkerA
     return { sprite, material, texture, phase: (index * 0.61803398875) % 1, speedVariation: 0.92 + (index % 7) * 0.025 };
   }
 
+  /** Grows the crowd to `targetPopulation` (creating sprites as needed) and hides any extras. */
   function syncVillagers(targetPopulation: number): void {
     while (villagers.length < targetPopulation) villagers.push(createVillager(villagers.length));
     villagers.forEach((villager, index) => { villager.sprite.visible = index < targetPopulation; });
   }
 
+  /** Switches from commuting to the end-of-campaign formation. */
   function beginArmyMuster(report: ArmyReport, animationElapsed: number): void {
     muster = { report, startedAt: animationElapsed };
   }
 
+  /** Returns to commuting (on restart) and clears army tinting. */
   function clearArmyMuster(): void {
     muster = null;
     for (const villager of villagers) villager.material.color.setHex(0xffffff);
   }
 
+  /**
+   * Army formation: the first `totalUnits` visible villagers glide into a block
+   * in front of the Town Hall (veterans gold, archers green), and the rest orbit as civilians.
+   */
   function renderMuster(animationElapsed: number): void {
     if (!muster) return;
     const armyCount = Math.min(muster.report.totalUnits, villagers.filter((villager) => villager.sprite.visible).length);
@@ -162,22 +214,25 @@ export function createVillagerField(scene: THREE.Scene, workerAnimation: WorkerA
     }
   }
 
+  /** Per-frame: positions, flips, tints, and animates every visible villager. */
   function renderVillagers(animationElapsed: number, builtBuildingIds: string[]): void {
     if (muster) {
       renderMuster(animationElapsed);
       return;
     }
-    const routes = buildFunctionalRoutes(builtBuildingIds);
+    routesFor(builtBuildingIds);
     for (let index = 0; index < villagers.length; index += 1) {
       const villager = villagers[index];
       if (!villager.sprite.visible) continue;
-      const route = routes[index % routes.length];
-      const staggered = animationElapsed + villager.phase * Math.max(4, routeLength(route.points) / route.speed);
-      const duration = Math.max(4.5, (routeLength(route.points) * 2) / (route.speed * villager.speedVariation));
+      const routeIndex = index % routes.length;
+      const route = routes[routeIndex];
+      const length = routeLengths[routeIndex];
+      const staggered = animationElapsed + villager.phase * Math.max(4, length / route.speed);
+      const duration = Math.max(4.5, (length * 2) / (route.speed * villager.speedVariation));
       const journey = pingPongProgress(staggered, duration);
-      const sampled = samplePolyline(route.points, journey.progress);
-      villager.sprite.position.set(sampled.position.x, sampled.position.y + 0.5, 2.4);
-      villager.sprite.scale.x = Math.abs(villager.sprite.scale.x) * ((sampled.direction >= 0) === journey.outbound ? 1 : -1);
+      const direction = samplePolyline(route.points, length, journey.progress, sampled);
+      villager.sprite.position.set(sampled.x, sampled.y + 0.5, 2.4);
+      villager.sprite.scale.x = Math.abs(villager.sprite.scale.x) * ((direction >= 0) === journey.outbound ? 1 : -1);
       villager.material.color.setHex(route.kind === "supply" ? 0xe4d2a0 : route.kind === "civic" ? 0xc9d9b0 : 0xffffff);
       const fps = journey.moving ? CITY_ANIMATION.routes.walkingFps + (index % 3) : CITY_ANIMATION.routes.workingFps;
       setTextureFrame(villager.texture, Math.floor(animationElapsed * fps + index));

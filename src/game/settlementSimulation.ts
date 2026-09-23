@@ -1,18 +1,51 @@
 import { CAMPAIGN_1, type CampaignDefinition } from "./campaigns";
-import { CONSTRUCTION_DURATION_SECONDS, nextBuildingOffer, OPENING_BUILD_OPTIONS, populationForLevel, type ResourceName } from "./content";
+import {
+  CONSTRUCTION_DURATION_SECONDS,
+  isKnownBuildingId,
+  nextBuildingOffer,
+  OPENING_BUILD_OPTIONS,
+  populationForLevel,
+  RESOURCE_LABELS,
+  TOTAL_SETTLEMENT_LEVELS,
+  type ResourceName,
+} from "./content";
 
+/*
+ * The authoritative game rules. `SettlementSimulation` owns all gameplay state
+ * and is advanced only through `chooseBuilding()` and `update()`. Each returns
+ * a list of `SimulationEvent`s describing what changed, and the render/UI
+ * layers react to those events. Nothing here knows about the DOM or Three.js,
+ * so it is fully unit-testable.
+ *
+ * Lifecycle of one move:
+ *   awaiting-choice --chooseBuilding()--> construction --update() x N--> (30s elapsed)
+ *     -> building completes, civic level rises, economy resolves, population grows
+ *     -> next card is offered (awaiting-choice) or, after the last move, the army
+ *        musters and the run is complete.
+ */
+
+/** Top-level phase of a run. */
 export type SimulationMode = "awaiting-choice" | "construction" | "complete";
 export type CampaignOutcome = "Settlement Lost" | "Costly Survival" | "Victory" | "Decisive Victory" | "Flourishing Victory";
+/** Stockpile of every resource. Always contains every key (missing keys from old saves are filled with 0). */
 export type ResourceLedger = Record<ResourceName, number>;
+/** Bump this when `SettlementState`'s shape changes incompatibly; older saves are then discarded. */
 export const SAVE_SCHEMA_VERSION = 2 as const;
 
 export interface ArmyUnits { militia: number; spearmen: number; archers: number; veterans: number; mercenaries: number; }
+/** The end-of-campaign result, computed once by `assembleArmy()` when the final move completes. */
 export interface ArmyReport {
   outcome: CampaignOutcome; score: number; enemyStrength: number; units: ArmyUnits; totalUnits: number;
   combatStrength: number; supplyTurns: number; cityDefense: number; morale: number; explanations: string[];
 }
 export interface BuildOrderEntry { move: number; buildingId: string; }
 
+/**
+ * Everything the render/UI layers need to react to. Events from one `update()`
+ * call are always emitted in this order:
+ * construction-complete, civic-upgraded, economy-resolved, population-changed (if it changed),
+ * then either choices-ready or army-mustered + game-complete.
+ */
 export type SimulationEvent =
   | { type: "construction-started"; buildingId: string; plotIndex: number }
   | { type: "construction-complete"; buildingId: string; plotIndex: number }
@@ -23,6 +56,15 @@ export type SimulationEvent =
   | { type: "army-mustered"; report: ArmyReport }
   | { type: "game-complete" };
 
+/**
+ * All mutable gameplay state. It is plain JSON (no class instances), which is
+ * what makes `serialize()` / `loadSnapshot()` a simple deep copy.
+ *
+ * Invariants (enforced by `isValidSnapshot` for loaded saves):
+ * - `mode === "construction"` implies `selectedBuildingId` and `activePlotIndex` are set;
+ * - `activePlotIndex` equals `builtBuildingIds.length` (plots fill in build order);
+ * - every building id is a known catalog id and is never built twice.
+ */
 export interface SettlementState {
   mode: SimulationMode; move: number; civicLevel: number; population: number; resources: ResourceLedger;
   builtBuildingIds: string[]; availableBuildingIds: string[]; selectedBuildingId: string | null;
@@ -30,6 +72,7 @@ export interface SettlementState {
   armyReport: ArmyReport | null;
 }
 
+/** Versioned save-file wrapper around `SettlementState`. */
 export interface SettlementSnapshot {
   schemaVersion: typeof SAVE_SCHEMA_VERSION;
   savedAt: string;
@@ -50,38 +93,98 @@ const createInitialState = (): SettlementState => ({
 
 const clamp = (value: number, minimum: number, maximum: number): number => Math.max(minimum, Math.min(maximum, value));
 
-export function isValidSnapshot(value: unknown): value is SettlementSnapshot {
-  if (!value || typeof value !== "object") return false;
-  const snapshot = value as Partial<SettlementSnapshot>;
-  if (snapshot.schemaVersion !== SAVE_SCHEMA_VERSION || typeof snapshot.savedAt !== "string" || typeof snapshot.campaignId !== "string") return false;
-  const state = snapshot.state as Partial<SettlementState> | undefined;
-  if (!state || !["awaiting-choice", "construction", "complete"].includes(String(state.mode))) return false;
-  return Number.isInteger(state.move) && Number.isInteger(state.civicLevel) && Number.isFinite(state.population)
-    && Array.isArray(state.builtBuildingIds) && Array.isArray(state.availableBuildingIds)
-    && typeof state.resources === "object" && state.resources !== null
-    && typeof state.buildingMaturity === "object" && state.buildingMaturity !== null;
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isKnownIdList = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(isKnownBuildingId) && new Set(value).size === value.length;
+
+/**
+ * Explains why `value` is not a loadable snapshot, or returns `null` if it is.
+ *
+ * This deliberately checks more than the shape: a save that parses fine but
+ * references a building that no longer exists (e.g. after a rename), or is
+ * "under construction" with nothing selected, would otherwise crash the
+ * renderer on every page load and lock the player out. Rejecting it here lets
+ * the game fall back to a fresh settlement instead.
+ */
+export function describeSnapshotProblem(value: unknown): string | null {
+  if (!isPlainObject(value)) return "snapshot is not an object";
+  if (value.schemaVersion !== SAVE_SCHEMA_VERSION) return `unsupported schema version ${String(value.schemaVersion)}`;
+  if (typeof value.savedAt !== "string" || typeof value.campaignId !== "string") return "missing savedAt or campaignId";
+  const state = value.state;
+  if (!isPlainObject(state)) return "missing state";
+  if (!["awaiting-choice", "construction", "complete"].includes(String(state.mode))) return `unknown mode ${String(state.mode)}`;
+  if (!Number.isInteger(state.move) || (state.move as number) < 1) return "invalid move";
+  if (!Number.isInteger(state.civicLevel) || (state.civicLevel as number) < 0 || (state.civicLevel as number) >= TOTAL_SETTLEMENT_LEVELS) return "invalid civic level";
+  if (!Number.isFinite(state.population) || (state.population as number) < 0) return "invalid population";
+  if (!isKnownIdList(state.builtBuildingIds)) return "builtBuildingIds contains unknown or duplicate buildings";
+  if (!isKnownIdList(state.availableBuildingIds)) return "availableBuildingIds contains unknown or duplicate buildings";
+  if (!isPlainObject(state.resources) || !Object.values(state.resources).every((amount) => Number.isFinite(amount))) return "invalid resources";
+  if (!isPlainObject(state.buildingMaturity) || !Object.values(state.buildingMaturity).every((amount) => Number.isFinite(amount))) return "invalid buildingMaturity";
+  if (state.mode === "construction") {
+    if (!isKnownBuildingId(state.selectedBuildingId)) return "construction without a known selected building";
+    if (state.activePlotIndex !== state.builtBuildingIds.length) return "activePlotIndex does not match build order";
+    if (state.builtBuildingIds.includes(state.selectedBuildingId)) return "selected building is already built";
+    if (!Number.isFinite(state.constructionElapsed)) return "invalid constructionElapsed";
+  }
+  return null;
 }
 
+/** Type guard: true when `value` can be passed to `loadSnapshot()` safely. */
+export function isValidSnapshot(value: unknown): value is SettlementSnapshot {
+  return describeSnapshotProblem(value) === null;
+}
+
+/**
+ * One campaign run. Create one per page; call `reset()` to start over.
+ * All methods are synchronous and deterministic (no randomness, no clock),
+ * so the same choices always produce the same city.
+ */
 export class SettlementSimulation {
   readonly state: SettlementState = createInitialState();
   constructor(readonly campaign: CampaignDefinition = CAMPAIGN_1) {}
 
+  /** 0–1 fraction of the current construction; 0 when nothing is being built. */
   get constructionProgress(): number { return Math.min(1, this.state.constructionElapsed / CONSTRUCTION_DURATION_SECONDS); }
 
+  /** Completed buildings in the order they were built (move 1 first). */
   buildOrderSummary(): BuildOrderEntry[] {
     return this.state.builtBuildingIds.map((buildingId, index) => ({ move: index + 1, buildingId }));
   }
 
+  /** A deep, JSON-safe copy of the current state, suitable for localStorage. */
   serialize(): SettlementSnapshot {
     return { schemaVersion: SAVE_SCHEMA_VERSION, savedAt: new Date().toISOString(), campaignId: this.campaign.id, state: structuredClone(this.state) };
   }
 
+  /**
+   * Replaces the current state with a saved one.
+   *
+   * The loaded state is layered over a fresh initial state, so fields a save
+   * lacks (and resource keys added after it was written) get their defaults
+   * instead of leaking values from the previous run or becoming `undefined`.
+   *
+   * @throws Error if the snapshot is malformed or belongs to another campaign.
+   *         The current state is left untouched in that case.
+   */
   loadSnapshot(snapshot: SettlementSnapshot): void {
-    if (!isValidSnapshot(snapshot)) throw new Error("Invalid or unsupported settlement snapshot");
+    const problem = describeSnapshotProblem(snapshot);
+    if (problem) throw new Error(`Invalid or unsupported settlement snapshot: ${problem}`);
     if (snapshot.campaignId !== this.campaign.id) throw new Error(`Snapshot belongs to ${snapshot.campaignId}, not ${this.campaign.id}`);
-    Object.assign(this.state, structuredClone(snapshot.state));
+    const loaded = structuredClone(snapshot.state);
+    const resources = emptyResources();
+    for (const key of Object.keys(RESOURCE_LABELS) as ResourceName[]) {
+      if (Number.isFinite(loaded.resources[key])) resources[key] = loaded.resources[key];
+    }
+    Object.assign(this.state, createInitialState(), loaded, { resources, armyReport: loaded.armyReport ?? null });
   }
 
+  /**
+   * Starts constructing one of the currently offered buildings.
+   * Ignored (returns `[]`) unless the run is awaiting a choice and `buildingId` is on offer.
+   * The building takes the next plot, so `plotIndex` equals the number of buildings already built.
+   */
   chooseBuilding(buildingId: string): SimulationEvent[] {
     if (this.state.mode !== "awaiting-choice" || !this.state.availableBuildingIds.includes(buildingId)) return [];
     const plotIndex = this.state.builtBuildingIds.length;
@@ -93,16 +196,30 @@ export class SettlementSimulation {
     return [{ type: "construction-started", buildingId, plotIndex }];
   }
 
+  /** Starts a brand-new run on the same campaign. */
   reset(): void { Object.assign(this.state, createInitialState()); }
 
+  /**
+   * Advances construction by `seconds` of simulation time (already multiplied
+   * by the speed setting). Only construction consumes time: while awaiting a
+   * choice or after completion this is a no-op, so the economy never runs
+   * "in the background".
+   *
+   * When construction reaches 30s the whole move resolves in one step and the
+   * resulting events are returned. Any overshoot past 30s is discarded.
+   */
   update(seconds: number): SimulationEvent[] {
     if (!Number.isFinite(seconds) || seconds <= 0 || this.state.mode !== "construction") return [];
     const events: SimulationEvent[] = [];
     this.state.constructionElapsed += seconds;
     if (this.state.constructionElapsed < CONSTRUCTION_DURATION_SECONDS) return events;
 
-    const buildingId = this.state.selectedBuildingId!;
-    const plotIndex = this.state.activePlotIndex!;
+    const buildingId = this.state.selectedBuildingId;
+    const plotIndex = this.state.activePlotIndex;
+    if (buildingId === null || plotIndex === null) {
+      // Unreachable through chooseBuilding()/loadSnapshot(); guards against direct state edits.
+      throw new Error("Settlement is in construction mode without a selected building");
+    }
     const completedMove = this.state.move;
     this.state.builtBuildingIds.push(buildingId);
     this.state.buildingMaturity[buildingId] = 0;
@@ -127,13 +244,30 @@ export class SettlementSimulation {
     }
 
     this.state.move = completedMove + 1;
-    const nextOffer = nextBuildingOffer(this.state.builtBuildingIds, this.state.availableBuildingIds, this.state.move, buildingId);
-    if (nextOffer && this.campaign.availableBuildingIds.includes(nextOffer)) this.state.availableBuildingIds.push(nextOffer);
+    // The campaign whitelist is applied while ranking, so a disallowed top pick
+    // falls through to the next eligible building instead of shrinking the pool.
+    const nextOffer = nextBuildingOffer(
+      this.state.builtBuildingIds, this.state.availableBuildingIds, this.state.move, buildingId, this.campaign.availableBuildingIds,
+    );
+    if (nextOffer) this.state.availableBuildingIds.push(nextOffer);
     this.state.mode = "awaiting-choice";
     events.push({ type: "choices-ready", move: this.state.move, options: [...this.state.availableBuildingIds] });
     return events;
   }
 
+  /**
+   * Runs every completed building once, at the end of each move.
+   *
+   * Order matters and is intentional:
+   *   1. every building matures by one move;
+   *   2. raw producers add resources (output grows by 1 every 3 moves of maturity);
+   *   3. converters consume inputs in a fixed order (sawmill, bakery, butchery, winery,
+   *      blacksmith, weapons workshop, marketplace), each limited by its capacity
+   *      (also +1 every 3 moves) and by the inputs available at that point;
+   *   4. grain spoils above 6 without a Granary; defense accrues.
+   * Because converters run in sequence, earlier ones (e.g. the Blacksmith) can use
+   * up planks a later one (the Weapons Workshop) wanted. That is part of the balance.
+   */
   private resolveMoveEconomy(): void {
     const built = new Set(this.state.builtBuildingIds);
     const resources = this.state.resources;
@@ -183,6 +317,16 @@ export class SettlementSimulation {
     resources.defense += (built.has("quarry") ? 1 : 0) + (built.has("sawmill") ? 1 : 0) + (built.has("barracks") ? 2 : 0);
   }
 
+  /**
+   * Scores the settlement against the campaign enemy after the final move.
+   *
+   * Recruits come from population above 8 (65%). Arms are handed out to specialists
+   * first (archers, then veterans, then spearmen); leftover recruits become militia.
+   * Mercenaries are hired with wealth and rations if a Marketplace exists.
+   * The final score blends combat strength (65%), city defense (20%), supply turns
+   * and morale, and maps to an outcome tier. This reads resources but does not
+   * change them, so the report can be recomputed from a save.
+   */
   private assembleArmy(): ArmyReport {
     const built = new Set(this.state.builtBuildingIds);
     const resources = this.state.resources;

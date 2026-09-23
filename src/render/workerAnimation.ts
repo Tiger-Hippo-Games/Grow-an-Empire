@@ -27,6 +27,7 @@ export function createWorkerAnimation(scene: THREE.Scene) {
   worker.renderOrder = 100;
   scene.add(worker);
 
+  /** Loads every clip x direction sheet the worker uses (8 sheets). Must finish before villagers are created. */
   async function loadClips(): Promise<void> {
     await Promise.all(CLIP_DEFINITIONS.flatMap(([name, fps]) => DIRECTIONS.map(async (direction) => {
       const action = name === "pickup" || name === "carry" ? `${name}-log` : name;
@@ -34,6 +35,7 @@ export function createWorkerAnimation(scene: THREE.Scene) {
     })));
   }
 
+  /** Switches the worker to `name`/`direction` and shows `frame`. A no-op if clips haven't loaded yet. */
   function useClip(name: AnimatedClipName, direction: Direction, frame: number): void {
     const clip = clips.get(`${name}:${direction}`);
     if (!clip) return;
@@ -42,15 +44,18 @@ export function createWorkerAnimation(scene: THREE.Scene) {
     workerMaterial.needsUpdate = true;
   }
 
+  /** Which frame of a clip should show `elapsed` seconds into playback (loops). */
   function frameFor(name: AnimatedClipName, direction: Direction, elapsed: number): number {
     const clip = clips.get(`${name}:${direction}`);
     return clip ? Math.floor(elapsed * clip.fps) % clip.frames : 0;
   }
 
+  /** Stands the worker at a ground position (feet on the point). */
   function placeWorker(position: THREE.Vector2): void {
     worker.position.set(position.x, position.y + workerFootOffset, 3);
   }
 
+  /** Places the worker `progress` (0–1) of the way along a straight line from `from` to `to`. */
   function moveWorker(from: THREE.Vector2, to: THREE.Vector2, progress: number): void {
     worker.position.set(
       THREE.MathUtils.lerp(from.x, to.x, progress),
@@ -61,7 +66,9 @@ export function createWorkerAnimation(scene: THREE.Scene) {
 
   /** The walk cycle clip, shared as the base texture villagers clone from. */
   function getWalkClip(): SheetClip {
-    return clips.get("walk:southeast")!;
+    const clip = clips.get("walk:southeast");
+    if (!clip) throw new Error("Walk clip requested before worker clips finished loading");
+    return clip;
   }
 
   return { worker, loadClips, useClip, frameFor, placeWorker, moveWorker, getWalkClip };

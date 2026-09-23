@@ -1,17 +1,27 @@
 import * as THREE from "three";
 import { assetUrl } from "./assetCatalog";
 
+/**
+ * Texture loading and sprite helpers shared by every render module.
+ *
+ * Sprite sheets are 4 columns x 2 rows = 8 frames. Frame 0 is top-left, and
+ * frames run left-to-right along the top row, then the bottom row.
+ */
+
+/** A loaded sprite sheet plus its playback rate. */
 export interface SheetClip {
   texture: THREE.Texture;
   fps: number;
   frames: number;
 }
 
+/** A single loaded image and its width/height ratio, used to size sprites without distortion. */
 export interface SpriteAsset {
   texture: THREE.Texture;
   aspect: number;
 }
 
+/** Crops a sub-rectangle out of an image. `bbox` is [left, top, right, bottom] in source pixels. */
 export interface CropSpec {
   image: [number, number];
   bbox: [number, number, number, number];
@@ -20,6 +30,7 @@ export interface CropSpec {
 
 const textureLoader = new THREE.TextureLoader();
 
+/** Applies the project's standard texture settings (sRGB, mipmapped, no wrapping). */
 export function configureTexture(texture: THREE.Texture): THREE.Texture {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.magFilter = THREE.LinearFilter;
@@ -30,20 +41,41 @@ export function configureTexture(texture: THREE.Texture): THREE.Texture {
   return texture;
 }
 
+/**
+ * Loads one bundled image by filename.
+ *
+ * Three's loader rejects with a bare DOM `Event` on a network or decode
+ * failure, which prints as "[object Event]". This wraps it in an `Error` that
+ * names the file, so failures are diagnosable in the console and on screen.
+ *
+ * @throws Error if the filename isn't bundled or the image fails to load.
+ */
+export async function loadTexture(filename: string): Promise<THREE.Texture> {
+  const url = assetUrl(filename);
+  try {
+    return configureTexture(await textureLoader.loadAsync(url));
+  } catch (cause) {
+    throw new Error(`Failed to load image "${filename}"`, { cause });
+  }
+}
+
+/** Loads an image as a {@link SpriteAsset} (texture + aspect ratio). */
 export async function loadSpriteAsset(filename: string): Promise<SpriteAsset> {
-  const texture = configureTexture(await textureLoader.loadAsync(assetUrl(filename)));
+  const texture = await loadTexture(filename);
   const image = texture.image as HTMLImageElement;
   return { texture, aspect: image.naturalWidth / image.naturalHeight };
 }
 
+/** Loads an 8-frame sprite sheet; the texture is pre-scaled to show one frame at a time. */
 export async function loadSheet(filename: string, fps: number): Promise<SheetClip> {
-  const texture = configureTexture(await textureLoader.loadAsync(assetUrl(filename)));
+  const texture = await loadTexture(filename);
   texture.repeat.set(0.25, 0.5);
   return { texture, fps, frames: 8 };
 }
 
+/** Loads an image and returns a sprite showing only the `crop` rectangle, `crop.height` world units tall. */
 export async function loadCroppedSprite(filename: string, crop: CropSpec): Promise<THREE.Sprite> {
-  const texture = configureTexture(await textureLoader.loadAsync(assetUrl(filename)));
+  const texture = await loadTexture(filename);
   const [imageWidth, imageHeight] = crop.image;
   const [left, top, right, bottom] = crop.bbox;
   texture.repeat.set((right - left) / imageWidth, (bottom - top) / imageHeight);
@@ -54,6 +86,11 @@ export async function loadCroppedSprite(filename: string, crop: CropSpec): Promi
   return sprite;
 }
 
+/**
+ * Creates a sprite `height` world units tall, preserving the asset's aspect ratio.
+ * The sprite gets its own material but shares the texture, so this is cheap to call repeatedly.
+ * `userData.baseScale` records the original scale for effects like the production pulse.
+ */
 export function spriteFromAsset(asset: SpriteAsset, height: number): THREE.Sprite {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: asset.texture, transparent: true, depthTest: false }));
   sprite.scale.set(height * asset.aspect, height, 1);

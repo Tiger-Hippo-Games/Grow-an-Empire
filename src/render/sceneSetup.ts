@@ -17,8 +17,10 @@ export function createSceneSetup(viewport: HTMLElement) {
   const camera = new THREE.OrthographicCamera(-7, 7, 4, -4, 0.1, 100);
   camera.position.set(0, 0, 10);
 
+  /** World units visible vertically; the horizontal extent follows the viewport's aspect ratio. */
   const VIEW_HEIGHT = 40;
 
+  /** Matches the canvas and camera to the viewport's current size. Call on window resize. */
   function resize(): void {
     const width = viewport.clientWidth;
     const height = viewport.clientHeight;

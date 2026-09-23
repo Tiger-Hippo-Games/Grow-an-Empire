@@ -150,6 +150,8 @@ h1 { margin: 2px 0 0; font-size: clamp(.98rem,1.7vw,1.25rem); line-height: 1.1; 
 
 .loading { position: absolute; z-index: 30; inset: 0; display: grid; place-content: center; gap: 16px; color: #f3d791; background: #13271b; text-align: center; transition: opacity 360ms ease,visibility 360ms ease; }
 .loading-mark { width: 54px; height: 54px; margin: auto; border: 3px solid rgba(243,215,145,.18); border-top-color: #e4ae52; border-radius: 50%; animation: spin 900ms linear infinite; }
+.loading button { justify-self: center; padding: 8px 18px; border: 1px solid rgba(243,215,145,.5); border-radius: 6px; background: rgba(243,215,145,.12); cursor: pointer; }
+.build-card:disabled { cursor: progress; opacity: .6; transform: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 820px) {
