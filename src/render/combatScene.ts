@@ -58,8 +58,8 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
   function makeFighter(role: Fighter["role"], index: number, southernEdge: number): void {
     const lane = index % 5;
     const row = Math.floor(index / 5);
-    const targetY = -7.8 - lane * LANE_SPACING;
-    const targetX = role === "enemy" ? 1.9 + lane * 0.12 : role === "archer" ? -9.2 - row * 1.35 : role === "horseman" ? -2.6 - lane * 0.1 : -1.5 - lane * 0.12;
+    const targetY = -7.8 - lane * LANE_SPACING - (role === "horseman" ? 0.45 : 0);
+    const targetX = role === "enemy" ? 1.9 + lane * 0.12 : role === "archer" ? -9.2 - row * 1.35 : role === "horseman" ? -4.5 - lane * 0.1 : -1.5 - lane * 0.12;
     const startX = role === "enemy" ? -2.5 + lane * 1.3 : civicGround.x + (lane - 2) * 1.25;
     const startY = role === "enemy" ? southernEdge - SIZE - lane * 0.25 : civicGround.y - (role === "archer" ? 5.1 : role === "horseman" ? 7.0 : 3.4) - row * 1.35;
     const material = new THREE.SpriteMaterial({ map: role === "enemy" ? enemyWalk[0] : characters.getFrame(role, 0), transparent: true, depthTest: false });
@@ -67,7 +67,7 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
     const size = role === "horseman" ? SIZE * 1.32 : SIZE;
     sprite.scale.set(role === "enemy" ? -size : size, size, 1);
     sprite.position.set(startX, startY + size / 2, 2.8);
-    sprite.renderOrder = 75 + lane + row;
+    sprite.renderOrder = (role === "horseman" ? 86 : 75) + lane + row;
     scene.add(sprite);
     fighters.push({ sprite, material, role, lane, startX, startY, targetX, targetY });
   }
@@ -183,7 +183,8 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
     if (!active || finished) return null;
     const t = elapsed - startTime;
     if (t < 4.5) return "Raiders surge from the south as defenders leave the town center!";
-    if (t < 12.2) return strategy === "mixed" ? "Archers fire over the swordsmen holding the line!"
+    if (t < 12.2) return horsemenCount > 0 ? "Horsemen charge as the city defenders hold the line!"
+      : strategy === "mixed" ? "Archers fire over the swordsmen holding the line!"
       : strategy === "horsemen" ? "The horsemen charge through the raider line!"
       : strategy === "archers" ? "A volley of arrows rains on the raiders!"
         : strategy === "swordsmen" ? "The city's swordsmen meet the raider charge!"

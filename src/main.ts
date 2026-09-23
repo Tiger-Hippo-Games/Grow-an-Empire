@@ -330,11 +330,14 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       const copy = completedMove < TOTAL_MOVES
         ? `Completed on Move ${completedMove}. The civic center also advanced.`
         : `Completed on Move ${completedMove}. The Grand Muster Hall stands ready to defend the city.`;
-      const newSoldiers = [
+      const trainedThisMove = [
         simulation.state.builtBuildingIds.includes("blacksmith") && "1 swordsman",
         simulation.state.builtBuildingIds.includes("weapons-workshop") && "1 archer",
         simulation.state.builtBuildingIds.includes("stable") && "2 horsemen",
-      ].filter(Boolean).join(" and ");
+      ].filter(Boolean);
+      const newSoldiers = trainedThisMove.length > 1
+        ? `${trainedThisMove.slice(0, -1).join(", ")}${trainedThisMove.length > 2 ? "," : ""} and ${trainedThisMove.at(-1)}`
+        : trainedThisMove[0] ?? "";
       hud.showMilestone(BUILDINGS[event.buildingId].name, newSoldiers ? `${copy} ${newSoldiers} joined the garrison.` : copy, animationElapsed);
     } else if (event.type === "civic-upgraded") {
       civicCenter.setLevel(event.level);
@@ -355,7 +358,8 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       villagerField.syncVillagers(Math.max(0, event.total - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
     } else if (event.type === "unit-trained") {
       villagerField.syncGarrison(event.units, animationElapsed, simulation.state.builtBuildingIds);
-      const newUnits = [event.newSwordsmen && "1 swordsman", event.newArchers && "1 archer", event.newHorsemen && "2 horsemen"].filter(Boolean).join(" and ");
+      const trained = [event.newSwordsmen && "1 swordsman", event.newArchers && "1 archer", event.newHorsemen && "2 horsemen"].filter(Boolean);
+      const newUnits = trained.length > 1 ? `${trained.slice(0, -1).join(", ")}${trained.length > 2 ? "," : ""} and ${trained.at(-1)}` : trained[0] ?? "";
       hud.setStatus(`${newUnits} joined the town hall garrison · ${event.units.swordsmen + event.units.archers + event.units.horsemen} defenders`, 1);
     } else if (event.type === "army-mustered") {
       void startCombat(event.report);

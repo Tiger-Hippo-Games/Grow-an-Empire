@@ -1,0 +1,12 @@
+# Stable art
+
+Generated with OpenAI imagegen on 2026-09-24. The four PNGs in `Runtime2x/` are the source masters for the WebP runtime export. The finished building and its three construction stages were generated against the existing Barracks sprite so their isometric angle, painted style, and transparent cutout match the city.
+
+## Prompts
+
+- **Finished Stable:** "Create a new isometric 3/4 view medieval STABLE game building sprite in exactly the same painted visual style, angle, clean transparent alpha cutout, canvas layout and scale as the supplied Barracks sprite. Timber and light stone stable, terracotta roof, 2 chestnut horses in open stalls, fenced paddock, small red horse emblem banner, trough, hay, irregular little patch of grass and dirt under building. Isolated cutout with transparent pixels everywhere outside the roof, walls, horses, banner, fence and small ground patch. No colored atmosphere or glow, no vignette, no scenic background."
+- **Foundation:** "Create the foundation construction stage of this exact medieval stable game sprite. Keep the same isometric angle, footprint, fenced paddock, little horse banner and small props. Show only low stone footing, bare dirt foundation, upright structural posts and a few timber piles; no roof, no finished walls or horses yet. Production-ready isolated sprite with truly transparent alpha everywhere outside the structure and irregular little grass/dirt footprint."
+- **Frame:** "Create the middle wooden-frame construction stage of this exact medieval stable game sprite. Keep the same isometric angle, building footprint, fenced paddock, little horse banner and small props. Show partial stone-and-plaster walls, exposed timber roof trusses and unfinished stall partitions, no roof tiles or horses. Production-ready isolated sprite with truly transparent alpha everywhere outside the structure and irregular grass/dirt footprint."
+- **Late:** "Produce the late construction stage of this Stable sprite, intermediate between the clean transparent timber frame and completed building. Show 75% of terracotta roofing finished, one open rafter section, one horse in stall, ladder and tile stacks, same fence and horse banner. Genuine transparent pixels outside the detailed roof/building/banner/grass footprint."
+
+The clean cutout variants replaced initial generated drafts with broad painted background gradients, which did not composite well on the terrain.

@@ -8,7 +8,9 @@ Categories (ART_PIPELINE §41): Human-created · AI-generated · Licensed asset 
 
 | Art family | Files | Category | Tool / source | Licence and commercial-use terms checked | Human edits | Prompt kept? |
 |---|---|---|---|---|---|---|
-| Buildings (15 types × 4 construction stages) | `Assets/Art/Production/Buildings/*/Runtime2x/` | Likely AI-generated, then edited (confirm) | TODO: tool name | TODO | TODO | Benchmark prompt in `ART_DIRECTION.md`; others TODO |
+| Earlier buildings (15 types × 4 construction stages) | `Assets/Art/Production/Buildings/*/Runtime2x/` | Likely AI-generated, then edited (confirm) | TODO: tool name | TODO | TODO | Benchmark prompt in `ART_DIRECTION.md`; others TODO |
+| Stable (4 construction stages) | `Assets/Art/Production/Buildings/Stable/Runtime2x/` | AI-generated | OpenAI imagegen, 2026-09-24 | TODO: owner to confirm commercial-use terms for submission | Clean cutout variants selected; WebP runtime export | `Buildings/Stable/GENERATION_NOTES.md` |
+| Horseman attack sheet | `Assets/Art/Production/Characters/Horseman/`, `Assets/Art/Generated 512/horseman-attack4.png` | AI-generated, then assembled | OpenAI imagegen, 2026-09-24 | TODO: owner to confirm commercial-use terms for submission | Four poses assembled and resized by script | `Characters/Horseman/GENERATION_NOTES.md` |
 | Civic center levels 0–8 | `Assets/Art/Production/Buildings/CivicCenter/` | Likely AI-generated, then edited (confirm) | TODO: tool name | TODO | TODO | TODO |
 | Villagers and soldiers (walk sheets) | `Assets/Art/Generated 512/`, built into sheets by `Production/create-walk-sheets.ps1` | Likely AI-generated, then edited (confirm) | TODO: tool name | TODO | Walk sheets assembled by script | TODO |
 | Terrain and trees | TODO (path) | Likely AI-generated, then edited (confirm) | TODO: tool name | TODO | TODO | TODO |

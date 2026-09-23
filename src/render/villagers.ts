@@ -254,10 +254,10 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     }
     if (animationElapsed === undefined) {
       lastGarrisonElapsed = null;
-        let swordIndex = 0;
-        let archerIndex = 0;
-        let horseIndex = 0;
-        for (const soldier of garrison) {
+      let swordIndex = 0;
+      let archerIndex = 0;
+      let horseIndex = 0;
+      for (const soldier of garrison) {
         const index = soldier.role === "swordsman" ? swordIndex++ : soldier.role === "archer" ? archerIndex++ : horseIndex++;
         const target = garrisonTarget(soldier.role, index, units.swordsmen, units.archers);
         soldier.bornAt = null;
