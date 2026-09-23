@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#13271b" />
-    <meta name="description" content="Grow an Empire — an eight-move branching settlement slice" />
-    <title>Grow an Empire — Nine Settlement Levels</title>
+    <meta name="description" content="Grow an Empire — a twelve-move city defense campaign" />
+    <title>Grow an Empire — The First Muster</title>
     <script>
       // Boot watchdog. main.ts shows its own error screen once it's running, but
       // if the game's code can't load or throws before that (e.g. a typo while
@@ -43,7 +43,7 @@
   </head>
   <body>
     <main id="app">
-      <section class="hud" aria-label="Settlement status">
+      <section class="hud" aria-label="Campaign status">
         <div class="brand">
           <span class="eyebrow">CAMPAIGN 1</span>
           <h1>The First Muster</h1>
@@ -53,23 +53,31 @@
           <strong id="phase">Loading assets…</strong>
           <div class="progress-track" aria-hidden="true"><div id="phase-progress" class="progress-fill"></div></div>
         </div>
-        <div class="metrics" aria-label="Settlement metrics">
-          <div><span>Move</span><strong id="move">1 / 8</strong></div>
-          <div><span>Civic</span><strong id="civic-level">0 / 8</strong></div>
-          <div><span>People</span><strong id="population">1</strong></div>
-        </div>
+        <div class="raid-objective"><span>DEFEND THE CITY</span><strong>Raiders arrive after move 12</strong></div>
       </section>
 
-      <button id="stockpile-toggle" class="stockpile-toggle" type="button" aria-expanded="false" aria-controls="resource-ledger">
-        <span>Stockpile</span><strong id="stockpile-total">0</strong>
-      </button>
+      <section class="settlement-hud" aria-label="Settlement progress">
+        <div class="settlement-heading">SETTLEMENT</div>
+        <div class="metrics" aria-label="Settlement metrics">
+          <div><span>Move</span><strong id="move">1 / 12</strong></div>
+          <div><span>Civic</span><strong id="civic-level">0 / 12</strong></div>
+          <div><span>People</span><strong id="population">1</strong></div>
+        </div>
+        <div class="level-track" aria-label="Thirteen settlement levels">
+          <span id="level-track-label">LEVEL 0 · FOUNDING CAMPSITE</span>
+          <div id="level-pips" class="level-pips" aria-hidden="true"></div>
+        </div>
+        <button id="stockpile-toggle" class="stockpile-toggle" type="button" aria-expanded="false" aria-controls="resource-ledger">
+          <span>Stockpile</span><strong id="stockpile-total">0</strong>
+        </button>
+      </section>
 
       <section id="viewport" class="viewport" aria-label="Three.js settlement viewport"></section>
 
       <aside id="build-panel" class="build-panel" aria-labelledby="build-title">
         <div class="decision-heading">
           <div><p class="decision-kicker">Choose your next move</p><h2 id="build-title">What should the settlement build?</h2></div>
-          <div id="move-chip" class="move-chip">1 OF 8</div>
+          <div id="move-chip" class="move-chip">1 OF 12</div>
         </div>
         <div id="build-options" class="build-options"></div>
         <p class="decision-hint">Built earlier means more turns to produce and mature.</p>
@@ -111,16 +119,11 @@
         <button id="restart" class="quiet-control" type="button">Restart</button>
       </section>
 
-      <aside class="level-track" aria-label="Nine settlement levels">
-        <span id="level-track-label">LEVEL 0 · FOUNDING CAMPSITE</span>
-        <div id="level-pips" class="level-pips" aria-hidden="true"></div>
-      </aside>
-
       <div id="tutorial-scrim" class="tutorial-scrim hidden">
         <section class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
           <span class="tutorial-kicker">Your first settlement</span>
           <h2 id="tutorial-title">Choose. Watch. Adapt.</h2>
-          <p>You make only eight decisions. Each building keeps working on every later move, so the order shapes the city—and the army waiting at the end.</p>
+          <p>You make twelve decisions. Each building keeps working on every later move, so the order shapes the city—and the army waiting at the end. Build Houses to grow your recruiting pool.</p>
           <div class="tutorial-rules">
             <div><b>1</b><span>Choose one building</span></div>
             <div><b>2</b><span>Watch every building react</span></div>
@@ -142,7 +145,7 @@
 
       <div id="loading" class="loading" role="status">
         <div class="loading-mark" aria-hidden="true"></div>
-        <span>Preparing all nine settlement levels…</span>
+        <span>Preparing the city…</span>
       </div>
     </main>
     <script type="module" src="/src/main.ts"></script>

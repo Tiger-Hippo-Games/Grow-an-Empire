@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { ArmyReport } from "../game/settlementSimulation";
-import { civicGround, DISTRICT_JUNCTIONS, getBuildingDistrict, getBuildingPosition, getRoadRoute } from "./cityLayout";
+import { civicGround, getRoadRoute, getServiceRoute } from "./cityLayout";
 import { setTextureFrame } from "./spriteAssets";
 import type { WorkerAnimation } from "./workerAnimation";
 import { CITY_ANIMATION } from "./animationDesign";
@@ -37,19 +37,18 @@ const SUPPLY_LINKS: Array<[string, string]> = [
 
 /**
  * Pure route plan for the current build order: the visible workforce only uses
- * roads that exist. With nothing built yet, a single "founders" route keeps the
- * first villager moving. Villager N walks route `N % routes.length`.
+ * roads that exist. With nothing built yet, the founder stays at the civic
+ * clearing until a route is revealed. Villager N walks route `N % routes.length`.
  */
 export function buildFunctionalRoutes(builtBuildingIds: string[]): WorkRoute[] {
   const built = new Set(builtBuildingIds);
   const routes: WorkRoute[] = [];
 
   for (const buildingId of builtBuildingIds) {
-    const district = getBuildingDistrict(buildingId);
     routes.push({
       id: `service:${buildingId}`,
       kind: "service",
-      points: [civicGround, DISTRICT_JUNCTIONS[district], getBuildingPosition(buildingId)],
+      points: getServiceRoute(buildingId),
       speed: CITY_ANIMATION.routes.serviceSpeed,
     });
   }
@@ -77,7 +76,7 @@ export function buildFunctionalRoutes(builtBuildingIds: string[]): WorkRoute[] {
   if (routes.length === 0) routes.push({
     id: "founders",
     kind: "civic",
-    points: [new THREE.Vector2(5.2, 0.1), new THREE.Vector2(2.2, 0.05), civicGround],
+    points: [civicGround],
     speed: CITY_ANIMATION.routes.serviceSpeed,
   });
   return routes;
@@ -97,6 +96,10 @@ function routeLength(points: THREE.Vector2[]): number {
  * per-villager, per-frame allocation.
  */
 function samplePolyline(points: THREE.Vector2[], total: number, progress: number, out: THREE.Vector2): number {
+  if (points.length === 1) {
+    out.copy(points[0]);
+    return 1;
+  }
   let remaining = progress * total;
   for (let index = 1; index < points.length; index += 1) {
     const from = points[index - 1];
@@ -234,7 +237,7 @@ export function createVillagerField(scene: THREE.Scene, workerAnimation: WorkerA
       villager.sprite.position.set(sampled.x, sampled.y + 0.5, 2.4);
       villager.sprite.scale.x = Math.abs(villager.sprite.scale.x) * ((direction >= 0) === journey.outbound ? 1 : -1);
       villager.material.color.setHex(route.kind === "supply" ? 0xe4d2a0 : route.kind === "civic" ? 0xc9d9b0 : 0xffffff);
-      const fps = journey.moving ? CITY_ANIMATION.routes.walkingFps + (index % 3) : CITY_ANIMATION.routes.workingFps;
+      const fps = journey.moving && length > 0 ? CITY_ANIMATION.routes.walkingFps + (index % 3) : CITY_ANIMATION.routes.workingFps;
       setTextureFrame(villager.texture, Math.floor(animationElapsed * fps + index));
     }
   }

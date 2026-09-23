@@ -8,10 +8,13 @@ import { loadCroppedSprite, loadTexture } from "./spriteAssets";
  * being told which building or district just became active.
  */
 
+/** Pixel-to-world mapping for the approved 1920 × 1080 plan at a 40-unit camera height. */
+const planPoint = (x: number, y: number): THREE.Vector2 => new THREE.Vector2((x - 960) / 27, (540 - y) / 27);
+
 /** Ground point of the Town Hall; the hub every cross-district route passes through. */
-export const civicGround = new THREE.Vector2(-0.8, -0.3);
+export const civicGround = planPoint(938, 548);
 /** Ground point of the tree the Woodcutter harvests. */
-export const treeGround = new THREE.Vector2(10.1, 5.6);
+export const treeGround = planPoint(1760, 263);
 /** Vertical offset from a ground point to the worker sprite's center, so its feet sit on the point. */
 export const workerFootOffset = 0.95;
 
@@ -33,21 +36,21 @@ export async function loadEmptyTerrain(scene: THREE.Scene): Promise<void> {
  * These vectors are shared: treat them as read-only (clone before mutating).
  */
 const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
-  marketplace: new THREE.Vector2(2.4, 0.25),
-  house: new THREE.Vector2(-3.4, 1.15),
-  woodcutter: new THREE.Vector2(8.1, 5.0),
-  sawmill: new THREE.Vector2(5.8, 3.6),
-  farm: new THREE.Vector2(-8.4, 4.7),
-  bakery: new THREE.Vector2(-5.5, 3.0),
-  granary: new THREE.Vector2(-8.2, 1.7),
-  "fruit-orchard": new THREE.Vector2(-8.2, -3.1),
-  winery: new THREE.Vector2(-5.2, -2.5),
-  "swine-farm": new THREE.Vector2(-7.5, -6.0),
-  butchery: new THREE.Vector2(-4.5, -5.3),
-  quarry: new THREE.Vector2(8.2, -4.5),
-  blacksmith: new THREE.Vector2(5.5, -3.2),
-  "weapons-workshop": new THREE.Vector2(4.2, -6.0),
-  barracks: new THREE.Vector2(7.5, -7.1),
+  marketplace: planPoint(1124, 580),
+  house: planPoint(788, 587),
+  woodcutter: planPoint(1639, 292),
+  sawmill: planPoint(1466, 454),
+  farm: planPoint(208, 294),
+  bakery: planPoint(499, 476),
+  granary: planPoint(398, 374),
+  "fruit-orchard": planPoint(221, 609),
+  winery: planPoint(424, 657),
+  "swine-farm": planPoint(206, 767),
+  butchery: planPoint(441, 820),
+  quarry: planPoint(1634, 611),
+  blacksmith: planPoint(1433, 657),
+  "weapons-workshop": planPoint(1447, 797),
+  barracks: planPoint(1693, 820),
 };
 
 export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry";
@@ -72,20 +75,25 @@ export function getBuildingDistrict(buildingId: string): CityDistrict {
 
 /** Where each district's road meets its buildings' connector paths. */
 export const DISTRICT_JUNCTIONS: Record<CityDistrict, THREE.Vector2> = {
-  civic: new THREE.Vector2(1.75, 0.05),
-  forest: new THREE.Vector2(6.9, 4.15),
-  farms: new THREE.Vector2(-7.0, 3.75),
-  provisions: new THREE.Vector2(-6.1, -4.45),
-  industry: new THREE.Vector2(6.15, -5.0),
+  civic: civicGround,
+  forest: planPoint(1350, 350),
+  farms: planPoint(572, 365),
+  provisions: planPoint(560, 663),
+  industry: planPoint(1361, 661),
 };
 
 const DISTRICT_PATHS: Record<CityDistrict, THREE.Vector2[]> = {
-  civic: [civicGround, new THREE.Vector2(1.75, 0.05), new THREE.Vector2(3.7, 0.2)],
-  forest: [civicGround, new THREE.Vector2(3.25, 1.75), DISTRICT_JUNCTIONS.forest],
-  farms: [civicGround, new THREE.Vector2(-3.75, 1.95), DISTRICT_JUNCTIONS.farms],
-  provisions: [civicGround, new THREE.Vector2(-3.35, -2.05), DISTRICT_JUNCTIONS.provisions],
-  industry: [civicGround, new THREE.Vector2(3.05, -1.95), DISTRICT_JUNCTIONS.industry],
+  civic: [civicGround],
+  forest: [civicGround, planPoint(1140, 455), DISTRICT_JUNCTIONS.forest],
+  farms: [civicGround, planPoint(754, 455), DISTRICT_JUNCTIONS.farms],
+  provisions: [civicGround, planPoint(749, 581), DISTRICT_JUNCTIONS.provisions],
+  industry: [civicGround, planPoint(1159, 576), DISTRICT_JUNCTIONS.industry],
 };
+
+/** Center-to-entrance route using the same points that draw the main road and building spur. */
+export function getServiceRoute(buildingId: string): THREE.Vector2[] {
+  return [...DISTRICT_PATHS[getBuildingDistrict(buildingId)], getBuildingPosition(buildingId)];
+}
 
 /**
  * Road-following waypoints from one building to another, used by delivery
@@ -98,7 +106,22 @@ export function getRoadRoute(fromBuildingId: string, toBuildingId: string): THRE
   const fromDistrict = getBuildingDistrict(fromBuildingId);
   const toDistrict = getBuildingDistrict(toBuildingId);
   if (fromDistrict === toDistrict) return [from, DISTRICT_JUNCTIONS[fromDistrict], to];
-  return [from, DISTRICT_JUNCTIONS[fromDistrict], civicGround, DISTRICT_JUNCTIONS[toDistrict], to];
+  return [...getServiceRoute(fromBuildingId).reverse(), ...getServiceRoute(toBuildingId).slice(1)];
+}
+
+/** The physical path segments visible after these buildings have been constructed. */
+export function getVisibleRoadSegments(builtBuildingIds: string[]): Array<[THREE.Vector2, THREE.Vector2]> {
+  const built = new Set(builtBuildingIds);
+  const segments: Array<[THREE.Vector2, THREE.Vector2]> = [];
+  for (const district of Object.keys(DISTRICT_PATHS) as CityDistrict[]) {
+    if (![...built].some((id) => getBuildingDistrict(id) === district)) continue;
+    const path = DISTRICT_PATHS[district];
+    for (let index = 1; index < path.length; index += 1) segments.push([path[index - 1], path[index]]);
+  }
+  for (const buildingId of built) {
+    segments.push([DISTRICT_JUNCTIONS[getBuildingDistrict(buildingId)], getBuildingPosition(buildingId)]);
+  }
+  return segments;
 }
 
 /** The faint diagonal grid lines on the ground (toggled by the Grid button). */
@@ -151,9 +174,9 @@ export async function loadForest(scene: THREE.Scene): Promise<void> {
   scene.add(treeSprite);
 
   const forestTreePositions = [
-    new THREE.Vector2(6.3, 5.6), new THREE.Vector2(7.2, 6.8), new THREE.Vector2(8.8, 7.1),
-    new THREE.Vector2(10.4, 6.9), new THREE.Vector2(11.1, 4.3), new THREE.Vector2(9.7, 3.7),
-    new THREE.Vector2(6.9, 3.0), new THREE.Vector2(11.6, 5.7),
+    planPoint(1520, 170), planPoint(1605, 196), planPoint(1695, 150),
+    planPoint(1790, 183), planPoint(1850, 323), planPoint(1730, 376),
+    planPoint(1510, 327), planPoint(1840, 434),
   ];
   forestTreePositions.forEach((position, index) => {
     const forestTree = treeSprite.clone();

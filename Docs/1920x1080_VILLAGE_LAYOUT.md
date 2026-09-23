@@ -41,6 +41,12 @@ The forest and rocks are landmarks that remain before construction. Fields, fenc
 
 Use one graph of nodes and edges for both visual paths and villager navigation: civic junction, four outer district junctions, building entrances, and optional supply links. A route is a sequence of graph edges, with a short entrance/exit segment on the building parcel. A villager may start or stop inside a building, but never cut across a field or travel through an empty plot. Walkers yield at tight junctions and dwell briefly at loading and unloading points. Only constructed buildings contribute destinations.
 
-The existing `cityLayout.ts` and `villagers.ts` already have fixed plots and conditional routes. The key implementation refinement is to generate the visible road and movement polyline from the same edge data. At present, some routes use district junctions while the visible road has additional intermediate points; these can diverge. Camera framing in `sceneSetup.ts` currently uses a world height of 40 units. A smaller target around 28–30 units is a useful first visual trial for filling the 16:9 frame, followed by adjustment against actual sprite heights and the choice dock.
+The existing `cityLayout.ts` and `villagers.ts` use fixed plots and conditional routes. The visible road and movement polyline now use the same district waypoints. Camera framing in `sceneSetup.ts` uses a world height of 40 units; this keeps the approved screen-anchor mapping stable at 1920 × 1080.
+
+## Integrated plot anchors
+
+The runtime now maps the plan's 1920 × 1080 ground-anchor pixels to world coordinates using the 40-unit orthographic camera. The forest and quarry plots sit near the map's painted terrain transitions, and the other plots follow the five diagrammed zones. The road mesh, builder survey, service traffic, supply traffic, and trade traffic share the same district waypoints and building spurs. The first villager waits at the civic clearing until a path has been revealed.
+
+The exhaustive route check walks every reachable build order and verifies every unique built-building set at every move. Each villager route segment must belong to a road segment revealed by that set; unbuilt plots therefore cannot attract traffic.
 
 Two existing environmental details also need to follow building state: field rows currently appear at civic Level 3 even if Farm was never chosen, and market awnings appear at Level 5 even if Marketplace was never chosen. Civic upgrades can still add public details such as the well and banners, while productive details should wait for their building.

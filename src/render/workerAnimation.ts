@@ -64,6 +64,20 @@ export function createWorkerAnimation(scene: THREE.Scene) {
     );
   }
 
+  /** Moves the construction crew along the same road polyline revealed for the chosen plot. */
+  function moveWorkerAlong(points: THREE.Vector2[], progress: number): void {
+    const lengths = points.slice(1).map((point, index) => point.distanceTo(points[index]));
+    let remaining = THREE.MathUtils.clamp(progress, 0, 1) * lengths.reduce((sum, length) => sum + length, 0);
+    for (let index = 1; index < points.length; index += 1) {
+      if (remaining <= lengths[index - 1] || index === points.length - 1) {
+        moveWorker(points[index - 1], points[index], lengths[index - 1] > 0 ? remaining / lengths[index - 1] : 1);
+        return;
+      }
+      remaining -= lengths[index - 1];
+    }
+    placeWorker(points[0]);
+  }
+
   /** The walk cycle clip, shared as the base texture villagers clone from. */
   function getWalkClip(): SheetClip {
     const clip = clips.get("walk:southeast");
@@ -71,7 +85,7 @@ export function createWorkerAnimation(scene: THREE.Scene) {
     return clip;
   }
 
-  return { worker, loadClips, useClip, frameFor, placeWorker, moveWorker, getWalkClip };
+  return { worker, loadClips, useClip, frameFor, placeWorker, moveWorker, moveWorkerAlong, getWalkClip };
 }
 
 export type WorkerAnimation = ReturnType<typeof createWorkerAnimation>;

@@ -299,7 +299,7 @@ export function createHud(callbacks: HudCallbacks) {
     callbacks.onTutorialModalChange(false);
     tutorialStep.textContent = "STEP 2 OF 2";
     tutorialCoachTitle.textContent = "Watch the whole city react";
-    tutorialCoachCopy.textContent = "Each move upgrades the Town Hall, adds villagers, and runs every completed building. The raiders arrive immediately after Move 8.";
+    tutorialCoachCopy.textContent = `Each move upgrades the settlement, adds villagers, and runs every completed building. The raiders arrive immediately after Move ${TOTAL_MOVES}.`;
     tutorialNext.classList.remove("hidden");
     tutorialCoach.dataset.step = "growth";
     tutorialCoach.classList.remove("hidden");

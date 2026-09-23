@@ -17,8 +17,9 @@ export function createSceneSetup(viewport: HTMLElement) {
   const camera = new THREE.OrthographicCamera(-7, 7, 4, -4, 0.1, 100);
   camera.position.set(0, 0, 10);
 
-  /** World units visible vertically; the horizontal extent follows the viewport's aspect ratio. */
-  const VIEW_HEIGHT = 40;
+  /** Keep every district within the camera, even when the app panel is nearly square. */
+  const MIN_VIEW_HEIGHT = 44;
+  const CITY_WIDTH_WITH_MARGIN = 76;
 
   /** Matches the canvas and camera to the viewport's current size. Call on window resize. */
   function resize(): void {
@@ -26,10 +27,13 @@ export function createSceneSetup(viewport: HTMLElement) {
     const height = viewport.clientHeight;
     renderer.setSize(width, height, false);
     const aspect = width / Math.max(height, 1);
-    camera.left = (-VIEW_HEIGHT * aspect) / 2;
-    camera.right = (VIEW_HEIGHT * aspect) / 2;
-    camera.top = VIEW_HEIGHT / 2;
-    camera.bottom = -VIEW_HEIGHT / 2;
+    const viewHeight = Math.max(MIN_VIEW_HEIGHT, CITY_WIDTH_WITH_MARGIN / aspect);
+    camera.left = (-viewHeight * aspect) / 2;
+    camera.right = (viewHeight * aspect) / 2;
+    camera.top = viewHeight / 2;
+    camera.bottom = -viewHeight / 2;
+    // Raise the map above the choice panel, leaving the southern districts visible.
+    camera.position.y = -2.5;
     camera.updateProjectionMatrix();
   }
 

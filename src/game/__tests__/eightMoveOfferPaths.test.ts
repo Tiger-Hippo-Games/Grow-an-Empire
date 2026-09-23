@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CONSTRUCTION_DURATION_SECONDS, TOTAL_MOVES } from "../content";
 import { SettlementSimulation } from "../settlementSimulation";
+import { getVisibleRoadSegments } from "../../render/cityLayout";
+import { buildFunctionalRoutes } from "../../render/villagers";
 
 /**
  * Exhaustively answers TECHNICAL_IMPLEMENTATION.md's own open review question:
@@ -70,5 +72,29 @@ describe("every reachable eight-move build order", () => {
   it("produces only distinct build orders (no two branches collapse to the same city)", () => {
     const signatures = new Set(leaves.map((sim) => sim.state.builtBuildingIds.join(">")));
     expect(signatures.size).toBe(leaves.length);
+  });
+
+  it("keeps every villager route on revealed roads at every reachable move", () => {
+    const checkedSets = new Set<string>();
+    for (const sim of leaves) {
+      for (let count = 0; count <= TOTAL_MOVES; count += 1) {
+        const built = sim.state.builtBuildingIds.slice(0, count);
+        const key = [...built].sort().join(",");
+        if (checkedSets.has(key)) continue;
+        checkedSets.add(key);
+        const visible = getVisibleRoadSegments(built);
+        const edgeKey = (a: { x: number; y: number }, b: { x: number; y: number }): string =>
+          [`${a.x.toFixed(6)},${a.y.toFixed(6)}`, `${b.x.toFixed(6)},${b.y.toFixed(6)}`].sort().join("|");
+        const visibleEdges = new Set(visible.map(([from, to]) => edgeKey(from, to)));
+        const routes = buildFunctionalRoutes(built);
+        for (const route of routes) {
+          for (let index = 1; index < route.points.length; index += 1) {
+            const edge = edgeKey(route.points[index - 1], route.points[index]);
+            expect(visibleEdges.has(edge), `move ${count}, built ${key}, route ${route.id} uses hidden edge ${edge}`).toBe(true);
+          }
+        }
+      }
+    }
+    expect(checkedSets.size).toBeGreaterThan(TOTAL_MOVES);
   });
 });

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { BUILDINGS, HARVEST_PHASES } from "../game/content";
 import { loadSpriteAsset, spriteFromAsset, type SpriteAsset } from "./spriteAssets";
-import { civicGround, getBuildingPosition, treeGround, type CityLayout } from "./cityLayout";
+import { getBuildingPosition, getServiceRoute, treeGround, type CityLayout } from "./cityLayout";
 import type { WorkerAnimation } from "./workerAnimation";
 import { CITY_ANIMATION } from "./animationDesign";
 
@@ -150,7 +150,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
 
     if (progress < CITY_ANIMATION.construction.surveyEnd) {
       setStatus(`Surveying the ${name} site`, progress);
-      workerAnimation.moveWorker(civicGround, plot, progress / CITY_ANIMATION.construction.surveyEnd);
+      workerAnimation.moveWorkerAlong(getServiceRoute(buildingId), progress / CITY_ANIMATION.construction.surveyEnd);
       workerAnimation.useClip("walk", "southeast", workerAnimation.frameFor("walk", "southeast", constructionElapsed));
       showPlotStage(plotIndex, "foundation");
     } else if (progress < CITY_ANIMATION.construction.foundationEnd) {

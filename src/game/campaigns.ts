@@ -20,19 +20,19 @@ export interface CampaignDefinition {
   objective: CampaignObjective;
 }
 
-/** Campaign 1: every building is available; beat the Ashfang Raiders (strength 45) after 8 moves. */
+/** Campaign 1: every building is available; defend the city after twelve moves. */
 export const CAMPAIGN_1: CampaignDefinition = {
   id: "campaign-1-first-muster",
   name: "The First Muster",
   subtitle: "Found a settlement and prepare for the bandit host.",
-  moveLimit: 8,
+  moveLimit: 12,
   availableBuildingIds: [
     "woodcutter", "farm", "swine-farm", "bakery", "sawmill", "butchery", "fruit-orchard", "winery",
     "quarry", "house", "granary", "marketplace", "blacksmith", "weapons-workshop", "barracks",
   ],
   objective: {
     enemyName: "The Ashfang Raiders",
-    briefing: "A bandit host reaches the valley after the eighth construction. Raise, equip, and supply a force before they arrive.",
-    strength: 45,
+    briefing: "A bandit host reaches the valley after the twelfth construction. Raise, equip, and supply a force before they arrive.",
+    strength: 75,
   },
 };

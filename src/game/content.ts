@@ -8,9 +8,9 @@
  */
 
 /** Number of building decisions in one campaign run. */
-export const TOTAL_MOVES = 8;
-/** Civic levels 0 (campsite) through 8 (Grand Town Hall): one per move, plus the starting level. */
-export const TOTAL_SETTLEMENT_LEVELS = 9;
+export const TOTAL_MOVES = 12;
+/** One civic level per completed move, plus the founding campsite. */
+export const TOTAL_SETTLEMENT_LEVELS = TOTAL_MOVES + 1;
 /** Simulation seconds each construction takes at 1x speed. */
 export const CONSTRUCTION_DURATION_SECONDS = 30;
 
@@ -71,16 +71,16 @@ export const BUILDINGS: Record<string, BuildingDefinition> = {
   "fruit-orchard": building({ id: "fruit-orchard", name: "Fruit Orchard", description: "Rows of fruit trees broaden the harvest.", benefit: "+2 fruit each move", unlocks: "Unlocks the Winery", artKey: "fruit-orchard", offerMove: 3, offerPriority: 7, resource: "fruit", productionSeconds: 7, productionAmount: 1 }),
   winery: building({ id: "winery", name: "Winery", description: "Presses orchard fruit into valuable wine.", benefit: "2 fruit → 2 wine", unlocks: "Raises morale and trade value", artKey: "winery", offerMove: 3, offerPriority: 8, requiresAll: ["fruit-orchard"], resource: "wine", productionSeconds: 8, productionAmount: 1 }),
   quarry: building({ id: "quarry", name: "Quarry", description: "Extracts stone for lasting civic works.", benefit: "+2 stone and defense each move", unlocks: "Unlocks the Blacksmith", artKey: "quarry", offerMove: 3, offerPriority: 9, resource: "stone", productionSeconds: 7, productionAmount: 1 }),
-  house: building({ id: "house", name: "House", description: "A permanent home marks the settlement's growth.", benefit: "Supports the growing population", unlocks: "Adds a residential district", artKey: "house", offerMove: 3, offerPriority: 10 }),
+  house: building({ id: "house", name: "House", description: "A permanent home brings more people into the settlement.", benefit: "+2 people each level after building", unlocks: "More recruits at the final muster", artKey: "house", offerMove: 1, offerPriority: 10 }),
   granary: building({ id: "granary", name: "Granary", description: "Stores the harvest safely between seasons.", benefit: "+1 grain and prevents spoilage", unlocks: "Secures the food economy", artKey: "granary", offerMove: 4, offerPriority: 11, requiresAny: ["farm", "fruit-orchard"], resource: "grain", productionSeconds: 8, productionAmount: 1 }),
   marketplace: building({ id: "marketplace", name: "Marketplace", description: "A lively square converts surplus goods into wealth.", benefit: "Wine or planks → wealth", unlocks: "Enables mercenaries", artKey: "marketplace", offerMove: 4, offerPriority: 12, resource: "wealth", productionSeconds: 8, productionAmount: 1 }),
-  blacksmith: building({ id: "blacksmith", name: "Blacksmith", description: "Stone-built forges turn materials into useful tools.", benefit: "1 stone + 1 plank → 2 tools", unlocks: "Unlocks the Weapons Workshop", artKey: "blacksmith", offerMove: 4, offerPriority: 13, requiresAll: ["quarry"], resource: "tools", productionSeconds: 9, productionAmount: 1 }),
-  "weapons-workshop": building({ id: "weapons-workshop", name: "Weapons Workshop", description: "Specialist smiths prepare standardized arms.", benefit: "1 tool + 1 plank → 2 arms", unlocks: "Unlocks the Barracks", artKey: "weapons-workshop", offerMove: 5, offerPriority: 14, requiresAll: ["blacksmith"], resource: "arms", productionSeconds: 9, productionAmount: 1 }),
-  barracks: building({ id: "barracks", name: "Barracks", description: "A disciplined garrison trains recruits every remaining move.", benefit: "+3 training each move", unlocks: "Enables veteran infantry", artKey: "barracks", offerMove: 6, offerPriority: 15, requiresAll: ["weapons-workshop"], resource: "training", productionSeconds: 10, productionAmount: 1 }),
+  blacksmith: building({ id: "blacksmith", name: "Blacksmith", description: "Stone-built forges turn materials into useful tools.", benefit: "1 stone + 1 plank → 2 tools", unlocks: "Unlocks the Barracks and Weapons Workshop", artKey: "blacksmith", offerMove: 4, offerPriority: 13, requiresAll: ["quarry"], resource: "tools", productionSeconds: 9, productionAmount: 1 }),
+  "weapons-workshop": building({ id: "weapons-workshop", name: "Weapons Workshop", description: "Specialist smiths prepare standardized arms.", benefit: "1 tool + 1 plank → 2 arms", unlocks: "Equips trained soldiers", artKey: "weapons-workshop", offerMove: 5, offerPriority: 14, requiresAll: ["blacksmith"], resource: "arms", productionSeconds: 9, productionAmount: 1 }),
+  barracks: building({ id: "barracks", name: "Barracks", description: "A disciplined garrison trains recruits every remaining move.", benefit: "+3 training and +2 defense each move", unlocks: "Trains defenders; arms create veterans", artKey: "barracks", offerMove: 1, offerPriority: 15, requiresAny: ["blacksmith", "weapons-workshop"], resource: "training", productionSeconds: 10, productionAmount: 1 }),
 };
 
 /** The three cards offered on Move 1 of every run. */
-export const OPENING_BUILD_OPTIONS = ["woodcutter", "farm", "swine-farm"];
+export const OPENING_BUILD_OPTIONS = ["woodcutter", "farm", "house"];
 
 /**
  * Whether `definition` may be offered on `move`, given the buildings already built.
@@ -156,6 +156,10 @@ export const CIVIC_LEVEL_NAMES = [
   "Town Chamber",
   "Great Hall",
   "Grand Town Hall",
+  "Stone Council",
+  "Defenders' Square",
+  "Fortified Borough",
+  "Grand Muster Hall",
 ];
 
 /** Player-facing label for each resource. Its key order is also the HUD stockpile order. */

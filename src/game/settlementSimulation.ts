@@ -30,7 +30,7 @@ export type CampaignOutcome = "Settlement Lost" | "Costly Survival" | "Victory" 
 /** Stockpile of every resource. Always contains every key (missing keys from old saves are filled with 0). */
 export type ResourceLedger = Record<ResourceName, number>;
 /** Bump this when `SettlementState`'s shape changes incompatibly; older saves are then discarded. */
-export const SAVE_SCHEMA_VERSION = 2 as const;
+export const SAVE_SCHEMA_VERSION = 3 as const;
 
 export interface ArmyUnits { militia: number; spearmen: number; archers: number; veterans: number; mercenaries: number; }
 /** The end-of-campaign result, computed once by `assembleArmy()` when the final move completes. */
@@ -233,7 +233,7 @@ export class SettlementSimulation {
     events.push({ type: "economy-resolved", activeBuildingIds: [...this.state.builtBuildingIds] });
     const previousPopulation = this.state.population;
     const houseMaturity = this.state.buildingMaturity.house ?? 0;
-    this.state.population = populationForLevel(this.state.civicLevel) + (houseMaturity > 0 ? 1 + houseMaturity : 0);
+    this.state.population = populationForLevel(this.state.civicLevel) + 2 * houseMaturity;
     if (this.state.population !== previousPopulation) events.push({ type: "population-changed", total: this.state.population });
 
     if (completedMove >= this.campaign.moveLimit) {
