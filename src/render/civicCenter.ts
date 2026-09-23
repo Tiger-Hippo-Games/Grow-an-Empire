@@ -15,8 +15,11 @@ const ART_LEVELS = Math.min(9, TOTAL_SETTLEMENT_LEVELS);
  * next one in the background (MOBILE_PERFORMANCE §36: don't preload what
  * isn't needed yet). Until a requested level arrives, the highest loaded level
  * below it stays on screen, so the center never disappears.
+ *
+ * `onChange` is called when a newly loaded level changes what's on screen,
+ * so the caller can redraw while the game is paused.
  */
-export function createCivicCenter(scene: THREE.Scene) {
+export function createCivicCenter(scene: THREE.Scene, onChange: () => void = () => {}) {
   const sprites: Array<THREE.Sprite | undefined> = [];
   const loading = new Map<number, Promise<void>>();
   let wantedLevel = 0;
@@ -37,6 +40,8 @@ export function createCivicCenter(scene: THREE.Scene) {
       sprites[level] = sprite;
       scene.add(sprite);
       applyVisibility();
+      // The game may be paused (nothing redraws by itself), so ask for a frame.
+      onChange();
     });
     loading.set(level, promise);
     promise.then(() => loading.delete(level), () => loading.delete(level));

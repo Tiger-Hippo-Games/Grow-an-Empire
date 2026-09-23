@@ -19,8 +19,8 @@ export interface PlayerInfo {
 
 /** The documented surface of `window.Platform` that this game uses. */
 export interface GoLiveSdk {
-  init(config: { apiBaseUrl?: string; gameId: string; storagePrefix?: string }): void;
-  login(): Promise<{ player: PlayerInfo; accessToken?: string }>;
+  init(config: { apiBaseUrl?: string; gameId: string; storagePrefix?: string }): void | Promise<unknown>;
+  login(): Promise<{ player: PlayerInfo; accessToken?: string } | null | undefined>;
   getGameProgress(gameId?: string): Promise<{ progress?: Record<string, unknown> | null; version?: number } | null | undefined>;
   saveGameProgress(progress: Record<string, unknown>, gameId?: string): Promise<unknown>;
   startSession(): string | void;

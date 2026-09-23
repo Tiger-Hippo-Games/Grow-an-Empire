@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CONSTRUCTION_DURATION_SECONDS } from "../../game/content";
 import { SettlementSimulation } from "../../game/settlementSimulation";
 import { createGoLivePlatform, normalizeProgress } from "../adapters";
-import { chooseSave, createProgressStore, toSavedGame, type SavedGame } from "../progressStore";
+import { belongsToAnotherPlayer, chooseSave, createProgressStore, toSavedGame, type SavedGame } from "../progressStore";
 import { createSessionTracker } from "../session";
 import type { GoLiveSdk, PlatformAdapter } from "../types";
 
@@ -175,6 +175,96 @@ describe("progress store", () => {
   });
 });
 
+describe("progress store: whose save is it", () => {
+  const campaignId = new SettlementSimulation().campaign.id;
+  const SAVE_KEY = "grow-an-empire:save:v1";
+
+  it("only treats a save as someone else's when both ids are known and differ", () => {
+    const save = { ...saveAfter(1, "r", 1), playerId: "alice" };
+    expect(belongsToAnotherPlayer(save, "bob")).toBe(true);
+    expect(belongsToAnotherPlayer(save, "alice")).toBe(false);
+    expect(belongsToAnotherPlayer(save, null)).toBe(false); // offline
+    expect(belongsToAnotherPlayer(saveAfter(1, "r", 1), "bob")).toBe(false); // guest save from before ids
+  });
+
+  it("ignores, and never uploads, a browser save that belongs to another player", async () => {
+    const { platform, saves, setCloud } = fakePlatform();
+    setCloud(saveAfter(1, "bob-run", 1) as unknown as Record<string, unknown>);
+    store.set(SAVE_KEY, JSON.stringify({ ...saveAfter(5, "alice-run", 30), playerId: "alice" }));
+    const progress = createProgressStore(platform, campaignId);
+    const chosen = await progress.load("bob");
+    expect(chosen?.runId).toBe("bob-run");
+    await progress.flush();
+    expect(saves.some((save) => (save as unknown as SavedGame).runId === "alice-run")).toBe(false);
+  });
+
+  it("stamps the signed-in player on every save", async () => {
+    const { platform, saves } = fakePlatform();
+    const progress = createProgressStore(platform, campaignId);
+    await progress.load("bob");
+    progress.save(saveAfter(1, "r", 1), { immediate: true });
+    await progress.flush();
+    expect(JSON.parse(store.get(SAVE_KEY) ?? "{}").playerId).toBe("bob");
+    expect((saves.at(-1) as unknown as SavedGame).playerId).toBe("bob");
+  });
+
+  it("keeps a guest's browser progress when they sign in (no owner recorded yet)", async () => {
+    const { platform } = fakePlatform();
+    store.set(SAVE_KEY, JSON.stringify(saveAfter(3, "guest-run", 5)));
+    expect((await createProgressStore(platform, campaignId).load("bob"))?.runId).toBe("guest-run");
+  });
+});
+
+describe("progress store: saves from a newer game version", () => {
+  const campaignId = new SettlementSimulation().campaign.id;
+  const SAVE_KEY = "grow-an-empire:save:v1";
+  const newer = (): Record<string, unknown> => ({ ...saveAfter(6, "future", 50), schemaVersion: 99 });
+
+  it("never overwrites a newer cloud save, locally or in the cloud", async () => {
+    const { platform, saves, setCloud } = fakePlatform();
+    setCloud(newer());
+    store.set(SAVE_KEY, JSON.stringify(saveAfter(2, "r", 5)));
+    const progress = createProgressStore(platform, campaignId);
+    expect(await progress.load("p")).toBeNull();
+    expect(progress.savingDisabledReason).toMatch(/newer version/);
+    progress.save(saveAfter(3, "r", 6), { immediate: true });
+    progress.clear();
+    await progress.flush();
+    expect(saves).toHaveLength(0);
+    expect(JSON.parse(store.get(SAVE_KEY) ?? "{}").state.builtBuildingIds).toHaveLength(2); // untouched
+  });
+
+  it("keeps a newer browser save instead of deleting it as unusable", async () => {
+    const { platform, saves } = fakePlatform();
+    store.set(SAVE_KEY, JSON.stringify(newer()));
+    const progress = createProgressStore(platform, campaignId);
+    expect(await progress.load("p")).toBeNull();
+    expect(JSON.parse(store.get(SAVE_KEY) ?? "{}").schemaVersion).toBe(99);
+    progress.save(saveAfter(1, "r", 1), { immediate: true });
+    await progress.flush();
+    expect(saves).toHaveLength(0);
+    expect(JSON.parse(store.get(SAVE_KEY) ?? "{}").schemaVersion).toBe(99);
+  });
+
+  it("stops saving if a conflict reveals a newer save on another device", async () => {
+    let calls = 0;
+    const { platform, setCloud } = fakePlatform({ saveProgress: async () => { calls += 1; return "conflict"; } });
+    setCloud(newer());
+    const progress = createProgressStore({ ...platform, loadProgress: async () => newer() }, campaignId);
+    progress.save(saveAfter(1, "r", 1), { immediate: true });
+    await progress.flush();
+    expect(calls).toBe(1); // no retry over the newer save
+    expect(progress.savingDisabledReason).not.toBeNull();
+  });
+
+  it("still deletes an unusable save from an older version", async () => {
+    const { platform } = fakePlatform();
+    store.set(SAVE_KEY, JSON.stringify({ ...saveAfter(1, "r", 1), schemaVersion: 2 }));
+    expect(await createProgressStore(platform, campaignId).load("p")).toBeNull();
+    expect(store.has(SAVE_KEY)).toBe(false);
+  });
+});
+
 describe("GoLive SDK wrapper", () => {
   function fakeSdk(overrides: Partial<GoLiveSdk> = {}): GoLiveSdk {
     return {
@@ -214,6 +304,44 @@ describe("GoLive SDK wrapper", () => {
     const adapter = createGoLivePlatform(fakeSdk({ track: () => { throw new Error("boom"); } }), "/api/v1");
     await adapter.connect();
     expect(() => adapter.track("x")).not.toThrow();
+  });
+
+  it("catches rejected promises from the fire-and-forget calls", async () => {
+    const rejected = () => Promise.reject(new Error("offline")) as unknown as void;
+    const adapter = createGoLivePlatform(fakeSdk({ track: rejected, startSession: rejected, endSession: rejected }), "/api/v1");
+    await adapter.connect();
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    adapter.track("x");
+    adapter.startSession();
+    adapter.endSession(12.7);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    process.off("unhandledRejection", unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it("waits for an async init() before signing in", async () => {
+    const order: string[] = [];
+    const sdk = fakeSdk({
+      init: async () => { await new Promise((resolve) => setTimeout(resolve, 5)); order.push("init"); },
+      login: async () => { order.push("login"); return { player: { id: "1", displayName: "Guest_1" } }; },
+    });
+    expect(await createGoLivePlatform(sdk, "/api/v1").connect()).not.toBeNull();
+    expect(order).toEqual(["init", "login"]);
+  });
+
+  it("treats a login with no player as offline instead of crashing", async () => {
+    const adapter = createGoLivePlatform(fakeSdk({ login: async () => null }), "/api/v1");
+    expect(await adapter.connect()).toBeNull();
+    expect(await adapter.saveProgress({ a: 1 })).toBe("error");
+  });
+
+  it("gives up on a login that never answers", async () => {
+    vi.useFakeTimers();
+    const adapter = createGoLivePlatform(fakeSdk({ login: () => new Promise(() => {}) }), "/api/v1");
+    const connecting = adapter.connect();
+    await vi.advanceTimersByTimeAsync(5100);
+    expect(await connecting).toBeNull();
   });
 });
 

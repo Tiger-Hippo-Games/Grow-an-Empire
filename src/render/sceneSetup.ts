@@ -38,6 +38,9 @@ export function createSceneSetup(viewport: HTMLElement) {
   function resize(): void {
     const width = viewport.clientWidth;
     const height = viewport.clientHeight;
+    // A hidden or 0x0 iframe reports zero size. Keep the last good camera
+    // rather than computing Infinity/NaN bounds; the next resize fixes it.
+    if (width === 0 || height === 0) return;
     renderer.setSize(width, height, false);
     const aspect = width / Math.max(height, 1);
     const viewHeight = Math.max(MIN_VIEW_HEIGHT, CITY_WIDTH_WITH_MARGIN / aspect);

@@ -1,4 +1,10 @@
 {
+  "archer-attack4.webp": {
+    "source": "Assets/Art/Generated 512/archer-attack4.png",
+    "sha256": "8469d7a97b059fcec5e7a02fdf5229af1639b2d7d7e915faad302ca26a98c190",
+    "sourceBytes": 245671,
+    "bytes": 53814
+  },
   "archer-walk4.webp": {
     "source": "Assets/Art/Generated 512/archer-walk4.png",
     "sha256": "3c51fc646b1215a019b8ccf6825bd3a64aec39a8e74280708b7005379cea914d",
@@ -106,6 +112,18 @@
     "sha256": "36994d3c1cbcd22588f73821b04c6c6036453f817f6c5b6919643bde5ce5720c",
     "sourceBytes": 256289,
     "bytes": 46486
+  },
+  "enemy-swordsman-attack4.webp": {
+    "source": "Assets/Art/Generated 512/enemy-swordsman-attack4.png",
+    "sha256": "2b5117a32a5e23fe60007e179d8b17ca6bb5a3ff7ac895ee8c001bed6eb5bf4a",
+    "sourceBytes": 306674,
+    "bytes": 49374
+  },
+  "enemy-swordsman-walk4.webp": {
+    "source": "Assets/Art/Generated 512/enemy-swordsman-walk4.png",
+    "sha256": "dba0154fd3fd39dee45dcee0d6705948e2f395387a99cfdc29b26abf91fce50b",
+    "sourceBytes": 193908,
+    "bytes": 37070
   },
   "farm-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Farm/Runtime2x/farm-construction-01-foundation-2x-v1.png",
@@ -370,6 +388,12 @@
     "sha256": "35c091b002e3a95779963eca7f5b2b80c45e24ce0a2211909af8f0150150aaac",
     "sourceBytes": 621916,
     "bytes": 84186
+  },
+  "swordsman-attack4.webp": {
+    "source": "Assets/Art/Generated 512/swordsman-attack4.png",
+    "sha256": "cdc8bec0002c619ddfbeb85112b83c5c4eed2ffa47c9938866623bb6e51ac72c",
+    "sourceBytes": 270269,
+    "bytes": 54798
   },
   "swordsman-walk4.webp": {
     "source": "Assets/Art/Generated 512/swordsman-walk4.png",

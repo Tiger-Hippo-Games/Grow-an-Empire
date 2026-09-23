@@ -26,18 +26,51 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
   worker.renderOrder = 100;
   scene.add(worker);
 
-  /** Loads the forest worker's frame animation sheets before the scene starts. */
-  async function loadClips(): Promise<void> {
-    await Promise.all(CLIP_DEFINITIONS.flatMap(([name, fps]) => DIRECTIONS.map(async (direction) => {
+  let loadingClips: Promise<void> | null = null;
+  let lastClipAttempt = -Infinity;
+  const CLIP_RETRY_MS = 30_000;
+
+  /**
+   * Loads the woodcutter's animation sheets (the ones not loaded yet). Safe to
+   * call again after a failure: sheets that loaded are kept, and only the
+   * missing ones are requested.
+   */
+  function loadClips(): Promise<void> {
+    if (loadingClips) return loadingClips;
+    lastClipAttempt = performance.now();
+    loadingClips = Promise.all(CLIP_DEFINITIONS.flatMap(([name, fps]) => DIRECTIONS.map(async (direction) => {
+      const key = `${name}:${direction}`;
+      if (clips.has(key)) return;
       const action = name === "pickup" || name === "carry" ? `${name}-log` : name;
-      clips.set(`${name}:${direction}`, await loadSheet(`woodcutter-male-01-${action}-${direction}-sheet-2x-v1.png`, fps));
-    })));
+      clips.set(key, await loadSheet(`woodcutter-male-01-${action}-${direction}-sheet-2x-v1.png`, fps));
+    }))).then(() => undefined).finally(() => { loadingClips = null; });
+    return loadingClips;
+  }
+
+  /** True once every clip is loaded. */
+  function hasAllClips(): boolean {
+    return clips.size === CLIP_DEFINITIONS.length * DIRECTIONS.length;
+  }
+
+  /**
+   * Called when the woodcutter needs a clip that isn't there (its load failed).
+   * Retries in the background, at most once every 30 s.
+   */
+  function retryMissingClips(): void {
+    if (loadingClips || hasAllClips() || performance.now() - lastClipAttempt < CLIP_RETRY_MS) return;
+    loadClips().catch((error: unknown) => console.warn("[Grow an Empire] Woodcutter animation still failing to load", error));
   }
 
   /** Switches the worker to `name`/`direction` and shows `frame`. A no-op if clips haven't loaded yet. */
   function useClip(name: AnimatedClipName, direction: Direction, frame: number): void {
     const clip = clips.get(`${name}:${direction}`);
-    if (!clip) return;
+    if (!clip) {
+      // Show the plain woodcutter walk pose rather than freezing on whatever
+      // sheet was last used, and try to fetch the missing sheet again.
+      useCharacter("woodcutter", frame % 4);
+      retryMissingClips();
+      return;
+    }
     setSheetFrame(clip, frame);
     // Changing the frame only moves the texture offset. The material itself only
     // needs recompiling when the texture changes, not on every frame.

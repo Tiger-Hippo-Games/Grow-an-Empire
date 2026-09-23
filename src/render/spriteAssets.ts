@@ -30,6 +30,9 @@ export interface CropSpec {
 
 const textureLoader = new THREE.TextureLoader();
 
+/** How long one image may take before it counts as failed. */
+export const IMAGE_TIMEOUT_MS = 45_000;
+
 /** Applies the project's standard texture settings (sRGB, mipmapped, no wrapping). */
 export function configureTexture(texture: THREE.Texture): THREE.Texture {
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -54,11 +57,21 @@ export async function loadTexture(filename: string): Promise<THREE.Texture> {
   const url = assetUrl(filename);
   imagesRequested += 1;
   notifyProgress();
+  // A stalled request (flaky mobile data, a hung HTTP/2 stream) may never fire
+  // `error`. Without a limit, whatever awaits it waits forever: a clicked card
+  // would leave the build panel disabled for good. Rejecting instead lets the
+  // callers' existing retry paths take over. 45 s is far above any real image
+  // here (the largest is 400 KB, about 2 s on Slow 4G).
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${IMAGE_TIMEOUT_MS / 1000} s`)), IMAGE_TIMEOUT_MS);
+  });
   try {
-    return configureTexture(await textureLoader.loadAsync(url));
+    return configureTexture(await Promise.race([textureLoader.loadAsync(url), timeout]));
   } catch (cause) {
     throw new Error(`Failed to load image "${filename}"`, { cause });
   } finally {
+    clearTimeout(timer);
     imagesSettled += 1;
     notifyProgress();
   }
@@ -87,7 +100,10 @@ export function onImageLoadProgress(listener: LoadProgressListener): () => void 
 export async function loadSpriteAsset(filename: string): Promise<SpriteAsset> {
   const texture = await loadTexture(filename);
   const image = texture.image as HTMLImageElement;
-  return { texture, aspect: image.naturalWidth / image.naturalHeight };
+  const aspect = image.naturalWidth / image.naturalHeight;
+  // A zero-size decode would make every sprite scale NaN or Infinity.
+  if (!Number.isFinite(aspect) || aspect <= 0) throw new Error(`Image "${filename}" decoded with no size`);
+  return { texture, aspect };
 }
 
 /** Loads an 8-frame sprite sheet; the texture is pre-scaled to show one frame at a time. */

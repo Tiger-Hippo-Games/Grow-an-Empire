@@ -153,6 +153,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
   const villagers: Villager[] = [];
   const garrison: THREE.Sprite[] = [];
   let muster: { report: ArmyReport; startedAt: number } | null = null;
+  let combatActive = false;
   const musterOrigin = new THREE.Vector2(civicGround.x + 0.2, civicGround.y - 2.0);
   let lastMusterElapsed: number | null = null;
 
@@ -244,8 +245,15 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
   /** Returns to commuting on restart. */
   function clearArmyMuster(): void {
     muster = null;
+    combatActive = false;
     for (const soldier of garrison) soldier.visible = true;
-    for (const villager of villagers) villager.material.color.setHex(0xffffff);
+    for (const villager of villagers) { villager.sprite.visible = true; villager.material.color.setHex(0xffffff); }
+  }
+
+  function setCombatActive(value: boolean): void {
+    combatActive = value;
+    for (const villager of villagers) villager.sprite.visible = !value;
+    for (const soldier of garrison) soldier.visible = false;
   }
 
   /**
@@ -292,6 +300,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
 
   /** Per-frame: positions, flips, tints, and animates every visible villager. */
   function renderVillagers(animationElapsed: number, builtBuildingIds: string[]): void {
+    if (combatActive) return;
     if (muster) {
       renderMuster(animationElapsed);
       return;
@@ -316,5 +325,5 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     }
   }
 
-  return { syncVillagers, syncGarrison, renderVillagers, beginArmyMuster, clearArmyMuster };
+  return { syncVillagers, syncGarrison, renderVillagers, beginArmyMuster, clearArmyMuster, setCombatActive };
 }

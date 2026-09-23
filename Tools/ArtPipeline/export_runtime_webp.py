@@ -46,6 +46,7 @@ SOURCES = [
     "Assets/Art/Production/Environment/Trees/Deciduous01/Runtime2x/deciduous-01-healthy-2x-v1.png",
     "Assets/Art/Production/Environment/Terrain/village-empty-terrain-16x9-v2.png",
     "Assets/Art/Generated 512/*-walk4.png",
+    "Assets/Art/Generated 512/*-attack4.png",
 ]
 # Glob matches that the game does not use.
 EXCLUDE_NAMES = {"campsite-level-1-2x-v1.png"}

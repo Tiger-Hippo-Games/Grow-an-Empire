@@ -80,7 +80,7 @@ describe("nextBuildingOffer", () => {
   it("offers dependent buildings when their final prerequisite is completed", () => {
     expect(nextBuildingOffer(["woodcutter"], ["farm", "quarry"], 2, "woodcutter")).toBe("sawmill");
     expect(nextBuildingOffer(["farm"], ["woodcutter", "quarry"], 2, "farm")).toBe("swine-farm");
-    expect(nextBuildingOffer(["woodcutter", "sawmill", "quarry"], ["farm", "swine-farm"], 4, "quarry")).toBe("house");
+    expect(nextBuildingOffer(["woodcutter", "sawmill", "quarry"], ["farm", "swine-farm"], 4, "quarry")).toBe("weapons-workshop");
   });
 
   it("never re-offers a built or already-available building", () => {
@@ -97,7 +97,7 @@ describe("nextBuildingOffer", () => {
 
   it("falls back to earliest offerMove then lowest offerPriority when nothing depends on the last build", () => {
     const offer = nextBuildingOffer(["woodcutter", "sawmill", "quarry", "house"], ["farm"], 5, "house");
-    expect(offer).toBe("blacksmith");
+    expect(offer).toBe("weapons-workshop");
   });
 
   it("returns undefined when every eligible building is already built or offered", () => {

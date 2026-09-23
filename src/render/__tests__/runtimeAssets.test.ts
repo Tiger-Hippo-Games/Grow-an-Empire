@@ -26,6 +26,7 @@ function referencedFilenames(): string[] {
     ...["walk", "chop", "pickup-log", "carry-log"].flatMap((action) =>
       ["southeast", "southwest"].map((direction) => `woodcutter-male-01-${action}-${direction}-sheet-2x-v1.png`)),
     ...(Object.keys(CHARACTER_FILES) as CharacterRole[]).map(walkSheetFilename),
+    "enemy-swordsman-walk4.png", "enemy-swordsman-attack4.png", "swordsman-attack4.png", "archer-attack4.png",
     ...Object.keys(BUILDINGS).flatMap((id) => STAGES.map((stage) => buildingFilename(id, stage))),
   ];
   return [...new Set(names)];
@@ -48,5 +49,5 @@ describe("runtime art bundle", () => {
       .filter(([, entry]) => createHash("sha256").update(readFileSync(resolve(ROOT, entry.source))).digest("hex") !== entry.sha256)
       .map(([name]) => name);
     expect(stale).toEqual([]);
-  });
+  }, 30_000); // Hashes every PNG master: slow when the whole suite runs in parallel.
 });

@@ -38,6 +38,8 @@
             if ((event.target.src || "").indexOf("platform-sdk.js") !== -1) return;
             show("A script file failed to load.");
           }
+          // A bug inside the portal's SDK doesn't stop the game (it falls back to offline play).
+          else if ((event.filename || "").indexOf("platform-sdk.js") !== -1) return;
           else if (event.message) show(event.message + ".");
         }, true);
         window.addEventListener("unhandledrejection", function (event) {
@@ -78,7 +80,7 @@
           <strong id="phase">Loading assets…</strong>
           <div class="progress-track" aria-hidden="true"><div id="phase-progress" class="progress-fill"></div></div>
         </div>
-        <div class="raid-objective"><span>DEFEND THE CITY</span><strong>Raiders arrive after move 12</strong></div>
+        <div class="raid-objective"><span>DEFEND THE CITY</span><strong>5 swordsmen arrive after move 12</strong></div>
       </section>
 
       <section class="settlement-hud" aria-label="Settlement progress">
@@ -128,7 +130,7 @@
             <h2 id="army-report-title">The First Muster</h2>
             <strong id="army-outcome">Victory</strong>
           </div>
-          <div class="army-score"><span>Campaign score</span><b id="army-score">0</b></div>
+          <div class="army-score"><span>Enemy swordsmen</span><b id="army-score">5</b></div>
         </div>
         <p id="army-summary" class="army-summary"></p>
         <div id="army-units" class="army-units"></div>

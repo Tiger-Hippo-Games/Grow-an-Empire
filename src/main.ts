@@ -1,7 +1,6 @@
 import { Timer } from "three";
 import { BUILDINGS, OPENING_BUILD_OPTIONS, TOTAL_MOVES } from "./game/content";
 import { SettlementSimulation, type SettlementSnapshot, type SimulationEvent } from "./game/settlementSimulation";
-import { clearSavedSnapshot } from "./game/saveGame";
 import { createPlatform } from "./platform/adapters";
 import { createProgressStore, DEFAULT_SETTINGS, newRunId, type SavedGame, type SavedSettings } from "./platform/progressStore";
 import { createSessionTracker, listenForPortalMessages, notifyPortalReady } from "./platform/session";
@@ -11,6 +10,7 @@ import { createCivicCenter } from "./render/civicCenter";
 import { createWorkerAnimation } from "./render/workerAnimation";
 import { createConstructionView } from "./render/constructionView";
 import { createVillagerField } from "./render/villagers";
+import { createCombatScene } from "./render/combatScene";
 import { createCharacterAssets, roleForBuilding } from "./render/characterAssets";
 import { onImageLoadProgress } from "./render/spriteAssets";
 import { createHud, type HudStateSnapshot } from "./ui/hud";
@@ -47,6 +47,9 @@ let selectionPending = false;
 let runId = 0;
 /** Set if the frame loop throws; the game pauses rather than throwing again 60 times a second. */
 let loopFailed = false;
+const LOOP_FAILED_MESSAGE = "Something went wrong in the simulation. Press Restart, or reload to continue from your last save.";
+/** Set if drawing itself throws (e.g. a shader fails to compile); drawing stops instead of failing every frame. */
+let renderFailed = false;
 /** True while the portal has paused the game (GP_PAUSE), so GP_RESUME only undoes its own pause. */
 let pausedByPortal = false;
 /** Identifies this playthrough in saves; Restart starts a new one (see platform/progressStore.ts). */
@@ -76,14 +79,45 @@ function track(eventName: string, properties: Record<string, unknown> = {}): voi
   platform.track(eventName, { ...properties, game_version: __APP_VERSION__ });
 }
 
+/**
+ * Reports an unexpected error to the portal's analytics, so failures on
+ * players' devices are visible to us (CODING_STANDARDS §20). Each distinct
+ * message is sent once, and at most 5 per page load, so a repeating error
+ * can't flood the analytics.
+ */
+const reportedErrors = new Set<string>();
+function reportRuntimeError(error: unknown, where: string): void {
+  const message = (error instanceof Error ? error.message : String(error)).slice(0, 200);
+  const key = `${where}:${message}`;
+  if (reportedErrors.has(key) || reportedErrors.size >= 5) return;
+  reportedErrors.add(key);
+  track("runtime_error", { where, message });
+}
+
+// Errors nobody caught (a bug in an event handler, a rejected promise with no
+// .catch). Before boot, index.html's watchdog shows them on the loading
+// screen; after boot the game keeps running, so they're logged and reported.
+window.addEventListener("error", (event) => {
+  if (initialized && event.error !== undefined) reportRuntimeError(event.error ?? event.message, "uncaught");
+});
+window.addEventListener("unhandledrejection", (event) => {
+  if (initialized) reportRuntimeError(event.reason, "unhandled_rejection");
+});
+
 const hud = createHud({
   onPlayToggle: () => {
+    if (loopFailed) {
+      // Resuming would just hit the same error again; only Restart or a reload recovers.
+      hud.setPlayingLabel(false);
+      hud.setStatus(LOOP_FAILED_MESSAGE, 0);
+      return;
+    }
     playing = !playing;
     pausedByPortal = false;
     hud.setPlayingLabel(playing);
   },
   onRestart: () => {
-    clearSavedSnapshot();
+    progress.clear();
     saveRunId = newRunId();
     resetSettlement();
     autosave({ immediate: true });
@@ -107,7 +141,15 @@ const hud = createHud({
     autosave();
     if (firstTime) track(skipped ? "tutorial_skipped" : "tutorial_completed", { step_count: stepCount, time_seconds: seconds });
   },
-  onSelectBuilding: (buildingId) => beginConstruction(buildingId),
+  onSelectBuilding: (buildingId) => {
+    beginConstruction(buildingId).catch((error: unknown) => {
+      // Not a load failure (those are handled inside): something broke while
+      // placing the building. Say so rather than failing silently.
+      console.error("[Grow an Empire] Starting construction failed", error);
+      reportRuntimeError(error, "begin_construction");
+      hud.setStatus("Something went wrong starting that building. Press Restart, or reload to continue from your last save.", 0);
+    });
+  },
   onTutorialModalChange: (visible) => {
     if (visible) {
       resumeAfterTutorial = playing;
@@ -130,11 +172,43 @@ function resize(): void {
   terrain?.fit(view.width, view.height, view.centerX, view.centerY);
 }
 const cityLayout = createCityLayout(scene);
-const civicCenter = createCivicCenter(scene);
+const civicCenter = createCivicCenter(scene, requestRender);
 const characterAssets = createCharacterAssets();
 const workerAnimation = createWorkerAnimation(scene, characterAssets);
 const constructionView = createConstructionView(scene, workerAnimation, cityLayout, hud.setStatus);
 const villagerField = createVillagerField(scene, characterAssets);
+const combatScene = createCombatScene(scene, characterAssets);
+let lastCombatStatus: string | null = null;
+
+function showBattleResult(): void {
+  const report = simulation.state.armyReport;
+  if (!report) return;
+  villagerField.setCombatActive(false);
+  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
+  villagerField.beginArmyMuster(report, animationElapsed);
+  hud.renderArmyReport(report, buildOrderNames(), simulation.campaign.objective.enemyName);
+  hud.showMilestone(report.outcome, report.outcome === "Victory" ? "The city held against all five raiders." : "The raiders broke through the defense.", animationElapsed, true);
+  hud.setStatus(`Campaign complete — ${report.outcome}`, 1);
+  requestRender();
+}
+
+async function startCombat(report: NonNullable<SettlementSnapshot["state"]["armyReport"]>): Promise<void> {
+  const startingRun = runId;
+  hud.hideMilestone();
+  hud.hideArmyReport();
+  hud.setStatus("Five raider swordsmen are attacking the clearing!", 0);
+  try {
+    await combatScene.load();
+    if (runId !== startingRun || simulation.state.mode !== "complete") return;
+    villagerField.setCombatActive(true);
+    combatScene.start(report, animationElapsed);
+    lastCombatStatus = null;
+    requestRender();
+  } catch (error) {
+    console.error("[Grow an Empire] Combat art failed to load", error);
+    if (runId === startingRun) showBattleResult();
+  }
+}
 
 const timer = new Timer();
 timer.connect(document); // Resets the delta when the tab becomes visible again, so a background tab doesn't cause a jump.
@@ -279,8 +353,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       const newUnits = [event.newSwordsmen && "1 swordsman", event.newArchers && "1 archer"].filter(Boolean).join(" and ");
       hud.setStatus(`${newUnits} joined the Barracks garrison · ${event.units.swordsmen + event.units.archers} defenders`, 1);
     } else if (event.type === "army-mustered") {
-      villagerField.beginArmyMuster(event.report, animationElapsed);
-      hud.renderArmyReport(event.report, buildOrderNames(), simulation.campaign.objective.enemyName);
+      void startCombat(event.report);
     } else if (event.type === "game-complete") {
       const report = simulation.state.armyReport;
       if (report?.outcome === "Settlement Lost") track("level_failed", { level: TOTAL_MOVES, reason: report.outcome });
@@ -294,13 +367,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       session.end();
       workerAnimation.worker.visible = false;
       hud.hideBuildPanel();
-      hud.showMilestone(
-        simulation.state.armyReport?.outcome ?? "Army mustered",
-        `Campaign score ${simulation.state.armyReport?.score ?? 0} against ${simulation.campaign.objective.enemyName}.`,
-        animationElapsed,
-        true,
-      );
-      hud.setStatus(`Campaign complete — ${simulation.state.armyReport?.outcome ?? "muster resolved"}`, 1);
+      hud.setStatus("The city defense is under way…", 1);
     }
   }
   if (events.length === 0) return; // Nothing changed: skip the HUD rewrite and the save (runs every frame).
@@ -319,6 +386,8 @@ function buildOrderNames(): string[] {
 /** Starts a brand-new run and resets every render/UI object to match (also used when a save can't be restored). */
 function resetSettlement(): void {
   runId += 1;
+  combatScene.clear();
+  lastCombatStatus = null;
   selectionPending = false;
   loopFailed = false;
   simulation.reset();
@@ -335,9 +404,9 @@ function resetSettlement(): void {
   civicCenter.setLevel(0);
   hud.setCivicLevel(0);
   hud.updateHud(stateSnapshot());
+  villagerField.clearArmyMuster();
   villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
   villagerField.syncGarrison(simulation.state.trainedUnits);
-  villagerField.clearArmyMuster();
   workerAnimation.worker.visible = true;
   workerAnimation.placeWorker(civicGround);
   workerAnimation.useCharacter("builder");
@@ -351,6 +420,9 @@ function resetSettlement(): void {
  * the save is already loaded (see `initialize()`).
  */
 function hydrateFromLoadedState(): void {
+  runId += 1;
+  combatScene.clear();
+  lastCombatStatus = null;
   constructionView.clearPlots();
   cityLayout.hideAllRoads();
   animationElapsed = 0;
@@ -401,9 +473,7 @@ function hydrateFromLoadedState(): void {
     workerAnimation.worker.visible = false;
     hud.hideBuildPanel();
     if (simulation.state.armyReport) {
-      villagerField.beginArmyMuster(simulation.state.armyReport, animationElapsed);
-      hud.renderArmyReport(simulation.state.armyReport, buildOrderNames(), simulation.campaign.objective.enemyName);
-      hud.setStatus(`Campaign complete — ${simulation.state.armyReport.outcome}`, 1);
+      void startCombat(simulation.state.armyReport);
     }
   }  requestRender();
 }
@@ -455,7 +525,15 @@ listenForPortalMessages((message) => {
     playing = true;
     pausedByPortal = false;
     hud.setPlayingLabel(true);
+    // GP_SESSION_END ended the analytics session; a resume means play goes on.
+    if (initialized && simulation.state.mode !== "complete") session.start();
   } else if (message === "GP_SESSION_END") {
+    // The portal is closing the game: stop, save everywhere, end the session.
+    if (playing) {
+      playing = false;
+      pausedByPortal = true;
+      hud.setPlayingLabel(false);
+    }
     onPageExit();
   }
 });
@@ -481,7 +559,7 @@ function tryResume(saved: SettlementSnapshot): boolean {
     return true;
   } catch (error) {
     console.warn("Saved settlement could not be restored; starting a new one.", error);
-    clearSavedSnapshot();
+    progress.clear();
     return false;
   }
 }
@@ -504,10 +582,14 @@ function legacyTutorialCompleted(): boolean {
 function applyTestingUrlFlags(): boolean {
   const url = new URL(window.location.href);
   if (!url.searchParams.has("reset")) return false;
-  clearSavedSnapshot();
+  progress.clear();
   try { window.localStorage.removeItem("grow-an-empire:tutorial:v1"); } catch { /* Storage unavailable. */ }
   url.searchParams.delete("reset");
-  window.history.replaceState(null, "", url);
+  try {
+    window.history.replaceState(null, "", url);
+  } catch {
+    // Some sandboxed iframes refuse history changes; the flag then stays in the URL, which is harmless.
+  }
   return true;
 }
 
@@ -537,7 +619,7 @@ async function initialize(): Promise<void> {
     (window as unknown as { __gaeLoadActivityAt: number }).__gaeLoadActivityAt = Date.now();
     hud.setLoadingProgress(settled, requested);
   });
-  const savedPromise = platform.connect().then(() => progress.load());
+  const savedPromise = platform.connect().then((player) => progress.load(player?.id ?? null));
   // Only what the first screen needs blocks boot (about 1 MB). Everything else
   // starts once the game is playable (see startBackgroundLoads) so it doesn't
   // compete for bandwidth on a slow connection (MOBILE_PERFORMANCE §34-§37).
@@ -567,6 +649,7 @@ async function initialize(): Promise<void> {
     resetSettlement();
     if (saved) hud.setStatus("Your saved settlement couldn't be restored, so a new one has begun. Choose your first building.", 0);
   }
+  if (progress.savingDisabledReason) hud.setStatus(progress.savingDisabledReason, 0);
   stopProgress();
   resize();
   requestRender();
@@ -592,6 +675,7 @@ async function initialize(): Promise<void> {
 function startBackgroundLoads(offered: string[]): void {
   constructionView.loadBuildingAssets(offered).catch((error: unknown) => console.warn("[Grow an Empire] Preloading offered buildings failed", error));
   workerAnimation.loadClips().catch((error: unknown) => console.warn("[Grow an Empire] Woodcutter animation failed to load", error));
+  combatScene.load().catch((error: unknown) => console.warn("[Grow an Empire] Combat art preloading failed", error));
 }
 
 /** One frame: advance the simulation (if playing), then animate and draw. */
@@ -616,6 +700,14 @@ function frame(): void {
     constructionView.renderWoodcutterActivity(animationElapsed, simulation.state.builtBuildingIds);
   }
   villagerField.renderVillagers(animationElapsed, simulation.state.builtBuildingIds);
+  if (combatScene.update(animationElapsed)) showBattleResult();
+  else {
+    const combatStatus = combatScene.status(animationElapsed);
+    if (combatStatus && combatStatus !== lastCombatStatus) {
+      lastCombatStatus = combatStatus;
+      hud.setStatus(combatStatus, 1);
+    }
+  }
   hud.updateMilestoneVisibility(animationElapsed);
   constructionView.renderProductionPulses(animationElapsed);
 }
@@ -653,15 +745,26 @@ renderer.setAnimationLoop(() => {
     loopFailed = true;
     playing = false;
     hud.setPlayingLabel(false);
-    hud.setStatus("Something went wrong in the simulation. Press Restart, or reload to continue from your last save.", 0);
+    hud.setStatus(LOOP_FAILED_MESSAGE, 0);
     console.error(error);
+    reportRuntimeError(error, "frame");
   }
   // Draw only while the scene can change: the game is playing, or something
   // asked for a redraw (MOBILE_PERFORMANCE §48: stop work when paused).
-  if (contextLost || !initialized) return;
+  if (contextLost || !initialized || renderFailed) return;
   if ((playing && !loopFailed) || renderRequested) {
-    renderer.render(scene, camera);
     renderRequested = false;
+    try {
+      renderer.render(scene, camera);
+    } catch (error) {
+      renderFailed = true;
+      playing = false;
+      hud.setPlayingLabel(false);
+      hud.setStatus("The graphics failed to draw. Reload to continue from your last save.", 0);
+      console.error(error);
+      reportRuntimeError(error, "render");
+      return;
+    }
     perfOverlay?.sample();
   }
 });

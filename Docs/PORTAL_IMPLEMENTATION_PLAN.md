@@ -2,6 +2,20 @@
 
 *Written 2026-09-23 from the 12 portal guideline files in `common/`, audited against the current code.*
 
+## Status: all seven phases built (2026-09-23)
+
+| Phase | State | Where |
+|---|---|---|
+| 1. Build and packaging | ✅ Done | `pnpm package`, `Tools/dev/`, WebP art in `Assets/Runtime/` (ADR 0003) |
+| 2. Platform SDK | ✅ Done | `src/platform/` (ADR 0001, 0002), `Tools/dev/iframe-test.html` |
+| 3. Load time and performance | ✅ Done | `Docs/PERFORMANCE_BUDGET.md`: 1.27 s to playable at 10 Mbps |
+| 4. Mobile and layout | ✅ Done | Six viewports pass the layout audit |
+| 5. Store listing | ✅ Done, **owner input needed** | `Docs/STORE_LISTING.md`; fill the TODOs in `Assets/Art/PROVENANCE.md` |
+| 6. Housekeeping | ✅ Done (6.1–6.4, 6.7) | `AGENTS.md`, ESLint in `pnpm check`, `Docs/adr/`. The optional 6.5 (balance config) and 6.6 (scene dispose) are not done. |
+| 7. QA and submission | ✅ Automated QA done; ⬜ real devices and the portal steps are the owner's | `Docs/QA_RESULTS.md`, `Docs/SUBMISSION_CHECKLIST.md`, `Tools/qa/` |
+
+The sections below are the original plan, kept as written. The game has since moved from 8 moves to 12, so references to "eight" moves are historical.
+
 ## 1. Where we stand
 
 The game already fits the portal well in several ways:

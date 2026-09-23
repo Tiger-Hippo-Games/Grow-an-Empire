@@ -1,5 +1,6 @@
 param(
-  [string]$ArtDirectory = (Join-Path $PSScriptRoot '..\Assets\Art\Generated 512')
+  [string]$ArtDirectory = (Join-Path $PSScriptRoot '..\Assets\Art\Generated 512'),
+  [string]$SourceName = '*'
 )
 
 Add-Type -AssemblyName System.Drawing
@@ -11,7 +12,7 @@ $poses = @(
   @{ Lean = 1.0; Bounce = -4; LeftStep = -1; RightStep = 1 }
 )
 
-foreach ($file in Get-ChildItem -LiteralPath $ArtDirectory -Filter '*.png' | Where-Object { $_.BaseName -notlike '*-walk4' }) {
+foreach ($file in Get-ChildItem -LiteralPath $ArtDirectory -Filter '*.png' | Where-Object { $_.Name -like $SourceName -and $_.BaseName -notlike '*-walk4' -and $_.BaseName -notlike '*-attack4' }) {
   $source = [System.Drawing.Bitmap]::FromFile($file.FullName)
   try {
     if ($source.Width -ne 512 -or $source.Height -ne 512) {

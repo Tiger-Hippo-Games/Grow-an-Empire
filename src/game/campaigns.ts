@@ -1,9 +1,9 @@
 /**
  * Campaign definitions. A campaign sets the move limit, which buildings may be
- * offered, and the enemy the final army is scored against.
+ * offered, and the enemy force at the finale.
  */
 
-/** The threat faced after the final move. `strength` is the score needed for a plain "Victory". */
+/** The threat faced after the final move. `strength` is the number of enemy swordsmen. */
 export interface CampaignObjective {
   enemyName: string;
   briefing: string;
@@ -32,7 +32,7 @@ export const CAMPAIGN_1: CampaignDefinition = {
   ],
   objective: {
     enemyName: "The Ashfang Raiders",
-    briefing: "A bandit host reaches the valley after the twelfth construction. Raise, equip, and supply a force before they arrive.",
-    strength: 65,
+    briefing: "Five swordsmen attack after Move 12. Defend with six swordsmen, ten archers, or at least three of each.",
+    strength: 5,
   },
 };

@@ -51,22 +51,40 @@ back to `npx pnpm@11.19.0` if pnpm isn't installed).
 | Get through the twelve moves quickly | Click **Speed** until it shows 8× |
 | Re-read the tutorial without losing your game | Click **How to play** |
 | Check the production build | `pnpm build` then `pnpm preview` (serves on port 4174, so it can run beside the dev server) |
-| Run type-checks and tests | `pnpm check` (or `pnpm test:watch` while editing game logic) |
+| Run type-checks, lint and tests | `pnpm check` (or `pnpm test:watch` while editing game logic) |
+| See FPS, draw calls and textures | Add `?perf` to the URL |
+| Try the low-quality tier | Add `?quality=low` |
+| Test cloud saves without the portal | Add `?platform=mock` (a fake portal SDK keeps its "cloud" in localStorage and logs every call to the console) |
+| Test inside a portal-like iframe | Open `http://127.0.0.1:4173/Tools/dev/iframe-test.html` (buttons send pause, resume and session end) |
 
 ### Troubleshooting
 
 - **"Port 4173 is already in use"**: a dev server is already running (maybe in another window). Use that one, or close it first.
 - **The page says "The game didn't start"**: the code failed before the game could load. The dev server's terminal window shows the actual error (often a typo in a file you just edited). Fix it, then click Reload.
-- **"Could not load the settlement. Failed to load image …"**: that art file is missing from `Assets/Art/Production/…` or was renamed. The filename in the message says which one.
+- **"Could not load the settlement. Failed to load image …"** or **"Bundled asset not found: …"**: the runtime WebP for that art is missing. Run `pnpm art:export` after adding or renaming art in `Assets/Art/Production/…` (new art also needs adding to `SOURCES` in `Tools/ArtPipeline/export_runtime_webp.py`). The filename in the message says which one.
 - **Game looks stuck on an old state**: open `?reset` as above.
 
 ## Verify
 
 ```powershell
-pnpm check                 # tsc --noEmit + vitest
+pnpm check                 # tsc --noEmit + ESLint + vitest
 pnpm build                 # production build into dist/
 python Tools/ArtPipeline/validate_harvest_loop.py
 ```
+
+## Build for the GoLive portal
+
+```powershell
+pnpm package               # build + release/grow-an-empire-<version>.zip + bundle validator
+```
+
+The validator checks the portal's rules: size under 50 MB, `index.html` at the root, the SDK script tag, relative paths, no localhost URLs, no `alert()`, and the thumbnail and banner. It prints "Ready to upload" when the ZIP passes. Upload steps and the listing text are in `Docs/SUBMISSION_CHECKLIST.md` and `Docs/STORE_LISTING.md`. The portal's own rules are in `common/`.
+
+- **Runtime art** is WebP, generated from the PNGs with `pnpm art:export` (Python 3 + Pillow). A test fails if it's out of date.
+- **Store images** are made with `python Tools/ArtPipeline/make_store_art.py`.
+- **Performance targets** and how to measure them: `Docs/PERFORMANCE_BUDGET.md`.
+- **Design decisions**: `Docs/adr/`.
+- **Notes for coding agents**: `AGENTS.md`.
 
 ## Asset workflow
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CAMPAIGN_1 } from "../campaigns";
 import { CONSTRUCTION_DURATION_SECONDS, populationForLevel, TOTAL_MOVES } from "../content";
 import { isValidSnapshot, SAVE_SCHEMA_VERSION, SettlementSimulation, type SettlementSnapshot } from "../settlementSimulation";
+import { defenseStrategy } from "../combatRules";
 
 function build(sim: SettlementSimulation, buildingId: string) {
   const started = sim.chooseBuilding(buildingId);
@@ -103,7 +104,7 @@ describe("move economy", () => {
     }
     expect(archers).toBeGreaterThan(0);
     expect(swordsmen).toBeGreaterThan(0);
-    expect(sim.state.armyReport?.units.archers).toBe(archers);
+    expect(sim.state.armyReport?.units.archers).toBe(archers + 1); // Final reserve recruit, separate from per-move training.
     expect(sim.state.armyReport?.units.swordsmen).toBe(swordsmen);
   });
 });
@@ -131,10 +132,24 @@ describe("Campaign 1 finale", () => {
     expect(sim.state.resources).toEqual(resources);
   });
 
+  it("can reach the swordsman, archer, and mixed defenses within twelve moves", () => {
+    const paths = [
+      { preference: ["woodcutter", "sawmill", "quarry", "farm", "bakery", "blacksmith", "house", "granary", "swine-farm", "butchery", "fruit-orchard", "winery", "marketplace", "barracks"], strategy: "swordsmen" },
+      { preference: ["woodcutter", "sawmill", "quarry", "weapons-workshop", "farm", "house", "bakery", "granary", "swine-farm", "butchery", "fruit-orchard", "winery", "marketplace", "barracks"], strategy: "archers" },
+      { preference: ["woodcutter", "sawmill", "quarry", "weapons-workshop", "blacksmith", "farm"], strategy: "mixed" },
+    ] as const;
+    for (const path of paths) {
+      const sim = playPreferred([...path.preference]);
+      expect(sim.state.builtBuildingIds, path.strategy).toHaveLength(12);
+      expect(defenseStrategy(sim.state.armyReport!.units), `${path.strategy}: ${sim.state.builtBuildingIds.join(",")} / ${JSON.stringify(sim.state.armyReport!.units)}`).toBe(path.strategy);
+      expect(sim.state.armyReport?.outcome, path.strategy).toBe("Victory");
+    }
+  });
+
   it("rewards a complete supply-and-arms chain with victory", () => {
     const sim = playPreferred(["house", "woodcutter", "sawmill", "farm", "bakery", "quarry", "blacksmith", "barracks", "weapons-workshop", "swine-farm", "butchery", "granary"]);
     expect(["Victory", "Decisive Victory", "Flourishing Victory"]).toContain(sim.state.armyReport?.outcome);
-    expect(sim.state.armyReport?.score).toBeGreaterThanOrEqual(CAMPAIGN_1.objective.strength);
+    expect(sim.state.armyReport?.enemyStrength).toBe(CAMPAIGN_1.objective.strength);
     expect(sim.state.armyReport?.supplyTurns).toBeGreaterThan(0);
     expect(sim.state.armyReport?.units.archers).toBeGreaterThan(0);
   });

@@ -244,8 +244,8 @@ export function createHud(callbacks: HudCallbacks) {
   /** Fills in and opens the end-of-campaign army report. `buildOrder` is building names, move 1 first. */
   function renderArmyReport(report: ArmyReport, buildOrder: string[], enemyName: string): void {
     armyOutcome.textContent = report.outcome;
-    armyScore.textContent = `${report.score} / ${report.enemyStrength}`;
-    armySummary.textContent = `${report.totalUnits} troops answer the muster against ${enemyName}. Build order: ${buildOrder.join(" → ")}.`;
+    armyScore.textContent = String(report.enemyStrength);
+    armySummary.textContent = `${report.enemyStrength} swordsmen from ${enemyName} attacked. ${report.units.swordsmen} swordsmen and ${report.units.archers} archers defended the clearing. Build order: ${buildOrder.join(" → ")}.`;
     const unitLabels: Array<[keyof ArmyReport["units"], string]> = [
       ["militia", "Militia"], ["spearmen", "Spearmen"], ["archers", "Archers"],
       ["swordsmen", "Swordsmen"], ["mercenaries", "Mercenaries"],
@@ -391,10 +391,31 @@ export function createHud(callbacks: HudCallbacks) {
   stockpileToggle.addEventListener("click", () => setStockpileVisible(resourceLedger.classList.contains("hidden")));
   stockpileClose.addEventListener("click", () => setStockpileVisible(false));
   helpToggle.addEventListener("click", showTutorialWelcome);
-  tutorialStart.addEventListener("click", () => buildPanel.classList.contains("hidden") ? showGrowthCoach() : showChoiceCoach());
-  tutorialSkip.addEventListener("click", () => finishTutorial(true));
+  // The clicked dialog button disappears with the dialog, so move keyboard
+  // focus somewhere useful rather than leaving it on a hidden element.
+  tutorialStart.addEventListener("click", () => {
+    if (buildPanel.classList.contains("hidden")) {
+      showGrowthCoach();
+      tutorialNext.focus();
+    } else {
+      showChoiceCoach();
+      buildPanel.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus();
+    }
+  });
+  tutorialSkip.addEventListener("click", () => {
+    finishTutorial(true);
+    helpToggle.focus();
+  });
   // Keyboard support for the modal dialog: Esc skips it, Tab stays inside it.
-  tutorialScrim.addEventListener("keydown", (event) => {
+  // Listens on the document, not the dialog, so it still works after a click
+  // on the backdrop has moved focus out of the dialog.
+  document.addEventListener("keydown", (event) => {
+    if (tutorialScrim.classList.contains("hidden")) return;
+    if (event.key === "Tab" && !tutorialScrim.contains(document.activeElement)) {
+      event.preventDefault();
+      tutorialStart.focus();
+      return;
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       finishTutorial(true);
@@ -408,7 +429,11 @@ export function createHud(callbacks: HudCallbacks) {
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     }
   });
-  tutorialNext.addEventListener("click", () => finishTutorial(false));
+  tutorialNext.addEventListener("click", () => {
+    const hadFocus = document.activeElement === tutorialNext;
+    finishTutorial(false);
+    if (hadFocus) helpToggle.focus();
+  });
   viewCity.addEventListener("click", hideArmyReport);
   musterToggle.addEventListener("click", () => armyReport.classList.toggle("hidden"));
 
@@ -418,7 +443,6 @@ export function createHud(callbacks: HudCallbacks) {
     setLoadingProgress,
     setStatus,
     setCivicLevel,
-    setResource,
     updateHud,
     renderBuildPanel,
     hideBuildPanel,
@@ -434,7 +458,6 @@ export function createHud(callbacks: HudCallbacks) {
     resetArmyReport,
     maybeStartTutorial,
     handleTutorialEvent,
-    isGridChecked: () => gridVisible,
   };
 }
 

@@ -1,4 +1,5 @@
 import { CAMPAIGN_1, type CampaignDefinition } from "./campaigns";
+import { defenseStrategy } from "./combatRules";
 import {
   CONSTRUCTION_DURATION_SECONDS,
   BUILDINGS,
@@ -186,6 +187,9 @@ export class SettlementSimulation {
       if (Number.isFinite(loaded.resources[key])) resources[key] = loaded.resources[key];
     }
     Object.assign(this.state, createInitialState(), loaded, { resources, armyReport: loaded.armyReport ?? null });
+    // Completed saves from older balancing rules retain their city and build
+    // order, while the finale reflects the current five-raider defense rules.
+    if (this.state.mode === "complete") this.state.armyReport = this.assembleArmy();
   }
 
   /**
@@ -333,21 +337,25 @@ export class SettlementSimulation {
   }
 
   /**
-   * Scores the settlement against the campaign enemy after the final move.
+   * Resolves the settlement defense after the final move.
    *
    * Trained archers and swordsmen carry through from completed moves. Remaining
    * recruits come from population above 8 (65%); arms can equip reserve spearmen.
    * Mercenaries are hired with wealth and rations if a Marketplace exists.
-   * The final score blends combat strength (65%), city defense (20%), supply turns
-   * and morale, and maps to an outcome tier. This reads resources but does not
-   * change them, so the report can be recomputed from a save.
+   * The score remains a campaign statistic; victory follows the army composition
+   * thresholds in combatRules. This reads resources without changing them.
    */
   private assembleArmy(): ArmyReport {
     const built = new Set(this.state.builtBuildingIds);
     const resources = this.state.resources;
     let recruits = Math.max(0, Math.floor((this.state.population - 8) * 0.65) - this.state.trainedUnits.archers - this.state.trainedUnits.swordsmen);
-    let arms = resources.arms;
-    const archers = this.state.trainedUnits.archers;
+    const arms = resources.arms;
+    // One reserve recruit can be equipped at the final muster. This makes the
+    // 10-archer defense achievable in a 12-move run when the Workshop is built
+    // at the earliest possible Move 4 (nine regular production moves).
+    const reserveArcher = built.has("weapons-workshop") && resources.planks > 0 && recruits > 0 ? 1 : 0;
+    recruits -= reserveArcher;
+    const archers = this.state.trainedUnits.archers + reserveArcher;
     const swordsmen = this.state.trainedUnits.swordsmen;
     const spearmen = built.has("weapons-workshop") ? Math.min(arms, recruits) : 0;
     recruits -= spearmen;
@@ -361,14 +369,13 @@ export class SettlementSimulation {
     const supplyTurns = Math.min(8, Math.floor(resources.rations / Math.max(1, Math.ceil(totalUnits / 4))));
     const cityDefense = resources.defense + Math.floor(resources.stone / 2) + Math.floor(resources.planks / 3) + this.state.civicLevel * 2;
     const score = Math.round(combatStrength * 0.65 + cityDefense * 0.2 + supplyTurns * 2 + morale * 0.1);
-    let outcome: CampaignOutcome = "Settlement Lost";
-    if (score >= this.campaign.objective.strength + 37) outcome = "Flourishing Victory";
-    else if (score >= this.campaign.objective.strength + 22) outcome = "Decisive Victory";
-    else if (score >= this.campaign.objective.strength) outcome = "Victory";
-    else if (score >= this.campaign.objective.strength * 0.6) outcome = "Costly Survival";
+    const strategy = defenseStrategy(units);
+    const outcome: CampaignOutcome = strategy ? "Victory" : "Settlement Lost";
 
     const explanations: string[] = [];
-    explanations.push(`${archers} archers and ${swordsmen} swordsmen trained one at a time across the completed moves.`);
+    explanations.push(`${this.state.trainedUnits.archers} archers and ${swordsmen} swordsmen trained one at a time across the completed moves.`);
+    if (reserveArcher) explanations.push("A final reserve archer joined the defense using stored planks.");
+    explanations.push(strategy === "swordsmen" ? "Six or more swordsmen held the raider line." : strategy === "archers" ? "Ten or more archers stopped the raiders with volleys." : strategy === "mixed" ? "At least three archers and three swordsmen combined to hold the clearing." : "The defense needed six swordsmen, ten archers, or at least three of each.");
     explanations.push(built.has("weapons-workshop") ? `The workshops forged ${resources.arms} standardized arms before the muster.` : "No Weapons Workshop was completed, so recruits lacked standardized equipment.");
     explanations.push(resources.rations > 0 ? `${resources.rations} stored rations can support the army for ${supplyTurns} campaign turn(s).` : "The city entered battle without preserved campaign rations.");
     if (built.has("marketplace")) explanations.push("Marketplace wealth allowed the city to supplement its ranks with mercenaries.");

@@ -40,6 +40,22 @@ function isConflict(error: unknown): boolean {
   return error instanceof Error && /conflict|409/i.test(error.message);
 }
 
+/**
+ * Calls a "fire-and-forget" SDK method safely. The docs type these as
+ * returning nothing, but an SDK build may return a promise; a rejected one
+ * would otherwise surface as an unhandled rejection. Catches both.
+ */
+function callQuietly(call: () => unknown, onError: (error: unknown) => void): void {
+  try {
+    const result = call();
+    if (result && typeof (result as PromiseLike<unknown>).then === "function") {
+      Promise.resolve(result).catch(onError);
+    }
+  } catch (error) {
+    onError(error);
+  }
+}
+
 /** Wraps `window.Platform`. Every call is guarded so the SDK can never break the game. */
 export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): PlatformAdapter {
   let connected = false;
@@ -54,8 +70,15 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): Platfo
     kind: "golive",
     async connect(): Promise<PlayerInfo | null> {
       try {
-        sdk.init({ apiBaseUrl, gameId: GAME_ID });
-        const { player } = await withTimeout(sdk.login(), LOGIN_TIMEOUT_MS, "Platform.login()");
+        // init() may be sync or async depending on the SDK build. init and
+        // login share one time budget, because boot waits for them.
+        const signIn = async () => {
+          await sdk.init({ apiBaseUrl, gameId: GAME_ID });
+          return sdk.login();
+        };
+        const result = await withTimeout(signIn(), LOGIN_TIMEOUT_MS, "Platform.init()/login()");
+        const player = result?.player;
+        if (!player || typeof player.id !== "string") throw new Error("Platform.login() returned no player");
         connected = true;
         console.info("[GoLive] Player active", { id: player.id, displayName: player.displayName, authType: player.authType });
         return player;
@@ -86,15 +109,17 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): Platfo
     },
     startSession() {
       if (!connected) return;
-      try { sdk.startSession(); } catch (error) { warn("session", "startSession failed", error); }
+      callQuietly(() => sdk.startSession(), (error) => warn("session", "startSession failed", error));
     },
     endSession(durationSeconds) {
       if (!connected) return;
-      try { sdk.endSession(Math.max(0, Math.floor(durationSeconds))); } catch (error) { warn("session-end", "endSession failed", error); }
+      const seconds = Number.isFinite(durationSeconds) ? Math.max(0, Math.floor(durationSeconds)) : 0;
+      callQuietly(() => sdk.endSession(seconds), (error) => warn("session-end", "endSession failed", error));
     },
     track(eventName, properties) {
       if (!connected) return;
-      try { sdk.track(eventName, properties); } catch { /* The SDK documents track() as fire-and-forget. */ }
+      // Analytics must never affect play; failures are reported once.
+      callQuietly(() => sdk.track(eventName, properties), (error) => warn("track", "track() failed", error));
     },
   };
 }

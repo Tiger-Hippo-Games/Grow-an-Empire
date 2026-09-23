@@ -12,4 +12,8 @@ declare module "node:fs" {
 declare module "node:path" {
   export function resolve(...segments: string[]): string;
 }
-declare const process: { cwd(): string };
+declare const process: {
+  cwd(): string;
+  on(event: string, listener: (...args: unknown[]) => void): void;
+  off(event: string, listener: (...args: unknown[]) => void): void;
+};
