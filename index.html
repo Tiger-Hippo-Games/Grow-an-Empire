@@ -6,6 +6,40 @@
     <meta name="theme-color" content="#13271b" />
     <meta name="description" content="Grow an Empire — an eight-move branching settlement slice" />
     <title>Grow an Empire — Nine Settlement Levels</title>
+    <script>
+      // Boot watchdog. main.ts shows its own error screen once it's running, but
+      // if the game's code can't load or throws before that (e.g. a typo while
+      // editing, or the dev server stopped), the page would otherwise sit on the
+      // loading spinner forever. This replaces the spinner with an explanation.
+      // It stands down as soon as main.ts marks <html data-booted>.
+      (function () {
+        var shown = false;
+        function show(detail) {
+          if (shown || document.documentElement.dataset.booted) return;
+          var loading = document.getElementById("loading");
+          if (!loading || loading.querySelector("button")) return; // main.ts already showed its own error.
+          shown = true;
+          var title = document.createElement("strong");
+          title.textContent = "The game didn't start.";
+          var body = document.createElement("span");
+          body.textContent = detail + " If you're running the dev server, check its terminal window for errors, then reload.";
+          var retry = document.createElement("button");
+          retry.type = "button";
+          retry.textContent = "Reload";
+          retry.onclick = function () { window.location.reload(); };
+          loading.replaceChildren(title, body, retry);
+        }
+        window.addEventListener("error", function (event) {
+          if (event.target instanceof HTMLScriptElement) show("A script file failed to load.");
+          else if (event.message) show(event.message + ".");
+        }, true);
+        window.addEventListener("unhandledrejection", function (event) {
+          var reason = event.reason;
+          show((reason && reason.message ? reason.message : String(reason)) + ".");
+        });
+        setTimeout(function () { show("It's still loading after 45 seconds."); }, 45000);
+      })();
+    </script>
   </head>
   <body>
     <main id="app">
@@ -71,7 +105,7 @@
       <section class="controls" aria-label="Simulation controls">
         <button id="play-toggle" type="button">Pause</button>
         <button id="speed-toggle" type="button" aria-label="Change simulation speed">Speed · 1×</button>
-        <button id="grid-toggle" type="button" aria-pressed="true">Grid · On</button>
+        <button id="grid-toggle" type="button" aria-pressed="false">Grid · Off</button>
         <button id="muster-toggle" class="hidden" type="button">Army report</button>
         <button id="help-toggle" type="button">How to play</button>
         <button id="restart" class="quiet-control" type="button">Restart</button>

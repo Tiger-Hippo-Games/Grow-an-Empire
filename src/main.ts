@@ -3,7 +3,7 @@ import { BUILDINGS, OPENING_BUILD_OPTIONS, TOTAL_MOVES } from "./game/content";
 import { SettlementSimulation, type SettlementSnapshot, type SimulationEvent } from "./game/settlementSimulation";
 import { clearSavedSnapshot, loadSavedSnapshot, saveSnapshot } from "./game/saveGame";
 import { createSceneSetup } from "./render/sceneSetup";
-import { civicGround, createCityLayout, getBuildingPosition, loadForest } from "./render/cityLayout";
+import { civicGround, createCityLayout, getBuildingPosition, loadEmptyTerrain, loadForest } from "./render/cityLayout";
 import { createCivicCenter } from "./render/civicCenter";
 import { createWorkerAnimation } from "./render/workerAnimation";
 import { createConstructionView } from "./render/constructionView";
@@ -350,6 +350,21 @@ function tryResume(saved: SettlementSnapshot): boolean {
 }
 
 /**
+ * Testing convenience: open the game with `?reset` in the URL
+ * (e.g. http://127.0.0.1:4173/?reset) to discard the autosave and show the
+ * tutorial again, i.e. play exactly as a first-time player would. The flag is
+ * removed from the address bar straight away, so a later reload resumes normally.
+ */
+function applyTestingUrlFlags(): void {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("reset")) return;
+  clearSavedSnapshot();
+  hud.resetTutorialProgress();
+  url.searchParams.delete("reset");
+  window.history.replaceState(null, "", url);
+}
+
+/**
  * Boot sequence: load shared art, restore the autosave if there is a usable
  * one (otherwise start fresh), then reveal the game.
  *
@@ -366,11 +381,13 @@ function tryResume(saved: SettlementSnapshot): boolean {
  * *save* is unusable, it's discarded and a new settlement starts.
  */
 async function initialize(): Promise<void> {
+  applyTestingUrlFlags();
   const saved = loadSavedSnapshot();
   await Promise.all([
     workerAnimation.loadClips(),
     constructionView.loadBuildingAssets(saved ? buildingsNeededFor(saved) : OPENING_BUILD_OPTIONS),
     civicCenter.load(),
+    loadEmptyTerrain(scene),
     loadForest(scene),
   ]);
 
@@ -382,6 +399,7 @@ async function initialize(): Promise<void> {
   }
   resize();
   hud.loading.classList.add("hidden");
+  document.documentElement.dataset.booted = "true"; // Tells the boot watchdog in index.html that startup succeeded.
   initialized = true;
   autosave();
   hud.maybeStartTutorial(!resumed);

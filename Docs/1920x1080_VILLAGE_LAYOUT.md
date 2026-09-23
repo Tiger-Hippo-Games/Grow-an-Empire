@@ -2,6 +2,8 @@
 
 This is a composition target for the current fixed isometric camera, not a new build order. The Town Hall grows at the center; each of the fifteen optional building types keeps one known plot. An eight-move run still constructs only eight of them. The 75–100 person village is a possible later population target, so extra homes and population rules need a separate design decision.
 
+The integrated empty base map is [`village-empty-terrain-16x9-v2.png`](../Assets/Art/Production/Environment/Terrain/village-empty-terrain-16x9-v2.png), a 1920 × 1080 painted terrain image. It contains no buildings or roads. The civic campsite, permanent harvestable trees, and all later construction remain separate scene layers.
+
 See [the screen plan](../Assets/Art/Concepts/village-1920-layout-plan.svg) for the proposed on-screen placement. The labels, plot rings, and dashed roads are planning marks only. They should never appear on bare land in the game.
 
 ## Screen composition

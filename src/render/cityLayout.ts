@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { loadCroppedSprite } from "./spriteAssets";
+import { loadCroppedSprite, loadTexture } from "./spriteAssets";
 
 /**
  * The static, building-identity-keyed world: plot positions, districts, the
@@ -14,6 +14,18 @@ export const civicGround = new THREE.Vector2(-0.8, -0.3);
 export const treeGround = new THREE.Vector2(10.1, 5.6);
 /** Vertical offset from a ground point to the worker sprite's center, so its feet sit on the point. */
 export const workerFootOffset = 0.95;
+
+/** The 16:9 painted ground is drawn below every road, prop, sprite, and optional grid line. */
+export async function loadEmptyTerrain(scene: THREE.Scene): Promise<void> {
+  const texture = await loadTexture("village-empty-terrain-16x9-v2.png");
+  const terrain = new THREE.Mesh(
+    new THREE.PlaneGeometry(40 * (16 / 9), 40),
+    new THREE.MeshBasicMaterial({ map: texture, depthTest: false, depthWrite: false }),
+  );
+  terrain.position.z = -1;
+  terrain.renderOrder = -100;
+  scene.add(terrain);
+}
 
 /**
  * Fixed ground position of every building. Positions are keyed by building
@@ -171,18 +183,10 @@ export interface CityLayout {
 /** Builds the static ground, forest, fields, roads, and placement indicator, and adds them all to `scene`. */
 export function createCityLayout(scene: THREE.Scene): CityLayout {
   const grid = createIsoGrid();
+  grid.visible = false;
   scene.add(grid);
 
   const background = new THREE.Group();
-  const plaza = new THREE.Mesh(
-    new THREE.CircleGeometry(3.4, 48),
-    new THREE.MeshBasicMaterial({ color: 0xc7ae79, transparent: true, opacity: 0.42, depthTest: false }),
-  );
-  plaza.position.set(civicGround.x + 0.75, civicGround.y, 0.06);
-  plaza.scale.y = 0.58;
-  plaza.renderOrder = -7;
-  background.add(plaza);
-
   const districtRoads = new Map<string, THREE.Group>();
   const buildingRoads = new Map<string, THREE.Group>();
   const workflowRoads = new Map<string, THREE.Group>();
@@ -226,18 +230,6 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
   well.scale.y = 0.58;
   well.renderOrder = -1;
   environmentStages[4].add(well);
-
-  // Level 5: market awnings turn the central road into a recognisable square.
-  [[1.0, 1.15, 0xb6543d], [1.75, 1.35, 0xd1a342], [2.45, 1.0, 0x587f54]].forEach(([x, y, color]) => {
-    const stall = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.65, 0.34),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthTest: false }),
-    );
-    stall.position.set(x, y, 0.13);
-    stall.rotation.z = -0.18;
-    stall.renderOrder = 2;
-    environmentStages[5].add(stall);
-  });
 
   // Level 6: warm road lamps mark the five district approaches.
   [[2.3, 1.15], [-2.7, 1.35], [-2.45, -1.45], [2.25, -1.35], [0.8, 0.15]].forEach(([x, y]) => {
@@ -298,43 +290,6 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     background.add(group);
   }
 
-  const districtGrounds: Array<[CityDistrict, THREE.Vector2, number, number]> = [
-    ["civic", new THREE.Vector2(0.1, 0), 4.4, 0xbfa76e],
-    ["forest", new THREE.Vector2(8, 5), 5.2, 0x456c3b],
-    ["farms", new THREE.Vector2(-7.4, 3.4), 5.0, 0x9b8948],
-    ["provisions", new THREE.Vector2(-6.2, -4.4), 5.0, 0x72834b],
-    ["industry", new THREE.Vector2(6.2, -5.0), 5.2, 0x77746a],
-  ];
-  for (const [, center, radius, color] of districtGrounds) {
-    const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(radius, 40),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthTest: false }),
-    );
-    ground.position.set(center.x, center.y, 0.025);
-    ground.scale.y = 0.55;
-    ground.renderOrder = -9;
-    background.add(ground);
-  }
-
-  const forestFloor = new THREE.Mesh(
-    new THREE.CircleGeometry(5.0, 48),
-    new THREE.MeshBasicMaterial({ color: 0x486d3e, transparent: true, opacity: 0.2, depthTest: false }),
-  );
-  forestFloor.position.set(8.2, 5.0, 0.04);
-  forestFloor.scale.y = 0.56;
-  forestFloor.renderOrder = -8;
-  background.add(forestFloor);
-
-  const fieldMaterial = new THREE.LineBasicMaterial({ color: 0xb99855, transparent: true, opacity: 0.58, depthTest: false });
-  for (let row = 0; row < 7; row += 1) {
-    const geometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-11.2, 2.9 + row * 0.5, 0.07),
-      new THREE.Vector3(-7.3, 4.8 + row * 0.22, 0.07),
-    ]);
-    const line = new THREE.Line(geometry, fieldMaterial);
-    line.renderOrder = -3;
-    environmentStages[3].add(line);
-  }
   scene.add(background);
 
   const placementMaterial = new THREE.MeshBasicMaterial({ color: 0xe6bd63, transparent: true, opacity: 0.18, depthTest: false });

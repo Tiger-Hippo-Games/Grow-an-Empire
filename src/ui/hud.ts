@@ -97,7 +97,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   let milestoneUntil = 0;
   let selectedSpeed = 1;
-  let gridVisible = true;
+  let gridVisible = false;
   let tutorialActive = false;
   const tutorialStorageKey = "grow-an-empire:tutorial:v1";
 
@@ -307,6 +307,11 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   /** Opens the tutorial on a brand-new campaign, unless the player has finished or skipped it before. */
+  /** Forgets that the tutorial was completed, so it shows again on the next fresh campaign (used by `?reset`). */
+  function resetTutorialProgress(): void {
+    try { window.localStorage.removeItem(tutorialStorageKey); } catch { /* Storage unavailable. */ }
+  }
+
   function maybeStartTutorial(isFreshCampaign: boolean): void {
     if (isFreshCampaign && !tutorialWasCompleted()) showTutorialWelcome();
   }
@@ -357,6 +362,7 @@ export function createHud(callbacks: HudCallbacks) {
     hideArmyReport,
     resetArmyReport,
     maybeStartTutorial,
+    resetTutorialProgress,
     handleTutorialEvent,
     isGridChecked: () => gridVisible,
   };
