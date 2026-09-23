@@ -56,7 +56,7 @@ describe("snapshot validation beyond shape", () => {
 
   it("rejects an out-of-range civic level", () => {
     const snapshot = midConstructionSnapshot();
-    snapshot.state.civicLevel = 12;
+    snapshot.state.civicLevel = 13;
     expect(describeSnapshotProblem(snapshot)).toMatch(/civic level/);
   });
 });

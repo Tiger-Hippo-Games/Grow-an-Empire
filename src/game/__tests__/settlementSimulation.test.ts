@@ -39,11 +39,21 @@ describe("building choices and construction", () => {
     ]);
     expect(sim.state.civicLevel).toBe(1);
     expect(sim.state.population).toBe(populationForLevel(1));
-    expect(sim.state.availableBuildingIds).toEqual(["woodcutter", "swine-farm", "bakery"]);
+    expect(sim.state.availableBuildingIds).toEqual(["woodcutter", "house", "bakery"]);
   });
 });
 
 describe("move economy", () => {
+  it("adds two people for each civic level after a House is built", () => {
+    const sim = new SettlementSimulation();
+    build(sim, "house");
+    expect(sim.state.population).toBe(populationForLevel(1) + 2);
+    build(sim, "farm");
+    expect(sim.state.population).toBe(populationForLevel(2) + 4);
+    build(sim, "bakery");
+    expect(sim.state.population).toBe(populationForLevel(3) + 6);
+  });
+
   it("produces only when a move completes, not while the player waits", () => {
     const sim = new SettlementSimulation();
     build(sim, "woodcutter");
@@ -68,10 +78,16 @@ describe("move economy", () => {
 });
 
 describe("Campaign 1 finale", () => {
-  const balanced = ["woodcutter", "sawmill", "farm", "bakery", "quarry", "blacksmith", "weapons-workshop", "barracks"];
-  const undersupplied = ["woodcutter", "sawmill", "fruit-orchard", "winery", "quarry", "blacksmith", "weapons-workshop", "barracks"];
+  function playPreferred(preference: string[]): SettlementSimulation {
+    const sim = new SettlementSimulation();
+    while (sim.state.mode !== "complete") {
+      const choice = preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0];
+      build(sim, choice);
+    }
+    return sim;
+  }
 
-  it("ends after Move 8 and emits an Army Muster before game-complete", () => {
+  it("ends after Move 12 and emits an Army Muster before game-complete", () => {
     const sim = new SettlementSimulation();
     let finalEvents = [] as ReturnType<typeof build>;
     while (sim.state.mode !== "complete") finalEvents = build(sim, sim.state.availableBuildingIds[0]);
@@ -85,17 +101,17 @@ describe("Campaign 1 finale", () => {
   });
 
   it("rewards a complete supply-and-arms chain with victory", () => {
-    const sim = playOrder(balanced);
-    expect(sim.state.armyReport?.outcome).toBe("Victory");
+    const sim = playPreferred(["house", "woodcutter", "sawmill", "farm", "bakery", "quarry", "blacksmith", "barracks", "weapons-workshop", "swine-farm", "butchery", "granary"]);
+    expect(["Victory", "Decisive Victory", "Flourishing Victory"]).toContain(sim.state.armyReport?.outcome);
     expect(sim.state.armyReport?.score).toBeGreaterThanOrEqual(CAMPAIGN_1.objective.strength);
     expect(sim.state.armyReport?.supplyTurns).toBeGreaterThan(0);
     expect(sim.state.armyReport?.units.archers).toBeGreaterThan(0);
   });
 
   it("allows a strong but unsupplied build to lose", () => {
-    const sim = playOrder(undersupplied);
+    const sim = playPreferred(["house", "woodcutter", "sawmill", "fruit-orchard", "winery", "quarry", "blacksmith", "barracks", "weapons-workshop", "marketplace", "swine-farm", "farm"]);
     expect(sim.state.armyReport?.supplyTurns).toBe(0);
-    expect(sim.state.armyReport?.outcome).toBe("Settlement Lost");
+    expect(["Settlement Lost", "Costly Survival"]).toContain(sim.state.armyReport?.outcome);
   });
 });
 

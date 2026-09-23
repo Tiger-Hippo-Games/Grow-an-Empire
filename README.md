@@ -1,18 +1,18 @@
 # Grow an Empire
 
-An HTML5/Three.js vertical slice of a branching eight-move city. The player makes one strategic building choice per move while the settlement constructs, produces, upgrades, and populates itself automatically.
+An HTML5/Three.js city defense game. The player makes one strategic building choice per move while the settlement constructs, produces, upgrades, and populates itself automatically.
 
 The playable slice includes:
 
-- a rolling three-card build pool across eight moves;
-- fifteen possible district buildings, with eight selected in any one city;
-- nine civic states: Level 0 campsite plus one upgrade per move, ending at the Grand Town Hall;
-- prerequisite-driven offers such as Farm → Bakery, Orchard → Winery, and Blacksmith → Weapons Workshop → Barracks;
-- visible autonomous population growth from 1 villager at Level 0 to 37 villagers at Level 8;
+- a rolling build pool across twelve moves, with three cards offered whenever eligible choices remain;
+- fifteen possible district buildings, with twelve selected in any one city;
+- thirteen civic states: Level 0 campsite plus one upgrade per move, ending at the Grand Muster Hall;
+- prerequisite-driven offers such as Farm → Bakery, Orchard → Winery, and Blacksmith → Barracks or Weapons Workshop;
+- population growth from 1 villager at Level 0 to 79 at Level 12, with an early House adding 2 people per subsequent level;
 - semantic city districts with five roads that grow toward occupied civic, forest, farm, southwest, and industrial quarters;
 - autonomous resource production and complementary-building bonuses;
-- a 30-second default construction cadence with pause, restart, 0.5–8× speed, and grid controls;
-- a hard decision stop after Move 8, with the chosen buildings continuing to operate.
+- a 30-second default construction cadence with pause, restart, 1–8× speed, and grid controls;
+- a final army muster after Move 12, scored against the approaching raiders.
 
 See `Docs/BUILD_ORDER_CONTENT.md` for the offer rules and `Docs/GAME_ARCHITECTURE.md` for runtime boundaries.
 
@@ -42,7 +42,7 @@ back to `npx pnpm@11.19.0` if pnpm isn't installed).
 | Want to… | Do this |
 |---|---|
 | Start over as a first-time player (no save, tutorial shown) | Open `http://127.0.0.1:4173/?reset` (the flag clears itself, so later reloads resume normally) |
-| Get through the eight moves quickly | Click **Speed** until it shows 8× |
+| Get through the twelve moves quickly | Click **Speed** until it shows 8× |
 | Re-read the tutorial without losing your game | Click **How to play** |
 | Check the production build | `pnpm build` then `pnpm preview` (serves on port 4174, so it can run beside the dev server) |
 | Run type-checks and tests | `pnpm check` (or `pnpm test:watch` while editing game logic) |

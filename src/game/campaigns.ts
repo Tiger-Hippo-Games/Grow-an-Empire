@@ -33,6 +33,6 @@ export const CAMPAIGN_1: CampaignDefinition = {
   objective: {
     enemyName: "The Ashfang Raiders",
     briefing: "A bandit host reaches the valley after the twelfth construction. Raise, equip, and supply a force before they arrive.",
-    strength: 75,
+    strength: 65,
   },
 };

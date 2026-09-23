@@ -180,7 +180,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       // (The final move's toast is replaced right away by the game-complete one.)
       const copy = completedMove < TOTAL_MOVES
         ? `Completed on Move ${completedMove}. The civic center also advanced.`
-        : `Completed on Move ${completedMove}. The Grand Town Hall now anchors the expanding city.`;
+        : `Completed on Move ${completedMove}. The Grand Muster Hall stands ready to defend the city.`;
       hud.showMilestone(BUILDINGS[event.buildingId].name, copy, animationElapsed);
     } else if (event.type === "civic-upgraded") {
       civicCenter.setLevel(event.level);

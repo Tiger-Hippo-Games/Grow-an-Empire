@@ -2,9 +2,9 @@
 
 ## Product contract
 
-The player is the settlement's strategic authority. They choose one building on each of eight moves; villagers execute it autonomously. The two unchosen cards carry forward and one prerequisite-valid card enters the pool. Direct unit control is outside the core loop.
+The player is the settlement's strategic authority. They choose one building on each of twelve moves; villagers execute it autonomously. Unchosen cards carry forward and one prerequisite-valid card enters the pool when available. Direct unit control is outside the core loop.
 
-The central civic site has nine states: the Level 0 Founding Campsite and eight incremental upgrades. Move 8 produces the Grand Town Hall and ends further decisions. The resulting city contains eight of the fifteen possible districts.
+The central civic site has thirteen levels: the Level 0 Founding Campsite and twelve incremental upgrades. Move 12 produces the Grand Muster Hall and ends further decisions with an army report. The resulting city contains twelve of the fifteen possible buildings.
 
 ## Runtime layers
 
@@ -15,7 +15,7 @@ The central civic site has nine states: the Level 0 Founding Campsite and eight 
 - `src/render/sceneSetup.ts`: renderer, scene, camera, and viewport resize.
 - `src/render/spriteAssets.ts`: texture loading/configuration and sprite-sheet frame addressing, independent of any specific building or character.
 - `src/render/cityLayout.ts`: building plot positions, districts, the isometric grid, the road network and its reveal-on-build behavior, the placement indicator, and the static forest.
-- `src/render/civicCenter.ts`: the nine stacked civic-center appearances.
+- `src/render/civicCenter.ts`: the available civic-center art, with later levels using the Grand Town Hall appearance while the environment develops further.
 - `src/render/workerAnimation.ts`: the single roaming "active builder" sprite and its sprite-sheet clips, shared by the construction animation and the Woodcutter's harvest loop.
 - `src/render/constructionView.ts`: per-plot construction-stage sprites, the construction phase presentation, the Woodcutter harvest loop, and production pulses.
 - `src/render/villagers.ts`: the population's crowd sprites and their orbit animation around civic/building hubs.
@@ -26,10 +26,10 @@ The central civic site has nine states: the Level 0 Founding Campsite and eight 
 
 - Simulation time is authoritative; rendering never awards resources.
 - A move accepts exactly one currently available card.
-- Unchosen cards persist and one eligible new option restores the next pool to three cards. Exhaustively verified across all 3^8 = 6,561 possible eight-move build orders in `src/game/__tests__/eightMoveOfferPaths.test.ts`: the pool never drops below three choices before Move 8, for the current building catalog.
+- Unchosen cards persist and one eligible new option enters the next pool when available. An exhaustive traversal of reachable twelve-move build orders in `src/game/__tests__/twelveMoveOfferPaths.test.ts` checks that every move remains playable and villager routes use revealed roads.
 - Prerequisite chains cannot be offered before their dependency is built.
-- Population at civic level `n` is `1 + n(n+1)/2`.
-- Civic level equals completed moves and reaches Level 8 on the final move.
+- Base population at civic level `n` is `1 + n(n+1)/2`; a House adds 2 per level after it is built.
+- Civic level equals completed moves and reaches Level 12 on the final move.
 - The final state stops new decisions; selected buildings, villagers, and production remain active.
 - A save snapshot is a versioned (`SAVE_SCHEMA_VERSION`), JSON-safe copy of `SettlementState` only — it carries no render objects. Resuming rebuilds every plot sprite, road, and civic/HUD display from that state rather than replaying construction; loading rejects any snapshot whose schema version doesn't match.
 
@@ -41,13 +41,13 @@ Five main road corridors radiate from the civic plaza. A district road and its s
 
 ## Testing
 
-`pnpm test` (vitest) runs three suites under `src/game/__tests__/`:
+`pnpm test` (vitest) runs the game and render suites:
 
 - `content.test.ts` — catalog integrity (no dangling/self prerequisites, unique offer priorities) and `isBuildingEligible`/`nextBuildingOffer` unit behavior.
 - `settlementSimulation.test.ts` — construction/move progression, resource production math (cycle flooring, remainder carry, tool boost, synergy doubling), `reset`, `buildOrderSummary`, and the save/load round trip (including a real JSON round trip, as it will see via localStorage).
-- `eightMoveOfferPaths.test.ts` — the exhaustive all-paths proof described above.
+- `twelveMoveOfferPaths.test.ts` — the exhaustive all-paths check described above.
 
-These are pure-logic tests with no Three.js or DOM dependency, so they run in milliseconds and belong in CI once one exists.
+The game rules can be tested without a browser; the route checks use Three.js geometry without a WebGL context.
 
 ## Next production work
 

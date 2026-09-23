@@ -262,11 +262,11 @@ export class SettlementSimulation {
    *   1. every building matures by one move;
    *   2. raw producers add resources (output grows by 1 every 3 moves of maturity);
    *   3. converters consume inputs in a fixed order (sawmill, bakery, butchery, winery,
-   *      blacksmith, weapons workshop, marketplace), each limited by its capacity
+   *      weapons workshop, blacksmith, marketplace), each limited by its capacity
    *      (also +1 every 3 moves) and by the inputs available at that point;
    *   4. grain spoils above 6 without a Granary; defense accrues.
-   * Because converters run in sequence, earlier ones (e.g. the Blacksmith) can use
-   * up planks a later one (the Weapons Workshop) wanted. That is part of the balance.
+   * The Weapons Workshop uses existing tools before the Blacksmith can consume
+   * the turn's planks, keeping military production viable late in the campaign.
    */
   private resolveMoveEconomy(): void {
     const built = new Set(this.state.builtBuildingIds);
@@ -298,13 +298,13 @@ export class SettlementSimulation {
       const cycles = Math.min(capacity("winery"), Math.floor(resources.fruit / 2));
       resources.fruit -= cycles * 2; resources.wine += cycles * 2;
     }
-    if (built.has("blacksmith")) {
-      const cycles = Math.min(capacity("blacksmith"), resources.stone, resources.planks);
-      resources.stone -= cycles; resources.planks -= cycles; resources.tools += cycles * 2;
-    }
     if (built.has("weapons-workshop")) {
       const cycles = Math.min(capacity("weapons-workshop"), resources.tools, resources.planks);
       resources.tools -= cycles; resources.planks -= cycles; resources.arms += cycles * 2;
+    }
+    if (built.has("blacksmith")) {
+      const cycles = Math.min(capacity("blacksmith"), resources.stone, resources.planks);
+      resources.stone -= cycles; resources.planks -= cycles; resources.tools += cycles * 2;
     }
     if (built.has("marketplace")) {
       const cycles = capacity("marketplace");
@@ -332,7 +332,7 @@ export class SettlementSimulation {
     const resources = this.state.resources;
     let recruits = Math.max(0, Math.floor((this.state.population - 8) * 0.65));
     let arms = resources.arms;
-    const archers = built.has("woodcutter") && built.has("sawmill") && built.has("weapons-workshop") ? Math.min(6, Math.floor(arms * 0.35), resources.planks, recruits) : 0;
+    const archers = built.has("woodcutter") && built.has("sawmill") && built.has("weapons-workshop") ? Math.min(6, Math.ceil(arms * 0.35), Math.max(resources.planks, Math.floor(resources.wood / 2)), recruits) : 0;
     recruits -= archers; arms -= archers;
     const veterans = built.has("barracks") ? Math.min(Math.floor(resources.training / 2), arms, recruits) : 0;
     recruits -= veterans; arms -= veterans;
@@ -349,10 +349,10 @@ export class SettlementSimulation {
     const cityDefense = resources.defense + Math.floor(resources.stone / 2) + Math.floor(resources.planks / 3) + this.state.civicLevel * 2;
     const score = Math.round(combatStrength * 0.65 + cityDefense * 0.2 + supplyTurns * 2 + morale * 0.1);
     let outcome: CampaignOutcome = "Settlement Lost";
-    if (score >= 82) outcome = "Flourishing Victory";
-    else if (score >= 67) outcome = "Decisive Victory";
+    if (score >= this.campaign.objective.strength + 37) outcome = "Flourishing Victory";
+    else if (score >= this.campaign.objective.strength + 22) outcome = "Decisive Victory";
     else if (score >= this.campaign.objective.strength) outcome = "Victory";
-    else if (score >= 40) outcome = "Costly Survival";
+    else if (score >= this.campaign.objective.strength * 0.6) outcome = "Costly Survival";
 
     const explanations: string[] = [];
     explanations.push(built.has("barracks") ? `The Barracks matured for ${this.state.buildingMaturity.barracks} move(s), producing ${resources.training} training.` : "Without a Barracks, the settlement relied on militia rather than professional veterans.");

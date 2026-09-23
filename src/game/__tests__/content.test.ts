@@ -37,7 +37,7 @@ describe("building catalog integrity", () => {
     expect(new Set(priorities).size).toBe(priorities.length);
   });
 
-  it("keeps every offerMove within the eight-move run", () => {
+  it("keeps every offerMove within the twelve-move run", () => {
     for (const definition of Object.values(BUILDINGS)) {
       expect(definition.offerMove).toBeGreaterThanOrEqual(1);
       expect(definition.offerMove).toBeLessThanOrEqual(TOTAL_MOVES);
@@ -45,7 +45,7 @@ describe("building catalog integrity", () => {
   });
 
   it("matches the documented opening three-card offer", () => {
-    expect(OPENING_BUILD_OPTIONS).toEqual(["woodcutter", "farm", "swine-farm"]);
+    expect(OPENING_BUILD_OPTIONS).toEqual(["woodcutter", "farm", "house"]);
   });
 
   it("names exactly one civic level label per settlement level", () => {
@@ -55,8 +55,11 @@ describe("building catalog integrity", () => {
 
 describe("isBuildingEligible", () => {
   it("rejects a building before its offerMove", () => {
-    expect(isBuildingEligible(BUILDINGS.barracks, ["weapons-workshop"], 5)).toBe(false);
-    expect(isBuildingEligible(BUILDINGS.barracks, ["weapons-workshop"], 6)).toBe(true);
+    expect(isBuildingEligible(BUILDINGS["weapons-workshop"], ["blacksmith"], 4)).toBe(false);
+    expect(isBuildingEligible(BUILDINGS["weapons-workshop"], ["blacksmith"], 5)).toBe(true);
+    expect(isBuildingEligible(BUILDINGS.barracks, [], 5)).toBe(false);
+    expect(isBuildingEligible(BUILDINGS.barracks, ["blacksmith"], 5)).toBe(true);
+    expect(isBuildingEligible(BUILDINGS.barracks, ["weapons-workshop"], 5)).toBe(true);
   });
 
   it("enforces requiresAll (every dependency must be built)", () => {
@@ -76,6 +79,11 @@ describe("isBuildingEligible", () => {
 });
 
 describe("nextBuildingOffer", () => {
+  it("offers Barracks immediately after completing Blacksmith", () => {
+    const built = ["quarry", "blacksmith"];
+    expect(nextBuildingOffer(built, ["farm", "marketplace"], 5, "blacksmith")).toBe("barracks");
+  });
+
   it("prioritizes a building that directly follows from the one just completed", () => {
     // Farm unlocks Bakery and Granary; Quarry is unrelated but has an earlier offerMove.
     const offer = nextBuildingOffer(["farm"], ["woodcutter", "swine-farm"], 2, "farm");

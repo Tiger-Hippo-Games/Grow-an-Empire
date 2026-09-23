@@ -213,7 +213,7 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
   const districtRoads = new Map<string, THREE.Group>();
   const buildingRoads = new Map<string, THREE.Group>();
   const workflowRoads = new Map<string, THREE.Group>();
-  const environmentStages = Array.from({ length: 9 }, () => new THREE.Group());
+  const environmentStages = Array.from({ length: 13 }, () => new THREE.Group());
   environmentStages.forEach((stage) => background.add(stage));
 
   const addGroundDisc = (stage: number, x: number, y: number, radius: number, color: number, opacity = 0.75): void => {
@@ -282,6 +282,14 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     addGroundDisc(8, point.x + 0.28, point.y, 0.24, 0x77736a, 0.95);
   }
 
+  // Levels 9–12 strengthen the town approaches as the final muster nears.
+  for (const [stage, distance, color] of [[9, 4.4, 0x867a62], [10, 5.1, 0x9d8664], [11, 5.8, 0x6f6d5a], [12, 6.5, 0xc7a65d]] as const) {
+    for (const side of [-1, 1]) {
+      addGroundDisc(stage, civicGround.x + side * distance, civicGround.y + 1.65, 0.21, color, 0.8);
+      addGroundDisc(stage, civicGround.x + side * distance, civicGround.y - 1.65, 0.21, color, 0.8);
+    }
+  }
+
   for (const [district, points] of Object.entries(DISTRICT_PATHS)) {
     const roadGroup = new THREE.Group();
     addRoadPath(roadGroup, points, 0.78, 0xb28f5c, -6);
@@ -302,7 +310,7 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
   const workflowLinks: Array<[string, string]> = [
     ["woodcutter", "sawmill"], ["farm", "bakery"], ["farm", "granary"],
     ["fruit-orchard", "winery"], ["swine-farm", "butchery"],
-    ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["weapons-workshop", "barracks"],
+    ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["blacksmith", "barracks"], ["weapons-workshop", "barracks"],
     ["marketplace", "house"],
   ];
   for (const [fromId, toId] of workflowLinks) {
