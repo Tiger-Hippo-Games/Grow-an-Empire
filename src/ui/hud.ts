@@ -7,7 +7,8 @@ import {
   TOTAL_SETTLEMENT_LEVELS,
   type ResourceName,
 } from "../game/content";
-import type { ArmyReport, SimulationMode, ResourceLedger, TrainedUnits } from "../game/settlementSimulation";
+import { formatBag, RESOURCE_NAMES, type ResourceBag, type SwapPlan } from "../game/economy";
+import type { MoveSummary, SimulationMode, ResourceLedger, TrainedUnits } from "../game/settlementSimulation";
 import { assetUrl } from "../render/assetCatalog";
 import { buildingFilename } from "../render/constructionView";
 import { requireElement } from "./dom";
@@ -20,11 +21,33 @@ export interface HudCallbacks {
   onSpeedChange(speed: number): void;
   onGridToggle(visible: boolean): void;
   onSelectBuilding(buildingId: string): void;
+  /** Stuck move with a Marketplace: sell goods to pay for this card, then build it. */
+  onSwapBuild(buildingId: string): void;
+  /** Stuck move: build nothing this move. */
+  onGather(): void;
+  onMuteToggle(): void;
+  onFullscreenToggle(): void;
+  /** The "Battle report" button. */
+  onReportToggle(): void;
   onTutorialModalChange(visible: boolean): void;
   /** The first-run tutorial opened (for analytics). */
   onTutorialStarted(): void;
   /** The tutorial was finished or skipped; the caller remembers it in the save. */
   onTutorialFinished(result: { skipped: boolean; stepCount: number; seconds: number }): void;
+}
+
+/** One offered card, as the build panel shows it. */
+export interface CardView { id: string; affordable: boolean; missing: ResourceBag; swap: SwapPlan | null }
+
+/** What the build panel needs for one move. */
+export interface BuildPanelView {
+  mode: SimulationMode;
+  move: number;
+  cards: CardView[];
+  canGather: boolean;
+  hasMarketplace: boolean;
+  summary: MoveSummary | null;
+  resources: ResourceLedger;
 }
 
 /** The slice of simulation state the HUD displays. */
@@ -48,8 +71,6 @@ export function createHud(callbacks: HudCallbacks) {
   const campaignKicker = requireElement<HTMLElement>(".brand .eyebrow");
   const campaignTitle = requireElement<HTMLElement>(".brand h1");
   const raidObjective = requireElement<HTMLElement>(".raid-objective strong");
-  const reportKicker = requireElement<HTMLElement>("#army-report .decision-kicker");
-  const reportTitle = requireElement<HTMLElement>("#army-report-title");
   const loading = requireElement<HTMLElement>("#loading");
   const phaseLabel = requireElement<HTMLElement>("#phase");
   const progressFill = requireElement<HTMLElement>("#phase-progress");
@@ -81,15 +102,11 @@ export function createHud(callbacks: HudCallbacks) {
   const speedToggle = requireElement<HTMLButtonElement>("#speed-toggle");
   const gridToggle = requireElement<HTMLButtonElement>("#grid-toggle");
   const helpToggle = requireElement<HTMLButtonElement>("#help-toggle");
-  const armyReport = requireElement<HTMLElement>("#army-report");
-  const armyOutcome = requireElement<HTMLElement>("#army-outcome");
-  const armyScore = requireElement<HTMLElement>("#army-score");
-  const armySummary = requireElement<HTMLElement>("#army-summary");
-  const armyUnits = requireElement<HTMLElement>("#army-units");
-  const armyStats = requireElement<HTMLElement>("#army-stats");
-  const armyExplanations = requireElement<HTMLElement>("#army-explanations");
-  const viewCity = requireElement<HTMLButtonElement>("#view-city");
   const musterToggle = requireElement<HTMLButtonElement>("#muster-toggle");
+  const muteToggle = requireElement<HTMLButtonElement>("#mute-toggle");
+  const fullscreenToggle = requireElement<HTMLButtonElement>("#fullscreen-toggle");
+  const moveSummary = requireElement<HTMLElement>("#move-summary");
+  const buildFoot = requireElement<HTMLElement>("#build-foot");
   const tutorialScrim = requireElement<HTMLElement>("#tutorial-scrim");
   const tutorialCoach = requireElement<HTMLElement>("#tutorial-coach");
   const tutorialStep = requireElement<HTMLElement>("#tutorial-step");
@@ -163,36 +180,90 @@ export function createHud(callbacks: HudCallbacks) {
     stockpileTotal.textContent = String(Object.values(snapshot.resources).reduce((sum, amount) => sum + (Number.isFinite(amount) ? amount : 0), 0));
   }
 
+  /** "+5 wood, +3 grain" */
+  function signedBag(bag: ResourceBag, sign: "+" | "−"): string {
+    return RESOURCE_NAMES.filter((name) => (bag[name] ?? 0) > 0).map((name) => `${sign}${bag[name]} ${RESOURCE_LABELS[name].toLowerCase()}`).join(", ");
+  }
+
+  /** The "what happened last move" strip at the top of the build panel. */
+  function renderSummary(summary: MoveSummary | null): void {
+    if (!summary) { moveSummary.classList.add("hidden"); return; }
+    const built = summary.buildingId ? `Built the ${BUILDINGS[summary.buildingId]?.name ?? summary.buildingId}` : "Gathered (nothing built)";
+    const trained = (["archers", "swordsmen", "horsemen"] as const).filter((type) => summary.trained[type] > 0)
+      .map((type) => `${summary.trained[type]} ${summary.trained[type] === 1 ? type.slice(0, -1).replace("swordsme", "swordsman").replace("horseme", "horseman") : type}`);
+    const parts = [
+      `<b>Move ${summary.move}</b> · ${built}`,
+      summary.produced && Object.keys(summary.produced).length ? `<span class="gain">${signedBag(summary.produced, "+")}</span>` : "",
+      summary.consumed && Object.keys(summary.consumed).length ? `<span class="loss">${signedBag(summary.consumed, "−")}</span>` : "",
+      trained.length ? `<span class="gain">Trained ${trained.join(", ")}</span>` : "",
+      summary.upkeep ? `Army ate ${summary.upkeep} ration${summary.upkeep === 1 ? "" : "s"}` : "",
+      summary.stalled.length ? `<span class="idle">Idle: ${summary.stalled.map((note) => `${BUILDINGS[note.buildingId]?.name ?? note.buildingId} (${note.reason})`).join("; ")}</span>` : "",
+    ].filter(Boolean);
+    const warnings = summary.warnings.map((text) => `<p class="summary-warning">${text}</p>`).join("");
+    moveSummary.innerHTML = `<p>${parts.join(" · ")}</p>${warnings}`;
+    moveSummary.classList.remove("hidden");
+  }
+
+  function costChips(cost: ResourceBag, resources: ResourceLedger): string {
+    return RESOURCE_NAMES.filter((name) => (cost[name] ?? 0) > 0)
+      .map((name) => `<span class="cost-chip${(resources[name] ?? 0) < (cost[name] ?? 0) ? " short" : ""}">${cost[name]} ${RESOURCE_LABELS[name].toLowerCase()}</span>`).join("");
+  }
+
   /**
    * Rebuilds the choice cards for the current move and shows the panel.
-   * Only acts while the simulation is awaiting a choice. Clicking a card calls
-   * `onSelectBuilding`; the panel stays open until `main.ts` hides it, so a
-   * failed selection can be retried.
+   * Only acts while the simulation is awaiting a choice. Affordable cards call
+   * `onSelectBuilding`; on a stuck move with a Marketplace, a card that a swap
+   * can pay for calls `onSwapBuild`; otherwise it is disabled and says what it
+   * lacks. When nothing can be built, a Gather button appears.
    */
-  function renderBuildPanel(snapshot: Pick<HudStateSnapshot, "mode" | "move" | "availableBuildingIds">): void {
-    if (snapshot.mode !== "awaiting-choice") return;
+  function renderBuildPanel(view: BuildPanelView): void {
+    if (view.mode !== "awaiting-choice") return;
     buildOptions.replaceChildren();
     buildPanel.removeAttribute("aria-busy");
-    moveChip.textContent = `${snapshot.move} OF ${campaignMoveLimit}`;
-    for (const buildingId of snapshot.availableBuildingIds) {
-      const building = BUILDINGS[buildingId];
+    moveChip.textContent = `${view.move} OF ${campaignMoveLimit}`;
+    renderSummary(view.summary);
+    view.cards.forEach((card, index) => {
+      const building = BUILDINGS[card.id];
       if (!building) {
-        console.warn(`Skipping unknown building card "${buildingId}"`);
-        continue;
+        console.warn(`Skipping unknown building card "${card.id}"`);
+        return;
       }
       const button = document.createElement("button");
-      button.className = "build-card";
       button.type = "button";
-      button.setAttribute("aria-label", `Build ${building.name}. ${building.benefit}. ${building.unlocks}`);
-      button.innerHTML = `<span class="build-art"><img src="${assetUrl(buildingFilename(buildingId, "complete"))}" alt="" /></span><span class="build-name">${building.name}</span><span class="build-benefit">${building.benefit}</span><span class="build-unlock">${building.unlocks}</span>`;
+      const state = card.affordable ? "affordable" : card.swap ? "swappable" : "unaffordable";
+      button.className = `build-card ${state}`;
+      button.dataset.key = String(index + 1);
+      const action = card.affordable ? "BUILD" : card.swap ? "SWAP & BUILD" : `NEEDS ${formatBag(card.missing).toUpperCase()}`;
+      const swapLine = card.swap ? `<span class="build-swap">Market: sell ${formatBag(card.swap.sell)} to buy ${formatBag(card.swap.buy)}</span>` : "";
+      button.setAttribute("aria-label", `${index + 1}: ${card.affordable ? "Build" : card.swap ? "Swap goods and build" : "Can't afford"} ${building.name}. Costs ${formatBag(building.cost)}. ${building.benefit}. ${building.unlocks}`);
+      button.innerHTML = `<span class="build-key" aria-hidden="true">${index + 1}</span><span class="build-art"><img src="${assetUrl(buildingFilename(card.id, "complete"))}" alt="" /></span><span class="build-name">${building.name}</span><span class="build-costs">${costChips(building.cost, view.resources)}</span><span class="build-benefit">${building.benefit}</span>${swapLine}<span class="build-unlock">${building.unlocks}</span><span class="build-action">${action}</span>`;
+      if (state === "unaffordable") button.setAttribute("aria-disabled", "true");
       button.addEventListener("click", () => {
+        if (state === "unaffordable") return;
         if (tutorialActive) {
           tutorialCoach.classList.add("hidden");
           buildPanel.classList.remove("tutorial-focus");
         }
-        callbacks.onSelectBuilding(buildingId);
+        if (state === "affordable") callbacks.onSelectBuilding(card.id);
+        else callbacks.onSwapBuild(card.id);
       });
       buildOptions.appendChild(button);
+    });
+    buildFoot.replaceChildren();
+    if (view.canGather) {
+      const gather = document.createElement("button");
+      gather.type = "button";
+      gather.className = "gather-button";
+      gather.innerHTML = `<b>Gather</b> <span>Nothing on offer is affordable${view.hasMarketplace ? " even with a swap" : ""}. Skip building this move: every building still works, and the move counts. (G)</span>`;
+      gather.addEventListener("click", callbacks.onGather);
+      buildFoot.appendChild(gather);
+    } else {
+      const hint = document.createElement("p");
+      hint.className = "decision-hint";
+      hint.textContent = view.cards.some((card) => card.swap)
+        ? "Nothing is affordable: the Marketplace can swap your spare goods (at twice the price) for what a card needs."
+        : "Costs are paid when building starts. Built earlier means more moves to produce and mature. Keys 1-3 choose.";
+      buildFoot.appendChild(hint);
     }
     buildPanel.classList.remove("hidden");
     const optionCount = buildOptions.childElementCount;
@@ -200,11 +271,13 @@ export function createHud(callbacks: HudCallbacks) {
       // The exhaustive offer test proves this can't happen with the current
       // catalog, but a future content change could starve the pool. Say so
       // instead of showing an empty panel with no way forward.
-      setStatus(`Move ${snapshot.move}: no buildings are available. Press Restart to begin a new settlement.`, 0);
+      setStatus(`Move ${view.move}: no buildings are available. Press Restart to begin a new settlement.`, 0);
       return;
     }
-    const choiceCopy = optionCount === 1 ? "choose the available building" : `choose one of ${optionCount} buildings`;
-    setStatus(`Move ${snapshot.move} ready — ${choiceCopy}`, 0);
+    const affordable = view.cards.filter((card) => card.affordable).length;
+    setStatus(view.canGather ? `Move ${view.move}: nothing is affordable, so gather this move`
+      : affordable === 0 ? `Move ${view.move}: swap goods at the Marketplace to build`
+      : `Move ${view.move} ready: choose one of ${affordable} affordable building${affordable === 1 ? "" : "s"}`, 0);
   }
 
   function hideBuildPanel(): void {
@@ -239,7 +312,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   /** Shows the milestone toast for 3.5s (6s for the final one), measured in animation time. */
   function showMilestone(title: string, copy: string, animationElapsed: number, final = false): void {
-    milestoneKicker.textContent = final ? `${campaignMoveLimit} MOVES COMPLETE` : "CIVIC UPGRADE";
+    milestoneKicker.textContent = final ? `${campaignMoveLimit} MOVES COMPLETE` : "MOVE COMPLETE";
     milestoneTitle.textContent = title;
     milestoneCopy.textContent = copy;
     milestone.classList.add("visible");
@@ -250,39 +323,29 @@ export function createHud(callbacks: HudCallbacks) {
     milestone.classList.remove("visible");
   }
 
-  /** Fills in and opens the end-of-campaign army report. `buildOrder` is building names, move 1 first. */
-  function renderArmyReport(report: ArmyReport, buildOrder: string[], enemyName: string): void {
-    armyOutcome.textContent = report.outcome;
-    armyScore.textContent = String(report.enemyStrength);
-    armySummary.textContent = `${report.enemyStrength} swordsmen from ${enemyName} attacked. ${report.units.swordsmen} swordsmen, ${report.units.archers} archers, and ${report.units.horsemen} horsemen defended the clearing. Build order: ${buildOrder.join(" → ")}.`;
-    const unitLabels: Array<[keyof ArmyReport["units"], string]> = [
-      ["militia", "Militia"], ["spearmen", "Spearmen"], ["archers", "Archers"],
-      ["swordsmen", "Swordsmen"], ["horsemen", "Horsemen"], ["mercenaries", "Mercenaries"],
-    ];
-    armyUnits.innerHTML = unitLabels.map(([key, label]) => `<div><span>${label}</span><b>${report.units[key]}</b></div>`).join("");
-    armyStats.innerHTML = [
-      ["Combat", report.combatStrength], ["Supply turns", report.supplyTurns],
-      ["City defense", report.cityDefense], ["Morale", report.morale],
-    ].map(([label, value]) => `<div><span>${label}</span><b>${value}</b></div>`).join("");
-    armyExplanations.innerHTML = report.explanations.map((explanation) => `<li>${explanation}</li>`).join("");
-    armyReport.classList.remove("hidden");
-    musterToggle.classList.remove("hidden");
-  }
-
   function setCampaign(campaign: CampaignDefinition, index: number): void {
     campaignMoveLimit = campaign.moveLimit;
     [...levelPips.children].forEach((pip, pipIndex) => { (pip as HTMLElement).hidden = pipIndex > campaignMoveLimit; });
-    campaignKicker.textContent = `CAMPAIGN ${index + 1}`;
+    campaignKicker.textContent = `CAMPAIGN ${index + 1} OF 25`;
     campaignTitle.textContent = campaign.name;
-    raidObjective.textContent = `${campaign.objective.kingdomName} · ${campaign.objective.strength} raiders in ${campaign.moveLimit} moves`;
-    reportKicker.textContent = `CAMPAIGN ${index + 1} · ARMY MUSTER`;
-    reportTitle.textContent = campaign.name;
+    raidObjective.textContent = `${campaign.objective.enemyName}: ${campaign.objective.strength} ${campaign.objective.strength === 1 ? "soldier" : "soldiers"} after move ${campaign.moveLimit}`;
   }
 
-  function hideArmyReport(): void { armyReport.classList.add("hidden"); }
-  function resetArmyReport(): void {
-    hideArmyReport();
-    musterToggle.classList.add("hidden");
+  /** Shows or hides the "Battle report" button (shown once a battle has been fought). */
+  function setReportAvailable(available: boolean): void {
+    musterToggle.classList.toggle("hidden", !available);
+  }
+
+  function setMuted(muted: boolean): void {
+    muteToggle.textContent = muted ? "Sound · Off" : "Sound · On";
+    muteToggle.setAttribute("aria-pressed", String(muted));
+  }
+
+  function setFullscreenAvailable(available: boolean): void {
+    fullscreenToggle.classList.toggle("hidden", !available);
+  }
+  function setFullscreenLabel(active: boolean): void {
+    fullscreenToggle.textContent = active ? "Exit full screen" : "Full screen";
   }
 
   /** Called once per frame; hides the milestone toast once its timer expires. */
@@ -368,7 +431,7 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 1);
     tutorialStep.textContent = "STEP 1 OF 2";
     tutorialCoachTitle.textContent = "Your first decision";
-    tutorialCoachCopy.textContent = "Choose one building. Earlier choices work for more moves, so watch what each option produces and unlocks.";
+    tutorialCoachCopy.textContent = "Choose a building you can afford: its cost is shown on the card and paid now. Earlier buildings work for more moves, so watch what each one produces and unlocks.";
     tutorialNext.classList.add("hidden");
     tutorialCoach.dataset.step = "choice";
     tutorialCoach.classList.remove("hidden");
@@ -381,7 +444,7 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
     tutorialStep.textContent = "STEP 2 OF 2";
     tutorialCoachTitle.textContent = "Watch the whole city react";
-    tutorialCoachCopy.textContent = `Each move upgrades the settlement, adds villagers, and runs every completed building. The raiders arrive immediately after Move ${campaignMoveLimit}.`;
+    tutorialCoachCopy.textContent = `After every move, each building works once: raw goods first, then workshops turn them into planks, rations and soldiers, and the army eats. The summary above the cards shows what happened. The enemy arrives after Move ${campaignMoveLimit}.`;
     tutorialNext.classList.remove("hidden");
     tutorialCoach.dataset.step = "growth";
     tutorialCoach.classList.remove("hidden");
@@ -456,8 +519,36 @@ export function createHud(callbacks: HudCallbacks) {
     finishTutorial(false);
     if (hadFocus) helpToggle.focus();
   });
-  viewCity.addEventListener("click", hideArmyReport);
-  musterToggle.addEventListener("click", () => armyReport.classList.toggle("hidden"));
+  musterToggle.addEventListener("click", callbacks.onReportToggle);
+  muteToggle.addEventListener("click", callbacks.onMuteToggle);
+  fullscreenToggle.addEventListener("click", callbacks.onFullscreenToggle);
+
+  // Keyboard shortcuts (not while typing, and not while a dialog is open):
+  // 1-3 choose a card, G gathers, Space or P pauses, S changes speed,
+  // M mutes, F toggles full screen.
+  document.addEventListener("keydown", (event) => {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
+    const target = event.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+    if (document.querySelector(".flow-scrim:not(.hidden), .tutorial-scrim:not(.hidden), .campaign-map:not(.hidden)")) return;
+    const key = event.key.toLowerCase();
+    if (["1", "2", "3"].includes(key) && !buildPanel.classList.contains("hidden")) {
+      const card = buildOptions.querySelector<HTMLButtonElement>(`button[data-key="${key}"]`);
+      if (card && !card.disabled) { event.preventDefault(); card.click(); }
+    } else if (key === "g" && !buildPanel.classList.contains("hidden")) {
+      buildFoot.querySelector<HTMLButtonElement>(".gather-button")?.click();
+    } else if (key === " " || key === "p") {
+      if (key === " " && target?.tagName === "BUTTON") return; // Space on a focused button presses it.
+      event.preventDefault();
+      playToggle.click();
+    } else if (key === "s") {
+      speedToggle.click();
+    } else if (key === "m") {
+      muteToggle.click();
+    } else if (key === "f" && !fullscreenToggle.classList.contains("hidden")) {
+      fullscreenToggle.click();
+    }
+  });
 
   return {
     viewport,
@@ -475,10 +566,11 @@ export function createHud(callbacks: HudCallbacks) {
     updateMilestoneVisibility,
     setPlayingLabel,
     setSpeedLabel,
-    renderArmyReport,
     setCampaign,
-    hideArmyReport,
-    resetArmyReport,
+    setReportAvailable,
+    setMuted,
+    setFullscreenAvailable,
+    setFullscreenLabel,
     maybeStartTutorial,
     handleTutorialEvent,
   };

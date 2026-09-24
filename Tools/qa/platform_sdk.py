@@ -3,8 +3,10 @@
 import pathlib as _pl
 OUT = _pl.Path(__file__).resolve().parent / "out"
 OUT.mkdir(exist_ok=True)
-import json, time
+import json, sys, time
 from playwright.sync_api import sync_playwright
+sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
+from flow import enter, play_move  # noqa: E402
 BASE = "http://127.0.0.1:4173/"
 KEY = "grow-an-empire:save:v1"
 R = {}
@@ -20,8 +22,7 @@ def speed8(page):
 
 def play_moves(page, n):
     for _ in range(n):
-        page.wait_for_selector("#build-panel:not(.hidden) .build-card:not([disabled])", timeout=30000)
-        page.locator(".build-card").first.click()
+        play_move(page)
         page.wait_for_selector("#build-panel.hidden", state="attached", timeout=5000)
 
 with sync_playwright() as p:
@@ -33,6 +34,7 @@ with sync_playwright() as p:
     page.on("pageerror", lambda e: errs.append(str(e)))
     page.on("console", lambda m: m.type == "error" and errs.append(m.text))
     page.goto(BASE + "?platform=mock&reset"); booted(page)
+    enter(page, skip_tutorial=False)
     tutorial = page.is_visible("#tutorial-scrim")
     page.click("#tutorial-skip")
     speed8(page)
@@ -45,6 +47,7 @@ with sync_playwright() as p:
     page.evaluate(f"localStorage.removeItem('{KEY}')")
     page.goto(BASE + "?platform=mock"); booted(page)
     resumed_move = page.inner_text("#move")
+    enter(page, skip_tutorial=False)
     tutorial_again = page.is_visible("#tutorial-scrim")
     R["A_mock_sdk"] = {
         "tutorial_on_fresh": tutorial,
@@ -70,7 +73,7 @@ with sync_playwright() as p:
     page.wait_for_function("document.getElementById('game').contentDocument?.documentElement.dataset.booted === 'true'", timeout=30000)
     time.sleep(0.5)
     fr = page.frame(url=lambda u: "platform=mock" in u)
-    if fr.is_visible("#tutorial-skip"): fr.click("#tutorial-skip")
+    enter(fr)
     page.click("[data-msg=GP_PAUSE]"); time.sleep(0.3)
     paused_label = fr.inner_text("#play-toggle")
     page.click("[data-msg=GP_RESUME]"); time.sleep(0.3)
@@ -93,7 +96,7 @@ with sync_playwright() as p:
     page.on("pageerror", lambda e: errs.append(str(e)))
     page.on("console", lambda m: (m.type == "error" and errs.append(m.text)) or (m.type == "info" and infos.append(m.text)))
     page.goto(BASE + "?reset"); booted(page)
-    page.click("#tutorial-skip"); speed8(page); play_moves(page, 1)
+    enter(page); speed8(page); play_moves(page, 1)
     time.sleep(0.5)
     local = json.loads(page.evaluate(f"localStorage.getItem('{KEY}')"))
     R["C_offline"] = {"platform_line": [i for i in infos if "platform:" in i], "saved_locally": local["state"]["mode"], "errors": errs}

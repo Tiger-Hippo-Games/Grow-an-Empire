@@ -7,7 +7,7 @@
     <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Landscape only, 16:9 (1920×1080). -->
     <meta name="orientation" content="landscape" />
     <meta name="screen-orientation" content="landscape" />
-    <meta name="description" content="Build a medieval city one choice at a time. Pick twelve buildings, balance grain, timber and stone, and muster enough defenders to hold off the Ashfang Raiders. A short strategy game that plays in your browser on desktop and mobile." />
+    <meta name="description" content="Build a medieval city one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Plan twelve moves, trade at the market when you're stuck, and beat 25 enemy armies to earn up to three stars each. A short strategy game for your browser." />
     <title>Grow an Empire</title>
     <script>
       // Fixed 16:9 stage. The game is laid out once at 1280×720 and scaled as a
@@ -102,7 +102,7 @@
           <strong id="phase">Loading assets…</strong>
           <div class="progress-track" aria-hidden="true"><div id="phase-progress" class="progress-fill"></div></div>
         </div>
-        <div class="raid-objective"><span>DEFEND THE CITY</span><strong>5 swordsmen arrive after move 12</strong></div>
+        <div class="raid-objective"><span>DEFEND THE CITY</span><strong>The enemy arrives after move 12</strong></div>
       </section>
 
       <section class="settlement-hud" aria-label="Settlement progress">
@@ -131,8 +131,9 @@
           <div><p class="decision-kicker">Choose your next move</p><h2 id="build-title">What should the settlement build?</h2></div>
           <div id="move-chip" class="move-chip">1 OF 12</div>
         </div>
+        <div id="move-summary" class="move-summary hidden" aria-live="polite"></div>
         <div id="build-options" class="build-options"></div>
-        <p class="decision-hint">Built earlier means more turns to produce and mature.</p>
+        <div id="build-foot" class="build-foot"></div>
       </aside>
 
       <aside id="resource-ledger" class="resource-drawer hidden" aria-label="Settlement resources">
@@ -146,36 +147,21 @@
         <p id="milestone-copy">The settlement center has advanced.</p>
       </aside>
 
-      <aside id="army-report" class="army-report hidden" aria-labelledby="army-report-title">
-        <p class="decision-kicker">CAMPAIGN 1 · ARMY MUSTER</p>
-        <div class="army-report-heading">
-          <div>
-            <h2 id="army-report-title">The First Muster</h2>
-            <strong id="army-outcome">Victory</strong>
-          </div>
-          <div class="army-score"><span>Enemy swordsmen</span><b id="army-score">5</b></div>
-        </div>
-        <p id="army-summary" class="army-summary"></p>
-        <div id="army-units" class="army-units"></div>
-        <div id="army-stats" class="army-stats"></div>
-        <ul id="army-explanations" class="army-explanations"></ul>
-        <button id="view-city" type="button">View the completed city</button>
-        <button id="report-map" type="button">Campaign map</button>
-      </aside>
 
       <section class="controls" aria-label="Simulation controls">
         <button id="play-toggle" type="button">Pause</button>
         <button id="speed-toggle" type="button" aria-label="Change simulation speed">Speed · 1×</button>
         <button id="grid-toggle" type="button" aria-pressed="false">Grid · Off</button>
-        <button id="muster-toggle" class="hidden" type="button">Army report</button>
+        <button id="muster-toggle" class="hidden" type="button">Battle report</button>
         <button id="map-toggle" type="button">Campaign map</button>
         <button id="help-toggle" type="button">How to play</button>
+        <button id="mute-toggle" type="button" aria-pressed="false">Sound · On</button>
+        <button id="fullscreen-toggle" class="hidden" type="button">Full screen</button>
         <button id="restart" class="quiet-control" type="button">Restart</button>
       </section>
 
       <section id="campaign-map" class="campaign-map hidden" aria-label="Campaign map">
         <div class="campaign-map-heading"><span>GROW AN EMPIRE</span><h2>Southern Front</h2><p>Raiders approach from the south.</p></div>
-        <div class="campaign-home">OUR VILLAGE</div>
         <div id="province-highlight" class="province-highlight" aria-hidden="true"></div>
         <div id="campaign-stops" class="campaign-stops" aria-label="Campaign destinations"></div>
         <aside class="campaign-map-card" aria-live="polite">
@@ -189,11 +175,11 @@
         <section class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
           <span class="tutorial-kicker">Your first settlement</span>
           <h2 id="tutorial-title">Choose. Watch. Adapt.</h2>
-          <p>You make twelve decisions. Each building keeps working on every later move, so the order shapes the city—and the army waiting at the end. Build Houses to grow your recruiting pool.</p>
+          <p>You make twelve decisions. Every building costs wood, stone or planks, and keeps working on every later move, so the order shapes your economy and the army waiting at the end. Soldiers need planks, stone or grain to train, villagers to recruit, and rations to stay.</p>
           <div class="tutorial-rules">
-            <div><b>1</b><span>Choose one building</span></div>
-            <div><b>2</b><span>Watch every building react</span></div>
-            <div><b>3</b><span>Prepare before the raiders arrive</span></div>
+            <div><b>1</b><span>Pick a building you can afford (keys 1-3)</span></div>
+            <div><b>2</b><span>Read the move summary: what was made, eaten and trained</span></div>
+            <div><b>3</b><span>Beat the enemy's strength after move 12; a Marketplace can hire sellswords</span></div>
           </div>
           <div class="tutorial-actions">
             <button id="tutorial-start" type="button">Begin the settlement</button>

@@ -1,16 +1,21 @@
-import { CAMPAIGNS, type CampaignDefinition } from "../game/campaigns";
+import { CAMPAIGNS, isCampaignUnlocked, starsToUnlock, totalStars, type CampaignDefinition } from "../game/campaigns";
 import { assetUrl } from "../render/assetCatalog";
 import { IMAGE_TIMEOUT_MS } from "../render/spriteAssets";
 import { requireElement } from "./dom";
 
 /**
- * Marker centers are percentages of the 16:9 map master. Keep these in one
- * place so the hit targets and selected-province ring cannot drift apart when
- * the illustration is revised. The four villages sit below the northern pass.
+ * Marker centers, as percentages of the 16:9 map master: a road that winds
+ * from the villages in the south (campaign 1) up to the northern pass
+ * (campaign 25), five stops per row. Keep them in one place so the hit
+ * targets, the road and the highlight ring can't drift apart.
  */
-const PROVINCE_CENTERS = [
-  { x: 15, y: 67 }, { x: 38, y: 67 }, { x: 62, y: 67 }, { x: 85, y: 67 },
-] as const;
+const ROWS = [74, 60, 46, 33, 20];
+const COLUMNS = [12, 31, 50, 69, 88];
+export const PROVINCE_CENTERS: ReadonlyArray<{ x: number; y: number }> = CAMPAIGNS.map((_, index) => {
+  const row = Math.floor(index / 5);
+  const column = row % 2 === 0 ? index % 5 : 4 - (index % 5);
+  return { x: COLUMNS[column], y: ROWS[row] };
+});
 const MAP_ART = "southern-pass-map-v5.png";
 
 /** The illustrated route is UI only; main.ts owns campaign selection and saves. */
@@ -53,34 +58,48 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   }
 
   let activeId = CAMPAIGNS[0].id;
-  let completed = new Set<string>();
+  let stars: Record<string, number> = {};
   let selectedIndex = 0;
   let currentRunIsComplete = false;
   let currentMove = 1;
 
   function unlocked(index: number): boolean {
-    return index === 0 || completed.has(CAMPAIGNS[0].id);
+    return isCampaignUnlocked(index + 1, stars);
   }
+  const won = (campaign: CampaignDefinition): boolean => (stars[campaign.id] ?? 0) > 0;
+
+  /** The road between the markers, drawn once as an SVG polyline. */
+  const road = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  road.setAttribute("class", "campaign-road");
+  road.setAttribute("viewBox", "0 0 160 90");
+  road.setAttribute("preserveAspectRatio", "none");
+  road.setAttribute("aria-hidden", "true");
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  line.setAttribute("points", PROVINCE_CENTERS.map((point) => `${point.x * 1.6},${point.y * 0.9}`).join(" "));
+  road.appendChild(line);
+  stops.before(road);
 
   function render(): void {
     stops.replaceChildren();
     highlight.style.left = `${PROVINCE_CENTERS[selectedIndex].x}%`;
-    highlight.style.top = `${PROVINCE_CENTERS[selectedIndex].y + 1}%`;
+    highlight.style.top = `${PROVINCE_CENTERS[selectedIndex].y}%`;
     CAMPAIGNS.forEach((campaign, index) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `campaign-stop${index === selectedIndex ? " selected" : ""}${completed.has(campaign.id) ? " completed" : ""}`;
+      button.className = `campaign-stop${index === selectedIndex ? " selected" : ""}${won(campaign) ? " completed" : ""}${activeId === campaign.id && !currentRunIsComplete ? " current" : ""}`;
       button.style.left = `${PROVINCE_CENTERS[index].x}%`;
       button.style.top = `${PROVINCE_CENTERS[index].y}%`;
-      button.disabled = !unlocked(index);
-      button.setAttribute("aria-label", `${campaign.name}, ${completed.has(campaign.id) ? "secured" : unlocked(index) ? "available" : "threatening, defend the heartland first"}`);
+      button.classList.toggle("locked", !unlocked(index));
+      const earned = stars[campaign.id] ?? 0;
+      button.setAttribute("aria-label", `Campaign ${index + 1}, ${campaign.name}: ${won(campaign) ? `won, ${earned} of 3 stars` : unlocked(index) ? "open" : "locked"}`);
       const flag = document.createElement("span");
       flag.className = "stop-flag";
       flag.setAttribute("aria-hidden", "true");
-      flag.textContent = completed.has(campaign.id) ? "★" : unlocked(index) ? String(index + 1) : "⚔";
+      flag.textContent = String(index + 1);
       const name = document.createElement("span");
-      name.className = "stop-name";
-      name.textContent = campaign.objective.kingdomName;
+      name.className = "stop-stars";
+      name.setAttribute("aria-hidden", "true");
+      name.textContent = won(campaign) ? `${"★".repeat(earned)}${"☆".repeat(3 - earned)}` : "";
       button.append(flag, name);
       button.addEventListener("click", () => {
         selectedIndex = index;
@@ -90,18 +109,30 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       stops.appendChild(button);
     });
     const campaign = CAMPAIGNS[selectedIndex];
-    stage.textContent = `CAMPAIGN ${selectedIndex + 1} OF ${CAMPAIGNS.length}`;
+    stage.textContent = `CAMPAIGN ${selectedIndex + 1} OF ${CAMPAIGNS.length} · ${totalStars(stars)} ★`;
     title.textContent = campaign.name;
     copy.textContent = campaign.subtitle;
-    const isCurrent = activeId === campaign.id;
+    // A run that hasn't built anything yet is offered as a fresh start.
+    const isCurrent = activeId === campaign.id && currentMove > 1;
     const movesUntilAttack = isCurrent && !currentRunIsComplete ? Math.max(1, campaign.moveLimit - currentMove + 1) : campaign.moveLimit;
-    briefing.textContent = `${campaign.objective.enemyName} from ${campaign.objective.kingdomName} will come up the southern road in ${movesUntilAttack} ${movesUntilAttack === 1 ? "move" : "moves"}.`;
-    const progress = completed.has(campaign.id) ? "Province secured · replay available" : isCurrent && currentRunIsComplete ? "Defeat · try again" : isCurrent ? "Settlement in progress" : "Raiders gathering";
-    state.textContent = `${campaign.objective.strength} enemy swordsmen · ${progress}`;
-    launch.textContent = isCurrent && !currentRunIsComplete ? "Continue settlement" : completed.has(campaign.id) ? "Replay campaign" : "Begin campaign";
+    briefing.textContent = `${campaign.objective.enemyName} from ${campaign.objective.kingdomName} arrive in ${movesUntilAttack} ${movesUntilAttack === 1 ? "move" : "moves"}. ${campaign.objective.briefing}`;
+    const earned = stars[campaign.id] ?? 0;
+    const open = unlocked(selectedIndex);
+    let progress: string;
+    if (!open) {
+      const previous = CAMPAIGNS[selectedIndex - 1];
+      const needed = starsToUnlock(selectedIndex + 1);
+      progress = !won(previous) ? `Locked: win ${previous.name} first` : `Locked: needs ${needed} ★ in total (you have ${totalStars(stars)}). Replay earlier campaigns for more stars.`;
+    } else {
+      progress = won(campaign) ? `Best: ${"★".repeat(earned)}${"☆".repeat(3 - earned)} · replay for more stars` : isCurrent && currentRunIsComplete ? "Defeat · try again" : isCurrent ? "Settlement in progress" : "Open";
+    }
+    state.textContent = `${campaign.objective.strength} enemy ${campaign.objective.strength === 1 ? "soldier" : "soldiers"} · ${progress}`;
+    launch.disabled = !open;
+    launch.textContent = !open ? "Locked" : isCurrent && !currentRunIsComplete ? "Continue settlement" : won(campaign) ? "Replay campaign" : "Begin campaign";
   }
 
   launch.addEventListener("click", () => {
+    if (!unlocked(selectedIndex)) return;
     try {
       onLaunch(CAMPAIGNS[selectedIndex]);
     } catch (error) {
@@ -111,13 +142,13 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   });
 
   return {
-    show(activeCampaignId: string, completedIds: readonly string[], runComplete: boolean, move: number) {
+    show(activeCampaignId: string, campaignStars: Readonly<Record<string, number>>, runComplete: boolean, move: number) {
       activeId = activeCampaignId;
-      completed = new Set(completedIds);
+      stars = { ...campaignStars };
       currentRunIsComplete = runComplete;
       currentMove = move;
       const activeIndex = Math.max(0, CAMPAIGNS.findIndex((campaign) => campaign.id === activeCampaignId));
-      const next = CAMPAIGNS.findIndex((campaign, index) => unlocked(index) && !completed.has(campaign.id));
+      const next = CAMPAIGNS.findIndex((campaign, index) => unlocked(index) && !won(campaign));
       selectedIndex = !runComplete ? activeIndex : next >= 0 ? next : activeIndex;
       render();
       map.classList.remove("hidden");

@@ -8,8 +8,10 @@ zero-size iframe.
 Needs the production build served on http://127.0.0.1:4174 (`pnpm build`, then `pnpm exec vite preview`).
 `--quick` skips the 45-second stalled-image scenario.
 """
-import json, sys, time
+import json, pathlib, sys, time
 from playwright.sync_api import sync_playwright
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from flow import enter, fight, play_to_muster  # noqa: E402
 
 URL = "http://127.0.0.1:4174/"
 SAVE_KEY = "grow-an-empire:save:v1"
@@ -100,6 +102,7 @@ def broken_card_art(browser):
             route.continue_()
     ctx, page, errors = open_game(browser, routes=[("**/assets/quarry-construction-*", maybe_abort)])
     booted(page)
+    enter(page)
     page.wait_for_timeout(1500)
     page.click("#build-options button:has-text('Quarry')")
     page.wait_for_function("document.querySelector('#phase').innerText.includes(\"Couldn't load\")", timeout=15000)
@@ -119,6 +122,7 @@ def stalled_card_art(browser):
         return {"skipped": True, "pass": True}
     ctx, page, errors = open_game(browser, routes=[("**/assets/farm-construction-*", lambda route: None)])  # never answered
     booted(page)
+    enter(page)
     page.click("#build-options button:has-text('Farm')")
     page.wait_for_function("document.querySelector('#phase').innerText.includes(\"Couldn't load\")", timeout=60000)
     enabled = cards_enabled(page)
@@ -170,6 +174,7 @@ def sdk_rejects(browser):
     unhandled = []
     page.on("console", lambda m: unhandled.append(m.text) if "Uncaught (in promise)" in m.text else None)
     booted(page)
+    enter(page)
     page.click("#build-options button:has-text('Farm')")
     page.wait_for_timeout(1500)
     tracked = page.evaluate("window.__sdkLog.filter(c => c[0] === 'track').length")
@@ -182,9 +187,8 @@ def storage_blocked(browser):
     block = """Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('denied', 'SecurityError'); } });"""
     ctx, page, errors = open_game(browser, init_scripts=[block])
     booted(page)
-    # With no storage the "tutorial done" flag can't be read either, so the tutorial opens: skip it.
-    if page.is_visible("#tutorial-skip"):
-        page.click("#tutorial-skip")
+    # With no storage the "tutorial done" flag can't be read either, so the tutorial opens: enter() skips it.
+    enter(page)
     page.click("#build-options button:has-text('Farm')")
     page.wait_for_function("document.querySelector('#build-panel').classList.contains('hidden')", timeout=15000)
     ctx.close()
@@ -196,6 +200,7 @@ def storage_full(browser):
     full = """Storage.prototype.setItem = function () { throw new DOMException('full', 'QuotaExceededError'); };"""
     ctx, page, errors = open_game(browser, init_scripts=[full])
     booted(page)
+    enter(page)
     page.click("#build-options button:has-text('Farm')")
     page.wait_for_function("document.querySelector('#build-panel').classList.contains('hidden')", timeout=15000)
     ctx.close()
@@ -232,6 +237,7 @@ def newer_save(browser):
     ctx, page, errors = open_game(browser, init_scripts=[f"if (!sessionStorage.getItem('x')) {{ sessionStorage.setItem('x', 1); localStorage.setItem('{SAVE_KEY}', {json.dumps(future)}); }}"])
     booted(page)
     message = status(page)
+    enter(page)
     page.click("#build-options button:has-text('Farm')")
     page.wait_for_timeout(1500)
     page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
@@ -246,6 +252,7 @@ def other_players_save(browser):
     # Make Alice's save with a real game first (one completed move), then sign in as Bob.
     ctx, page, errors = open_game(browser, sdk_js=fake_sdk(player_id="alice"))
     booted(page)
+    enter(page)
     page.click("#speed-toggle"); page.click("#speed-toggle"); page.click("#speed-toggle")
     page.click("#build-options button:has-text('Farm')")
     page.wait_for_function("document.querySelector('#move').innerText.startsWith('2 /')", timeout=30000)
@@ -277,6 +284,7 @@ def session_end(browser):
         page.wait_for_timeout(100)
     game = page.frames[1]
     game.wait_for_function("document.documentElement.dataset.booted === 'true'", timeout=30000)
+    enter(game)  # the session starts when a campaign starts, not on the map
     page.evaluate("document.getElementById('g').contentWindow.postMessage({ type: 'GP_SESSION_END' }, '*')")
     page.wait_for_timeout(500)
     label = game.inner_text("#play-toggle").strip()
@@ -289,21 +297,18 @@ def session_end(browser):
             "pass": ended and label != "Pause" and restarted == 2}
 
 
-@scenario("battle art fails at the end of a full game: result still shown")
+@scenario("battle icon art fails at the end of a full game: result still shown")
 def combat_art_fails(browser):
-    ctx, page, errors = open_game(browser, routes=[("**/assets/*-attack4-*", lambda route: route.abort()),
-                                                    ("**/assets/enemy-swordsman-*", lambda route: route.abort())])
+    ctx, page, errors = open_game(browser, routes=[("**/assets/*-combat-*", lambda route: route.abort())])
     booted(page)
+    enter(page)
     for _ in range(3):
         page.click("#speed-toggle")
-    for _ in range(12):
-        page.wait_for_selector("#build-panel:not(.hidden) .build-card:not([disabled])", timeout=60000)
-        page.locator("#build-options .build-card:not([disabled])").first.click()
-        page.wait_for_selector("#build-panel.hidden", state="attached", timeout=15000)
-    page.wait_for_selector("#army-report:not(.hidden)", timeout=60000)
-    outcome = page.inner_text("#army-outcome")
+    play_to_muster(page, timeout=60000)
+    result = fight(page)
     ctx.close()
-    return {"outcome": outcome, "pass": outcome in ("Victory", "Settlement Lost") and not [e for e in errors if "pageerror" in e]}
+    real_errors = [e for e in errors if "pageerror" in e]
+    return {"result": result[:80], "pass": ("Victory" in result or "fallen" in result) and not real_errors}
 
 
 @scenario("loaded in a zero-size iframe, then shown")

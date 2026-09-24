@@ -20,6 +20,8 @@ import type { PlatformAdapter } from "./types";
 /** Player preferences that follow the save (not tied to one run). */
 export interface SavedSettings {
   tutorialComplete: boolean;
+  /** Sound off. Missing in saves from before sound existed (= sound on). */
+  muted?: boolean;
 }
 
 /** What is stored locally and in the cloud. */
@@ -29,6 +31,8 @@ export type SavedGame = SettlementSnapshot & {
   settings: SavedSettings;
   /** Victories that unlock the next stop on the campaign map. */
   completedCampaignIds?: string[];
+  /** Best stars (1–3) earned in each campaign, by campaign id. Stars unlock later campaigns. */
+  campaignStars?: Record<string, number>;
   /**
    * The portal player this save belongs to, when known. The browser copy is
    * shared by everyone using that browser, so a copy owned by someone else
@@ -37,7 +41,7 @@ export type SavedGame = SettlementSnapshot & {
   playerId?: string;
 };
 
-export const DEFAULT_SETTINGS: SavedSettings = { tutorialComplete: false };
+export const DEFAULT_SETTINGS: SavedSettings = { tutorialComplete: false, muted: false };
 const CLOUD_DEBOUNCE_MS = 2000;
 
 /** A fresh run id. */
@@ -63,12 +67,35 @@ export function toSavedGame(raw: unknown, campaignId: string | null): SavedGame 
   const game: SavedGame = {
     ...snapshot,
     runId: typeof snapshot.runId === "string" && snapshot.runId ? snapshot.runId : "legacy",
-    settings: { tutorialComplete: settings.tutorialComplete === true },
+    settings: { tutorialComplete: settings.tutorialComplete === true, muted: settings.muted === true },
     completedCampaignIds: Array.isArray(snapshot.completedCampaignIds)
       ? snapshot.completedCampaignIds.filter((id): id is string => typeof id === "string") : [],
+    campaignStars: readStars(snapshot.campaignStars, snapshot.completedCampaignIds),
   };
   if (typeof snapshot.playerId !== "string" || !snapshot.playerId) delete game.playerId;
   return game;
+}
+
+/**
+ * Cleans a stored star table. Victories saved before stars existed count as
+ * one star, so a returning player keeps every campaign they had opened.
+ */
+function readStars(raw: unknown, completed: unknown): Record<string, number> {
+  const stars: Record<string, number> = {};
+  if (Array.isArray(completed)) for (const id of completed) if (typeof id === "string") stars[id] = 1;
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof value === "number" && Number.isFinite(value)) stars[id] = Math.max(stars[id] ?? 0, Math.min(3, Math.max(0, Math.floor(value))));
+    }
+  }
+  return stars;
+}
+
+/** Keeps the best stars from both tables. */
+export function mergeStars(a: Record<string, number> = {}, b: Record<string, number> = {}): Record<string, number> {
+  const merged = { ...a };
+  for (const [id, value] of Object.entries(b)) merged[id] = Math.max(merged[id] ?? 0, value);
+  return merged;
 }
 
 /**
@@ -110,8 +137,9 @@ export function chooseSave(local: SavedGame | null, cloud: SavedGame | null): Sa
   }
   return {
     ...winner,
-    settings: { tutorialComplete: local.settings.tutorialComplete || cloud.settings.tutorialComplete },
+    settings: { ...winner.settings, tutorialComplete: local.settings.tutorialComplete || cloud.settings.tutorialComplete },
     completedCampaignIds: [...new Set([...(local.completedCampaignIds ?? []), ...(cloud.completedCampaignIds ?? [])])],
+    campaignStars: mergeStars(local.campaignStars, cloud.campaignStars),
   };
 }
 

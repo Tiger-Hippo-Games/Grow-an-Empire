@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { CONSTRUCTION_DURATION_SECONDS } from "../content";
 import { SettlementSimulation } from "../settlementSimulation";
 import { toSavedGame } from "../../platform/progressStore";
 import saveV4 from "./fixtures/save-v4-mid-construction.json";
+import { playToEnd } from "./play";
 
 /**
  * Saves written by released builds must keep loading forever: the portal keeps
@@ -19,27 +19,21 @@ describe("save compatibility", () => {
     expect(saved, "the v4 fixture must stay loadable").not.toBeNull();
     expect(saved?.runId).toBe("fixture-run");
     expect(saved?.settings.tutorialComplete).toBe(true);
-    expect(saved?.schemaVersion).toBe(5);
+    expect(saved?.schemaVersion).toBe(6);
+    expect(saved?.state.resources.gold).toBeGreaterThanOrEqual(0);
     expect(saved?.state.trainedUnits.horsemen).toBe(0);
 
     const sim = new SettlementSimulation();
     sim.loadSnapshot(saved!);
     expect(sim.state.mode).toBe("construction");
-    let guard = 0;
-    while (sim.state.mode !== "complete" && guard++ < 50) {
-      if (sim.state.mode === "awaiting-choice") sim.chooseBuilding(sim.state.availableBuildingIds[0]);
-      sim.update(CONSTRUCTION_DURATION_SECONDS);
-    }
+    playToEnd(sim);
     expect(sim.state.mode).toBe("complete");
     expect(sim.state.armyReport).not.toBeNull();
   });
 
   it("keeps saves far under the portal's 64 KB limit", () => {
     const sim = new SettlementSimulation();
-    while (sim.state.mode !== "complete") {
-      sim.chooseBuilding(sim.state.availableBuildingIds[0]);
-      sim.update(CONSTRUCTION_DURATION_SECONDS);
-    }
+    playToEnd(sim);
     const bytes = JSON.stringify({ ...sim.serialize(), runId: "x".repeat(36), settings: { tutorialComplete: true } }).length;
     expect(bytes).toBeLessThan(16 * 1024);
   });

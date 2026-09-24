@@ -1,211 +1,242 @@
 import { describe, expect, it } from "vitest";
-import { CAMPAIGN_1 } from "../campaigns";
-import { CONSTRUCTION_DURATION_SECONDS, populationForLevel, TOTAL_MOVES } from "../content";
-import { isValidSnapshot, SAVE_SCHEMA_VERSION, SettlementSimulation, type SettlementSnapshot } from "../settlementSimulation";
-import { defenseStrategy } from "../combatRules";
+import { CAMPAIGN_1, CAMPAIGNS } from "../campaigns";
+import { BUILDINGS, CONSTRUCTION_DURATION_SECONDS, OPENING_BUILD_OPTIONS, TOTAL_MOVES } from "../content";
+import { SELLSWORD_COST, STARTING_STOCKPILE, type ResourceName } from "../economy";
+import { isValidSnapshot, SAVE_SCHEMA_VERSION, SettlementSimulation, type SimulationEvent } from "../settlementSimulation";
+import { playMove, playToEnd, playToMuster } from "./play";
 
-function build(sim: SettlementSimulation, buildingId: string) {
-  const started = sim.chooseBuilding(buildingId);
-  expect(started).toHaveLength(1);
-  return [...started, ...sim.update(CONSTRUCTION_DURATION_SECONDS)];
+export const ARMY_ORDER = ["woodcutter", "quarry", "farm", "sawmill", "bakery", "weapons-workshop", "barracks", "blacksmith", "granary", "house", "marketplace"];
+
+function build(sim: SettlementSimulation, id: string): SimulationEvent[] {
+  const started = sim.chooseBuilding(id);
+  expect(started, `could not start ${id}`).toHaveLength(1);
+  return sim.update(CONSTRUCTION_DURATION_SECONDS);
 }
 
-describe("building choices and construction", () => {
-  it("accepts only an offered building while awaiting a choice", () => {
+function emptyAll(sim: SettlementSimulation): void {
+  for (const name of Object.keys(sim.state.resources) as ResourceName[]) sim.state.resources[name] = 0;
+}
+
+describe("costs and construction", () => {
+  it("starts with the documented stockpile and pays the build cost up front", () => {
     const sim = new SettlementSimulation();
-    expect(sim.chooseBuilding("barracks")).toEqual([]);
-    expect(sim.chooseBuilding("woodcutter")[0]).toMatchObject({ type: "construction-started", buildingId: "woodcutter" });
-    expect(sim.chooseBuilding("farm")).toEqual([]);
+    for (const [name, amount] of Object.entries(STARTING_STOCKPILE)) expect(sim.state.resources[name as ResourceName]).toBe(amount);
+    const wood = sim.state.resources.wood;
+    sim.chooseBuilding("quarry");
+    expect(sim.state.resources.wood).toBe(wood - (BUILDINGS.quarry.cost.wood ?? 0));
   });
 
-  it("refuses a card whose prerequisites are not yet built", () => {
+  it("can afford all three opening cards", () => {
     const sim = new SettlementSimulation();
-    sim.state.availableBuildingIds.push("barracks");
+    for (const id of OPENING_BUILD_OPTIONS) expect(sim.canAffordBuilding(id), id).toBe(true);
+  });
+
+  it("refuses an unaffordable card, one not on offer, or one with missing prerequisites", () => {
+    const sim = new SettlementSimulation();
     expect(sim.chooseBuilding("barracks")).toEqual([]);
+    sim.state.availableBuildingIds.push("bakery");
+    expect(sim.chooseBuilding("bakery")).toEqual([]);
+    sim.state.resources.wood = 0;
+    expect(sim.chooseBuilding("woodcutter")).toEqual([]);
     expect(sim.state.mode).toBe("awaiting-choice");
   });
 
   it("does not complete until the construction deadline", () => {
     const sim = new SettlementSimulation();
-    sim.chooseBuilding("woodcutter");
-    expect(sim.update(CONSTRUCTION_DURATION_SECONDS - 0.001)).toEqual([]);
-    expect(sim.state.mode).toBe("construction");
-    expect(sim.update(0.001).some((event) => event.type === "construction-complete")).toBe(true);
+    sim.chooseBuilding("farm");
+    expect(sim.update(CONSTRUCTION_DURATION_SECONDS - 0.01)).toEqual([]);
+    expect(sim.state.builtBuildingIds).toEqual([]);
+    expect(sim.update(0.01).some((event) => event.type === "construction-complete")).toBe(true);
   });
 
-  it("resolves a completed move in a stable event order", () => {
+  it("emits a completed move's events in a stable order", () => {
     const sim = new SettlementSimulation();
-    const events = build(sim, "farm");
-    expect(events.map((event) => event.type)).toEqual([
-      "construction-started", "construction-complete", "civic-upgraded", "economy-resolved", "population-changed", "choices-ready",
-    ]);
-    expect(sim.state.civicLevel).toBe(1);
-    expect(sim.state.population).toBe(populationForLevel(1));
-    expect(sim.state.availableBuildingIds).toEqual(["woodcutter", "quarry", "swine-farm"]);
+    sim.chooseBuilding("woodcutter");
+    const types = sim.update(CONSTRUCTION_DURATION_SECONDS).map((event) => event.type);
+    expect(types).toEqual(["construction-complete", "civic-upgraded", "economy-resolved", "population-changed", "move-summary", "choices-ready"]);
   });
 });
 
 describe("move economy", () => {
-  it("adds two people for each civic level after a House is built", () => {
+  it("produces only when a move completes", () => {
     const sim = new SettlementSimulation();
-    const preference = ["woodcutter", "sawmill", "quarry", "house"];
-    while (!sim.state.builtBuildingIds.includes("house")) {
-      build(sim, preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0]);
-    }
-    const level = sim.state.civicLevel;
-    expect(sim.state.population).toBe(populationForLevel(level) + 2);
-    build(sim, sim.state.availableBuildingIds[0]);
-    expect(sim.state.population).toBe(populationForLevel(level + 1) + 4);
+    const wood = sim.state.resources.wood - 2;
+    build(sim, "woodcutter");
+    expect(sim.state.resources.wood).toBe(wood + 5);
+    sim.chooseBuilding("farm");
+    sim.update(10);
+    expect(sim.state.resources.wood).toBe(wood + 5 - 3);
   });
 
-  it("produces only when a move completes, not while the player waits", () => {
+  it("turns wood into planks at the Sawmill", () => {
+    const sim = new SettlementSimulation();
+    for (const id of ["woodcutter", "quarry", "farm"]) build(sim, id);
+    const events = build(sim, "sawmill");
+    const summary = events.find((event) => event.type === "move-summary");
+    expect(summary?.type === "move-summary" && summary.summary.produced.planks).toBe(6);
+  });
+
+  it("trains soldiers from materials and free villagers, and feeds them", () => {
+    const sim = new SettlementSimulation();
+    playToMuster(sim, ARMY_ORDER);
+    const trained = sim.state.trainedUnits;
+    expect(trained.archers + trained.swordsmen).toBeGreaterThan(4);
+  });
+
+  it("deserts unfed soldiers", () => {
+    const sim = new SettlementSimulation();
+    for (const id of ["woodcutter", "quarry", "farm", "sawmill", "weapons-workshop"]) build(sim, id);
+    sim.state.trainedUnits.archers = 12;
+    sim.state.resources.rations = 0;
+    const events = build(sim, "barracks");
+    expect(events.some((event) => event.type === "soldiers-deserted")).toBe(true);
+    expect(sim.state.deserted).toBeGreaterThan(0);
+    expect(sim.state.lastSummary?.warnings.some((text) => /deserted/.test(text))).toBe(true);
+  });
+
+  it("spoils grain above the cap without a Granary", () => {
+    const sim = new SettlementSimulation();
+    sim.state.resources.grain = 20;
+    build(sim, "woodcutter");
+    expect(sim.state.resources.grain).toBe(8);
+  });
+});
+
+describe("stuck moves", () => {
+  it("gathers when nothing is affordable and there is no Marketplace", () => {
+    const sim = new SettlementSimulation();
+    emptyAll(sim);
+    expect(sim.isStuck()).toBe(true);
+    expect(sim.canGather()).toBe(true);
+    const move = sim.state.move;
+    const events = sim.gather();
+    expect(events[0]).toEqual({ type: "gathered", move });
+    expect(sim.state.move).toBe(move + 1);
+    expect(sim.state.gatherMoves).toBe(1);
+    expect(sim.state.builtBuildingIds).toEqual([]);
+  });
+
+  it("refuses to gather while a card is affordable", () => {
+    expect(new SettlementSimulation().gather()).toEqual([]);
+  });
+
+  it("swaps goods at twice the selling price when stuck with a Marketplace", () => {
+    const sim = new SettlementSimulation();
+    sim.state.builtBuildingIds.push("marketplace");
+    emptyAll(sim);
+    sim.state.resources.stone = 20;
+    const plan = sim.swapPlanFor("woodcutter");
+    expect(plan).not.toBeNull();
+    expect(plan!.buy).toEqual({ wood: 2 });
+    expect(plan!.goldNeeded).toBe(4);
+    expect(plan!.sell).toEqual({ stone: 8 });
+    expect(sim.canGather()).toBe(false);
+    sim.swapAndBuild("woodcutter");
+    expect(sim.state.mode).toBe("construction");
+    expect(sim.state.resources.stone).toBe(12);
+    expect(sim.state.resources.wood).toBe(0);
+    expect(sim.state.swaps).toBe(1);
+  });
+});
+
+describe("the muster and the battle", () => {
+  it("stops at the muster after the final move, then fights once", () => {
+    const sim = new SettlementSimulation();
+    const events: string[] = [];
+    for (let i = 0; i < 40 && sim.state.mode !== "muster"; i += 1) {
+      if (sim.state.mode === "awaiting-choice") {
+        const pick = sim.state.availableBuildingIds.find((id) => sim.canAffordBuilding(id));
+        if (pick) events.push(...sim.chooseBuilding(pick).map((event) => event.type));
+        else events.push(...sim.gather().map((event) => event.type));
+      }
+      events.push(...sim.update(CONSTRUCTION_DURATION_SECONDS).map((event) => event.type));
+    }
+    expect(sim.state.mode).toBe("muster");
+    expect(sim.state.civicLevel).toBe(TOTAL_MOVES);
+    expect(events.slice(-2)).toEqual(["move-summary", "muster-ready"]);
+    expect(sim.muster().map((event) => event.type)).toEqual(["army-mustered", "game-complete"]);
+    expect(sim.state.mode).toBe("complete");
+    expect(sim.muster()).toEqual([]);
+  });
+
+  it("wins Campaign 1 with an army build", () => {
+    const sim = new SettlementSimulation(CAMPAIGN_1);
+    playToEnd(sim, ARMY_ORDER);
+    expect(sim.state.armyReport?.win).toBe(true);
+    expect(sim.state.armyReport?.stars).toBeGreaterThanOrEqual(1);
+  });
+
+  it("loses the final campaign with the same build and says what would have won", () => {
+    const sim = new SettlementSimulation(CAMPAIGNS[24]);
+    playToEnd(sim, ARMY_ORDER);
+    const report = sim.state.armyReport!;
+    expect(report.win).toBe(false);
+    expect(report.stars).toBe(0);
+    expect(report.gap).toMatch(/more .* would have won/);
+    expect(report.rounds).toHaveLength(4);
+    const last = report.rounds[3].player;
+    expect(last.archers + last.swordsmen + last.horsemen + last.militia).toBe(0);
+  });
+
+  it("limits sellswords to half the enemy and to the gold available", () => {
+    const sim = new SettlementSimulation(CAMPAIGNS[9]);
+    playToMuster(sim, ARMY_ORDER);
+    sim.state.builtBuildingIds.push(...(sim.hasMarketplace ? [] : ["marketplace"]));
+    sim.state.resources.wine = 100;
+    const cap = sim.sellswordCap;
+    expect(cap).toBe(Math.floor(CAMPAIGNS[9].objective.strength / 2));
+    expect(sim.canHire({ archers: cap + 1, swordsmen: 0 })).toBe(false);
+    expect(sim.canHire({ archers: cap, swordsmen: 0 })).toBe(true);
+    sim.state.resources.wine = 0;
+    const affordable = Math.floor(sim.musterGold / SELLSWORD_COST);
+    if (affordable < cap) expect(sim.canHire({ archers: affordable + 1, swordsmen: 0 })).toBe(false);
+  });
+
+  it("hires no sellswords without a Marketplace", () => {
+    const sim = new SettlementSimulation();
+    playToMuster(sim, ["woodcutter", "quarry", "farm", "sawmill", "bakery", "weapons-workshop"]);
+    sim.state.builtBuildingIds = sim.state.builtBuildingIds.filter((id) => id !== "marketplace");
+    expect(sim.sellswordCap).toBe(0);
+    expect(sim.musterGold).toBe(0);
+    expect(sim.canHire({ archers: 1, swordsmen: 0 })).toBe(false);
+  });
+});
+
+describe("reset, summaries and saves", () => {
+  it("resets to a fresh run", () => {
+    const sim = new SettlementSimulation();
+    playMove(sim);
+    sim.reset();
+    expect(sim.state.move).toBe(1);
+    expect(sim.state.builtBuildingIds).toEqual([]);
+    expect(sim.state.lastSummary).toBeNull();
+  });
+
+  it("keeps the last move summary for a reload", () => {
     const sim = new SettlementSimulation();
     build(sim, "woodcutter");
-    const afterMove = sim.state.resources.wood;
-    sim.update(300);
-    expect(sim.state.resources.wood).toBe(afterMove);
-    build(sim, "sawmill");
-    expect(sim.state.resources.planks).toBeGreaterThan(0);
+    expect(sim.state.lastSummary?.buildingId).toBe("woodcutter");
+    expect(sim.state.lastSummary?.produced.wood).toBe(5);
   });
 
-  it("runs producers before converters and consumes their inputs", () => {
-    const sim = new SettlementSimulation();
-    const preference = ["farm", "woodcutter", "sawmill", "quarry", "bakery"];
-    while (!sim.state.builtBuildingIds.includes("bakery")) {
-      build(sim, preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0]);
-    }
-    expect(sim.state.resources.rations).toBeGreaterThanOrEqual(3);
-    expect(sim.state.resources.grain).toBeGreaterThan(0);
-  });
-
-  it("matures early buildings across subsequent moves", () => {
-    const sim = new SettlementSimulation();
-    while (!sim.state.builtBuildingIds.includes("sawmill")) {
-      const preference = ["woodcutter", "sawmill"];
-      build(sim, preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0]);
-    }
-    expect(sim.state.buildingMaturity.woodcutter).toBe(sim.state.builtBuildingIds.length - sim.state.builtBuildingIds.indexOf("woodcutter"));
-    expect(sim.state.buildingMaturity.sawmill).toBe(1);
-  });
-
-  it("adds exactly one archer and swordsman per move once their workshops exist", () => {
-    const sim = new SettlementSimulation();
-    const preference = ["woodcutter", "sawmill", "quarry", "blacksmith", "weapons-workshop", "barracks"];
-    let archers = 0;
-    let swordsmen = 0;
-    let horsemen = 0;
-    while (sim.state.mode !== "complete") {
-      const choice = preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0];
-      const events = build(sim, choice);
-      if (sim.state.builtBuildingIds.includes("weapons-workshop")) archers += 1;
-      if (sim.state.builtBuildingIds.includes("blacksmith")) swordsmen += 1;
-      if (sim.state.builtBuildingIds.includes("stable")) horsemen += 2;
-      expect(sim.state.trainedUnits).toEqual({ archers, swordsmen, horsemen });
-      const trained = events.find((event) => event.type === "unit-trained");
-      expect(Boolean(trained)).toBe(Boolean(archers || swordsmen));
-    }
-    expect(archers).toBeGreaterThan(0);
-    expect(swordsmen).toBeGreaterThan(0);
-    expect(sim.state.armyReport?.units.horsemen).toBe(horsemen);
-    expect(sim.state.armyReport?.units.archers).toBe(archers + 1); // Final reserve recruit, separate from per-move training.
-    expect(sim.state.armyReport?.units.swordsmen).toBe(swordsmen);
-  });
-});
-
-describe("Campaign 1 finale", () => {
-  function playPreferred(preference: string[]): SettlementSimulation {
-    const sim = new SettlementSimulation();
-    while (sim.state.mode !== "complete") {
-      const choice = preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0];
-      build(sim, choice);
-    }
-    return sim;
-  }
-
-  it("ends after Move 12 and emits an Army Muster before game-complete", () => {
-    const sim = new SettlementSimulation();
-    let finalEvents = [] as ReturnType<typeof build>;
-    while (sim.state.mode !== "complete") finalEvents = build(sim, sim.state.availableBuildingIds[0]);
-    expect(sim.state.civicLevel).toBe(TOTAL_MOVES);
-    expect(sim.state.builtBuildingIds).toHaveLength(TOTAL_MOVES);
-    expect(finalEvents.slice(-2).map((event) => event.type)).toEqual(["army-mustered", "game-complete"]);
-    expect(sim.state.armyReport).not.toBeNull();
-    const resources = { ...sim.state.resources };
-    expect(sim.update(300)).toEqual([]);
-    expect(sim.state.resources).toEqual(resources);
-  });
-
-  it("can reach the swordsman, archer, and mixed defenses within twelve moves", () => {
-    const paths = [
-      { preference: ["woodcutter", "sawmill", "quarry", "farm", "bakery", "blacksmith", "house", "granary", "swine-farm", "butchery", "fruit-orchard", "winery", "marketplace", "barracks"], strategy: "swordsmen" },
-      { preference: ["woodcutter", "sawmill", "quarry", "weapons-workshop", "farm", "house", "bakery", "granary", "swine-farm", "butchery", "fruit-orchard", "winery", "marketplace", "barracks"], strategy: "archers" },
-      { preference: ["woodcutter", "sawmill", "quarry", "weapons-workshop", "blacksmith", "farm"], strategy: "mixed" },
-    ] as const;
-    for (const path of paths) {
-      const sim = playPreferred([...path.preference]);
-      expect(sim.state.builtBuildingIds, path.strategy).toHaveLength(12);
-      expect(defenseStrategy(sim.state.armyReport!.units), `${path.strategy}: ${sim.state.builtBuildingIds.join(",")} / ${JSON.stringify(sim.state.armyReport!.units)}`).toBe(path.strategy);
-      expect(sim.state.armyReport?.outcome, path.strategy).toBe("Victory");
-    }
-  });
-
-  it("rewards a complete supply-and-arms chain with victory", () => {
-    const sim = playPreferred(["house", "woodcutter", "sawmill", "farm", "bakery", "quarry", "blacksmith", "barracks", "weapons-workshop", "swine-farm", "butchery", "granary"]);
-    expect(["Victory", "Decisive Victory", "Flourishing Victory"]).toContain(sim.state.armyReport?.outcome);
-    expect(sim.state.armyReport?.enemyStrength).toBe(CAMPAIGN_1.objective.strength);
-    expect(sim.state.armyReport?.supplyTurns).toBeGreaterThan(0);
-    expect(sim.state.armyReport?.units.archers).toBeGreaterThan(0);
-  });
-
-  it("offers the Stable after both workshops and trains two horsemen per completed move", () => {
-    const sim = new SettlementSimulation();
-    const preference = ["woodcutter", "sawmill", "quarry", "blacksmith", "weapons-workshop", "stable"];
-    let previous = 0;
-    let stableBuilt = false;
-    while (sim.state.mode !== "complete") {
-      const choice = preference.find((id) => sim.state.availableBuildingIds.includes(id)) ?? sim.state.availableBuildingIds[0];
-      if (choice === "stable") {
-        expect(sim.state.builtBuildingIds).toEqual(expect.arrayContaining(["blacksmith", "weapons-workshop"]));
-        stableBuilt = true;
-      }
-      build(sim, choice);
-      expect(sim.state.trainedUnits.horsemen - previous).toBe(stableBuilt ? 2 : 0);
-      previous = sim.state.trainedUnits.horsemen;
-    }
-    expect(stableBuilt).toBe(true);
-    expect(sim.state.armyReport?.units.horsemen).toBe(previous);
-    expect(previous).toBeGreaterThanOrEqual(6);
-  });
-
-  it("can reach the finale with no campaign supply turns", () => {
-    const sim = playPreferred(["house", "woodcutter", "sawmill", "fruit-orchard", "winery", "quarry", "blacksmith", "barracks", "weapons-workshop", "marketplace", "swine-farm", "farm"]);
-    expect(sim.state.armyReport?.supplyTurns).toBe(0);
-  });
-});
-
-describe("reset, summaries, and saves", () => {
-  it("resets to a fresh campaign and summarizes completed moves only", () => {
+  it("round-trips a mid-construction state through JSON", () => {
     const sim = new SettlementSimulation();
     build(sim, "farm");
     sim.chooseBuilding("woodcutter");
-    expect(sim.buildOrderSummary()).toEqual([{ move: 1, buildingId: "farm" }]);
-    sim.reset();
-    expect(sim.state).toEqual(new SettlementSimulation().state);
+    sim.update(12);
+    const snapshot = JSON.parse(JSON.stringify(sim.serialize()));
+    expect(snapshot.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    const copy = new SettlementSimulation();
+    copy.loadSnapshot(snapshot);
+    expect(copy.state).toEqual(sim.state);
   });
 
-  it("round-trips an independent mid-construction state through JSON", () => {
-    const original = new SettlementSimulation();
-    build(original, "farm");
-    original.chooseBuilding("woodcutter");
-    original.update(10);
-    const snapshot: SettlementSnapshot = JSON.parse(JSON.stringify(original.serialize()));
-    expect(snapshot.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
-    expect(isValidSnapshot(snapshot)).toBe(true);
-    const restored = new SettlementSimulation();
-    restored.loadSnapshot(snapshot);
-    expect(restored.state).toEqual(original.state);
-    restored.update(5);
-    expect(restored.state.constructionElapsed).not.toBe(original.state.constructionElapsed);
+  it("round-trips a finished run with its report", () => {
+    const sim = new SettlementSimulation();
+    playToEnd(sim, ARMY_ORDER);
+    const copy = new SettlementSimulation();
+    copy.loadSnapshot(JSON.parse(JSON.stringify(sim.serialize())));
+    expect(copy.state.armyReport).toEqual(sim.state.armyReport);
   });
 
   it("rejects unsupported and cross-campaign snapshots", () => {

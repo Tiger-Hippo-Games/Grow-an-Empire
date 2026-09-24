@@ -1,20 +1,23 @@
 # Grow an Empire
 
-An HTML5/Three.js city defense game. The player makes one strategic building choice per move while the settlement constructs, produces, upgrades, and populates itself automatically.
+An HTML5/Three.js city defense game. The player makes one building choice per move while the settlement constructs, produces, upgrades, and populates itself, then defends it against an enemy army.
 
-The playable slice includes:
+The game includes:
 
-- a rolling build pool across twelve moves, with up to three prerequisite-valid cards offered;
-- fifteen possible district buildings, with twelve selected in any one city;
-- thirteen civic states: Level 0 campsite plus one upgrade per move, ending at the Grand Muster Hall;
-- prerequisite-driven offers: Farm opens Orchard and Swine Farm; Sawmill and Quarry open House, Blacksmith, Weapons Workshop, and Barracks;
-- population growth from 1 villager at Level 0 to 79 at Level 12, with a House adding 2 people per subsequent level;
-- semantic city districts with five roads that grow toward occupied civic, forest, farm, southwest, and industrial quarters;
-- autonomous resource production and complementary-building bonuses;
-- one swordsman per completed move from Blacksmith and one archer per completed move from Weapons Workshop, visible beside the Barracks plot;
-- distinct 512 × 512 four-frame walking sheets for builders, producers, craftspeople, traders, and army units;
-- a 30-second default construction cadence with pause, restart, 1–8× speed, and grid controls;
-- a final army muster after Move 12, scored against the approaching raiders.
+- 25 campaigns, each a named enemy army, all on the same rules: 12 moves and the same starting stockpile (14 wood, 8 stone, 4 grain, 6 rations);
+- an enemy briefing when a campaign starts, and again when the enemy arrives;
+- 16 buildings with build costs and production chains (wood → planks, grain/livestock → rations, fruit → wine), up to three prerequisite-valid cards per move;
+- soldiers trained from materials and free villagers: archers (Weapons Workshop), swordsmen (Blacksmith) and horsemen (Stable), who eat rations every move and desert when there are none;
+- a move summary before every choice: what was produced, used and trained, idle buildings, and warnings;
+- stuck moves: swap spare goods at the Marketplace at twice the price, or Gather (build nothing, everything still works);
+- a pre-battle market that sells goods for sellswords (15 gold each, up to half the enemy's army);
+- a battle shown as two strips of unit icons greying out over four rounds, then a result with 1–3 stars and what would have done better;
+- a campaign map with 25 stops; stars unlock the next campaign (win the previous one and hold 1.8 × campaigns-won stars); any campaign can be replayed;
+- thirteen civic states, population growth, and semantic city districts with roads;
+- sound effects (with a mute button), keyboard shortcuts (1-3 choose, G gather, Space pause, S speed, M mute, F full screen), and a full-screen button;
+- a 30-second construction cadence with pause, restart, 1–8× speed, and grid controls.
+
+The design and the balance tables are in the "Grow an Empire: Economy & Army Design" doc (project docs); `src/game/economy.ts` holds the numbers.
 
 See `Docs/BUILD_ORDER_CONTENT.md` for the offer rules and `Docs/GAME_ARCHITECTURE.md` for runtime boundaries.
 

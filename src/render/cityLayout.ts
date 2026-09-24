@@ -318,8 +318,8 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     addGroundDisc(8, point.x + 0.28, point.y, 0.24, 0x77736a, 0.95);
   }
 
-  // Levels 9–14 strengthen the town approaches as the later campaigns muster.
-  for (const [stage, distance, color] of [[9, 4.4, 0x867a62], [10, 5.1, 0x9d8664], [11, 5.8, 0x6f6d5a], [12, 6.5, 0xc7a65d], [13, 7.2, 0xb78352], [14, 7.9, 0xe2b865]] as const) {
+  // Levels 9–12 strengthen the town approaches in the last moves before the battle.
+  for (const [stage, distance, color] of [[9, 4.4, 0x867a62], [10, 5.1, 0x9d8664], [11, 5.8, 0x6f6d5a], [12, 6.5, 0xc7a65d]] as const) {
     for (const side of [-1, 1]) {
       addGroundDisc(stage, civicGround.x + side * distance, civicGround.y + 1.65, 0.21, color, 0.8);
       addGroundDisc(stage, civicGround.x + side * distance, civicGround.y - 1.65, 0.21, color, 0.8);

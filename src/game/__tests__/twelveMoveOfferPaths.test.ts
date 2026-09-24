@@ -50,7 +50,7 @@ describe("every reachable twelve-move build order", () => {
     expect(checkedRoads.size).toBeGreaterThan(TOTAL_MOVES);
   });
 
-  it("keeps an available choice on every reachable 13- and 14-move route", () => {
+  it("keeps an available offer on every reachable route", () => {
     const visited = new Set<string>();
     function explore(built: string[], options: string[]): void {
       if (built.length === MAX_CAMPAIGN_MOVES) return;

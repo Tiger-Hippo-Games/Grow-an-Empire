@@ -1,5 +1,25 @@
 # QA results
 
+## v0.2.0 (2026-09-24): economy, 25 campaigns, stars, market, battle strip
+
+Build: **v0.2.0**, `release/grow-an-empire-0.2.0.zip` (15.7 MB unpacked, 121 files). Headless Chromium in a cloud workspace. The v0.1.0 results below are kept for history; where they disagree, this section is current.
+
+| Check | Result | Details |
+|---|---|---|
+| `pnpm check` | ✅ Pass | tsc and ESLint clean; 128/128 vitest tests, including the balance search over every build order (20,927 endings, 0 dead ends, each campaign within 5 points of its win-share target) and the frozen v4 save fixture played to the end under the new rules |
+| Bundle validator (`pnpm package`) | ✅ Pass | index.html at the root, SDK tag, relative paths, no localhost, no `alert()`, thumbnail and banner. No unused art (runtimeAssets test) |
+| Portal path in an iframe | ✅ Pass | ZIP unpacked under `/games/grow-an-empire/` behind a host page: boots, styles and scripts load, the 16:9 stage is centred at 1920×1080 (exactly 1.5×), 1280×720, 1366×768 and 1600×1000 (bars top and bottom). No console errors |
+| `gameplay.py` | ✅ Pass (4/4) | Failed boot keeps the save; unusable save starts fresh; art failure on a pick is not committed or paid for, and retry works; full Campaign 1 at 8× with the tutorial, key 1 choosing a card, reload mid-game and at the muster, battle, result ★★★, stars saved, Campaign 2 opened |
+| `platform_sdk.py` | ✅ Pass (3/3) | SDK call order, cloud restore, iframe pause/resume/session end, offline play |
+| `fault_injection.py --quick` | ✅ Pass (16/16) | Includes battle icon art failing at the end of a full game (the result still shows) |
+| `context_loss.py` | ✅ Pass | Lost and restored WebGL context, play continues |
+| `load_time.py` | ✅ Pass | Playable in 1.4 s at 10 Mbps and 7.7 s on Slow 4G; 1.02 MB before playable |
+| `viewports.py` | ⚠️ See note | No overlaps, clipping or page scroll at 1920×1080, 1600×900, 1366×724, 1280×720, 960×540 or 667×375; the stage is centred at every size; upright phones get the "turn sideways" screen. At 1280×720 and up, text is at least 12.5 px and buttons 44 px. In small frames the whole stage scales down, so at 960×540 text is about 9.4 px and buttons 33 px, and at 667×375 smaller still. That is the fixed-stage design; the portal's 1920×1080 frame is unaffected |
+
+Not yet done: the manual device matrix (section 2 below) on a real phone and desktop, including sound and full screen inside the real portal frame.
+
+---
+
 Build: **v0.1.0**, `release/grow-an-empire-0.1.0.zip` (7.76 MB, with the battle art). Run on 2026-09-23.
 
 This file has two parts:

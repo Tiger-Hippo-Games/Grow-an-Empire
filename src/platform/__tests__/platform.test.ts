@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CONSTRUCTION_DURATION_SECONDS } from "../../game/content";
+import { playMove } from "../../game/__tests__/play";
 import { SettlementSimulation } from "../../game/settlementSimulation";
 import { createGoLivePlatform, normalizeProgress } from "../adapters";
 import { belongsToAnotherPlayer, chooseSave, createProgressStore, toSavedGame, type SavedGame } from "../progressStore";
@@ -9,10 +9,8 @@ import type { GoLiveSdk, PlatformAdapter } from "../types";
 /** A save of a run with `moves` completed buildings, saved at `minute` past the hour. */
 function saveAfter(moves: number, runId: string, minute: number, tutorialComplete = false): SavedGame {
   const sim = new SettlementSimulation();
-  for (let move = 0; move < moves; move += 1) {
-    sim.chooseBuilding(sim.state.availableBuildingIds[0]);
-    sim.update(CONSTRUCTION_DURATION_SECONDS);
-  }
+  // Builds `moves` buildings (gathers don't count as moves here).
+  while (sim.state.builtBuildingIds.length < moves) playMove(sim);
   const snapshot = JSON.parse(JSON.stringify(sim.serialize()));
   return { ...snapshot, savedAt: `2026-09-23T10:${String(minute).padStart(2, "0")}:00.000Z`, runId, settings: { tutorialComplete } };
 }
@@ -51,7 +49,7 @@ describe("toSavedGame", () => {
     const { runId: _runId, settings: _settings, ...legacy } = saveAfter(2, "x", 0);
     const game = toSavedGame(legacy, new SettlementSimulation().campaign.id);
     expect(game?.runId).toBe("legacy");
-    expect(game?.settings).toEqual({ tutorialComplete: false });
+    expect(game?.settings).toEqual({ tutorialComplete: false, muted: false });
   });
   it("rejects another campaign's save and garbage", () => {
     expect(toSavedGame({ ...saveAfter(1, "x", 0), campaignId: "other" }, new SettlementSimulation().campaign.id)).toBeNull();
@@ -85,6 +83,17 @@ describe("chooseSave", () => {
     expect(chooseSave(first, second)?.completedCampaignIds).toEqual(["campaign-1-first-muster"]);
     expect(chooseSave(first, second)?.campaignId).toBe("campaign-2-river-watch");
   });
+  it("keeps the best stars from both copies, and counts old victories as one star", () => {
+    const campaignId = new SettlementSimulation().campaign.id;
+    const local = { ...saveAfter(1, "r", 1), campaignStars: { [campaignId]: 3, other: 1 } };
+    const cloud = { ...saveAfter(2, "r", 2), campaignStars: { [campaignId]: 2, other: 2 } };
+    expect(chooseSave(local, cloud)?.campaignStars).toEqual({ [campaignId]: 3, other: 2 });
+    const legacy = toSavedGame({ ...saveAfter(1, "r", 1), completedCampaignIds: [campaignId] }, null);
+    expect(legacy?.campaignStars).toEqual({ [campaignId]: 1 });
+    const garbage = toSavedGame({ ...saveAfter(1, "r", 1), campaignStars: { a: "x", b: 9, c: -2 } }, null);
+    expect(garbage?.campaignStars).toEqual({ b: 3, c: 0 });
+  });
+
   it("handles missing copies", () => {
     expect(chooseSave(null, null)).toBeNull();
     expect(chooseSave(saveAfter(1, "r", 1), null)?.runId).toBe("r");
