@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUILDINGS, isBuildingEligible, nextBuildingOffer, OPENING_BUILD_OPTIONS, TOTAL_MOVES } from "../content";
+import { BUILDINGS, isBuildingEligible, MAX_CAMPAIGN_MOVES, nextBuildingOffer, OPENING_BUILD_OPTIONS, TOTAL_MOVES } from "../content";
 import { getVisibleRoadSegments } from "../../render/cityLayout";
 import { buildFunctionalRoutes } from "../../render/villagers";
 
@@ -48,5 +48,26 @@ describe("every reachable twelve-move build order", () => {
 
     expect(explore([], [...OPENING_BUILD_OPTIONS])).toBeGreaterThan(0);
     expect(checkedRoads.size).toBeGreaterThan(TOTAL_MOVES);
+  });
+
+  it("keeps an available choice on every reachable 13- and 14-move route", () => {
+    const visited = new Set<string>();
+    function explore(built: string[], options: string[]): void {
+      if (built.length === MAX_CAMPAIGN_MOVES) return;
+      const key = `${[...built].sort().join(",")}|${options.join(",")}`;
+      if (visited.has(key)) return;
+      visited.add(key);
+      expect(options.length, `move ${built.length + 1}: ${built.join(", ")}`).toBeGreaterThan(0);
+      for (const id of options) {
+        const nextBuilt = [...built, id];
+        if (nextBuilt.length === MAX_CAMPAIGN_MOVES) continue;
+        const nextOptions = options.filter((option) => option !== id);
+        const offer = nextBuildingOffer(nextBuilt, nextOptions, nextBuilt.length + 1, id);
+        if (offer) nextOptions.push(offer);
+        explore(nextBuilt, nextOptions);
+      }
+    }
+    explore([], [...OPENING_BUILD_OPTIONS]);
+    expect(visited.size).toBeGreaterThan(100);
   });
 });

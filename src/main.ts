@@ -1,5 +1,6 @@
 import { Timer } from "three";
-import { BUILDINGS, OPENING_BUILD_OPTIONS, TOTAL_MOVES } from "./game/content";
+import { BUILDINGS, OPENING_BUILD_OPTIONS } from "./game/content";
+import { CAMPAIGNS, campaignById, type CampaignDefinition } from "./game/campaigns";
 import { SettlementSimulation, type SettlementSnapshot, type SimulationEvent } from "./game/settlementSimulation";
 import { createPlatform } from "./platform/adapters";
 import { createProgressStore, DEFAULT_SETTINGS, newRunId, type SavedGame, type SavedSettings } from "./platform/progressStore";
@@ -14,6 +15,7 @@ import { createCombatScene } from "./render/combatScene";
 import { createCharacterAssets, roleForBuilding } from "./render/characterAssets";
 import { onImageLoadProgress } from "./render/spriteAssets";
 import { createHud, type HudStateSnapshot } from "./ui/hud";
+import { createCampaignMap } from "./ui/campaignMap";
 import "./styles.css";
 
 // This file is the orchestrator: it owns nothing about *how* to draw a
@@ -69,10 +71,12 @@ function requestRender(): void {
   renderRequested = true;
 }
 
-const simulation = new SettlementSimulation();
+let simulation = new SettlementSimulation();
+let completedCampaignIds: string[] = [];
+let tutorialPending = false;
 /** The GoLive SDK when running on the portal; an offline stand-in otherwise. */
 const platform = createPlatform();
-const progress = createProgressStore(platform, simulation.campaign.id);
+const progress = createProgressStore(platform, null);
 const session = createSessionTracker(platform);
 
 /** Analytics with the game version attached. Fire-and-forget. */
@@ -164,6 +168,39 @@ const hud = createHud({
   },
 });
 
+function selectCampaign(campaign: CampaignDefinition): void {
+  const continuing = simulation.campaign.id === campaign.id && simulation.state.mode !== "complete";
+  if (!continuing) {
+    simulation = new SettlementSimulation(campaign);
+    saveRunId = newRunId();
+    resetSettlement();
+    autosave({ immediate: true });
+  }
+  hud.setCampaign(campaign, CAMPAIGNS.findIndex((entry) => entry.id === campaign.id));
+  hud.setCivicLevel(simulation.state.civicLevel);
+  hud.updateHud(stateSnapshot());
+  campaignMap.hide();
+  playing = true;
+  hud.setPlayingLabel(true);
+  if (tutorialPending && !settings.tutorialComplete) hud.maybeStartTutorial(true, false);
+  tutorialPending = false;
+  if (initialized && simulation.state.mode !== "complete") session.start();
+  track("campaign_selected", { campaign: campaign.id, continuing });
+  requestRender();
+}
+
+const campaignMap = createCampaignMap(selectCampaign);
+function openCampaignMap(): void {
+  if (!initialized) return;
+  playing = false;
+  hud.setPlayingLabel(false);
+  hud.hideArmyReport();
+  campaignMap.show(simulation.campaign.id, completedCampaignIds, simulation.state.mode === "complete", simulation.state.move);
+  requestRender();
+}
+document.getElementById("map-toggle")!.addEventListener("click", openCampaignMap);
+document.getElementById("report-map")!.addEventListener("click", openCampaignMap);
+
 const { renderer, scene, camera, resize: resizeCamera, quality, viewBounds } = createSceneSetup(hud.viewport);
 let terrain: TerrainHandle | null = null;
 /** Resizes the canvas and camera, and stretches the terrain to cover the new view. */
@@ -189,7 +226,11 @@ function showBattleResult(): void {
   villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
   villagerField.beginArmyMuster(report, animationElapsed);
   hud.renderArmyReport(report, buildOrderNames(), simulation.campaign.objective.enemyName);
-  hud.showMilestone(report.outcome, report.outcome === "Victory" ? "The city held against all five raiders." : "The raiders broke through the defense.", animationElapsed, true);
+  if (report.outcome === "Victory" && !completedCampaignIds.includes(simulation.campaign.id)) {
+    completedCampaignIds.push(simulation.campaign.id);
+    autosave({ immediate: true });
+  }
+  hud.showMilestone(report.outcome, report.outcome === "Victory" ? `The city held against all ${report.enemyStrength} raiders.` : "The raiders broke through the defense.", animationElapsed, true);
   hud.setStatus(`Campaign complete — ${report.outcome}`, 1);
   requestRender();
 }
@@ -241,7 +282,7 @@ function stateSnapshot(): HudStateSnapshot {
 
 /** The current run as a save (snapshot + run id + settings). */
 function currentSave(): SavedGame {
-  return { ...simulation.serialize(), runId: saveRunId, settings };
+  return { ...simulation.serialize(), runId: saveRunId, settings, completedCampaignIds };
 }
 
 /**
@@ -327,9 +368,9 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       cityLayout.syncBuiltBuildings(simulation.state.builtBuildingIds);
       const completedMove = event.plotIndex + 1;
       // (The final move's toast is replaced right away by the game-complete one.)
-      const copy = completedMove < TOTAL_MOVES
+      const copy = completedMove < simulation.campaign.moveLimit
         ? `Completed on Move ${completedMove}. The civic center also advanced.`
-        : `Completed on Move ${completedMove}. The Grand Muster Hall stands ready to defend the city.`;
+        : `Completed on Move ${completedMove}. The settlement stands ready to defend the city.`;
       const trainedThisMove = [
         simulation.state.builtBuildingIds.includes("blacksmith") && "1 swordsman",
         simulation.state.builtBuildingIds.includes("weapons-workshop") && "1 archer",
@@ -365,7 +406,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       void startCombat(event.report);
     } else if (event.type === "game-complete") {
       const report = simulation.state.armyReport;
-      if (report?.outcome === "Settlement Lost") track("level_failed", { level: TOTAL_MOVES, reason: report.outcome });
+      if (report?.outcome === "Settlement Lost") track("level_failed", { level: simulation.campaign.moveLimit, reason: report.outcome });
       track("game_over", {
         final_score: report?.score ?? 0,
         level_reached: simulation.state.civicLevel,
@@ -592,6 +633,7 @@ function applyTestingUrlFlags(): boolean {
   const url = new URL(window.location.href);
   if (!url.searchParams.has("reset")) return false;
   progress.clear();
+  completedCampaignIds = [];
   try { window.localStorage.removeItem("grow-an-empire:tutorial:v1"); } catch { /* Storage unavailable. */ }
   url.searchParams.delete("reset");
   try {
@@ -640,6 +682,13 @@ async function initialize(): Promise<void> {
     savedPromise,
   ]);
   const saved: SavedGame | null = resetRequested ? null : await savedPromise;
+  if (saved) {
+    completedCampaignIds = saved.completedCampaignIds ?? [];
+    if (saved.state.mode === "complete" && saved.state.armyReport?.outcome === "Victory" && !completedCampaignIds.includes(saved.campaignId)) {
+      completedCampaignIds.push(saved.campaignId);
+    }
+    simulation = new SettlementSimulation(campaignById(saved.campaignId) ?? CAMPAIGNS[0]);
+  }
   settings = resetRequested ? { ...DEFAULT_SETTINGS } : { ...DEFAULT_SETTINGS, ...saved?.settings };
   if (!resetRequested && legacyTutorialCompleted()) settings.tutorialComplete = true;
   // A resumed city needs its built (and under-construction) buildings on screen
@@ -658,6 +707,9 @@ async function initialize(): Promise<void> {
     resetSettlement();
     if (saved) hud.setStatus("Your saved settlement couldn't be restored, so a new one has begun. Choose your first building.", 0);
   }
+  hud.setCampaign(simulation.campaign, CAMPAIGNS.findIndex((entry) => entry.id === simulation.campaign.id));
+  hud.setCivicLevel(simulation.state.civicLevel);
+  hud.updateHud(stateSnapshot());
   if (progress.savingDisabledReason) hud.setStatus(progress.savingDisabledReason, 0);
   stopProgress();
   resize();
@@ -668,11 +720,13 @@ async function initialize(): Promise<void> {
   initialized = true;
   autosave({ immediate: !resumed });
   console.info(`[Grow an Empire] v${__APP_VERSION__} · platform: ${platform.kind}`);
-  if (simulation.state.mode !== "complete") session.start();
+  playing = false;
+  hud.setPlayingLabel(false);
+  campaignMap.show(simulation.campaign.id, completedCampaignIds, simulation.state.mode === "complete", simulation.state.move);
   track("game_start", { resumed, move: simulation.state.move });
   notifyPortalReady(__APP_VERSION__);
   startBackgroundLoads(offered);
-  hud.maybeStartTutorial(!resumed, settings.tutorialComplete);
+  tutorialPending = !resumed;
 }
 
 /**

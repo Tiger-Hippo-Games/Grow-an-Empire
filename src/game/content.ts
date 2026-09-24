@@ -9,8 +9,10 @@
 
 /** Number of building decisions in one campaign run. */
 export const TOTAL_MOVES = 12;
+/** Longest campaign; the opening campaign still ends after TOTAL_MOVES. */
+export const MAX_CAMPAIGN_MOVES = 14;
 /** One civic level per completed move, plus the founding campsite. */
-export const TOTAL_SETTLEMENT_LEVELS = TOTAL_MOVES + 1;
+export const TOTAL_SETTLEMENT_LEVELS = MAX_CAMPAIGN_MOVES + 1;
 /** Simulation seconds each construction takes at 1x speed. */
 export const CONSTRUCTION_DURATION_SECONDS = 30;
 
@@ -163,6 +165,8 @@ export const CIVIC_LEVEL_NAMES = [
   "Defenders' Square",
   "Fortified Borough",
   "Grand Muster Hall",
+  "Veteran Muster",
+  "Frontier Assembly",
 ];
 
 /** Player-facing label for each resource. Its key order is also the HUD stockpile order. */

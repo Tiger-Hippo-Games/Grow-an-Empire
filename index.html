@@ -115,7 +115,7 @@
           <div><span>Swordsmen</span><strong id="swordsmen">0</strong></div>
           <div><span>Horsemen</span><strong id="horsemen">0</strong></div>
         </div>
-        <div class="level-track" aria-label="Thirteen settlement levels">
+        <div class="level-track" aria-label="Settlement levels">
           <span id="level-track-label">LEVEL 0 · FOUNDING CAMPSITE</span>
           <div id="level-pips" class="level-pips" aria-hidden="true"></div>
         </div>
@@ -160,6 +160,7 @@
         <div id="army-stats" class="army-stats"></div>
         <ul id="army-explanations" class="army-explanations"></ul>
         <button id="view-city" type="button">View the completed city</button>
+        <button id="report-map" type="button">Campaign map</button>
       </aside>
 
       <section class="controls" aria-label="Simulation controls">
@@ -167,8 +168,21 @@
         <button id="speed-toggle" type="button" aria-label="Change simulation speed">Speed · 1×</button>
         <button id="grid-toggle" type="button" aria-pressed="false">Grid · Off</button>
         <button id="muster-toggle" class="hidden" type="button">Army report</button>
+        <button id="map-toggle" type="button">Campaign map</button>
         <button id="help-toggle" type="button">How to play</button>
         <button id="restart" class="quiet-control" type="button">Restart</button>
+      </section>
+
+      <section id="campaign-map" class="campaign-map hidden" aria-label="Campaign map">
+        <div class="campaign-map-heading"><span>GROW AN EMPIRE</span><h2>Southern Front</h2><p>Raiders approach from the south.</p></div>
+        <div class="campaign-home">OUR VILLAGE</div>
+        <div id="province-highlight" class="province-highlight" aria-hidden="true"></div>
+        <div id="campaign-stops" class="campaign-stops" aria-label="Campaign destinations"></div>
+        <aside class="campaign-map-card" aria-live="polite">
+          <span id="campaign-stage"></span><h3 id="campaign-name"></h3>
+          <p id="campaign-copy"></p><p id="campaign-briefing"></p>
+          <strong id="campaign-state"></strong><button id="campaign-launch" type="button">Begin campaign</button>
+        </aside>
       </section>
 
       <div id="tutorial-scrim" class="tutorial-scrim hidden">

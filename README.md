@@ -24,6 +24,16 @@ source cutout, regenerate the sheets with `pwsh -File art-tools/create-walk-shee
 
 ## Run locally
 
+**First time on a computer (Windows):** double-click `setup-tools.cmd`. It checks
+Node.js (22.13 or newer, needed by pnpm 11), installs pnpm if it's missing, then
+runs `pnpm install`, `pnpm check` and `pnpm package`, and offers to open the built
+game. Batch files run even where PowerShell blocks scripts ("running scripts is
+disabled on this system").
+
+**Test the portal build:** double-click `test-build.cmd` (or run `pnpm preview`).
+It serves `dist/` at http://127.0.0.1:4174/. Opening `dist/index.html` straight
+from the folder doesn't work: browsers block a page's scripts and styles there.
+
 **Easiest (Windows):** double-click `start-game.cmd`. It checks Node, installs
 dependencies the first time (or whenever `package.json` / `pnpm-lock.yaml`
 change), starts the dev server, and opens the game in your browser. Keep its
@@ -40,8 +50,8 @@ pnpm start        # dev server + opens http://127.0.0.1:4173/
 `pnpm dev` does the same without opening a browser. Code changes reload the
 page automatically; your in-progress game resumes from its autosave.
 
-Requirements: Node 20.19+ or 22.12+ (Vite 8), and pnpm (the launcher falls
-back to `npx pnpm@11.19.0` if pnpm isn't installed).
+Requirements: Node 22.13+ (pnpm 11 needs it; Vite 8 alone would run on 20.19+),
+and pnpm (the launcher falls back to `npx pnpm@11.19.0` if pnpm isn't installed).
 
 ### Testing tips
 

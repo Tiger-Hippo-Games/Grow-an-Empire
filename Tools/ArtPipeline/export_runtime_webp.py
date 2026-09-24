@@ -49,6 +49,7 @@ SOURCES = [
     "Assets/Art/Production/Characters/DirectionalWalk/*-walk32-master-v1.png",
     "Assets/Art/Production/Characters/WorkLoops/*-work8-master-v1.png",
     "Assets/Art/Production/Characters/CombatLoops/*-combat-*8-master-v1.png",
+    "Assets/Art/Production/Campaign/southern-pass-map-v5.png",
 ]
 # Glob matches that the game does not use.
 EXCLUDE_NAMES = {"campsite-level-1-2x-v1.png"}

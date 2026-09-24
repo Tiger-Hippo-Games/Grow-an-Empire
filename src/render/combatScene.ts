@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { defenseStrategy, ENEMY_SWORDSMEN, type DefenseStrategy } from "../game/combatRules";
+import { defenseStrategy, type DefenseStrategy } from "../game/combatRules";
 import type { ArmyReport } from "../game/settlementSimulation";
 import { directionFromVector, WALK_CELL_ASPECT, type CharacterAssets } from "./characterAssets";
 import { civicGround } from "./cityLayout";
@@ -73,7 +73,12 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
   function makeFighter(role: Fighter["role"], index: number, southernEdge: number): void {
     const lane = index % 5;
     const row = Math.floor(index / 5);
-    const { startX, startY, targetX, targetY } = battleRoute(role, lane, southernEdge);
+    const route = battleRoute(role, lane, southernEdge);
+    const rearRank = role === "enemy" ? row : 0;
+    const startX = route.startX + rearRank * 0.8;
+    const targetX = route.targetX + rearRank * 0.8;
+    const startY = route.startY - rearRank * 1.7;
+    const targetY = route.targetY - rearRank * 1.7;
     const initialDirection = directionFromVector(targetX - startX, targetY - startY);
     const material = new THREE.SpriteMaterial({ map: characters.getFrame(role, 0, initialDirection), transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(material);
@@ -122,7 +127,7 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
 
   function start(report: ArmyReport, elapsed: number, southernEdge: number): void {
     clear();
-    strategy = defenseStrategy(report.units);
+    strategy = defenseStrategy(report.units, report.enemyStrength);
     swordsCount = Math.min(report.units.swordsmen, DISPLAYED_PER_ROLE);
     archersCount = Math.min(report.units.archers, DISPLAYED_PER_ROLE);
     horsemenCount = Math.min(report.units.horsemen, DISPLAYED_PER_ROLE);
@@ -131,7 +136,7 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
     for (let index = 0; index < swordsCount; index += 1) makeFighter("swordsman", index, southernEdge);
     for (let index = 0; index < archersCount; index += 1) makeFighter("archer", index, southernEdge);
     for (let index = 0; index < horsemenCount; index += 1) makeFighter("horseman", index, southernEdge);
-    for (let index = 0; index < ENEMY_SWORDSMEN; index += 1) makeFighter("enemy", index, southernEdge);
+    for (let index = 0; index < report.enemyStrength; index += 1) makeFighter("enemy", index, southernEdge);
     createEffects();
     startTime = elapsed;
     active = true;

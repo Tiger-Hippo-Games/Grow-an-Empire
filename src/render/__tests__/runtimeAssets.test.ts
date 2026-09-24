@@ -21,6 +21,7 @@ const STAGES: ConstructionStage[] = ["foundation", "frame", "late", "complete"];
 function referencedFilenames(): string[] {
   const names = [
     "village-empty-terrain-16x9-v2.png",
+    "southern-pass-map-v5.png",
     "deciduous-01-healthy-2x-v1.png",
     ...Array.from({ length: 9 }, (_, level) => `settlement-level-${level}-2x-v1.png`),
     ...["walk", "chop", "pickup-log", "carry-log"].flatMap((action) =>

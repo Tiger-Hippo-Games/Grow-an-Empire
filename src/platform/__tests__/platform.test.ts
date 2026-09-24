@@ -57,6 +57,11 @@ describe("toSavedGame", () => {
     expect(toSavedGame({ ...saveAfter(1, "x", 0), campaignId: "other" }, new SettlementSimulation().campaign.id)).toBeNull();
     expect(toSavedGame({ hello: "world" }, new SettlementSimulation().campaign.id)).toBeNull();
   });
+  it("loads a selected campaign from the shared progress slot", () => {
+    const save = { ...saveAfter(1, "river", 2), campaignId: "campaign-2-river-watch", completedCampaignIds: ["campaign-1-first-muster"] };
+    expect(toSavedGame(save, null)?.campaignId).toBe("campaign-2-river-watch");
+    expect(toSavedGame(save, null)?.completedCampaignIds).toEqual(["campaign-1-first-muster"]);
+  });
 });
 
 describe("chooseSave", () => {
@@ -73,6 +78,12 @@ describe("chooseSave", () => {
   });
   it("keeps the tutorial done if either copy says so", () => {
     expect(chooseSave(saveAfter(1, "r", 1, true), saveAfter(2, "r", 2, false))?.settings.tutorialComplete).toBe(true);
+  });
+  it("keeps earlier victories when the active campaign changes", () => {
+    const first = { ...saveAfter(12, "first", 1), completedCampaignIds: ["campaign-1-first-muster"] };
+    const second = { ...saveAfter(2, "second", 2), campaignId: "campaign-2-river-watch", completedCampaignIds: [] };
+    expect(chooseSave(first, second)?.completedCampaignIds).toEqual(["campaign-1-first-muster"]);
+    expect(chooseSave(first, second)?.campaignId).toBe("campaign-2-river-watch");
   });
   it("handles missing copies", () => {
     expect(chooseSave(null, null)).toBeNull();

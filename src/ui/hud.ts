@@ -11,6 +11,7 @@ import type { ArmyReport, SimulationMode, ResourceLedger, TrainedUnits } from ".
 import { assetUrl } from "../render/assetCatalog";
 import { buildingFilename } from "../render/constructionView";
 import { requireElement } from "./dom";
+import type { CampaignDefinition } from "../game/campaigns";
 
 /** User actions the HUD reports back to `main.ts`. The HUD never changes game state itself. */
 export interface HudCallbacks {
@@ -44,6 +45,11 @@ export interface HudStateSnapshot {
  */
 export function createHud(callbacks: HudCallbacks) {
   const viewport = requireElement<HTMLElement>("#viewport");
+  const campaignKicker = requireElement<HTMLElement>(".brand .eyebrow");
+  const campaignTitle = requireElement<HTMLElement>(".brand h1");
+  const raidObjective = requireElement<HTMLElement>(".raid-objective strong");
+  const reportKicker = requireElement<HTMLElement>("#army-report .decision-kicker");
+  const reportTitle = requireElement<HTMLElement>("#army-report-title");
   const loading = requireElement<HTMLElement>("#loading");
   const phaseLabel = requireElement<HTMLElement>("#phase");
   const progressFill = requireElement<HTMLElement>("#phase-progress");
@@ -107,6 +113,7 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   let milestoneUntil = 0;
+  let campaignMoveLimit = TOTAL_MOVES;
   let selectedSpeed = 1;
   let gridVisible = false;
   let tutorialActive = false;
@@ -132,7 +139,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   /** Updates the civic level readout, level-track label, and pips. */
   function setCivicLevel(level: number): void {
-    civicLabel.textContent = `${level} / ${TOTAL_SETTLEMENT_LEVELS - 1}`;
+    civicLabel.textContent = `${level} / ${campaignMoveLimit}`;
     levelTrackLabel.textContent = `LEVEL ${level} · ${(CIVIC_LEVEL_NAMES[level] ?? "").toUpperCase()}`;
     [...levelPips.children].forEach((pip, index) => pip.classList.toggle("active", index <= level));
   }
@@ -145,7 +152,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   /** Refreshes the move counter, population, and every stockpile total. */
   function updateHud(snapshot: Pick<HudStateSnapshot, "move" | "population" | "resources" | "trainedUnits">): void {
-    moveLabel.textContent = `${Math.min(snapshot.move, TOTAL_MOVES)} / ${TOTAL_MOVES}`;
+    moveLabel.textContent = `${Math.min(snapshot.move, campaignMoveLimit)} / ${campaignMoveLimit}`;
     populationLabel.textContent = String(snapshot.population);
     archersLabel.textContent = String(snapshot.trainedUnits.archers);
     swordsmenLabel.textContent = String(snapshot.trainedUnits.swordsmen);
@@ -166,7 +173,7 @@ export function createHud(callbacks: HudCallbacks) {
     if (snapshot.mode !== "awaiting-choice") return;
     buildOptions.replaceChildren();
     buildPanel.removeAttribute("aria-busy");
-    moveChip.textContent = `${snapshot.move} OF ${TOTAL_MOVES}`;
+    moveChip.textContent = `${snapshot.move} OF ${campaignMoveLimit}`;
     for (const buildingId of snapshot.availableBuildingIds) {
       const building = BUILDINGS[buildingId];
       if (!building) {
@@ -232,7 +239,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   /** Shows the milestone toast for 3.5s (6s for the final one), measured in animation time. */
   function showMilestone(title: string, copy: string, animationElapsed: number, final = false): void {
-    milestoneKicker.textContent = final ? "TWELVE MOVES COMPLETE" : "CIVIC UPGRADE";
+    milestoneKicker.textContent = final ? `${campaignMoveLimit} MOVES COMPLETE` : "CIVIC UPGRADE";
     milestoneTitle.textContent = title;
     milestoneCopy.textContent = copy;
     milestone.classList.add("visible");
@@ -260,6 +267,16 @@ export function createHud(callbacks: HudCallbacks) {
     armyExplanations.innerHTML = report.explanations.map((explanation) => `<li>${explanation}</li>`).join("");
     armyReport.classList.remove("hidden");
     musterToggle.classList.remove("hidden");
+  }
+
+  function setCampaign(campaign: CampaignDefinition, index: number): void {
+    campaignMoveLimit = campaign.moveLimit;
+    [...levelPips.children].forEach((pip, pipIndex) => { (pip as HTMLElement).hidden = pipIndex > campaignMoveLimit; });
+    campaignKicker.textContent = `CAMPAIGN ${index + 1}`;
+    campaignTitle.textContent = campaign.name;
+    raidObjective.textContent = `${campaign.objective.kingdomName} · ${campaign.objective.strength} raiders in ${campaign.moveLimit} moves`;
+    reportKicker.textContent = `CAMPAIGN ${index + 1} · ARMY MUSTER`;
+    reportTitle.textContent = campaign.name;
   }
 
   function hideArmyReport(): void { armyReport.classList.add("hidden"); }
@@ -364,7 +381,7 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
     tutorialStep.textContent = "STEP 2 OF 2";
     tutorialCoachTitle.textContent = "Watch the whole city react";
-    tutorialCoachCopy.textContent = `Each move upgrades the settlement, adds villagers, and runs every completed building. The raiders arrive immediately after Move ${TOTAL_MOVES}.`;
+    tutorialCoachCopy.textContent = `Each move upgrades the settlement, adds villagers, and runs every completed building. The raiders arrive immediately after Move ${campaignMoveLimit}.`;
     tutorialNext.classList.remove("hidden");
     tutorialCoach.dataset.step = "growth";
     tutorialCoach.classList.remove("hidden");
@@ -459,6 +476,7 @@ export function createHud(callbacks: HudCallbacks) {
     setPlayingLabel,
     setSpeedLabel,
     renderArmyReport,
+    setCampaign,
     hideArmyReport,
     resetArmyReport,
     maybeStartTutorial,

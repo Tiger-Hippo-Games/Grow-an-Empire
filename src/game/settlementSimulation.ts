@@ -389,14 +389,19 @@ export class SettlementSimulation {
     const supplyTurns = Math.min(8, Math.floor(resources.rations / Math.max(1, Math.ceil(totalUnits / 4))));
     const cityDefense = resources.defense + Math.floor(resources.stone / 2) + Math.floor(resources.planks / 3) + this.state.civicLevel * 2;
     const score = Math.round(combatStrength * 0.65 + cityDefense * 0.2 + supplyTurns * 2 + morale * 0.1);
-    const strategy = defenseStrategy(units);
+    const strategy = defenseStrategy(units, this.campaign.objective.strength);
     const outcome: CampaignOutcome = strategy ? "Victory" : "Settlement Lost";
 
     const explanations: string[] = [];
     explanations.push(`${this.state.trainedUnits.archers} archers and ${swordsmen} swordsmen trained one at a time across the completed moves.`);
     if (horsemen) explanations.push(`${horsemen} horsemen trained at the Stable, two per completed move.`);
     if (reserveArcher) explanations.push("A final reserve archer joined the defense using stored planks.");
-    explanations.push(strategy === "swordsmen" ? "Six or more swordsmen held the raider line." : strategy === "archers" ? "Ten or more archers stopped the raiders with volleys." : strategy === "horsemen" ? "Six or more horsemen broke the raider charge." : strategy === "mixed" ? "At least three archers and three swordsmen combined to hold the clearing." : "The defense needed six swordsmen, ten archers, six horsemen, or at least three swordsmen and three archers.");
+    const scale = this.campaign.objective.strength / 5;
+    const swordsNeeded = Math.ceil(6 * scale);
+    const archersNeeded = Math.ceil(10 * scale);
+    const horsemenNeeded = Math.ceil(6 * scale);
+    const mixedNeeded = Math.ceil(3 * scale);
+    explanations.push(strategy === "swordsmen" ? `${swordsNeeded} or more swordsmen held the raider line.` : strategy === "archers" ? `${archersNeeded} or more archers stopped the raiders with volleys.` : strategy === "horsemen" ? `${horsemenNeeded} or more horsemen broke the raider charge.` : strategy === "mixed" ? `At least ${mixedNeeded} archers and ${mixedNeeded} swordsmen combined to hold the clearing.` : `The defense needed ${swordsNeeded} swordsmen, ${archersNeeded} archers, ${horsemenNeeded} horsemen, or at least ${mixedNeeded} swordsmen and ${mixedNeeded} archers.`);
     explanations.push(built.has("weapons-workshop") ? `The workshops forged ${resources.arms} standardized arms before the muster.` : "No Weapons Workshop was completed, so recruits lacked standardized equipment.");
     explanations.push(resources.rations > 0 ? `${resources.rations} stored rations can support the army for ${supplyTurns} campaign turn(s).` : "The city entered battle without preserved campaign rations.");
     if (built.has("marketplace")) explanations.push("Marketplace wealth allowed the city to supplement its ranks with mercenaries.");

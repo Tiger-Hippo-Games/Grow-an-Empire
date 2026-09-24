@@ -27,6 +27,8 @@ export type SavedGame = SettlementSnapshot & {
   /** Identifies one playthrough; a Restart starts a new run id. */
   runId: string;
   settings: SavedSettings;
+  /** Victories that unlock the next stop on the campaign map. */
+  completedCampaignIds?: string[];
   /**
    * The portal player this save belongs to, when known. The browser copy is
    * shared by everyone using that browser, so a copy owned by someone else
@@ -52,16 +54,18 @@ export function newRunId(): string {
  * `null` if it can't be used. Saves from before run ids and settings existed
  * get defaults, so they still load (the portal keeps saves across updates).
  */
-export function toSavedGame(raw: unknown, campaignId: string): SavedGame | null {
+export function toSavedGame(raw: unknown, campaignId: string | null): SavedGame | null {
   const migrated = migrateSnapshot(raw);
   if (!migrated) return null;
   const snapshot = { ...(raw as SavedGame), ...migrated };
-  if (snapshot.campaignId !== campaignId) return null;
+  if (campaignId !== null && snapshot.campaignId !== campaignId) return null;
   const settings = (snapshot.settings && typeof snapshot.settings === "object") ? snapshot.settings : DEFAULT_SETTINGS;
   const game: SavedGame = {
     ...snapshot,
     runId: typeof snapshot.runId === "string" && snapshot.runId ? snapshot.runId : "legacy",
     settings: { tutorialComplete: settings.tutorialComplete === true },
+    completedCampaignIds: Array.isArray(snapshot.completedCampaignIds)
+      ? snapshot.completedCampaignIds.filter((id): id is string => typeof id === "string") : [],
   };
   if (typeof snapshot.playerId !== "string" || !snapshot.playerId) delete game.playerId;
   return game;
@@ -107,6 +111,7 @@ export function chooseSave(local: SavedGame | null, cloud: SavedGame | null): Sa
   return {
     ...winner,
     settings: { tutorialComplete: local.settings.tutorialComplete || cloud.settings.tutorialComplete },
+    completedCampaignIds: [...new Set([...(local.completedCampaignIds ?? []), ...(cloud.completedCampaignIds ?? [])])],
   };
 }
 
@@ -132,7 +137,7 @@ export interface ProgressStore {
 
 const NEWER_SAVE_MESSAGE = "Your progress was saved by a newer version of the game. Reload to update; progress in this older version won't be saved.";
 
-export function createProgressStore(platform: PlatformAdapter, campaignId: string): ProgressStore {
+export function createProgressStore(platform: PlatformAdapter, campaignId: string | null): ProgressStore {
   let pending: SavedGame | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let inFlight: Promise<void> | null = null;
