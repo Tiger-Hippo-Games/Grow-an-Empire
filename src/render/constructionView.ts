@@ -157,17 +157,17 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
     } else if (progress < CITY_ANIMATION.construction.foundationEnd) {
       setStatus(`Laying the ${name} foundation`, progress);
       workerAnimation.placeWorker(plot);
-      workerAnimation.useCharacter("builder", Math.floor(constructionElapsed * 5));
+      workerAnimation.useWork("builder", Math.floor(constructionElapsed * 8));
       showPlotStage(plotIndex, "foundation");
     } else if (progress < CITY_ANIMATION.construction.frameEnd) {
       setStatus(`Raising the ${name} frame`, progress);
       workerAnimation.placeWorker(plot);
-      workerAnimation.useCharacter("builder", Math.floor(constructionElapsed * 5));
+      workerAnimation.useWork("builder", Math.floor(constructionElapsed * 8));
       showPlotStage(plotIndex, "frame");
     } else if (progress < CITY_ANIMATION.construction.finishingEnd) {
       setStatus(`Finishing the ${name}`, progress);
       workerAnimation.placeWorker(plot);
-      workerAnimation.useCharacter("builder", Math.floor(constructionElapsed * 5));
+      workerAnimation.useWork("builder", Math.floor(constructionElapsed * 8));
       showPlotStage(plotIndex, "late");
     } else {
       setStatus(`Opening the new ${name}`, progress);

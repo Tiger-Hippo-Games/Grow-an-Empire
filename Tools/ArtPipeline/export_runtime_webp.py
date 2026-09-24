@@ -45,8 +45,8 @@ SOURCES = [
     "Assets/Art/Production/Characters/WoodcutterMale01/Runtime2x/Sheets/*-south*-sheet-2x-v1.png",
     "Assets/Art/Production/Environment/Trees/Deciduous01/Runtime2x/deciduous-01-healthy-2x-v1.png",
     "Assets/Art/Production/Environment/Terrain/village-empty-terrain-16x9-v2.png",
-    "Assets/Art/Generated 512/*-walk4.png",
-    "Assets/Art/Generated 512/*-attack4.png",
+    "Assets/Art/Production/Characters/DirectionalWalk/*-walk32-master-v1.png",
+    "Assets/Art/Production/Characters/WorkLoops/*-work8-master-v1.png",
 ]
 # Glob matches that the game does not use.
 EXCLUDE_NAMES = {"campsite-level-1-2x-v1.png"}
@@ -76,6 +76,12 @@ def export(source: Path, target: Path) -> None:
     image = Image.open(source)
     has_alpha = image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info)
     image = image.convert("RGBA" if has_alpha else "RGB")
+    # Keep the PNG masters at full resolution. Runtime sprites occupy only a
+    # few screen pixels, so smaller atlases save decoded GPU memory and bandwidth.
+    if source.name.endswith("-walk32-master-v1.png"):
+        image = image.resize((1024, 680), Image.Resampling.LANCZOS)
+    elif source.name.endswith("-work8-master-v1.png"):
+        image = image.resize((1024, 584), Image.Resampling.LANCZOS)
     image.save(target, "WEBP", quality=QUALITY, method=4, exact=has_alpha)
 
 

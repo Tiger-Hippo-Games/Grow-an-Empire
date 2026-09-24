@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { ArmyReport, TrainedUnits } from "../game/settlementSimulation";
 import { civicGround, getBuildingPosition, getRoadRoute, getServiceRoute } from "./cityLayout";
 import { CITY_ANIMATION } from "./animationDesign";
-import { roleForArmyUnitAtIndex, roleForBuilding, type CharacterAssets, type CharacterRole } from "./characterAssets";
+import { directionFromVector, roleForArmyUnitAtIndex, roleForBuilding, WALK_CELL_ASPECT, WORK_CELL_ASPECT, type CharacterAssets, type CharacterRole, type WalkDirection } from "./characterAssets";
 
 /**
  * Kinds of commute a villager can walk:
@@ -113,14 +113,14 @@ function routeLength(points: THREE.Vector2[]): number {
 
 /**
  * Writes the point `progress` (0–1) of the way along a polyline into `out`,
- * and returns the x-direction of the segment it lies on (for sprite flipping).
+ * and returns the direction of the segment it lies on.
  * `total` is the precomputed `routeLength(points)`; `out` is reused to avoid a
  * per-villager, per-frame allocation.
  */
-function samplePolyline(points: THREE.Vector2[], total: number, progress: number, out: THREE.Vector2): number {
+function samplePolyline(points: THREE.Vector2[], total: number, progress: number, out: THREE.Vector2): WalkDirection {
   if (points.length === 1) {
     out.copy(points[0]);
-    return 1;
+    return 4;
   }
   let remaining = progress * total;
   for (let index = 1; index < points.length; index += 1) {
@@ -130,12 +130,12 @@ function samplePolyline(points: THREE.Vector2[], total: number, progress: number
     if (remaining <= segmentLength || index === points.length - 1) {
       const segmentProgress = segmentLength > 0 ? Math.min(1, remaining / segmentLength) : 1;
       out.copy(from).lerp(to, segmentProgress);
-      return to.x - from.x;
+      return directionFromVector(to.x - from.x, to.y - from.y);
     }
     remaining -= segmentLength;
   }
   out.copy(points[points.length - 1]);
-  return 1;
+  return 4;
 }
 
 /**
@@ -156,7 +156,7 @@ function pingPongProgress(elapsed: number, duration: number): { progress: number
 /**
  * Functional population renderer: citizens commute, deliver goods, then form the final army.
  *
- * Citizens share each profession's four frame textures but own materials, so
+ * Citizens share each profession's directional atlas frames but own materials, so
  * their walking phases can differ without cloning a texture per villager.
  */
 export function createVillagerField(scene: THREE.Scene, characters: CharacterAssets) {
@@ -187,7 +187,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     const material = new THREE.SpriteMaterial({ map: characters.getFrame("builder", 0), transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(material);
     const scale = 2.15 + (index % 4) * 0.08;
-    sprite.scale.set(scale, scale, 1);
+    sprite.scale.set(scale * WALK_CELL_ASPECT, scale, 1);
     sprite.renderOrder = 40 + (index % 4);
     scene.add(sprite);
     return { sprite, material, profession: "builder", frame: 0, baseSize: scale, phase: (index * 0.61803398875) % 1, speedVariation: 0.92 + (index % 7) * 0.025 };
@@ -198,15 +198,19 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     villager.profession = profession;
     villager.frame = -1;
     const size = villager.baseSize * (profession === "horseman" ? 1.35 : 1);
-    villager.sprite.scale.set(size, size, 1);
+    villager.sprite.scale.set(size * WALK_CELL_ASPECT, size, 1);
   }
 
-  function setFrame(villager: Villager, frame: number): void {
+  function setFrame(villager: Villager, frame: number, direction: WalkDirection = 4, working = false): void {
     const normalized = ((Math.floor(frame) % 4) + 4) % 4;
-    if (villager.frame === normalized) return;
     villager.frame = normalized;
-    villager.material.map = characters.getFrame(villager.profession, normalized);
-    villager.material.needsUpdate = true;
+    const texture = working ? characters.getWorkFrame(villager.profession, frame) : null;
+    const next = texture ?? characters.getFrame(villager.profession, normalized, direction);
+    villager.sprite.scale.x = villager.sprite.scale.y * (texture ? WORK_CELL_ASPECT : WALK_CELL_ASPECT);
+    if (villager.material.map !== next) {
+      villager.material.map = next;
+      villager.material.needsUpdate = true;
+    }
   }
 
   const residentialRoles: CharacterRole[] = ["builder", "farmer", "woodcutter", "quarry"];
@@ -243,7 +247,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
         const source = role === "horseman" ? "stable" : builtBuildingIds.includes("barracks") ? "barracks" : role === "archer" ? "weapons-workshop" : "blacksmith";
         const route = getServiceRoute(source).reverse();
         const origin = animationElapsed === undefined ? destination : getBuildingPosition(source);
-        sprite.scale.set(size, size, 1);
+        sprite.scale.set(size * WALK_CELL_ASPECT, size, 1);
         sprite.position.set(origin.x, origin.y + size / 2, 2.6);
         sprite.renderOrder = 60 + Math.floor(currentCount / 5);
         sprite.visible = muster === null && !combatActive;
@@ -262,8 +266,8 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
         const target = garrisonTarget(soldier.role, index, units.swordsmen, units.archers);
         soldier.bornAt = null;
         soldier.sprite.position.set(target.x, target.y + soldier.sprite.scale.y / 2, 2.6);
-        soldier.sprite.scale.x = Math.abs(soldier.sprite.scale.x);
-        soldier.sprite.material.map = characters.getFrame(soldier.role, 0);
+        soldier.sprite.material.map = characters.getFrame(soldier.role, 0, 4);
+        soldier.sprite.scale.x = soldier.sprite.scale.y * WALK_CELL_ASPECT;
         soldier.sprite.material.needsUpdate = true;
         soldier.frame = 0;
       }
@@ -288,24 +292,35 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
         if (travel < 1) {
           const direction = samplePolyline(soldier.route, soldier.routeLength, Math.max(0, travel), sampled);
           soldier.sprite.position.set(sampled.x, sampled.y + soldier.sprite.scale.y / 2, 2.6);
-          soldier.sprite.scale.x = Math.abs(soldier.sprite.scale.x) * (direction < 0 ? -1 : 1);
           const frame = Math.floor(animationElapsed * 7 + index) % 4;
-          if (frame !== soldier.frame) {
+          const texture = characters.getFrame(soldier.role, frame, direction);
+          soldier.sprite.scale.x = soldier.sprite.scale.y * WALK_CELL_ASPECT;
+          if (soldier.sprite.material.map !== texture) {
             soldier.frame = frame;
-            soldier.sprite.material.map = characters.getFrame(soldier.role, frame);
+            soldier.sprite.material.map = texture;
             soldier.sprite.material.needsUpdate = true;
           }
           continue;
         }
         soldier.bornAt = null;
         soldier.sprite.position.set(civicGround.x, civicGround.y + soldier.sprite.scale.y / 2, 2.6);
-        soldier.sprite.material.map = characters.getFrame(soldier.role, 0);
+        soldier.sprite.material.map = characters.getFrame(soldier.role, 0, 4);
+        soldier.sprite.scale.x = soldier.sprite.scale.y * WALK_CELL_ASPECT;
         soldier.sprite.material.needsUpdate = true;
         soldier.frame = 0;
       }
       soldier.sprite.position.x = THREE.MathUtils.lerp(soldier.sprite.position.x, target.x, blend);
       soldier.sprite.position.y = THREE.MathUtils.lerp(soldier.sprite.position.y, target.y + soldier.sprite.scale.y / 2, blend);
-      soldier.sprite.scale.x = Math.abs(soldier.sprite.scale.x);
+      const nearLine = Math.hypot(target.x - soldier.sprite.position.x, target.y + soldier.sprite.scale.y / 2 - soldier.sprite.position.y) < 0.2;
+      const workTexture = nearLine ? characters.getWorkFrame(soldier.role, Math.floor(animationElapsed * 8 + index)) : null;
+      const texture = workTexture ?? (nearLine
+        ? characters.getFrame(soldier.role, 0, 4)
+        : characters.getFrame(soldier.role, Math.floor(animationElapsed * 7 + index), directionFromVector(target.x - soldier.sprite.position.x, target.y + soldier.sprite.scale.y / 2 - soldier.sprite.position.y)));
+      soldier.sprite.scale.x = soldier.sprite.scale.y * (workTexture ? WORK_CELL_ASPECT : WALK_CELL_ASPECT);
+      if (soldier.sprite.material.map !== texture) {
+        soldier.sprite.material.map = texture;
+        soldier.sprite.material.needsUpdate = true;
+      }
     }
   }
 
@@ -354,20 +369,22 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
       if (index < armyCount) {
         const profession = roleForArmyUnitAtIndex(muster.report.units, index);
         setProfession(villager, profession);
-        setFrame(villager, assembly < 0.96 ? Math.floor(animationElapsed * 7 + villager.phase * 4) : 0);
         const row = Math.floor(index / columns);
         const column = index % columns;
         const targetX = origin.x + (column - (Math.min(columns, armyCount - row * columns) - 1) / 2) * CITY_ANIMATION.muster.formationSpacingX;
         const targetY = origin.y - row * CITY_ANIMATION.muster.formationSpacingY;
         villager.sprite.position.x = THREE.MathUtils.lerp(villager.sprite.position.x, targetX, blend);
         villager.sprite.position.y = THREE.MathUtils.lerp(villager.sprite.position.y, targetY + Math.abs(villager.sprite.scale.y) / 2, blend);
+        const facing = assembly < 0.96
+          ? directionFromVector(targetX - villager.sprite.position.x, targetY + Math.abs(villager.sprite.scale.y) / 2 - villager.sprite.position.y)
+          : 4;
+        setFrame(villager, assembly < 0.96 ? Math.floor(animationElapsed * 7 + villager.phase * 4) : 0, facing);
         villager.material.color.setHex(0xffffff);
-        villager.sprite.scale.x = Math.abs(villager.sprite.scale.x);
       } else {
         setProfession(villager, "builder");
-        setFrame(villager, Math.floor(animationElapsed * 6 + villager.phase * 4));
         const angle = animationElapsed * CITY_ANIMATION.muster.civilianOrbitSpeed + villager.phase * Math.PI * 2;
         villager.sprite.position.set(civicGround.x + Math.cos(angle) * 4.2, civicGround.y + Math.sin(angle) * 1.9 + Math.abs(villager.sprite.scale.y) / 2, 2.4);
+        setFrame(villager, Math.floor(animationElapsed * 6 + villager.phase * 4), directionFromVector(-Math.sin(angle), Math.cos(angle)));
       }
     }
   }
@@ -391,11 +408,14 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
       const staggered = animationElapsed + villager.phase * Math.max(4, length / route.speed);
       const duration = Math.max(4.5, (length * 2) / (route.speed * villager.speedVariation));
       const journey = pingPongProgress(staggered, duration);
-      setFrame(villager, journey.moving && length > 0 ? Math.floor(animationElapsed * 7 + villager.phase * 4) : 0);
-      const direction = samplePolyline(route.points, length, journey.progress, sampled);
+      const segmentDirection = samplePolyline(route.points, length, journey.progress, sampled);
+      const direction = journey.outbound ? segmentDirection : ((segmentDirection + 4) % 8) as WalkDirection;
+      const working = !journey.moving && journey.progress === 1 && route.kind === "service";
+      setFrame(villager, working ? Math.floor(animationElapsed * 8 + villager.phase * 8)
+        : journey.moving && length > 0 ? Math.floor(animationElapsed * 7 + villager.phase * 4) : 0,
+      direction, working);
       const stepLift = journey.moving && length > 0 && villager.frame % 2 === 1 ? 0.055 : 0;
       villager.sprite.position.set(sampled.x, sampled.y + Math.abs(villager.sprite.scale.y) / 2 + stepLift, 2.4);
-      villager.sprite.scale.x = Math.abs(villager.sprite.scale.x) * ((direction >= 0) === journey.outbound ? 1 : -1);
       villager.material.color.setHex(0xffffff);
     }
   }

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { loadSheet, setSheetFrame, type SheetClip } from "./spriteAssets";
 import { workerFootOffset } from "./cityLayout";
-import type { CharacterAssets, CharacterRole } from "./characterAssets";
+import { directionFromVector, WALK_CELL_ASPECT, WORK_CELL_ASPECT, type CharacterAssets, type CharacterRole, type WalkDirection } from "./characterAssets";
 
 export type Direction = "southeast" | "southwest";
 export type AnimatedClipName = "walk" | "chop" | "pickup" | "carry";
@@ -25,6 +25,7 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
   worker.scale.set(2.25, 2.25, 1);
   worker.renderOrder = 100;
   scene.add(worker);
+  let facing: WalkDirection = 4;
 
   let loadingClips: Promise<void> | null = null;
   let lastClipAttempt = -Infinity;
@@ -78,11 +79,23 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
       workerMaterial.map = clip.texture;
       workerMaterial.needsUpdate = true;
     }
+    worker.scale.x = worker.scale.y;
   }
 
-  /** Shows one of a profession's four walking poses. */
+  /** Shows one of a profession's four walking poses in its current direction. */
   function useCharacter(role: CharacterRole, frame = 0): void {
-    const texture = characters.getFrame(role, frame);
+    const texture = characters.getFrame(role, frame, facing);
+    worker.scale.x = worker.scale.y * WALK_CELL_ASPECT;
+    if (workerMaterial.map === texture) return;
+    workerMaterial.map = texture;
+    workerMaterial.needsUpdate = true;
+  }
+
+  /** Shows a role-specific eight-frame action at the building site. */
+  function useWork(role: CharacterRole, frame: number): void {
+    const workTexture = characters.getWorkFrame(role, frame);
+    const texture = workTexture ?? characters.getFrame(role, 0, 3);
+    worker.scale.x = worker.scale.y * (workTexture ? WORK_CELL_ASPECT : WALK_CELL_ASPECT);
     if (workerMaterial.map === texture) return;
     workerMaterial.map = texture;
     workerMaterial.needsUpdate = true;
@@ -101,6 +114,7 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
 
   /** Places the worker `progress` (0–1) of the way along a straight line from `from` to `to`. */
   function moveWorker(from: THREE.Vector2, to: THREE.Vector2, progress: number): void {
+    facing = directionFromVector(to.x - from.x, to.y - from.y);
     worker.position.set(
       THREE.MathUtils.lerp(from.x, to.x, progress),
       THREE.MathUtils.lerp(from.y, to.y, progress) + workerFootOffset,
@@ -122,7 +136,7 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
     placeWorker(points[0]);
   }
 
-  return { worker, loadClips, useClip, useCharacter, frameFor, placeWorker, moveWorker, moveWorkerAlong };
+  return { worker, loadClips, useClip, useCharacter, useWork, frameFor, placeWorker, moveWorker, moveWorkerAlong };
 }
 
 export type WorkerAnimation = ReturnType<typeof createWorkerAnimation>;

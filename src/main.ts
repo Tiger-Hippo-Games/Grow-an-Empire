@@ -174,7 +174,7 @@ function resize(): void {
 }
 const cityLayout = createCityLayout(scene);
 const civicCenter = createCivicCenter(scene, requestRender);
-const characterAssets = createCharacterAssets();
+const characterAssets = createCharacterAssets(requestRender);
 const workerAnimation = createWorkerAnimation(scene, characterAssets);
 const constructionView = createConstructionView(scene, workerAnimation, cityLayout, hud.setStatus);
 const villagerField = createVillagerField(scene, characterAssets);
@@ -684,7 +684,12 @@ async function initialize(): Promise<void> {
 function startBackgroundLoads(offered: string[]): void {
   constructionView.loadBuildingAssets(offered).catch((error: unknown) => console.warn("[Grow an Empire] Preloading offered buildings failed", error));
   workerAnimation.loadClips().catch((error: unknown) => console.warn("[Grow an Empire] Woodcutter animation failed to load", error));
-  combatScene.load().catch((error: unknown) => console.warn("[Grow an Empire] Combat art preloading failed", error));
+  const roles = new Set([...offered, ...simulation.state.builtBuildingIds].map(roleForBuilding));
+  roles.add("builder");
+  for (const role of roles) {
+    characterAssets.ensureRole(role, simulation.state.builtBuildingIds.some((id) => roleForBuilding(id) === role) || role === "builder")
+      .catch((error: unknown) => console.warn(`[Grow an Empire] Preloading ${role} animation failed`, error));
+  }
 }
 
 /** One frame: advance the simulation (if playing), then animate and draw. */

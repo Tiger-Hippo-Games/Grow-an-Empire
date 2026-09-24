@@ -1,15 +1,27 @@
 {
-  "archer-attack4.webp": {
-    "source": "Assets/Art/Generated 512/archer-attack4.png",
-    "sha256": "8469d7a97b059fcec5e7a02fdf5229af1639b2d7d7e915faad302ca26a98c190",
-    "sourceBytes": 245671,
-    "bytes": 53814
+  "archer-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/archer-walk32-master-v1.png",
+    "sha256": "2e973aba35e829ec483d1bfc8f20521556af982579863dd073c5f184cee52fb7",
+    "sourceBytes": 2598020,
+    "bytes": 328688
   },
-  "archer-walk4.webp": {
-    "source": "Assets/Art/Generated 512/archer-walk4.png",
-    "sha256": "3c51fc646b1215a019b8ccf6825bd3a64aec39a8e74280708b7005379cea914d",
-    "sourceBytes": 159585,
-    "bytes": 40228
+  "archer-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/archer-work8-master-v1.png",
+    "sha256": "5ce4614d7636827e63de06ac673a16f8a4b1feda1771ab0dae7feb175d3d6390",
+    "sourceBytes": 1120142,
+    "bytes": 137022
+  },
+  "baker-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/baker-walk32-master-v1.png",
+    "sha256": "d60e0fce91947011b3bccffb216659329a1682aa6bb62e1d5b7338fe63a63a27",
+    "sourceBytes": 2654513,
+    "bytes": 311392
+  },
+  "baker-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/baker-work8-master-v1.png",
+    "sha256": "de74db5fac3c4f2e45c326d0e4c5602eb512980fe8803838ca00d5f9560176c2",
+    "sourceBytes": 1585655,
+    "bytes": 152414
   },
   "bakery-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Bakery/Runtime2x/bakery-construction-01-foundation-2x-v1.png",
@@ -83,6 +95,30 @@
     "sourceBytes": 777640,
     "bytes": 103790
   },
+  "blacksmith-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/blacksmith-walk32-master-v1.png",
+    "sha256": "88f4b393db61cc67ff2f93f90fd6268f6b5197d339e00f03f0030b0d0aca443b",
+    "sourceBytes": 2751818,
+    "bytes": 314176
+  },
+  "blacksmith-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/blacksmith-work8-master-v1.png",
+    "sha256": "d174a0f1013b03d00580d7284864c73a12ffd380225400fbbee8691dbca9ab77",
+    "sourceBytes": 1605927,
+    "bytes": 162640
+  },
+  "builder-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/builder-walk32-master-v1.png",
+    "sha256": "f05100e52dc0dd0d2a6d8f335727a969d3b955868f8eca7848d4d6ed15be46c6",
+    "sourceBytes": 2647302,
+    "bytes": 334234
+  },
+  "builder-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/builder-work8-master-v1.png",
+    "sha256": "4a8e98f2d210cf6819c1378799ed048dd4b9b8c2ba909e0c006f94571fbc928a",
+    "sourceBytes": 1326388,
+    "bytes": 143302
+  },
   "butchery-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Butchery/Runtime2x/butchery-construction-01-foundation-2x-v1.png",
     "sha256": "19db989390818b27c163507f2b2fdd3d75b0da8c215315dec3742072b989b31f",
@@ -113,17 +149,17 @@
     "sourceBytes": 256289,
     "bytes": 46486
   },
-  "enemy-swordsman-attack4.webp": {
-    "source": "Assets/Art/Generated 512/enemy-swordsman-attack4.png",
-    "sha256": "2b5117a32a5e23fe60007e179d8b17ca6bb5a3ff7ac895ee8c001bed6eb5bf4a",
-    "sourceBytes": 306674,
-    "bytes": 49374
+  "enemy-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/enemy-walk32-master-v1.png",
+    "sha256": "740004bcfef45ec7fe4472393d796ad24660a01c395e77651c284ff38b098f2b",
+    "sourceBytes": 2691865,
+    "bytes": 258760
   },
-  "enemy-swordsman-walk4.webp": {
-    "source": "Assets/Art/Generated 512/enemy-swordsman-walk4.png",
-    "sha256": "dba0154fd3fd39dee45dcee0d6705948e2f395387a99cfdc29b26abf91fce50b",
-    "sourceBytes": 193908,
-    "bytes": 37070
+  "enemy-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/enemy-work8-master-v1.png",
+    "sha256": "5f2c23eb7455ebf89ea20f56c616b92f48308071772d84545b58dc38e5593eb4",
+    "sourceBytes": 1187012,
+    "bytes": 114870
   },
   "farm-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Farm/Runtime2x/farm-construction-01-foundation-2x-v1.png",
@@ -148,6 +184,18 @@
     "sha256": "29f0ea4c7b1b928daa3cece581ec0a211b4ce03ea23a4f8728d63853f611f394",
     "sourceBytes": 655745,
     "bytes": 89068
+  },
+  "farmer-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/farmer-walk32-master-v1.png",
+    "sha256": "82e7cd38eb4a5f87cdd5ebbd64be57b5fafeb853d10676082b8cf7b9e2c580fe",
+    "sourceBytes": 2578632,
+    "bytes": 326320
+  },
+  "farmer-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/farmer-work8-master-v1.png",
+    "sha256": "b3c17d6e24e1a2af35ab07bd8a40bdb25f8e7c709f9b3a15c3af3ec7f3bfaf86",
+    "sourceBytes": 1266884,
+    "bytes": 148174
   },
   "fruit-orchard-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/FruitOrchard/Runtime2x/fruit-orchard-construction-01-foundation-2x-v1.png",
@@ -197,17 +245,17 @@
     "sourceBytes": 764446,
     "bytes": 110900
   },
-  "horseman-attack4.webp": {
-    "source": "Assets/Art/Generated 512/horseman-attack4.png",
-    "sha256": "1cb692bfa89528b0b29d03da3be9e8851fc27440deaabacf785acd87fef0e875",
-    "sourceBytes": 218758,
-    "bytes": 50454
+  "horseman-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/horseman-walk32-master-v1.png",
+    "sha256": "6d436694367da3e6377d42476df848e8ab76263e4a749fb64ff5ae4b11b58ce7",
+    "sourceBytes": 2583829,
+    "bytes": 314810
   },
-  "horseman-walk4.webp": {
-    "source": "Assets/Art/Generated 512/horseman-walk4.png",
-    "sha256": "9fdda2b563722935cac6254694c0a5532236c5625c2a07d7d199a54578dbe462",
-    "sourceBytes": 195129,
-    "bytes": 43312
+  "horseman-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/horseman-work8-master-v1.png",
+    "sha256": "9fabca95903b048860e491aee1d0b189859f24b05d347c1b4a5685f17d0034c3",
+    "sourceBytes": 1243784,
+    "bytes": 150970
   },
   "house-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/House/Runtime2x/house-construction-01-foundation-2x-v1.png",
@@ -257,11 +305,41 @@
     "sourceBytes": 686750,
     "bytes": 87968
   },
-  "militia-walk4.webp": {
-    "source": "Assets/Art/Generated 512/militia-walk4.png",
-    "sha256": "002bd7b386828c891ae144ed01a048b4de6343bee5a5d2802995d708d571d054",
-    "sourceBytes": 209780,
-    "bytes": 42454
+  "merchant-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/merchant-walk32-master-v1.png",
+    "sha256": "fb49ff32f619836243a1ec84cc7faa94d9014fcfb6a7f8c725636a6eea90f0a0",
+    "sourceBytes": 2629328,
+    "bytes": 299838
+  },
+  "merchant-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/merchant-work8-master-v1.png",
+    "sha256": "f1df4090dc01f35d52e99d6610f74b0101ddde8136fa2edff0a497ab599c6cb4",
+    "sourceBytes": 1408560,
+    "bytes": 147264
+  },
+  "militia-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/militia-walk32-master-v1.png",
+    "sha256": "c3c845854f7016fd93a3ea13c4bb7c37d28cb875863a00880638ebfe5097ea3b",
+    "sourceBytes": 2481872,
+    "bytes": 268212
+  },
+  "militia-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/militia-work8-master-v1.png",
+    "sha256": "7c092db769a769061a7102de85b4288657450688baef38318f95e970855addd8",
+    "sourceBytes": 833628,
+    "bytes": 99602
+  },
+  "miner-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/miner-walk32-master-v1.png",
+    "sha256": "4d5114b5c9f1e96273093b62b22b9581867ba5361c3151b5286166b5f74dfe36",
+    "sourceBytes": 2590128,
+    "bytes": 279832
+  },
+  "miner-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/miner-work8-master-v1.png",
+    "sha256": "7524598a82273e99c0452fe967e8c5972afe85173356031345f31bb605ffc5e9",
+    "sourceBytes": 1328333,
+    "bytes": 153336
   },
   "quarry-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Quarry/Runtime2x/quarry-construction-01-foundation-2x-v1.png",
@@ -286,6 +364,18 @@
     "sha256": "260707f80898362498af5163ab3aee644024e6d9f4825563d8b004518b5d0110",
     "sourceBytes": 876121,
     "bytes": 126460
+  },
+  "quarry-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/quarry-walk32-master-v1.png",
+    "sha256": "2dec06c9ef31f70c0158ce7d4a2b110a0cd2e8982928a590b11f7a5d1f5ebeec",
+    "sourceBytes": 2612884,
+    "bytes": 288510
+  },
+  "quarry-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/quarry-work8-master-v1.png",
+    "sha256": "531e6ab746b8310e5dc8a4ec3e49dddb3f60c841a8315a2750fdf31f6f871740",
+    "sourceBytes": 1350522,
+    "bytes": 149746
   },
   "sawmill-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Sawmill/Runtime2x/sawmill-construction-01-foundation-2x-v1.png",
@@ -365,11 +455,17 @@
     "sourceBytes": 388066,
     "bytes": 65588
   },
-  "spearman-walk4.webp": {
-    "source": "Assets/Art/Generated 512/spearman-walk4.png",
-    "sha256": "ed47732c47ddcd6256aa4ba06886a7ed7919b92459804068e808a56ea7760631",
-    "sourceBytes": 217795,
-    "bytes": 43938
+  "spearman-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/spearman-walk32-master-v1.png",
+    "sha256": "9a769e57d9213aacbc210748cb1e9eefa9576b58e1235beca1242f7eee0d607d",
+    "sourceBytes": 2553737,
+    "bytes": 284784
+  },
+  "spearman-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/spearman-work8-master-v1.png",
+    "sha256": "aaaa9d218a0b3c1e6978f7f4879162ed1dbf5da51070a98f39637c133c6e4db2",
+    "sourceBytes": 974503,
+    "bytes": 118624
   },
   "stable-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Stable/Runtime2x/stable-construction-01-foundation-2x-v1.png",
@@ -419,71 +515,23 @@
     "sourceBytes": 621916,
     "bytes": 84186
   },
-  "swordsman-attack4.webp": {
-    "source": "Assets/Art/Generated 512/swordsman-attack4.png",
-    "sha256": "cdc8bec0002c619ddfbeb85112b83c5c4eed2ffa47c9938866623bb6e51ac72c",
-    "sourceBytes": 270269,
-    "bytes": 54798
+  "swordsman-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/swordsman-walk32-master-v1.png",
+    "sha256": "7e661d72e936ac0c30a7fc25185cbfee936d77c3f36269f733d68f5e013385da",
+    "sourceBytes": 2548796,
+    "bytes": 295302
   },
-  "swordsman-walk4.webp": {
-    "source": "Assets/Art/Generated 512/swordsman-walk4.png",
-    "sha256": "54eaa0a728948be47b470b6d7b57cc350fc253cdd4dbfb96c2d297e0b8d90253",
-    "sourceBytes": 196547,
-    "bytes": 40466
+  "swordsman-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/swordsman-work8-master-v1.png",
+    "sha256": "b3058a1eb3db0387f0ae55e605163505e75ab03e17c0ce9ee3bd0ed4215b0668",
+    "sourceBytes": 1296461,
+    "bytes": 139706
   },
   "village-empty-terrain-16x9-v2.webp": {
     "source": "Assets/Art/Production/Environment/Terrain/village-empty-terrain-16x9-v2.png",
     "sha256": "7797b65166096d5fcb9a654a6859a5c5e3cf8373158f295fc96ad193ffd4314e",
     "sourceBytes": 3665147,
     "bytes": 392278
-  },
-  "villager-baker-walk4.webp": {
-    "source": "Assets/Art/Generated 512/villager-baker-walk4.png",
-    "sha256": "572aecb97baba2e1197181851d1024eb3f1605c476fc89e5c2fea16537901170",
-    "sourceBytes": 279901,
-    "bytes": 52516
-  },
-  "villager-blacksmith-walk4.webp": {
-    "source": "Assets/Art/Generated 512/villager-blacksmith-walk4.png",
-    "sha256": "1f3804d2a8aad034086a97dbd35820bb255810756654897e0f573fa179c171c0",
-    "sourceBytes": 243537,
-    "bytes": 52036
-  },
-  "villager-builder-walk4.webp": {
-    "source": "Assets/Art/Generated 512/villager-builder-walk4.png",
-    "sha256": "6bdb27e089f47c9cca43890441d9cd7fb0d8cf73a149169f880f5959b7080abe",
-    "sourceBytes": 217054,
-    "bytes": 44766
-  },
-  "villager-farmer-walk4.webp": {
-    "source": "Assets/Art/Generated 512/villager-farmer-walk4.png",
-    "sha256": "52bf3b0bad99e4aa88efb85cf45fb62f91b9901b0ad46195dc0356b24b296c10",
-    "sourceBytes": 191788,
-    "bytes": 39920
-  },
-  "villager-iron-miner-walk4.webp": {
-    "source": "Assets/Art/Generated 512/villager-iron-miner-walk4.png",
-    "sha256": "aedf9e3828d43af5223e10dbb312c77cbafb9153966ab4c0425c038286222f6f",
-    "sourceBytes": 180884,
-    "bytes": 38868
-  },
-  "villager-merchant-walk4.webp": {
-    "source": "Assets/Art/Generated 512/villager-merchant-walk4.png",
-    "sha256": "a66bf7545f3f86a40f9e14b3e32e7b51fc11a7d4e3d621a21a7e3a79a90a366d",
-    "sourceBytes": 242578,
-    "bytes": 48852
-  },
-  "villager-quarry-worker-walk4.webp": {
-    "source": "Assets/Art/Generated 512/villager-quarry-worker-walk4.png",
-    "sha256": "954d4949e1f3cdf5834d2211fb2db409ce1c3db26cfaac5c3afc77df871832f1",
-    "sourceBytes": 203592,
-    "bytes": 40774
-  },
-  "villager-woodcutter-walk4.webp": {
-    "source": "Assets/Art/Generated 512/villager-woodcutter-walk4.png",
-    "sha256": "3f4d4e79b35af0cc5c4afdaf8e66ba77e52874577e9a8a036b18d06cf60d157f",
-    "sourceBytes": 191002,
-    "bytes": 39514
   },
   "weapons-workshop-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/WeaponsWorkshop/Runtime2x/weapons-workshop-construction-01-foundation-2x-v1.png",
@@ -604,5 +652,17 @@
     "sha256": "794fa8370997d9dbe633f8c4821c0b5a1ce018deb86fc1ce76860f08d607aa0f",
     "sourceBytes": 337158,
     "bytes": 68062
+  },
+  "woodcutter-walk32-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/DirectionalWalk/woodcutter-walk32-master-v1.png",
+    "sha256": "80fed5693dc59a50ba340df39834c5d6214b0e4d59a89655a9ba83fb83b61832",
+    "sourceBytes": 2662177,
+    "bytes": 305252
+  },
+  "woodcutter-work8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/WorkLoops/woodcutter-work8-master-v1.png",
+    "sha256": "c061e35b494989ec4a82df95e9800ae18ebe0745b7b417164171ab72e610bba4",
+    "sourceBytes": 1473281,
+    "bytes": 171436
   }
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BUILDINGS } from "../../game/content";
 import { civicGround, getBuildingPosition, getRoadRoute, getServiceRoute, getVisibleRoadSegments } from "../cityLayout";
 import { buildFunctionalRoutes } from "../villagers";
-import { CHARACTER_FILES, roleForArmyUnitAtIndex, roleForBuilding, walkSheetFilename } from "../characterAssets";
+import { CHARACTER_FILES, directionFromVector, roleForArmyUnitAtIndex, roleForBuilding, walkAtlasIndex, walkSheetFilename, workSheetFilename } from "../characterAssets";
 
 describe("functional city routes", () => {
   it("places every building at its reserved anchor in the 1920 × 1080 plan", () => {
@@ -69,11 +69,18 @@ describe("functional city routes", () => {
       .toEqual(["swordsman", "horseman", "archer", "spearman", "militia", "horseman"]);
   });
 
-  it("maps every character to a four-frame walk sheet", () => {
-    expect(Object.keys(CHARACTER_FILES)).toHaveLength(13);
+  it("maps every character to 32 walk and eight action frames", () => {
+    expect(Object.keys(CHARACTER_FILES)).toHaveLength(14);
     for (const role of Object.keys(CHARACTER_FILES) as Array<keyof typeof CHARACTER_FILES>) {
-      expect(walkSheetFilename(role)).toBe(CHARACTER_FILES[role].replace(/\.png$/, "-walk4.png"));
+      expect(walkSheetFilename(role)).toBe(`${role}-walk32-master-v1.png`);
+      expect(workSheetFilename(role)).toBe(`${role}-work8-master-v1.png`);
     }
+  });
+
+  it("chooses all eight walk directions from route vectors", () => {
+    expect([[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]
+      .map(([x, y]) => directionFromVector(x, y))).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect([0, 1, 2, 3].map((pose) => walkAtlasIndex(3, pose))).toEqual([3, 11, 19, 27]);
   });
 
   it("keeps the first villager in the civic clearing before any path exists", () => {
