@@ -35,6 +35,7 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = ROOT / "Assets" / "Runtime"
 MANIFEST = OUT_DIR / "manifest.json"
 QUALITY = 82
+EXPORT_REVISION = 2  # Re-export when runtime resize rules change.
 
 # Keep in sync with what the code loads. src/render/__tests__/runtimeAssets.test.ts
 # checks that every file the code references is in the manifest.
@@ -47,6 +48,7 @@ SOURCES = [
     "Assets/Art/Production/Environment/Terrain/village-empty-terrain-16x9-v2.png",
     "Assets/Art/Production/Characters/DirectionalWalk/*-walk32-master-v1.png",
     "Assets/Art/Production/Characters/WorkLoops/*-work8-master-v1.png",
+    "Assets/Art/Production/Characters/CombatLoops/*-combat-*8-master-v1.png",
 ]
 # Glob matches that the game does not use.
 EXCLUDE_NAMES = {"campsite-level-1-2x-v1.png"}
@@ -80,6 +82,8 @@ def export(source: Path, target: Path) -> None:
     # few screen pixels, so smaller atlases save decoded GPU memory and bandwidth.
     if source.name.endswith("-walk32-master-v1.png"):
         image = image.resize((1024, 680), Image.Resampling.LANCZOS)
+    elif "-combat-" in source.name:
+        image = image.resize((1024, 512), Image.Resampling.LANCZOS)
     elif source.name.endswith("-work8-master-v1.png"):
         image = image.resize((1024, 584), Image.Resampling.LANCZOS)
     image.save(target, "WEBP", quality=QUALITY, method=4, exact=has_alpha)
@@ -101,7 +105,7 @@ def main() -> int:
         name = source.name.removesuffix(".png") + ".webp"
         digest = sha256(source)
         entry = manifest.get(name)
-        if args.all or not entry or entry.get("sha256") != digest or not (OUT_DIR / name).exists():
+        if args.all or not entry or entry.get("sha256") != digest or entry.get("exportRevision") != EXPORT_REVISION or not (OUT_DIR / name).exists():
             stale.append((source, name, digest))
 
     removed = [name for name in manifest if name not in expected]
@@ -117,6 +121,7 @@ def main() -> int:
         manifest[name] = {
             "source": source.relative_to(ROOT).as_posix(),
             "sha256": digest,
+            "exportRevision": EXPORT_REVISION,
             "sourceBytes": source.stat().st_size,
             "bytes": (OUT_DIR / name).stat().st_size,
         }

@@ -4,11 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#13271b" />
-    <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Plays in any orientation. -->
-    <meta name="orientation" content="any" />
-    <meta name="screen-orientation" content="any" />
+    <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Landscape only, 16:9 (1920×1080). -->
+    <meta name="orientation" content="landscape" />
+    <meta name="screen-orientation" content="landscape" />
     <meta name="description" content="Build a medieval city one choice at a time. Pick twelve buildings, balance grain, timber and stone, and muster enough defenders to hold off the Ashfang Raiders. A short strategy game that plays in your browser on desktop and mobile." />
     <title>Grow an Empire</title>
+    <script>
+      // Fixed 16:9 stage. The game is laid out once at 1280×720 and scaled as a
+      // whole to fit the window or portal frame, centred, with bars on the
+      // long side (a 1920×1080 frame shows it at exactly 1.5×). Runs before
+      // anything is drawn so the first frame is already the right size.
+      // styles.css reads --stage-scale; sceneSetup.ts reads __gaeStageScale.
+      (function () {
+        var WIDTH = 1280, HEIGHT = 720;
+        function fit() {
+          var scale = Math.min(window.innerWidth / WIDTH, window.innerHeight / HEIGHT);
+          if (!(scale > 0)) return; // A hidden 0×0 frame: keep the last good scale.
+          window.__gaeStageScale = scale;
+          document.documentElement.style.setProperty("--stage-scale", String(scale));
+        }
+        fit();
+        window.addEventListener("resize", fit);
+        if (window.visualViewport) window.visualViewport.addEventListener("resize", fit);
+      })();
+    </script>
     <script>
       // Boot watchdog. main.ts shows its own error screen once it's running, but
       // if the game's code can't load or throws before that (e.g. a typo while
@@ -25,7 +44,9 @@
           var title = document.createElement("strong");
           title.textContent = "The game didn't start.";
           var body = document.createElement("span");
-          body.textContent = detail + " If you're running the dev server, check its terminal window for errors, then reload.";
+          body.textContent = window.location.protocol === "file:"
+            ? "This page was opened straight from a folder, and browsers block a game's scripts and styles there. It runs on the portal, or locally with `pnpm preview`."
+            : detail + " If you're running the dev server, check its terminal window for errors, then reload.";
           var retry = document.createElement("button");
           retry.type = "button";
           retry.textContent = "Reload";
@@ -69,6 +90,7 @@
     <script src="/api/v1/sdk/platform-sdk.js"></script>
   </head>
   <body>
+    <div id="rotate-hint" class="rotate-hint" role="status">Turn your device sideways to play.</div>
     <main id="app">
       <section class="hud" aria-label="Campaign status">
         <div class="brand">

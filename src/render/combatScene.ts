@@ -1,20 +1,41 @@
 import * as THREE from "three";
 import { defenseStrategy, ENEMY_SWORDSMEN, type DefenseStrategy } from "../game/combatRules";
 import type { ArmyReport } from "../game/settlementSimulation";
-import { directionFromVector, WALK_CELL_ASPECT, WORK_CELL_ASPECT, type CharacterAssets } from "./characterAssets";
+import { directionFromVector, WALK_CELL_ASPECT, type CharacterAssets } from "./characterAssets";
 import { civicGround } from "./cityLayout";
+import { loadTexture } from "./spriteAssets";
 
-type Fighter = { sprite: THREE.Sprite; material: THREE.SpriteMaterial; role: "archer" | "swordsman" | "horseman" | "enemy"; lane: number; startX: number; startY: number; targetX: number; targetY: number };
+type CombatRole = "archer" | "swordsman" | "horseman" | "enemy";
+type Fighter = { sprite: THREE.Sprite; material: THREE.SpriteMaterial; role: CombatRole; lane: number; startX: number; startY: number; targetX: number; targetY: number };
 const DURATION = 16;
 const SIZE = 2.7;
 const DISPLAYED_PER_ROLE = 5;
-const LANE_SPACING = 1.65;
+const LANE_SPACING = 2.15;
+const ACTION_FILES: Record<CombatRole, string> = {
+  swordsman: "swordsman-combat-south8-master-v1.png",
+  archer: "archer-combat-south8-master-v1.png",
+  horseman: "horseman-combat-south8-master-v1.png",
+  enemy: "enemy-combat-north8-master-v1.png",
+};
 
-/** The finale uses the same ground coordinates as the city, between Butchery and Barracks. */
+/** Matching lanes approach along the town's north-south axis. */
+export function battleRoute(role: CombatRole, lane: number, southernEdge: number) {
+  const x = civicGround.x + (lane - 2) * LANE_SPACING;
+  return {
+    startX: x,
+    targetX: x,
+    startY: role === "enemy" ? Math.min(southernEdge - SIZE - lane * 0.2, -15.5)
+      : civicGround.y - (role === "horseman" ? 3.1 : role === "archer" ? 1.9 : 2.5),
+    targetY: role === "enemy" ? -11.3 : role === "horseman" ? -10.0 : role === "archer" ? -6.2 : -9.2,
+  };
+}
+
+/** The finale unfolds below the town hall as armies close from north and south. */
 export function createCombatScene(scene: THREE.Scene, characters: CharacterAssets) {
   const fighters: Fighter[] = [];
   const arrows: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[] = [];
   const sparks: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>[] = [];
+  const actionFrames = new Map<CombatRole, THREE.Texture[]>();
   let loaded: Promise<void> | null = null;
   let active = false;
   let finished = false;
@@ -24,10 +45,27 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
   let archersCount = 0;
   let horsemenCount = 0;
 
+  function frames(sheet: THREE.Texture): THREE.Texture[] {
+    const image = sheet.image as HTMLImageElement;
+    const insetX = 0.5 / image.naturalWidth;
+    const insetY = 0.5 / image.naturalHeight;
+    const result = Array.from({ length: 8 }, (_, index) => {
+      const frame = sheet.clone();
+      frame.repeat.set(0.25 - 2 * insetX, 0.5 - 2 * insetY);
+      frame.offset.set((index % 4) * 0.25 + insetX, (index < 4 ? 0.5 : 0) + insetY);
+      frame.needsUpdate = true;
+      return frame;
+    });
+    sheet.dispose();
+    return result;
+  }
+
   function load(): Promise<void> {
     if (!loaded) loaded = Promise.all([
-      characters.ensureRole("enemy", true), characters.ensureRole("swordsman", true),
-      characters.ensureRole("archer", true), characters.ensureRole("horseman", true),
+      ...(["enemy", "swordsman", "archer", "horseman"] as CombatRole[]).map(async (role) => {
+        await characters.ensureRole(role);
+        if (!actionFrames.has(role)) actionFrames.set(role, frames(await loadTexture(ACTION_FILES[role])));
+      }),
     ]).then(() => undefined).catch((error: unknown) => { loaded = null; throw error; });
     return loaded;
   }
@@ -35,17 +73,14 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
   function makeFighter(role: Fighter["role"], index: number, southernEdge: number): void {
     const lane = index % 5;
     const row = Math.floor(index / 5);
-    const targetY = -7.8 - lane * LANE_SPACING - (role === "horseman" ? 0.45 : 0);
-    const targetX = role === "enemy" ? 1.9 + lane * 0.12 : role === "archer" ? -9.2 - row * 1.35 : role === "horseman" ? -4.5 - lane * 0.1 : -1.5 - lane * 0.12;
-    const startX = role === "enemy" ? -2.5 + lane * 1.3 : civicGround.x + (lane - 2) * 1.25;
-    const startY = role === "enemy" ? southernEdge - SIZE - lane * 0.25 : civicGround.y - (role === "archer" ? 5.1 : role === "horseman" ? 7.0 : 3.4) - row * 1.35;
+    const { startX, startY, targetX, targetY } = battleRoute(role, lane, southernEdge);
     const initialDirection = directionFromVector(targetX - startX, targetY - startY);
     const material = new THREE.SpriteMaterial({ map: characters.getFrame(role, 0, initialDirection), transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(material);
     const size = role === "horseman" ? SIZE * 1.32 : SIZE;
     sprite.scale.set(size * WALK_CELL_ASPECT, size, 1);
     sprite.position.set(startX, startY + size / 2, 2.8);
-    sprite.renderOrder = (role === "horseman" ? 86 : 75) + lane + row;
+    sprite.renderOrder = (role === "enemy" ? 90 : role === "horseman" ? 85 : role === "swordsman" ? 80 : 75) + row;
     scene.add(sprite);
     fighters.push({ sprite, material, role, lane, startX, startY, targetX, targetY });
   }
@@ -112,15 +147,18 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
       const fighter = fighters[index];
       const enemy = fighter.role === "enemy";
       const approach = THREE.MathUtils.smoothstep(Math.min(1, t / (fighter.role === "horseman" ? 3.3 : 4.2)), 0, 1);
-      let x = THREE.MathUtils.lerp(fighter.startX, fighter.targetX, approach);
+      const x = THREE.MathUtils.lerp(fighter.startX, fighter.targetX, approach);
       let y = THREE.MathUtils.lerp(fighter.startY, fighter.targetY, approach);
       const attacking = t >= 4.5 && t < 12.2;
       const phase = (combat + fighter.lane * 0.22 + (enemy ? 0.35 : 0)) % 1.5;
       const pose = attacking ? Math.min(7, Math.floor(phase / 1.5 * 8)) : Math.floor(t * 6 + fighter.lane) % 4;
-      const texture = attacking ? characters.getWorkFrame(fighter.role, pose)!
-        : characters.getFrame(fighter.role, pose, directionFromVector(fighter.targetX - fighter.startX, fighter.targetY - fighter.startY));
+      const retreating = t >= 12.2 && ((enemy && win) || (!enemy && !win));
+      const facing = retreating
+        ? directionFromVector(0, enemy ? -1 : 1)
+        : directionFromVector(fighter.targetX - fighter.startX, fighter.targetY - fighter.startY);
+      const texture = attacking ? actionFrames.get(fighter.role)![pose] : characters.getFrame(fighter.role, pose, facing);
       if (fighter.material.map !== texture) { fighter.material.map = texture; fighter.material.needsUpdate = true; }
-      if (attacking && fighter.role !== "archer" && pose === 4) x += enemy ? -0.38 : 0.38;
+      if (attacking && fighter.role !== "archer" && pose === 4) y += enemy ? 0.38 : -0.38;
       if (t >= 12.2) {
         const retreat = Math.min(1, (t - 12.2) / 3.3);
         if (enemy && win) y = THREE.MathUtils.lerp(fighter.targetY, fighter.startY, retreat);
@@ -129,7 +167,7 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
       }
       const size = fighter.role === "horseman" ? SIZE * 1.32 : SIZE;
       fighter.sprite.position.set(x, y + size / 2 + (attacking && pose === 4 ? 0.09 : 0), 2.8);
-      fighter.sprite.scale.x = size * (attacking ? WORK_CELL_ASPECT : WALK_CELL_ASPECT);
+      fighter.sprite.scale.x = size * (attacking ? 1 : WALK_CELL_ASPECT);
     }
     // Staggered arrow volleys visibly mark the pure archer and mixed defenses.
     const arrowsFiring = t > 4.7 && t < 12.1 && archersCount > 0;
@@ -137,17 +175,16 @@ export function createCombatScene(scene: THREE.Scene, characters: CharacterAsset
       const phase = (combat + index * 0.22) % 1.5;
       arrow.visible = arrowsFiring && index < archersCount && phase >= 0.55 && phase < 1.2;
       if (arrow.visible) {
-        const lane = index % 5;
         const fraction = (phase - 0.55) / 0.65;
-        arrow.position.set(-8.8 + fraction * 10.5, -6.9 - lane * LANE_SPACING + Math.sin(fraction * Math.PI) * 0.35, 3.2);
-        arrow.rotation.z = -0.1 + fraction * 0.18;
+        arrow.position.set(civicGround.x + (index - 2) * LANE_SPACING, -7.0 - fraction * 4.2, 3.2);
+        arrow.rotation.z = -Math.PI / 2;
       }
     });
     sparks.forEach((spark, index) => {
       const phase = (combat + index * 0.22 + 0.35) % 1.5;
       spark.visible = t > 4.5 && t < 12.2 && phase >= 0.7 && phase < 0.88;
       if (spark.visible) {
-        spark.position.set(0.2 + index * 0.12, -6.85 - index * LANE_SPACING, 3.4);
+        spark.position.set(civicGround.x + (index - 2) * LANE_SPACING, -10.7, 3.4);
         spark.scale.setScalar(1.3 + (phase - 0.7) * 4);
       }
     });

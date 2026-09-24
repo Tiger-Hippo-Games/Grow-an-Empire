@@ -8,6 +8,16 @@ import * as THREE from "three";
  */
 export type QualityTier = "high" | "low";
 
+/**
+ * How much the 1280×720 stage is scaled on screen (index.html fits it to the
+ * window or portal frame; 1.5 in a 1920×1080 frame). The canvas is laid out at
+ * 1280×720, so the pixel ratio must include this scale to stay sharp.
+ */
+function stageScale(): number {
+  const scale = (window as Window & { __gaeStageScale?: number }).__gaeStageScale;
+  return typeof scale === "number" && scale > 0 ? scale : 1;
+}
+
 export function createSceneSetup(viewport: HTMLElement) {
   // MSAA mostly matters on 1x screens; on 2x+ screens the extra pixels already
   // smooth sprite edges, so skip its cost there (MOBILE_PERFORMANCE §15).
@@ -15,10 +25,14 @@ export function createSceneSetup(viewport: HTMLElement) {
   const requested = new URLSearchParams(window.location.search).get("quality");
   const quality = {
     tier: (requested === "low" ? "low" : "high") as QualityTier,
-    /** high: device pixel ratio capped at 2; low: 1x (about a quarter of the pixels on a phone). */
+    /**
+     * high: one render pixel per screen pixel (stage scale × device pixel ratio), capped at 2;
+     * low: at most 1 (about a quarter of the pixels on a high-density phone).
+     */
     set(tier: QualityTier): void {
       quality.tier = tier;
-      renderer.setPixelRatio(tier === "low" ? 1 : Math.min(window.devicePixelRatio, 2));
+      const screenRatio = stageScale() * window.devicePixelRatio;
+      renderer.setPixelRatio(tier === "low" ? Math.min(screenRatio, 1) : Math.min(screenRatio, 2));
     },
   };
   quality.set(quality.tier);
@@ -41,6 +55,7 @@ export function createSceneSetup(viewport: HTMLElement) {
     // A hidden or 0x0 iframe reports zero size. Keep the last good camera
     // rather than computing Infinity/NaN bounds; the next resize fixes it.
     if (width === 0 || height === 0) return;
+    quality.set(quality.tier); // The stage scale may have changed with the window.
     renderer.setSize(width, height, false);
     const aspect = width / Math.max(height, 1);
     const viewHeight = Math.max(MIN_VIEW_HEIGHT, CITY_WIDTH_WITH_MARGIN / aspect);

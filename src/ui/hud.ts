@@ -295,13 +295,16 @@ export function createHud(callbacks: HudCallbacks) {
   // fixed pixel offsets that break when text wraps on a phone.
   function publishLayout(): void {
     const appBox = app.getBoundingClientRect();
+    // The stage is scaled on screen (index.html), but these variables are used
+    // inside it, so convert screen pixels back to stage pixels.
+    const toStage = app.offsetWidth > 0 && appBox.width > 0 ? app.offsetWidth / appBox.width : 1;
     const root = document.documentElement.style;
     const hudBox = statusBar.getBoundingClientRect();
     const settlementBox = settlementBar.getBoundingClientRect();
-    if (hudBox.height > 0) root.setProperty("--hud-bottom", `${Math.round(hudBox.bottom - appBox.top)}px`);
-    if (settlementBox.height > 0) root.setProperty("--settlement-bottom", `${Math.round(settlementBox.bottom - appBox.top)}px`);
+    if (hudBox.height > 0) root.setProperty("--hud-bottom", `${Math.round((hudBox.bottom - appBox.top) * toStage)}px`);
+    if (settlementBox.height > 0) root.setProperty("--settlement-bottom", `${Math.round((settlementBox.bottom - appBox.top) * toStage)}px`);
     const panelBox = buildPanel.getBoundingClientRect();
-    if (panelBox.height > 0) root.setProperty("--build-panel-reach", `${Math.round(appBox.bottom - panelBox.top)}px`);
+    if (panelBox.height > 0) root.setProperty("--build-panel-reach", `${Math.round((appBox.bottom - panelBox.top) * toStage)}px`);
   }
   if (typeof ResizeObserver !== "undefined") {
     const observer = new ResizeObserver(() => publishLayout());

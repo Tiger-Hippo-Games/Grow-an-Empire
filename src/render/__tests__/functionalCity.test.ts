@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BUILDINGS } from "../../game/content";
 import { civicGround, getBuildingPosition, getRoadRoute, getServiceRoute, getVisibleRoadSegments } from "../cityLayout";
 import { buildFunctionalRoutes } from "../villagers";
+import { battleRoute } from "../combatScene";
 import { CHARACTER_FILES, directionFromVector, roleForArmyUnitAtIndex, roleForBuilding, walkAtlasIndex, walkSheetFilename, workSheetFilename } from "../characterAssets";
 
 describe("functional city routes", () => {
@@ -97,5 +98,18 @@ describe("functional city routes", () => {
       expect(route.length - 1).toBe(visible.length);
     }
     expect(getServiceRoute("woodcutter").length).toBeGreaterThan(3);
+  });
+
+  it("brings defenders south and raiders north in matching battle lanes", () => {
+    for (let lane = 0; lane < 5; lane += 1) {
+      const defender = battleRoute("swordsman", lane, -22);
+      const raider = battleRoute("enemy", lane, -8);
+      expect(defender.startX).toBe(defender.targetX);
+      expect(raider.startX).toBe(raider.targetX);
+      expect(defender.targetX).toBe(raider.targetX);
+      expect(defender.targetY).toBeLessThan(defender.startY);
+      expect(raider.targetY).toBeGreaterThan(raider.startY);
+      expect(defender.targetY).toBeGreaterThan(raider.targetY);
+    }
   });
 });
