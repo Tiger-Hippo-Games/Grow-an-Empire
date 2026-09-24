@@ -4,8 +4,8 @@
  * Game code asks for art by its production filename (e.g.
  * `farm-level-1-2x-v1.png`), but what ships is the WebP copy in
  * `Assets/Runtime/`, written by `Tools/ArtPipeline/export_runtime_webp.py`.
- * WebP cuts the bundle from about 49 MB to about 7 MB, which keeps it under
- * the portal's 50 MB upload limit and its 5-second load target.
+ * WebP keeps the current runtime art around 15 MB, below the portal's 50 MB
+ * upload limit. The PNG masters remain outside the shipped bundle.
  *
  * Vite resolves this glob at build time into hashed URLs. With `base: "./"`
  * the URLs are relative, so the game works from the portal's sub-folder.

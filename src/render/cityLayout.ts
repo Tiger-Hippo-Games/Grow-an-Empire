@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { TOTAL_SETTLEMENT_LEVELS } from "../game/content";
 import { loadCroppedSprite, loadTexture } from "./spriteAssets";
 
 /**
@@ -232,7 +233,7 @@ export interface CityLayout {
   hideAllRoads(): void;
   /** Reconciles every supply-chain connector with the buildings currently present. */
   syncBuiltBuildings(buildingIds: string[]): void;
-  /** Reveals cumulative civic infrastructure for settlement levels 0–8. */
+  /** Reveals cumulative civic infrastructure through the longest campaign. */
   setCivicLevel(level: number): void;
 }
 
@@ -246,7 +247,9 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
   const districtRoads = new Map<string, THREE.Group>();
   const buildingRoads = new Map<string, THREE.Group>();
   const workflowRoads = new Map<string, THREE.Group>();
-  const environmentStages = Array.from({ length: 13 }, () => new THREE.Group());
+  // Every campaign move must reveal something, even after the hall art reaches
+  // its final painted level. Keep stage count tied to the simulation maximum.
+  const environmentStages = Array.from({ length: TOTAL_SETTLEMENT_LEVELS }, () => new THREE.Group());
   environmentStages.forEach((stage) => background.add(stage));
 
   const addGroundDisc = (stage: number, x: number, y: number, radius: number, color: number, opacity = 0.75): void => {
@@ -315,8 +318,8 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     addGroundDisc(8, point.x + 0.28, point.y, 0.24, 0x77736a, 0.95);
   }
 
-  // Levels 9–12 strengthen the town approaches as the final muster nears.
-  for (const [stage, distance, color] of [[9, 4.4, 0x867a62], [10, 5.1, 0x9d8664], [11, 5.8, 0x6f6d5a], [12, 6.5, 0xc7a65d]] as const) {
+  // Levels 9–14 strengthen the town approaches as the later campaigns muster.
+  for (const [stage, distance, color] of [[9, 4.4, 0x867a62], [10, 5.1, 0x9d8664], [11, 5.8, 0x6f6d5a], [12, 6.5, 0xc7a65d], [13, 7.2, 0xb78352], [14, 7.9, 0xe2b865]] as const) {
     for (const side of [-1, 1]) {
       addGroundDisc(stage, civicGround.x + side * distance, civicGround.y + 1.65, 0.21, color, 0.8);
       addGroundDisc(stage, civicGround.x + side * distance, civicGround.y - 1.65, 0.21, color, 0.8);

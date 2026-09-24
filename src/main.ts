@@ -223,7 +223,7 @@ function showBattleResult(): void {
   if (!report) return;
   combatScene.clear();
   villagerField.setCombatActive(false);
-  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen));
+  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
   villagerField.beginArmyMuster(report, animationElapsed);
   hud.renderArmyReport(report, buildOrderNames(), simulation.campaign.objective.enemyName);
   if (report.outcome === "Victory" && !completedCampaignIds.includes(simulation.campaign.id)) {

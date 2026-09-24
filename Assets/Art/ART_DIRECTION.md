@@ -37,7 +37,14 @@ Reference image: `Concepts/base-city-style-benchmark-v1.png`
 - Define standard character height relative to one tile.
 - Produce the woodcutter hut as isolated transparent assets: foundation, frame, construction, Level 1, and upgraded form.
 - Produce one villager anchor character before deriving occupational variants.
-- Use four directional animations for civilian work; reserve eight directions for combat only if playtesting requires it.
+- Historical benchmark note: the shipped animation system now uses eight walking directions for every role.
+
+## Current character art contract
+
+- Each playable character role has a 32-frame walk atlas: eight compass directions across columns, four stride poses down rows. Keep feet anchored consistently in every cell.
+- Each role has one role-specific 8-frame work loop, packed four columns by two rows. One facing direction is sufficient for this loop.
+- Fighters also use 8-frame combat loops. Their facing in the final battle follows the road: defenders face down toward the raiders, and raiders face up toward the settlement.
+- The runtime atlas names and frame order are defined in `src/render/characterAssets.ts`; add a PNG master and re-export the matching WebP when introducing a role.
 
 ## Generation prompt used for the benchmark
 

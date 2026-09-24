@@ -1,6 +1,17 @@
 import { CAMPAIGNS, type CampaignDefinition } from "../game/campaigns";
 import { assetUrl } from "../render/assetCatalog";
+import { IMAGE_TIMEOUT_MS } from "../render/spriteAssets";
 import { requireElement } from "./dom";
+
+/**
+ * Marker centers are percentages of the 16:9 map master. Keep these in one
+ * place so the hit targets and selected-province ring cannot drift apart when
+ * the illustration is revised. The four villages sit below the northern pass.
+ */
+const PROVINCE_CENTERS = [
+  { x: 15, y: 67 }, { x: 38, y: 67 }, { x: 62, y: 67 }, { x: 85, y: 67 },
+] as const;
+const MAP_ART = "southern-pass-map-v5.png";
 
 /** The illustrated route is UI only; main.ts owns campaign selection and saves. */
 export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => void) {
@@ -13,7 +24,33 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   const briefing = requireElement<HTMLElement>("#campaign-briefing");
   const state = requireElement<HTMLElement>("#campaign-state");
   const launch = requireElement<HTMLButtonElement>("#campaign-launch");
-  map.style.setProperty("--campaign-map-image", `url("${assetUrl("southern-pass-map-v5.png")}")`);
+  // CSS backgrounds do not emit a usable DOM error. Probe the same bundled
+  // image so a failed download has a logged, playable fallback instead of a
+  // silent blank map. The browser cache prevents a second network transfer.
+  try {
+    const url = assetUrl(MAP_ART);
+    const image = new Image();
+    let settled = false;
+    const fail = (cause: unknown): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      map.classList.add("map-art-failed");
+      console.warn(`[Grow an Empire] Campaign map artwork failed to load: ${MAP_ART}`, cause);
+    };
+    const timeout = setTimeout(() => fail(new Error(`Timed out after ${IMAGE_TIMEOUT_MS / 1000} s`)), IMAGE_TIMEOUT_MS);
+    image.onload = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      map.style.setProperty("--campaign-map-image", `url("${url}")`);
+    };
+    image.onerror = (event) => fail(event);
+    image.src = url;
+  } catch (error) {
+    map.classList.add("map-art-failed");
+    console.warn(`[Grow an Empire] Campaign map artwork is unavailable: ${MAP_ART}`, error);
+  }
 
   let activeId = CAMPAIGNS[0].id;
   let completed = new Set<string>();
@@ -27,15 +64,29 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
 
   function render(): void {
     stops.replaceChildren();
-    highlight.style.left = `${[15, 38, 62, 85][selectedIndex]}%`;
+    highlight.style.left = `${PROVINCE_CENTERS[selectedIndex].x}%`;
+    highlight.style.top = `${PROVINCE_CENTERS[selectedIndex].y + 1}%`;
     CAMPAIGNS.forEach((campaign, index) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `campaign-stop stop-${index + 1}${index === selectedIndex ? " selected" : ""}${completed.has(campaign.id) ? " completed" : ""}`;
+      button.className = `campaign-stop${index === selectedIndex ? " selected" : ""}${completed.has(campaign.id) ? " completed" : ""}`;
+      button.style.left = `${PROVINCE_CENTERS[index].x}%`;
+      button.style.top = `${PROVINCE_CENTERS[index].y}%`;
       button.disabled = !unlocked(index);
       button.setAttribute("aria-label", `${campaign.name}, ${completed.has(campaign.id) ? "secured" : unlocked(index) ? "available" : "threatening, defend the heartland first"}`);
-      button.innerHTML = `<span class="stop-flag" aria-hidden="true">${completed.has(campaign.id) ? "★" : unlocked(index) ? String(index + 1) : "⚔"}</span><span class="stop-name">${campaign.objective.kingdomName}</span>`;
-      button.addEventListener("click", () => { selectedIndex = index; render(); });
+      const flag = document.createElement("span");
+      flag.className = "stop-flag";
+      flag.setAttribute("aria-hidden", "true");
+      flag.textContent = completed.has(campaign.id) ? "★" : unlocked(index) ? String(index + 1) : "⚔";
+      const name = document.createElement("span");
+      name.className = "stop-name";
+      name.textContent = campaign.objective.kingdomName;
+      button.append(flag, name);
+      button.addEventListener("click", () => {
+        selectedIndex = index;
+        render();
+        stops.querySelectorAll<HTMLButtonElement>("button")[index]?.focus();
+      });
       stops.appendChild(button);
     });
     const campaign = CAMPAIGNS[selectedIndex];
@@ -50,7 +101,14 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     launch.textContent = isCurrent && !currentRunIsComplete ? "Continue settlement" : completed.has(campaign.id) ? "Replay campaign" : "Begin campaign";
   }
 
-  launch.addEventListener("click", () => onLaunch(CAMPAIGNS[selectedIndex]));
+  launch.addEventListener("click", () => {
+    try {
+      onLaunch(CAMPAIGNS[selectedIndex]);
+    } catch (error) {
+      console.error("[Grow an Empire] Could not start the selected campaign", error);
+      state.textContent = "Could not start this campaign. Reload to retry.";
+    }
+  });
 
   return {
     show(activeCampaignId: string, completedIds: readonly string[], runComplete: boolean, move: number) {
@@ -65,7 +123,13 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       map.classList.remove("hidden");
       launch.focus();
     },
-    hide() { map.classList.add("hidden"); },
+    hide() {
+      const hadFocus = map.contains(document.activeElement);
+      map.classList.add("hidden");
+      // The launch button becomes hidden here. Return keyboard focus to the
+      // visible map toggle instead of leaving it on the document body.
+      if (hadFocus) document.getElementById("map-toggle")?.focus();
+    },
     get isOpen() { return !map.classList.contains("hidden"); },
   };
 }

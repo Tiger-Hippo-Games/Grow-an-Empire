@@ -61,13 +61,22 @@ export async function loadTexture(filename: string): Promise<THREE.Texture> {
   // `error`. Without a limit, whatever awaits it waits forever: a clicked card
   // would leave the build panel disabled for good. Rejecting instead lets the
   // callers' existing retry paths take over. 45 s is far above any real image
-  // here (the largest is 400 KB, about 2 s on Slow 4G).
+  // here (the largest is roughly 450 KB, about 2 s on Slow 4G).
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(`timed out after ${IMAGE_TIMEOUT_MS / 1000} s`)), IMAGE_TIMEOUT_MS);
   });
   try {
-    return configureTexture(await Promise.race([textureLoader.loadAsync(url), timeout]));
+    const texture = await Promise.race([textureLoader.loadAsync(url), timeout]);
+    const image = texture.image as HTMLImageElement;
+    // Atlas consumers call loadTexture directly. Reject a zero-size decode here
+    // before frame math can produce NaN UVs or invisible characters.
+    if (!Number.isFinite(image?.naturalWidth) || !Number.isFinite(image?.naturalHeight)
+      || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+      texture.dispose();
+      throw new Error("image decoded with no size");
+    }
+    return configureTexture(texture);
   } catch (cause) {
     throw new Error(`Failed to load image "${filename}"`, { cause });
   } finally {

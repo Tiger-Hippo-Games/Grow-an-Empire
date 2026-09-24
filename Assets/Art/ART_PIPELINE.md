@@ -2,6 +2,8 @@
 
 ## Runtime sprite contract
 
+The 256 × 256 and four-direction rules below describe the original woodcutter pipeline. Current all-role walking atlases use eight columns × four rows (32 frames), with four poses for each compass direction; see `src/render/characterAssets.ts` for indexing. Role-specific work and combat loops use eight frames in a four-column × two-row sheet.
+
 - Character runtime frames are transparent RGBA PNGs on a 256 x 256 canvas.
 - The visible sprite fits within 224 x 224 pixels and uses a shared foot anchor at y = 236.
 - Four-direction civilian actions use southeast, southwest, northeast, and northwest.
@@ -73,3 +75,10 @@ Unloaded and loaded locomotion are both complete. The integration contract uses 
 ## Three.js opening vertical slice
 
 The runtime now begins at a persistent campsite, presents the Woodcutter as the Move 1 build-order decision, plays the foundation/frame/late construction assets, assigns the worker automatically, and advances to Move 2 while timber production continues. The campsite runtime cutout is stored under `Production/Buildings/Campsite/Runtime2x/` and is reserved for an in-place Town Hall upgrade at Move 8.
+
+## Campaign map art contract
+
+- Source: `Production/Campaign/southern-pass-map-v5.png`. Run `pnpm art:export` after changing it; the game ships the WebP in `Assets/Runtime/`.
+- Keep the player settlement at the north edge, guarded by terrain, with a single southern approach. The four rival villages occupy the lower map, centered near 15%, 38%, 62%, and 85% of its width at 67% of its height.
+- Do not bake buttons, kingdom names, countdowns, or mission text into the illustration. `src/ui/campaignMap.ts` positions accessible controls and the active-province ring over the art from one coordinate list.
+- Keep enough contrast around the four village centers for their flag markers and highlight. A failed map image falls back to CSS scenery and logs a warning, so campaign selection remains usable.

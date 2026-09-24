@@ -58,13 +58,13 @@ export const CAMPAIGN_2: CampaignDefinition = {
 export const CAMPAIGN_3: CampaignDefinition = {
   id: "campaign-3-ashfang-gate",
   name: "Highmeadow Watch",
-  subtitle: "Defend the hill farms from raiders gathering in the northern woods.",
+  subtitle: "Defend the hill farms from raiders gathering below the southern pass.",
   moveLimit: 14,
   availableBuildingIds: SHARED_BUILDINGS,
   objective: {
     enemyName: "The Highmeadow Host",
     kingdomName: "Highmeadow Kingdom",
-    briefing: "Seven swordsmen come down from Highmeadow Kingdom after Move 14. Muster your strongest village defense.",
+    briefing: "Seven swordsmen come up from Highmeadow Kingdom after Move 14. Muster your strongest village defense.",
     strength: 7,
   },
 };
@@ -72,13 +72,13 @@ export const CAMPAIGN_3: CampaignDefinition = {
 export const CAMPAIGN_4: CampaignDefinition = {
   id: "campaign-4-shadowfen",
   name: "Eastwood Hamlet",
-  subtitle: "Keep the woodland farms safe from raiders on the eastern lane.",
+  subtitle: "Keep the woodland farms safe from raiders on the southern lane.",
   moveLimit: 14,
   availableBuildingIds: SHARED_BUILDINGS,
   objective: {
     enemyName: "The Eastwood Reavers",
     kingdomName: "Eastwood Kingdom",
-    briefing: "Six swordsmen strike from Eastwood Kingdom after Move 14. Hold the eastern village with a trained garrison.",
+    briefing: "Six swordsmen come up the southern lane from Eastwood Kingdom after Move 14. Hold the village with a trained garrison.",
     strength: 6,
   },
 };

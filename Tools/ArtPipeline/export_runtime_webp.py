@@ -1,8 +1,8 @@
 """Export the game's runtime art as WebP into Assets/Runtime/.
 
 Why: the portal caps the upload at 50 MB and expects a fast first load
-(under 5 s on 10 Mbps). The PNG runtime art is about 52 MB; the same images
-as WebP are about 7 MB with no visible loss.
+(under 5 s on 10 Mbps). The current runtime set is around 15 MB as WebP;
+PNG masters are not shipped.
 
 How it works:
 - SOURCES below lists exactly the PNGs the game loads (nothing else ships).

@@ -80,3 +80,11 @@ Also check, from QA_CHECKLIST §6–8 and §29 and MOBILE_PERFORMANCE §54:
 | Visual | No missing assets, no rendering issues, UI readable | ✅ Automated screenshots; ⬜ on devices |
 | Visual | Final copy correct | ⬜ Owner read-through |
 | Audio | Audio works | n/a (no audio) |
+
+## 2026-09-24 art and runtime code review
+
+- `pnpm check`: TypeScript, ESLint, and all 112 tests passed, including the runtime-art manifest and stale-WebP checks.
+- `pnpm package`: 121-entry portal bundle validated at 15.16 MB, below the 50 MB limit.
+- Live desktop preview: campaign map artwork, village markers, selected highlight, countdown, and transition into the settlement rendered correctly. Browser warning/error log was empty after reload and campaign launch.
+- Fixed during review: failed campaign-map art now logs and shows a usable fallback; shared texture loading rejects zero-size decodes; province buttons and highlight share placement data; map launch keeps keyboard focus; horsemen no longer count as villagers after battle; levels 13–14 reveal civic ground details; later-campaign text consistently describes the southern approach.
+- Remaining visual QA: verify small landscape and touch layouts on real devices, and inspect the full 14-move and final combat sequences visually. The painted Town Hall art reaches its final form at level 8; later levels add ground details rather than new hall sprites.
