@@ -1,5 +1,21 @@
 # QA results
 
+## v0.2.1 (2026-09-25): responsive layout for phones and tablets
+
+Build: **v0.2.1**, `release/grow-an-empire-0.2.1.zip` (15.71 MB unpacked, 121 files, validator: ready to upload). Headless Chromium in a cloud workspace.
+
+| Check | Result | Notes |
+|---|---|---|
+| `viewports.py` | ✅ Pass | 1920×1080, 1280×720, 1600×900, 1366×724 (fixed 16:9 stage, centred) and 960×540, 1024×768, 1180×820, 820×1180, 844×390, 667×375, 390×844, 375×667 (fluid layout, stage fills the frame): no overlaps, no off-screen or clipped UI, no buttons under 44 px, no text under 11 px, no page scroll; the tutorial dialog fits or scrolls with its buttons in view |
+| Phone flow (844×390, 390×844) | ✅ Pass | Map → briefing → tutorial → 12 moves at 8× → muster → battle → result, with screenshots at each step; no page errors |
+| Rotation and resizing | ✅ Pass | Portrait ↔ landscape and fixed ↔ fluid mid-game: stage, canvas and camera follow; the campaign map keeps the selected stop in view |
+| Portal path in an iframe | ✅ Pass | ZIP unpacked under `/api/v1/games/grow-an-empire/play/` in 1920×1080, 844×390 and 390×844 iframes: right layout, no failed requests |
+| `gameplay.py`, `platform_sdk.py`, `context_loss.py`, `fault_injection.py --quick` | ✅ Pass | |
+| `load_time.py` | ✅ | Slow 4G: playable in 7.7 s, 1.03 MB, 9 requests |
+| `pnpm check` | ✅ Pass | 128 tests |
+
+Not yet done: the same on real phones and tablets (Safari and Chrome), including notches and the browser bars appearing and hiding.
+
 ## v0.2.0 (2026-09-24): economy, 25 campaigns, stars, market, battle strip
 
 Build: **v0.2.0**, `release/grow-an-empire-0.2.0.zip` (15.7 MB unpacked, 121 files). Headless Chromium in a cloud workspace. The v0.1.0 results below are kept for history; where they disagree, this section is current.

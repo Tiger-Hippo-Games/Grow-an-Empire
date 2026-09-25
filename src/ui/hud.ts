@@ -105,6 +105,9 @@ export function createHud(callbacks: HudCallbacks) {
   const musterToggle = requireElement<HTMLButtonElement>("#muster-toggle");
   const muteToggle = requireElement<HTMLButtonElement>("#mute-toggle");
   const fullscreenToggle = requireElement<HTMLButtonElement>("#fullscreen-toggle");
+  const controls = requireElement<HTMLElement>(".controls");
+  const controlsMore = requireElement<HTMLButtonElement>("#controls-more");
+  const controlsSecondary = requireElement<HTMLElement>("#controls-secondary");
   const moveSummary = requireElement<HTMLElement>("#move-summary");
   const buildFoot = requireElement<HTMLElement>("#build-foot");
   const tutorialScrim = requireElement<HTMLElement>("#tutorial-scrim");
@@ -373,6 +376,7 @@ export function createHud(callbacks: HudCallbacks) {
   // variables (see the "Mobile and portal layout" block in styles.css), so
   // panels stack below/above them at any screen size instead of relying on
   // fixed pixel offsets that break when text wraps on a phone.
+  let lastLayout = "";
   function publishLayout(): void {
     const appBox = app.getBoundingClientRect();
     // The stage is scaled on screen (index.html), but these variables are used
@@ -385,6 +389,13 @@ export function createHud(callbacks: HudCallbacks) {
     if (settlementBox.height > 0) root.setProperty("--settlement-bottom", `${Math.round((settlementBox.bottom - appBox.top) * toStage)}px`);
     const panelBox = buildPanel.getBoundingClientRect();
     if (panelBox.height > 0) root.setProperty("--build-panel-reach", `${Math.round((appBox.bottom - panelBox.top) * toStage)}px`);
+    // The camera keeps the city clear of the bars (sceneSetup.freeArea), so
+    // tell main.ts when they move.
+    const layout = [root.getPropertyValue("--hud-bottom"), root.getPropertyValue("--settlement-bottom"), app.offsetWidth, app.offsetHeight].join();
+    if (layout !== lastLayout) {
+      lastLayout = layout;
+      window.dispatchEvent(new Event("gae:layout"));
+    }
   }
   if (typeof ResizeObserver !== "undefined") {
     const observer = new ResizeObserver(() => publishLayout());
@@ -444,7 +455,7 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
     tutorialStep.textContent = "STEP 2 OF 2";
     tutorialCoachTitle.textContent = "Watch the whole city react";
-    tutorialCoachCopy.textContent = `After every move, each building works once: raw goods first, then workshops turn them into planks, rations and soldiers, and the army eats. The summary above the cards shows what happened. The enemy arrives after Move ${campaignMoveLimit}.`;
+    tutorialCoachCopy.textContent = `After every move, each building works once: raw goods first, then workshops turn them into planks, rations and soldiers, and the army eats. The move summary on the build panel shows what happened. The enemy arrives after Move ${campaignMoveLimit}.`;
     tutorialNext.classList.remove("hidden");
     tutorialCoach.dataset.step = "growth";
     tutorialCoach.classList.remove("hidden");
@@ -520,6 +531,29 @@ export function createHud(callbacks: HudCallbacks) {
     if (hadFocus) helpToggle.focus();
   });
   musterToggle.addEventListener("click", callbacks.onReportToggle);
+
+  // "More": on phones and small frames the secondary controls fold into a
+  // menu above the control row (styles.css). In the fixed layout the button
+  // is hidden and every control sits in the row.
+  function setMoreOpen(open: boolean): void {
+    controls.classList.toggle("expanded", open);
+    controlsMore.setAttribute("aria-expanded", String(open));
+  }
+  controlsMore.addEventListener("click", () => setMoreOpen(!controls.classList.contains("expanded")));
+  // Toggles (grid, sound) keep the menu open so the new state is visible; the rest close it.
+  controlsSecondary.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest("button");
+    if (button && button !== gridToggle && button !== muteToggle) setMoreOpen(false);
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (controls.classList.contains("expanded") && !controls.contains(event.target as Node)) setMoreOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && controls.classList.contains("expanded")) {
+      setMoreOpen(false);
+      controlsMore.focus();
+    }
+  });
   muteToggle.addEventListener("click", callbacks.onMuteToggle);
   fullscreenToggle.addEventListener("click", callbacks.onFullscreenToggle);
 

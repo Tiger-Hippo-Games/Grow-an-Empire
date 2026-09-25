@@ -4,24 +4,47 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#13271b" />
-    <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Landscape only, 16:9 (1920×1080). -->
-    <meta name="orientation" content="landscape" />
-    <meta name="screen-orientation" content="landscape" />
+    <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Plays in either orientation: 16:9 stage in large frames (designed for 1920×1080), a rearranged layout on phones and tablets. -->
+    <meta name="orientation" content="any" />
+    <meta name="screen-orientation" content="any" />
     <meta name="description" content="Build a medieval city one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Plan twelve moves, trade at the market when you're stuck, and beat 25 enemy armies to earn up to three stars each. A short strategy game for your browser." />
     <title>Grow an Empire</title>
     <script>
-      // Fixed 16:9 stage. The game is laid out once at 1280×720 and scaled as a
-      // whole to fit the window or portal frame, centred, with bars on the
-      // long side (a 1920×1080 frame shows it at exactly 1.5×). Runs before
-      // anything is drawn so the first frame is already the right size.
-      // styles.css reads --stage-scale; sceneSetup.ts reads __gaeStageScale.
+      // Stage fit. Two layouts:
+      //  - "fixed": when the window or portal frame can show the 1280×720 stage
+      //    at 95% or more, the game is laid out once at 1280×720 and scaled as a
+      //    whole, centred, with bars on the long side (a 1920×1080 frame shows
+      //    it at exactly 1.5×).
+      //  - "fluid": in smaller frames (phones, tablets, small windows, either
+      //    orientation) the stage takes the frame's own shape at 1:1 (scaled
+      //    down only below 568×320 / 320×568), and styles.css rearranges the
+      //    panels with container queries on #app, so text and buttons keep
+      //    their real size instead of shrinking with the stage.
+      // Runs before anything is drawn so the first frame is already the right
+      // size. styles.css reads --stage-*; sceneSetup.ts reads __gaeStageScale
+      // and __gaeLayout.
       (function () {
-        var WIDTH = 1280, HEIGHT = 720;
+        var WIDTH = 1280, HEIGHT = 720, FIXED_MIN_SCALE = 0.95;
+        var root = document.documentElement;
         function fit() {
-          var scale = Math.min(window.innerWidth / WIDTH, window.innerHeight / HEIGHT);
-          if (!(scale > 0)) return; // A hidden 0×0 frame: keep the last good scale.
+          var w = window.innerWidth, h = window.innerHeight;
+          if (!(w > 0 && h > 0)) return; // A hidden 0×0 frame: keep the last good fit.
+          var scale = Math.min(w / WIDTH, h / HEIGHT);
+          var layout = "fixed", stageW = WIDTH, stageH = HEIGHT;
+          if (scale < FIXED_MIN_SCALE) {
+            layout = "fluid";
+            var portrait = h > w;
+            scale = Math.min(1, w / (portrait ? 320 : 568), h / (portrait ? 568 : 320));
+            stageW = Math.round(w / scale);
+            stageH = Math.round(h / scale);
+          }
           window.__gaeStageScale = scale;
-          document.documentElement.style.setProperty("--stage-scale", String(scale));
+          window.__gaeLayout = layout;
+          root.dataset.layout = layout;
+          root.dataset.orientation = stageH > stageW ? "portrait" : "landscape";
+          root.style.setProperty("--stage-scale", String(scale));
+          root.style.setProperty("--stage-w", stageW + "px");
+          root.style.setProperty("--stage-h", stageH + "px");
         }
         fit();
         window.addEventListener("resize", fit);
@@ -90,7 +113,6 @@
     <script src="/api/v1/sdk/platform-sdk.js"></script>
   </head>
   <body>
-    <div id="rotate-hint" class="rotate-hint" role="status">Turn your device sideways to play.</div>
     <main id="app">
       <section class="hud" aria-label="Campaign status">
         <div class="brand">
@@ -151,19 +173,26 @@
       <section class="controls" aria-label="Simulation controls">
         <button id="play-toggle" type="button">Pause</button>
         <button id="speed-toggle" type="button" aria-label="Change simulation speed">Speed · 1×</button>
-        <button id="grid-toggle" type="button" aria-pressed="false">Grid · Off</button>
         <button id="muster-toggle" class="hidden" type="button">Battle report</button>
-        <button id="map-toggle" type="button">Campaign map</button>
-        <button id="help-toggle" type="button">How to play</button>
-        <button id="mute-toggle" type="button" aria-pressed="false">Sound · On</button>
-        <button id="fullscreen-toggle" class="hidden" type="button">Full screen</button>
-        <button id="restart" class="quiet-control" type="button">Restart</button>
+        <button id="map-toggle" type="button" aria-label="Campaign map"><span class="label-long">Campaign map</span><span class="label-short" aria-hidden="true">Map</span></button>
+        <button id="controls-more" class="controls-more" type="button" aria-expanded="false" aria-controls="controls-secondary">More</button>
+        <div id="controls-secondary" class="controls-secondary">
+          <button id="grid-toggle" type="button" aria-pressed="false">Grid · Off</button>
+          <button id="help-toggle" type="button">How to play</button>
+          <button id="mute-toggle" type="button" aria-pressed="false">Sound · On</button>
+          <button id="fullscreen-toggle" class="hidden" type="button">Full screen</button>
+          <button id="restart" class="quiet-control" type="button">Restart</button>
+        </div>
       </section>
 
       <section id="campaign-map" class="campaign-map hidden" aria-label="Campaign map">
+        <div id="campaign-scroller" class="campaign-scroller">
+          <div id="campaign-board" class="campaign-board">
+            <div id="province-highlight" class="province-highlight" aria-hidden="true"></div>
+            <div id="campaign-stops" class="campaign-stops" aria-label="Campaign destinations"></div>
+          </div>
+        </div>
         <div class="campaign-map-heading"><span>GROW AN EMPIRE</span><h2>Southern Front</h2><p>Raiders approach from the south.</p></div>
-        <div id="province-highlight" class="province-highlight" aria-hidden="true"></div>
-        <div id="campaign-stops" class="campaign-stops" aria-label="Campaign destinations"></div>
         <aside class="campaign-map-card" aria-live="polite">
           <span id="campaign-stage"></span><h3 id="campaign-name"></h3>
           <p id="campaign-copy"></p><p id="campaign-briefing"></p>

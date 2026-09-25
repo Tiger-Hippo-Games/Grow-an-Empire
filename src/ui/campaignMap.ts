@@ -22,6 +22,7 @@ const MAP_ART = "southern-pass-map-v5.png";
 export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => void) {
   const map = requireElement<HTMLElement>("#campaign-map");
   const stops = requireElement<HTMLElement>("#campaign-stops");
+  const scroller = requireElement<HTMLElement>("#campaign-scroller");
   const highlight = requireElement<HTMLElement>("#province-highlight");
   const stage = requireElement<HTMLElement>("#campaign-stage");
   const title = requireElement<HTMLElement>("#campaign-name");
@@ -104,7 +105,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       button.addEventListener("click", () => {
         selectedIndex = index;
         render();
-        stops.querySelectorAll<HTMLButtonElement>("button")[index]?.focus();
+        stops.querySelectorAll<HTMLButtonElement>("button")[index]?.focus({ preventScroll: true });
       });
       stops.appendChild(button);
     });
@@ -129,7 +130,23 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     state.textContent = `${campaign.objective.strength} enemy ${campaign.objective.strength === 1 ? "soldier" : "soldiers"} · ${progress}`;
     launch.disabled = !open;
     launch.textContent = !open ? "Locked" : isCurrent && !currentRunIsComplete ? "Continue settlement" : won(campaign) ? "Replay campaign" : "Begin campaign";
+    revealSelected();
   }
+
+  /**
+   * On a narrow frame the board is wider than the screen and scrolls sideways
+   * (styles.css, fluid layout): keep the selected marker in view. Sets
+   * scrollLeft directly; scrollIntoView could also scroll the stage itself.
+   */
+  function revealSelected(): void {
+    if (scroller.scrollWidth <= scroller.clientWidth + 1) return;
+    const board = stops.parentElement;
+    if (!board) return;
+    const x = board.offsetLeft + (PROVINCE_CENTERS[selectedIndex].x / 100) * board.offsetWidth;
+    const left = scroller.scrollLeft;
+    if (x < left + 60 || x > left + scroller.clientWidth - 60) scroller.scrollLeft = x - scroller.clientWidth / 2;
+  }
+  window.addEventListener("resize", () => { if (!map.classList.contains("hidden")) revealSelected(); });
 
   launch.addEventListener("click", () => {
     if (!unlocked(selectedIndex)) return;
@@ -150,9 +167,9 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       const activeIndex = Math.max(0, CAMPAIGNS.findIndex((campaign) => campaign.id === activeCampaignId));
       const next = CAMPAIGNS.findIndex((campaign, index) => unlocked(index) && !won(campaign));
       selectedIndex = !runComplete ? activeIndex : next >= 0 ? next : activeIndex;
-      render();
       map.classList.remove("hidden");
-      launch.focus();
+      render(); // After un-hiding, so the board has a size to scroll to.
+      launch.focus({ preventScroll: true });
     },
     hide() {
       const hadFocus = map.contains(document.activeElement);

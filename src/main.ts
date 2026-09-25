@@ -652,6 +652,12 @@ window.addEventListener("resize", () => {
   resize();
   requestRender();
 });
+// The HUD reports when its bars move (layout change, rotation), so the camera
+// can keep the city in the part of the screen they leave free.
+window.addEventListener("gae:layout", () => {
+  resize();
+  requestRender();
+});
 
 // WebGL context loss (GPU reset, too many tabs, backgrounded mobile browser).
 // preventDefault() lets the browser restore it; Three.js re-uploads textures.

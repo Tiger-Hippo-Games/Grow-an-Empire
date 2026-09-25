@@ -7,7 +7,7 @@ The metadata for the GoLive listing (SUBMISSION_GUIDE §2 and §16 "Content & me
 | Title | Grow an Empire | Must match `<title>` in `index.html` |
 | Slug | `grow-an-empire` | Lowercase, digits, hyphens, ≤ 60 characters, globally unique. Must equal `GAME_ID` in `src/platform/adapters.ts` (it's passed to `Platform.init`). If the slug is taken, change both. |
 | Genre | `strategy` | One of idle, strategy, platformer, puzzle, arcade, rpg, simulation, sports |
-| Orientation | `landscape` | A fixed 16:9 stage (designed for a 1920×1080 frame), scaled and centred in any frame. Upright phones are asked to turn sideways. Also declared in `index.html` |
+| Orientation | `any` | Large frames get the 16:9 stage designed for 1920×1080, scaled and centred. Phones and tablets in either orientation, and small windows, get a rearranged layout at full size (build panel beside the city in landscape, below it in portrait). Also declared in `index.html` |
 | Tags | `city-builder, strategy, medieval, short-session, single-player` | Optional, comma-separated |
 | Age | 13+ | Mild fantasy combat, shown as unit icons greying out; no gore |
 
@@ -29,7 +29,7 @@ Content-Type: application/json
   "slug": "grow-an-empire",
   "description": "Build a medieval city one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Plan twelve moves, trade at the market when you're stuck, and beat 25 enemy armies to earn up to three stars each. A short strategy game for your browser.",
   "genre": "strategy",
-  "orientation": "landscape"
+  "orientation": "any"
 }
 ```
 

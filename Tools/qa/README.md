@@ -22,7 +22,7 @@ pnpm build; pnpm exec vite preview  # http://127.0.0.1:4174 (viewports, load_tim
 |---|---|---|
 | `python Tools/qa/gameplay.py` | 4173 | Failed boot, bad save, art failure on a pick (not paid for), then a full Campaign 1 at 8×: tutorial, key 1, reloads mid-game and at the muster, battle, stars saved, Campaign 2 opened |
 | `python Tools/qa/platform_sdk.py` | 4173 | Mock SDK call order, cloud restore, portal pause/resume/session end inside an iframe, offline play |
-| `python Tools/qa/viewports.py [tag]` | 4174 | Overlaps, off-screen or clipped UI, tap targets under 44 px, text under 11 px on screen, page scroll and stage centring at six landscape sizes; the rotate screen on an upright phone |
+| `python Tools/qa/viewports.py [tag]` | 4174 | Overlaps, off-screen or clipped UI, tap targets under 44 px, text under 11 px on screen, page scroll, and the stage centred (fixed layout) or filling the frame (fluid layout), at 12 sizes: four desktop, small windows, tablets and phones both ways |
 | `python Tools/qa/load_time.py` | 4174 | Time to playable and bytes before it, at 10 Mbps and Slow 4G |
 | `python Tools/qa/context_loss.py` | 4174 | WebGL context loss and recovery |
 | `python Tools/qa/fault_injection.py [--quick]` | 4174 | Breaks things on purpose (16 scenarios): broken or stalled art, a portal SDK that throws, hangs or rejects, blocked or full storage, corrupt saves, another player's save, a save from a newer version, portal session end, battle icon art failing at the finale, a zero-size iframe. `--quick` skips the 45 s stall test. |

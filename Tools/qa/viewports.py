@@ -9,7 +9,10 @@ sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
 from flow import enter  # noqa: E402
 URL = "http://127.0.0.1:4174/"
 TAG = sys.argv[1] if len(sys.argv) > 1 else "before"
-SIZES = [(1920, 1080), (1280, 720), (1600, 900), (1366, 724), (960, 540), (667, 375), (390, 800)]
+# Fixed 16:9 stage (1280×720 and up), then the fluid layout: small windows,
+# tablets both ways, phones both ways.
+SIZES = [(1920, 1080), (1280, 720), (1600, 900), (1366, 724), (960, 540), (1024, 768), (1180, 820), (820, 1180),
+         (844, 390), (667, 375), (390, 844), (375, 667)]
 CHECK = """() => {
   const vis = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
     return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0 ? r : null; };
@@ -20,6 +23,7 @@ CHECK = """() => {
   const overlaps = [];
   for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
     const [a, ra] = rects[i], [b, rb] = rects[j];
+    if (a === '#build-panel' && b === '.controls' && document.querySelector('.controls.expanded')) continue;
     const ox = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left), oy = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
     if (ox > 2 && oy > 2) overlaps.push(`${a} x ${b} (${Math.round(ox)}x${Math.round(oy)})`);
   }
@@ -34,19 +38,20 @@ out = {}
 with sync_playwright() as p:
     b = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
     for w, h in SIZES:
-        ctx = b.new_context(viewport={"width": w, "height": h}, device_scale_factor=2 if w < 700 else 1, has_touch=w < 700, is_mobile=w < 700)
+        mobile = min(w, h) < 500 or (w < 900 and h > w)
+        ctx = b.new_context(viewport={"width": w, "height": h}, device_scale_factor=2 if mobile else 1, has_touch=mobile, is_mobile=mobile)
         ctx.add_init_script("localStorage.setItem('grow-an-empire:tutorial:v1','complete')")
         pg = ctx.new_page(); pg.goto(URL + "?reset")
         pg.wait_for_function("document.documentElement.dataset.booted==='true'", timeout=60000)
         pg.evaluate("localStorage.setItem('grow-an-empire:tutorial:v1','complete')")
         pg.wait_for_timeout(600)
         pg.screenshot(path=f"{OUT}/vp_{TAG}_map_{w}x{h}.png")
-        if h > w:  # landscape-only game: an upright phone gets the "turn sideways" screen
-            out[f"{w}x{h}"] = {"rotate_hint_shown": pg.is_visible("#rotate-hint")}
-            ctx.close(); continue
+        # Fixed layout: the 16:9 stage is centred. Fluid layout: the stage fills the frame.
         stage = pg.evaluate("""() => { const r = document.getElementById('app').getBoundingClientRect();
-          return { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height),
-                   centred: Math.abs((r.left + r.right) / 2 - innerWidth / 2) < 1.5 && Math.abs((r.top + r.bottom) / 2 - innerHeight / 2) < 1.5 }; }""")
+          const layout = document.documentElement.dataset.layout;
+          return { layout, left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height),
+                   centred: Math.abs((r.left + r.right) / 2 - innerWidth / 2) < 1.5 && Math.abs((r.top + r.bottom) / 2 - innerHeight / 2) < 1.5,
+                   fills: layout !== 'fluid' || (Math.abs(r.width - innerWidth) < 1.5 && Math.abs(r.height - innerHeight) < 1.5) }; }""")
         pg.click("#campaign-launch"); pg.wait_for_timeout(400)
         pg.screenshot(path=f"{OUT}/vp_{TAG}_brief_{w}x{h}.png")
         pg.click(".flow-dialog [data-action=begin]"); pg.wait_for_timeout(400)
