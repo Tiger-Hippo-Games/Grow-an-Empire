@@ -332,17 +332,22 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .unit-more { margin-left: 4px; color: var(--gold); font-size: .82rem; }
 .battle-empty { color: #aebbae; font-size: .86rem; }
 
-/* --- Campaign map: 25 stops on a winding road ---------------------------- */
+/* --- Campaign map: 25 villages down the southern road -------------------- */
 .campaign-road { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.campaign-road polyline { fill: none; stroke: #6b3d1c; stroke-width: .55; stroke-dasharray: 1.4 1.1; stroke-linejoin: round; stroke-linecap: round; opacity: .85; }
-.campaign-stop { width: 76px; min-height: 60px; }
-.stop-flag { width: 42px; height: 42px; font-size: 18px; }
+.campaign-road polyline { fill: none; stroke: #6b4829; stroke-width: 22; stroke-linejoin: round; stroke-linecap: round; opacity: .62; }
+.campaign-origin { position: absolute; z-index: 2; top: 85px; left: 50%; transform: translateX(-50%); display: grid; justify-items: center; min-width: 160px; padding: 9px 20px; border: 2px solid #617047; border-radius: 12px; background: #efe2bce8; box-shadow: 0 6px 13px #3b321e63; font-size: .78rem; letter-spacing: .08em; }
+.campaign-origin span { font-family: Georgia, serif; font-size: 40px; line-height: .8; color: #49613c; }
+.campaign-origin small { margin-top: 3px; font-size: .78rem; letter-spacing: 0; }
+.campaign-region { position: absolute; z-index: 2; left: 50%; transform: translateX(-50%); padding: 4px 15px; border: 1px solid #8f6a42; border-radius: 100px; background: #e7d7b0e8; color: #625035; font-family: Georgia, serif; font-size: 14px; font-style: italic; white-space: nowrap; }
+.stop-flag { flex: none; width: 44px; height: 44px; font-size: 19px; }
+.stop-details { display: grid; gap: 3px; min-width: 0; }
+.stop-title { font-family: Georgia, serif; font-size: 16px; line-height: 1.05; }
 .campaign-stop.locked { cursor: pointer; }
+.campaign-stop.locked { background: #d4c8a9e3; border-color: #928875; }
 .campaign-stop.locked .stop-flag { background: #6d6150; border-color: #cbbd97; color: #efe3c2; animation: none; }
 .campaign-stop.current .stop-flag { background: #c07a1c; }
-.stop-stars { min-height: 18px; color: #f3c65c; font-size: 13px; font-weight: 900; letter-spacing: 1px; line-height: 18px; }
-.stop-stars:not(:empty) { padding: 0 6px; border-radius: 7px; background: #3a2a14e6; box-shadow: 0 2px 6px #2b24169e; }
-.province-highlight { width: 7%; height: 12%; }
+.stop-stars { color: #75562d; font-size: .78rem; font-weight: 900; line-height: 1.1; }
+.campaign-stop.completed .stop-stars { color: #8b5b0d; letter-spacing: 1px; }
 #campaign-launch:disabled { opacity: .55; cursor: not-allowed; }
 
 /* =========================================================================
@@ -352,7 +357,7 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
    real CSS pixels: text stays at least 0.78rem and tap targets 44 px. The
    rules respond to the stage's size through container queries on #app:
      - every fluid size: the secondary controls fold into "More", the map
-       keeps its 16:9 art and puts the campaign card below it, and dialog
+       scrolls vertically and puts the campaign card below it, and dialog
        buttons stay in view while the text scrolls;
      - compact (phone landscape up to 540 px tall, or portrait up to 760 px
        wide): the important things come first and the details move below
@@ -393,28 +398,19 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 }
 :root[data-layout="fluid"] .star-rules { flex-wrap: wrap; gap: 4px 14px; }
 
-/* Campaign map: the 16:9 board on top (scrolls sideways if the frame is too
-   narrow for it), the campaign card under it, the region name last. */
+/* Campaign map: the vertical road on top, briefing below it on compact stages. */
 :root[data-layout="fluid"] .campaign-map {
   display: grid; grid-template-rows: minmax(0, 1fr) auto auto; grid-template-areas: "board" "card" "head"; background: #3a2c18;
 }
 :root[data-layout="fluid"] .campaign-map::after { display: none; }
 :root[data-layout="fluid"] .campaign-scroller {
-  position: relative; inset: auto; grid-area: board; display: flex; overflow-x: auto; overflow-y: hidden;
-  overscroll-behavior-x: contain; scrollbar-width: thin; container: board / size;
-  /* Around the board, when the frame is taller than 16:9: the same art, dimmed. */
-  background: linear-gradient(rgba(40,30,16,.82), rgba(40,30,16,.82)), var(--campaign-map-image) center / cover no-repeat;
+  position: relative; inset: auto; grid-area: board; overflow-x: hidden; overflow-y: auto;
+  overscroll-behavior: contain; min-height: 0;
 }
 :root[data-layout="fluid"] .campaign-board {
-  position: relative; inset: auto; flex: none; margin: auto; aspect-ratio: 16 / 9;
-  /* Tall enough that the 25 markers keep 44 px apart, never taller than the
-     space. (The plain 330px is for browsers without container units.) */
-  height: 330px;
-  height: min(100cqh, max(330px, 56.25cqw, 42cqh));
+  position: relative; inset: auto; width: 100%;
 }
-:root[data-layout="fluid"] .campaign-board::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 50px 8px rgba(43,26,10,.38); }
-:root[data-layout="fluid"] .campaign-stop { width: 64px; min-height: 48px; padding: 0; }
-:root[data-layout="fluid"] .stop-stars { position: absolute; top: calc(50% + 21px); left: 50%; transform: translateX(-50%); pointer-events: none; white-space: nowrap; }
+:root[data-layout="fluid"] .campaign-stop { width: min(230px, 68%); min-height: 72px; }
 :root[data-layout="fluid"] .campaign-map-card {
   position: relative; left: auto; bottom: auto; transform: none; grid-area: card; width: auto; height: auto;
   grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: none; gap: 3px 16px; align-items: center;
