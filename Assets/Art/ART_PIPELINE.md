@@ -78,7 +78,6 @@ The runtime now begins at a persistent campsite, presents the Woodcutter as the 
 
 ## Campaign map art contract
 
-- Source: `Production/Campaign/southern-pass-map-v5.png`. Run `pnpm art:export` after changing it; the game ships the WebP in `Assets/Runtime/`.
-- Keep the player settlement at the north edge, guarded by terrain, with a single southern approach. The four rival villages occupy the lower map, centered near 15%, 38%, 62%, and 85% of its width at 67% of its height.
-- Do not bake buttons, kingdom names, countdowns, or mission text into the illustration. `src/ui/campaignMap.ts` positions accessible controls and the active-province ring over the art from one coordinate list.
-- Keep enough contrast around the four village centers for their flag markers and highlight. A failed map image falls back to CSS scenery and logs a warning, so campaign selection remains usable.
+- The current 25-campaign map is a vertically scrolling road drawn in `src/ui/campaignMap.ts` and `src/styles.css`. It starts at the player's village in the north and advances downward through five named regions. A selected stop is centered in the map viewport.
+- Keep the road, stop positions, selection ring, and scrolling tied to the coordinates in `PROVINCE_CENTERS`. All campaign names, stars, lock states, and briefing text remain live DOM, never baked into a background.
+- `Production/Campaign/southern-pass-map-v5.png` is the earlier four-campaign map master. It is retained in the art archive but is not displayed by the current map.
