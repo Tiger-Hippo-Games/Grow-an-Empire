@@ -45,8 +45,11 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   road.setAttribute("preserveAspectRatio", "none");
   road.setAttribute("aria-hidden", "true");
   const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  line.setAttribute("class", "road-edge");
   line.setAttribute("points", `500,90 ${PROVINCE_CENTERS.map((point) => `${point.x * 10},${point.y}`).join(" ")} 500,${BOARD_HEIGHT - 90}`);
-  road.appendChild(line);
+  const trail = line.cloneNode() as SVGPolylineElement;
+  trail.setAttribute("class", "road-center");
+  road.append(line, trail);
   stops.before(road);
 
   const origin = document.createElement("div");

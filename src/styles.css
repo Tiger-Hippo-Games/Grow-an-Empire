@@ -219,7 +219,7 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .campaign-map { position: absolute; z-index: 24; inset: 0; overflow: hidden; background: #d1ba85; color: #241c12; }
 .campaign-scroller { position: absolute; inset: 0 0 122px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #8c6039 #e0c999; }
 .campaign-board { position: relative; width: 100%; overflow: hidden; background: radial-gradient(ellipse 37% 5% at 14% 10%, #709066aa, transparent 85%), radial-gradient(ellipse 32% 6% at 86% 25%, #7394679c, transparent 90%), radial-gradient(ellipse 32% 7% at 12% 51%, #628463a3, transparent 90%), radial-gradient(ellipse 35% 6% at 91% 79%, #729369b5, transparent 90%), repeating-linear-gradient(174deg, transparent 0 140px, #b38d5745 141px 144px, transparent 145px 360px), linear-gradient(90deg, #889e70 0%, #d4c391 19%, #ead6a5 50%, #d6c18f 81%, #819d72 100%); }
-.campaign-board::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .38; background: radial-gradient(circle at 8% 9%, #435f3e 0 3px, transparent 4px), radial-gradient(circle at 92% 30%, #476649 0 4px, transparent 5px), radial-gradient(circle at 15% 69%, #4d6748 0 3px, transparent 4px); background-size: 67px 89px, 79px 103px, 71px 97px; }
+.campaign-board::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .17; background: radial-gradient(circle at 8% 9%, #435f3e 0 2px, transparent 3px), radial-gradient(circle at 92% 30%, #476649 0 3px, transparent 4px), radial-gradient(circle at 15% 69%, #4d6748 0 2px, transparent 3px); background-size: 67px 89px, 79px 103px, 71px 97px; }
 .campaign-map::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 75px 12px rgba(43,26,10,.38); }
 .campaign-map-heading { position: absolute; z-index: 3; top: 14px; left: 18px; width: 222px; padding: 8px 12px; border: 1px solid #765635; border-radius: 10px; background: #f0dfb8ee; box-shadow: 0 4px 14px #3e2b1d59; text-align: center; }
 .campaign-map-heading span, #campaign-stage { font-size: .78rem; font-weight: 900; letter-spacing: .16em; color: #654020; }
@@ -334,8 +334,10 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 
 /* --- Campaign map: 25 villages down the southern road -------------------- */
 .campaign-road { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.campaign-road polyline { fill: none; stroke: #6b4829; stroke-width: 22; stroke-linejoin: round; stroke-linecap: round; opacity: .62; }
-.campaign-origin { position: absolute; z-index: 2; top: 85px; left: 50%; transform: translateX(-50%); display: grid; justify-items: center; min-width: 160px; padding: 9px 20px; border: 2px solid #617047; border-radius: 12px; background: #efe2bce8; box-shadow: 0 6px 13px #3b321e63; font-size: .78rem; letter-spacing: .08em; }
+.campaign-road polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.campaign-road .road-edge { stroke: #6b4829; stroke-width: 26; opacity: .65; }
+.campaign-road .road-center { stroke: #c5a376; stroke-width: 17; opacity: .82; }
+.campaign-origin { position: absolute; z-index: 2; top: 150px; left: 50%; transform: translateX(-50%); display: grid; justify-items: center; min-width: 160px; padding: 9px 20px; border: 2px solid #617047; border-radius: 12px; background: #efe2bce8; box-shadow: 0 6px 13px #3b321e63; font-size: .78rem; letter-spacing: .08em; }
 .campaign-origin span { font-family: Georgia, serif; font-size: 40px; line-height: .8; color: #49613c; }
 .campaign-origin small { margin-top: 3px; font-size: .78rem; letter-spacing: 0; }
 .campaign-region { position: absolute; z-index: 2; left: 50%; transform: translateX(-50%); padding: 4px 15px; border: 1px solid #8f6a42; border-radius: 100px; background: #e7d7b0e8; color: #625035; font-family: Georgia, serif; font-size: 14px; font-style: italic; white-space: nowrap; }
