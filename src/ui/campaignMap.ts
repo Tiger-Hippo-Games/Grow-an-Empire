@@ -1,26 +1,21 @@
 import { CAMPAIGNS, isCampaignUnlocked, starsToUnlock, totalStars, type CampaignDefinition } from "../game/campaigns";
-import { assetUrl } from "../render/assetCatalog";
-import { IMAGE_TIMEOUT_MS } from "../render/spriteAssets";
 import { requireElement } from "./dom";
 
-/**
- * Marker centers, as percentages of the 16:9 map master: a road that winds
- * from the villages in the south (campaign 1) up to the northern pass
- * (campaign 25), five stops per row. Keep them in one place so the hit
- * targets, the road and the highlight ring can't drift apart.
- */
-const ROWS = [74, 60, 46, 33, 20];
-const COLUMNS = [12, 31, 50, 69, 88];
+/** Route coordinates are shared by the road, stops and scroll centering. */
+const STOP_STEP = 176;
+const TOP_MARGIN = 390;
+const BOTTOM_MARGIN = 390;
+const X_PATTERN = [49, 56, 63, 57, 45, 37, 43, 53, 62, 58, 47, 38] as const;
 export const PROVINCE_CENTERS: ReadonlyArray<{ x: number; y: number }> = CAMPAIGNS.map((_, index) => {
-  const row = Math.floor(index / 5);
-  const column = row % 2 === 0 ? index % 5 : 4 - (index % 5);
-  return { x: COLUMNS[column], y: ROWS[row] };
+  return { x: X_PATTERN[index % X_PATTERN.length], y: TOP_MARGIN + index * STOP_STEP };
 });
-const MAP_ART = "southern-pass-map-v5.png";
+const BOARD_HEIGHT = TOP_MARGIN + (CAMPAIGNS.length - 1) * STOP_STEP + BOTTOM_MARGIN;
+const REGIONS = ["Southern hamlets", "River country", "Woodland road", "Outer marches", "Far frontier"] as const;
 
 /** The illustrated route is UI only; main.ts owns campaign selection and saves. */
 export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => void) {
   const map = requireElement<HTMLElement>("#campaign-map");
+  const board = requireElement<HTMLElement>("#campaign-board");
   const stops = requireElement<HTMLElement>("#campaign-stops");
   const scroller = requireElement<HTMLElement>("#campaign-scroller");
   const highlight = requireElement<HTMLElement>("#province-highlight");
@@ -30,33 +25,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   const briefing = requireElement<HTMLElement>("#campaign-briefing");
   const state = requireElement<HTMLElement>("#campaign-state");
   const launch = requireElement<HTMLButtonElement>("#campaign-launch");
-  // CSS backgrounds do not emit a usable DOM error. Probe the same bundled
-  // image so a failed download has a logged, playable fallback instead of a
-  // silent blank map. The browser cache prevents a second network transfer.
-  try {
-    const url = assetUrl(MAP_ART);
-    const image = new Image();
-    let settled = false;
-    const fail = (cause: unknown): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      map.classList.add("map-art-failed");
-      console.warn(`[Grow an Empire] Campaign map artwork failed to load: ${MAP_ART}`, cause);
-    };
-    const timeout = setTimeout(() => fail(new Error(`Timed out after ${IMAGE_TIMEOUT_MS / 1000} s`)), IMAGE_TIMEOUT_MS);
-    image.onload = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      map.style.setProperty("--campaign-map-image", `url("${url}")`);
-    };
-    image.onerror = (event) => fail(event);
-    image.src = url;
-  } catch (error) {
-    map.classList.add("map-art-failed");
-    console.warn(`[Grow an Empire] Campaign map artwork is unavailable: ${MAP_ART}`, error);
-  }
+  board.style.height = `${BOARD_HEIGHT}px`;
 
   let activeId = CAMPAIGNS[0].id;
   let stars: Record<string, number> = {};
@@ -69,27 +38,45 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   }
   const won = (campaign: CampaignDefinition): boolean => (stars[campaign.id] ?? 0) > 0;
 
-  /** The road between the markers, drawn once as an SVG polyline. */
+  /** A continuous north-to-south road, long enough to frame the end stops. */
   const road = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   road.setAttribute("class", "campaign-road");
-  road.setAttribute("viewBox", "0 0 160 90");
+  road.setAttribute("viewBox", `0 0 1000 ${BOARD_HEIGHT}`);
   road.setAttribute("preserveAspectRatio", "none");
   road.setAttribute("aria-hidden", "true");
   const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-  line.setAttribute("points", PROVINCE_CENTERS.map((point) => `${point.x * 1.6},${point.y * 0.9}`).join(" "));
+  line.setAttribute("points", `500,90 ${PROVINCE_CENTERS.map((point) => `${point.x * 10},${point.y}`).join(" ")} 500,${BOARD_HEIGHT - 90}`);
   road.appendChild(line);
   stops.before(road);
+
+  const origin = document.createElement("div");
+  origin.className = "campaign-origin";
+  origin.innerHTML = '<span aria-hidden="true">⌂</span><strong>OUR VILLAGE</strong><small>The road south</small>';
+  board.appendChild(origin);
+  REGIONS.forEach((name, index) => {
+    const marker = document.createElement("div");
+    marker.className = "campaign-region";
+    marker.style.top = `${TOP_MARGIN + index * 5 * STOP_STEP - 105}px`;
+    marker.textContent = name;
+    board.appendChild(marker);
+  });
+
+  /** Center the chosen stop in the visible map, without moving the page. */
+  function centerSelected(smooth = false): void {
+    const target = PROVINCE_CENTERS[selectedIndex].y - scroller.clientHeight / 2;
+    scroller.scrollTo({ top: target, behavior: smooth && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "smooth" : "instant" });
+  }
 
   function render(): void {
     stops.replaceChildren();
     highlight.style.left = `${PROVINCE_CENTERS[selectedIndex].x}%`;
-    highlight.style.top = `${PROVINCE_CENTERS[selectedIndex].y}%`;
+    highlight.style.top = `${PROVINCE_CENTERS[selectedIndex].y}px`;
     CAMPAIGNS.forEach((campaign, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = `campaign-stop${index === selectedIndex ? " selected" : ""}${won(campaign) ? " completed" : ""}${activeId === campaign.id && !currentRunIsComplete ? " current" : ""}`;
       button.style.left = `${PROVINCE_CENTERS[index].x}%`;
-      button.style.top = `${PROVINCE_CENTERS[index].y}%`;
+      button.style.top = `${PROVINCE_CENTERS[index].y}px`;
       button.classList.toggle("locked", !unlocked(index));
       const earned = stars[campaign.id] ?? 0;
       button.setAttribute("aria-label", `Campaign ${index + 1}, ${campaign.name}: ${won(campaign) ? `won, ${earned} of 3 stars` : unlocked(index) ? "open" : "locked"}`);
@@ -97,15 +84,21 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       flag.className = "stop-flag";
       flag.setAttribute("aria-hidden", "true");
       flag.textContent = String(index + 1);
-      const name = document.createElement("span");
-      name.className = "stop-stars";
-      name.setAttribute("aria-hidden", "true");
-      name.textContent = won(campaign) ? `${"★".repeat(earned)}${"☆".repeat(3 - earned)}` : "";
-      button.append(flag, name);
+      const details = document.createElement("span");
+      details.className = "stop-details";
+      const name = document.createElement("strong");
+      name.className = "stop-title";
+      name.textContent = campaign.name;
+      const progressLabel = document.createElement("span");
+      progressLabel.className = "stop-stars";
+      progressLabel.textContent = earned ? `${"★".repeat(earned)}${"☆".repeat(3 - earned)}` : unlocked(index) ? "Ready to defend" : "Locked";
+      details.append(name, progressLabel);
+      button.append(flag, details);
       button.addEventListener("click", () => {
         selectedIndex = index;
         render();
         stops.querySelectorAll<HTMLButtonElement>("button")[index]?.focus({ preventScroll: true });
+        centerSelected(true);
       });
       stops.appendChild(button);
     });
@@ -130,23 +123,9 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     state.textContent = `${campaign.objective.strength} enemy ${campaign.objective.strength === 1 ? "soldier" : "soldiers"} · ${progress}`;
     launch.disabled = !open;
     launch.textContent = !open ? "Locked" : isCurrent && !currentRunIsComplete ? "Continue settlement" : won(campaign) ? "Replay campaign" : "Begin campaign";
-    revealSelected();
   }
 
-  /**
-   * On a narrow frame the board is wider than the screen and scrolls sideways
-   * (styles.css, fluid layout): keep the selected marker in view. Sets
-   * scrollLeft directly; scrollIntoView could also scroll the stage itself.
-   */
-  function revealSelected(): void {
-    if (scroller.scrollWidth <= scroller.clientWidth + 1) return;
-    const board = stops.parentElement;
-    if (!board) return;
-    const x = board.offsetLeft + (PROVINCE_CENTERS[selectedIndex].x / 100) * board.offsetWidth;
-    const left = scroller.scrollLeft;
-    if (x < left + 60 || x > left + scroller.clientWidth - 60) scroller.scrollLeft = x - scroller.clientWidth / 2;
-  }
-  window.addEventListener("resize", () => { if (!map.classList.contains("hidden")) revealSelected(); });
+  window.addEventListener("resize", () => { if (!map.classList.contains("hidden")) centerSelected(); });
 
   launch.addEventListener("click", () => {
     if (!unlocked(selectedIndex)) return;
@@ -168,7 +147,8 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       const next = CAMPAIGNS.findIndex((campaign, index) => unlocked(index) && !won(campaign));
       selectedIndex = !runComplete ? activeIndex : next >= 0 ? next : activeIndex;
       map.classList.remove("hidden");
-      render(); // After un-hiding, so the board has a size to scroll to.
+      render();
+      centerSelected();
       launch.focus({ preventScroll: true });
     },
     hide() {
