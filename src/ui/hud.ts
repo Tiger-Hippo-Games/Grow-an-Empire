@@ -108,6 +108,8 @@ export function createHud(callbacks: HudCallbacks) {
   const controls = requireElement<HTMLElement>(".controls");
   const controlsMore = requireElement<HTMLButtonElement>("#controls-more");
   const controlsSecondary = requireElement<HTMLElement>("#controls-secondary");
+  const cityUiToggle = requireElement<HTMLButtonElement>("#city-ui-toggle");
+  const cityViewToggle = requireElement<HTMLButtonElement>("#city-view-toggle");
   const moveSummary = requireElement<HTMLElement>("#move-summary");
   const buildFoot = requireElement<HTMLElement>("#build-foot");
   const tutorialScrim = requireElement<HTMLElement>("#tutorial-scrim");
@@ -139,6 +141,43 @@ export function createHud(callbacks: HudCallbacks) {
   let tutorialActive = false;
   let tutorialStartedAt = 0;
   let tutorialStepsSeen = 0;
+  let chromeOpen = false;
+
+  /**
+   * The city is the default view. A choice opens one decision drawer; while
+   * the simulation runs, the information bars and transport controls retreat
+   * until the player explicitly asks to inspect them.
+   */
+  function syncPresentation(): void {
+    const choiceOpen = !buildPanel.classList.contains("hidden");
+    app.classList.toggle("ui-choice", choiceOpen);
+    app.classList.toggle("ui-open", !choiceOpen && chromeOpen);
+    app.classList.toggle("ui-idle", !choiceOpen && !chromeOpen);
+    cityUiToggle.setAttribute("aria-expanded", String(chromeOpen));
+    const chromeRetracted = choiceOpen || !chromeOpen;
+    controls.inert = chromeRetracted;
+    settlementBar.inert = chromeRetracted;
+    statusBar.setAttribute("aria-hidden", String(chromeRetracted));
+    settlementBar.setAttribute("aria-hidden", String(chromeRetracted));
+    // Transforms do not trigger ResizeObserver, but the camera uses the
+    // published panel bounds on compact screens.
+    requestAnimationFrame(() => {
+      publishLayout();
+      window.dispatchEvent(new Event("gae:layout"));
+    });
+  }
+
+  function setChromeOpen(open: boolean): void {
+    chromeOpen = open;
+    if (!open) {
+      resourceLedger.classList.add("hidden");
+      stockpileToggle.setAttribute("aria-expanded", "false");
+      stockpileToggle.classList.remove("active");
+      controls.classList.remove("expanded");
+      controlsMore.setAttribute("aria-expanded", "false");
+    }
+    syncPresentation();
+  }
 
   /** Sets the "Settlement activity" label and its progress bar (0–1, clamped). */
   let lastStatusLabel = "";
@@ -269,6 +308,8 @@ export function createHud(callbacks: HudCallbacks) {
       buildFoot.appendChild(hint);
     }
     buildPanel.classList.remove("hidden");
+    chromeOpen = false;
+    syncPresentation();
     const optionCount = buildOptions.childElementCount;
     if (optionCount === 0) {
       // The exhaustive offer test proves this can't happen with the current
@@ -285,6 +326,8 @@ export function createHud(callbacks: HudCallbacks) {
 
   function hideBuildPanel(): void {
     buildPanel.classList.add("hidden");
+    chromeOpen = false;
+    syncPresentation();
   }
 
   /** Disables the choice cards while a selection is being prepared (prevents double-clicks). */
@@ -369,6 +412,8 @@ export function createHud(callbacks: HudCallbacks) {
     resourceLedger.classList.toggle("hidden", !visible);
     stockpileToggle.setAttribute("aria-expanded", String(visible));
     stockpileToggle.classList.toggle("active", visible);
+    if (visible) chromeOpen = true;
+    syncPresentation();
   }
 
   // --- Layout ---------------------------------------------------------------
@@ -486,6 +531,14 @@ export function createHud(callbacks: HudCallbacks) {
   });
   stockpileToggle.addEventListener("click", () => setStockpileVisible(resourceLedger.classList.contains("hidden")));
   stockpileClose.addEventListener("click", () => setStockpileVisible(false));
+  cityUiToggle.addEventListener("click", () => {
+    setChromeOpen(true);
+    playToggle.focus();
+  });
+  cityViewToggle.addEventListener("click", () => {
+    setChromeOpen(false);
+    cityUiToggle.focus();
+  });
   helpToggle.addEventListener("click", showTutorialWelcome);
   // The clicked dialog button disappears with the dialog, so move keyboard
   // focus somewhere useful rather than leaving it on a hidden element.
@@ -538,6 +591,8 @@ export function createHud(callbacks: HudCallbacks) {
   function setMoreOpen(open: boolean): void {
     controls.classList.toggle("expanded", open);
     controlsMore.setAttribute("aria-expanded", String(open));
+    if (open) chromeOpen = true;
+    syncPresentation();
   }
   controlsMore.addEventListener("click", () => setMoreOpen(!controls.classList.contains("expanded")));
   // Toggles (grid, sound) keep the menu open so the new state is visible; the rest close it.
@@ -583,6 +638,8 @@ export function createHud(callbacks: HudCallbacks) {
       fullscreenToggle.click();
     }
   });
+
+  syncPresentation();
 
   return {
     viewport,

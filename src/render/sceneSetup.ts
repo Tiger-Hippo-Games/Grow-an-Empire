@@ -35,17 +35,24 @@ interface Area { left: number; top: number; right: number; bottom: number }
  */
 function freeArea(width: number, height: number): Area | null {
   if (stageLayout() !== "fluid") return null;
+  const app = document.getElementById("app");
+  // The HUD deliberately retreats while the city runs. Let the camera reclaim
+  // that space too, otherwise the canvas would stay framed for panels that are
+  // no longer visible.
+  if (app?.classList.contains("ui-idle")) return { left: 0, top: 0, right: width, bottom: height };
+  const choiceOpen = app?.classList.contains("ui-choice") === true;
   const measured = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--settlement-bottom"));
   const barsBottom = Number.isFinite(measured) && measured > 0 ? measured : height * 0.3;
   if (width > height && height <= 540) {
-    // Phone landscape: build panel column on the right, controls at the bottom left.
-    const panel = Math.min(340, Math.max(280, width * 0.38)) + 20;
-    return { left: 0, top: barsBottom * 0.8, right: width - panel, bottom: height - 56 };
+    // Phone landscape: a choice is a right drawer; inspect mode only reserves
+    // the revealed status bars and controls.
+    const panel = choiceOpen ? Math.min(340, Math.max(280, width * 0.38)) + 20 : 0;
+    return { left: 0, top: choiceOpen ? 0 : barsBottom * 0.8, right: width - panel, bottom: choiceOpen ? height : height - 56 };
   }
   if (height >= width && width <= 760) {
-    // Portrait: build panel at the bottom, above the controls.
-    const panel = Math.min(height * 0.46, 440) + 64;
-    return { left: 0, top: barsBottom, right: width, bottom: height - panel };
+    // Portrait: a choice is a bottom drawer. Inspect mode has no choice panel.
+    const panel = choiceOpen ? Math.min(height * 0.46, 440) + 64 : 56;
+    return { left: 0, top: choiceOpen ? 0 : barsBottom, right: width, bottom: height - panel };
   }
   return null;
 }

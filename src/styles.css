@@ -134,6 +134,49 @@ h1 { margin: 2px 0 0; font-size: 1.25rem; line-height: 1.1; }
 .controls-secondary { display: contents; }
 .controls-more, .label-short { display: none; }
 
+/* --- City-first presentation --------------------------------------------
+   Choice: one decision drawer. Idle: the chrome retreats and one small
+   Controls tab remains. Open: the player has deliberately asked to inspect
+   status, resources, or settings. */
+.hud, .settlement-hud, .controls {
+  transition: transform 300ms cubic-bezier(.2,.78,.2,1), opacity 220ms ease;
+}
+.city-ui-toggle {
+  position: absolute; z-index: 8; left: calc(14px + var(--safe-left)); bottom: calc(14px + var(--safe-bottom));
+  display: none; align-items: center; gap: 7px; min-height: 44px; padding: 0 13px;
+  border: 1px solid rgba(255,226,151,.26); border-radius: 999px; color: #fff4d8;
+  background: rgba(13,34,22,.83); box-shadow: 0 8px 24px rgba(4,12,7,.25); cursor: pointer;
+}
+.city-ui-toggle span { color: var(--gold); font-size: 17px; }
+.city-ui-toggle strong { font-size: .78rem; }
+#app.ui-idle .city-ui-toggle { display: flex; animation: city-control-in 260ms ease both; }
+#app.ui-idle .hud, #app.ui-choice .hud {
+  transform: translateX(calc(-50% - 110%)); opacity: 0; pointer-events: none;
+}
+#app.ui-idle .settlement-hud, #app.ui-choice .settlement-hud {
+  transform: translateX(calc(-50% + 110%)); opacity: 0; pointer-events: none;
+}
+#app.ui-idle .controls, #app.ui-choice .controls {
+  transform: translateY(calc(100% + 28px)); opacity: 0; pointer-events: none;
+}
+#app.ui-idle .milestone { left: auto; right: 16px; transform: translateY(-10px); }
+#app.ui-idle .milestone.visible { transform: translateY(0); }
+:root[data-layout="fixed"] #app.ui-open .settlement-hud { top: 98px; }
+@keyframes city-control-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* On broad stages, the only required action sits at the right edge. This
+   leaves the Town Hall, workers, and most districts unobstructed. */
+@container app (min-width: 900px) {
+  #app.ui-choice .build-panel {
+    top: 16px; right: 16px; bottom: 16px; left: auto; width: 404px; max-height: none;
+    transform: none; padding: 13px; animation: choice-drawer-in 280ms cubic-bezier(.2,.78,.2,1) both;
+  }
+  #app.ui-choice .build-options { grid-template-columns: minmax(0,1fr); }
+  #app.ui-choice .build-card { min-height: 128px; }
+  #app.ui-choice .decision-heading { align-items: center; }
+}
+@keyframes choice-drawer-in { from { opacity: 0; transform: translateX(28px); } }
+
 .level-track { display: grid; justify-items: center; gap: 5px; margin-inline: auto; white-space: nowrap; color: #d8e2cf; font-size: .78rem; font-weight: 900; letter-spacing: .08em; }
 .level-pips { display: flex; gap: 4px; }
 .level-pips i { width: 13px; height: 4px; border-radius: 99px; background: rgba(255,255,255,.2); }
