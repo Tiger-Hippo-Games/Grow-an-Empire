@@ -33,7 +33,7 @@ def saved(page):
     return json.loads(raw) if raw else None
 
 def set_speed8(page):
-    for _ in range(3): page.click("#speed-toggle")
+    for _ in range(3): page.keyboard.press("s")  # the control bar hides while a choice is open; S is its shortcut
 
 def wait_move(page, n, t=20000):
     page.wait_for_function(f"document.querySelector('#move').textContent.startsWith('{n} ')", timeout=t)

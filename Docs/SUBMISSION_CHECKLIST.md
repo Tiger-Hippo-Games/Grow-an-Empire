@@ -1,6 +1,6 @@
 # Submission checklist
 
-A ticked copy of `common/GAME_SUBMISSION_GUIDE.md` §16 and `common/GAME_DEVELOPER_GUIDE.md` §8, as of v0.2.1 (updated 2026-09-27).
+A ticked copy of `common/GAME_SUBMISSION_GUIDE.md` §16 and `common/GAME_DEVELOPER_GUIDE.md` §8, as of v0.2.2 (updated 2026-10-01).
 
 - ✅ Done and verified in code or tests.
 - ⬜ Can only be done on the portal, or needs the owner.
@@ -14,7 +14,7 @@ Listing text and images: `Docs/STORE_LISTING.md`. Test evidence: `Docs/QA_RESULT
 - ✅ The built `index.html` uses relative asset paths. The one absolute path is the portal SDK tag, `/api/v1/sdk/platform-sdk.js`, which the portal serves itself (SUBMISSION §5).
 - ✅ No localhost URLs in the built output (the validator checks this)
 - ✅ `index.html` is at the ZIP root
-- ✅ The ZIP is under 50 MB (`release/grow-an-empire-0.2.1.zip`, 15.2 MB; 15.7 MB unpacked)
+- ✅ The ZIP is under 50 MB (`release/grow-an-empire-0.2.2.zip`, 15.4 MB; 15.9 MB unpacked)
 - ✅ No `alert()`, `confirm()` or `prompt()` (the validator and ESLint `no-alert` check this)
 - n/a Unity/Godot threading settings
 
@@ -51,7 +51,7 @@ Listing text and images: `Docs/STORE_LISTING.md`. Test evidence: `Docs/QA_RESULT
 - ⬜ Close the tab mid-game, reopen it, and check the run is restored
 - ⬜ Test inside an iframe: the sandbox, or `Tools/dev/iframe-test.html` pointed at the play URL
 - n/a Audio after the first click (the game has no audio)
-- ⬜ Layout at 1920×1080, 1280×720 and a phone (✅ the 0.2.1 ZIP was checked locally at 15 sizes on 2026-09-27, including a full campaign in a 1920×1080 iframe and on a 390×844 phone)
+- ⬜ Layout at 1920×1080, 1280×720 and a phone (✅ the 0.2.1 ZIP was checked locally at 15 sizes on 2026-09-27, including a full campaign in a 1920×1080 iframe and on a 390×844 phone; the 0.2.2 build, with the new campaign map, at 12 sizes plus `campaign_map.py` on 2026-10-01)
 - ⬜ Mobile, portrait and landscape on a real phone (see `QA_RESULTS.md` §2). ✅ Emulated locally on 2026-09-27: 390×844, 844×390, 360×780, 780×360, 412×915, 768×1024, 1024×768, including a full campaign at 390×844
 
 ## Content and metadata
@@ -60,7 +60,7 @@ Listing text and images: `Docs/STORE_LISTING.md`. Test evidence: `Docs/QA_RESULT
 - ✅ Title "Grow an Empire" (the same in `<title>`)
 - ✅ Description is 233 characters (150–500 allowed)
 - ✅ Genre `strategy`, tags set
-- ✅ **Orientation `any`**, declared in the game itself: `index.html` has `<meta name="orientation" content="any">` and `<meta name="screen-orientation" content="any">` (both are in the 0.2.1 ZIP, SUBMISSION §1). The same value is in `STORE_LISTING.md` and its create-listing JSON. The game plays in both: 16:9 stage in large frames, rearranged layout on phones and tablets in portrait or landscape (no "turn sideways" screen).
+- ✅ **Orientation `any`**, declared in the game itself: `index.html` has `<meta name="orientation" content="any">` and `<meta name="screen-orientation" content="any">` (both are in the 0.2.2 ZIP, SUBMISSION §1). The same value is in `STORE_LISTING.md` and its create-listing JSON. The game plays in both: 16:9 stage in large frames, rearranged layout on phones and tablets in portrait or landscape (no "turn sideways" screen).
 - ⬜ **Art provenance**: fill in the TODO rows in `Assets/Art/PROVENANCE.md` (tool and commercial-use terms)
 - ⬜ Confirm "Grow an Empire" and "Ashfang Raiders" don't copy an existing title or brand
 
@@ -70,10 +70,10 @@ The base URL is `https://golive-platform.netlify.app/api/v1`. Every request afte
 
 1. **Register** (once): `POST /developer/register` with email, password, name and studioName. **Log in**: `POST /developer/login`, which returns the JWT.
 2. **Create the listing**: `POST /developer/games` with the JSON in `Docs/STORE_LISTING.md` (it already sets `"orientation": "any"`). A `400 Slug already in use` means pick another slug and update `GAME_ID`. **If the listing was created earlier with `landscape`**, switch it: `PUT /developer/games/grow-an-empire` with `{"orientation": "any"}` (no review needed).
-3. **Build**: `pnpm package`, which produces `release/grow-an-empire-0.2.1.zip` and ends with "Ready to upload". (Already built and checked; no need to rebuild unless the source changes.)
+3. **Build**: `pnpm package`, which produces `release/grow-an-empire-0.2.2.zip` and ends with "Ready to upload". (Already built and checked; no need to rebuild unless the source changes.)
 4. **Upload the bundle**:
    ```bash
-   curl -X POST "$BASE/developer/games/grow-an-empire/upload-bundle" -H "Authorization: Bearer $TOKEN" -F "file=@./release/grow-an-empire-0.2.1.zip"
+   curl -X POST "$BASE/developer/games/grow-an-empire/upload-bundle" -H "Authorization: Bearer $TOKEN" -F "file=@./release/grow-an-empire-0.2.2.zip"
    ```
    Expect `bundleStoredInDb: true`, `sdkAutoInjected: false`, and a `bundleVerifiedAt` timestamp.
 5. **Upload the images**. The ZIP already contains `assets/thumbnail.jpg` and `assets/banner.jpg`; uploading them as well is harmless.

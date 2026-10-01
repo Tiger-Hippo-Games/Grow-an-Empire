@@ -1,5 +1,21 @@
 # QA results
 
+## v0.2.2 (2026-10-01): scrolling campaign map
+
+Build: **v0.2.2**, `release/grow-an-empire-0.2.2.zip` (15.91 MB unpacked, validator: ready to upload). Headless Chromium in a cloud workspace.
+
+The campaign map is one tall painting (`southern-road-map-v6`, composed from four campaign paintings; 605 KB WebP) that the player scrolls up: camps (campaign 1) at the bottom, river villages, the mountain pass, the royal castle, and the enemy fortress (campaign 25) at the top, in five chapters.
+
+| Check | Result | Notes |
+|---|---|---|
+| `campaign_map.py` (new) | ✅ Pass | 1280×720, 1920×1080 frame (1.5×), 390×844 phone: opens centred on the selected campaign with the art loaded; mouse wheel; mouse drag follows the pointer at 1× and 1.5× (a drag starting on a stop scrolls and doesn't select it); touch swipe both ways; click selects and centres; ↑ next, ↓ previous, Home first; chapter rail jumps and lights the chapter in view (the last one at the top); "back to campaign N" appears when the selection is scrolled away and brings it back; rotating the phone keeps the selection in view; with 9 campaigns won the walked road, stars and fog are drawn; launch opens the briefing. No page errors |
+| `viewports.py` | ✅ Pass | 12 sizes (4 fixed, 8 fluid): no overlaps, off-screen or clipped UI, small buttons or text, or page scroll. The check now ignores panels the game has faded out on purpose (the bars slide away while a choice is open) |
+| `gameplay.py`, `platform_sdk.py`, `context_loss.py`, `fault_injection.py --quick` | ✅ Pass | The scripts now set the speed with the S shortcut: the control bar is hidden while a choice is open, so clicking it timed out |
+| `load_time.py` | ✅ | Slow 4G: playable in 7.7 s (unchanged; the map art loads after the game is playable, over a parchment background) |
+| `pnpm check` | ✅ Pass | 128 tests |
+
+Not yet done: real phones and tablets (touch scrolling momentum, Safari).
+
 ## v0.2.1 (2026-09-25): responsive layout for phones and tablets
 
 Build: **v0.2.1**, `release/grow-an-empire-0.2.1.zip` (15.71 MB unpacked, 121 files, validator: ready to upload). Headless Chromium in a cloud workspace.

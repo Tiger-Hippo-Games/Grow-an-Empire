@@ -253,7 +253,7 @@ def other_players_save(browser):
     ctx, page, errors = open_game(browser, sdk_js=fake_sdk(player_id="alice"))
     booted(page)
     enter(page)
-    page.click("#speed-toggle"); page.click("#speed-toggle"); page.click("#speed-toggle")
+    for _ in range(3): page.keyboard.press("s")  # the control bar hides while a choice is open; S is its shortcut
     page.click("#build-options button:has-text('Farm')")
     page.wait_for_function("document.querySelector('#move').innerText.startsWith('2 /')", timeout=30000)
     page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
@@ -303,7 +303,7 @@ def combat_art_fails(browser):
     booted(page)
     enter(page)
     for _ in range(3):
-        page.click("#speed-toggle")
+        page.keyboard.press("s")
     play_to_muster(page, timeout=60000)
     result = fight(page)
     ctx.close()

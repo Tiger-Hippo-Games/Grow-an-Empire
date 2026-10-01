@@ -552,12 +552,12 @@
     "sourceBytes": 388066,
     "bytes": 65588
   },
-  "southern-pass-map-v5.webp": {
-    "source": "Assets/Art/Production/Campaign/southern-pass-map-v5.png",
-    "sha256": "7ce7683fe7fb810539874be47ca3a54b4e8e004c329e21f8a9c0330940fbf7fb",
+  "southern-road-map-v6.webp": {
+    "source": "Assets/Art/Production/Campaign/southern-road-map-v6.png",
+    "sha256": "a7bfb5f55fbfeef1cce0675278604a06b2fa67d902a09d7a37e83a4b43e0da15",
     "exportRevision": 2,
-    "sourceBytes": 3230861,
-    "bytes": 430478
+    "sourceBytes": 6930703,
+    "bytes": 619374
   },
   "spearman-walk32-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/DirectionalWalk/spearman-walk32-master-v1.png",

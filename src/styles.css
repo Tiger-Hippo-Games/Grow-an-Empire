@@ -257,25 +257,34 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .tutorial-scrim { padding: 12px; }
 .tutorial-dialog { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
 
-/* The vertical road is drawn in SVG over a CSS landscape. Its nodes remain
-   real buttons, and the scroller alone moves when a campaign is selected. */
-.campaign-map { position: absolute; z-index: 24; inset: 0; overflow: hidden; background: #d1ba85; color: #241c12; }
-.campaign-scroller { position: absolute; inset: 0 0 122px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #8c6039 #e0c999; }
-.campaign-board { position: relative; width: 100%; overflow: hidden; background: radial-gradient(ellipse 37% 5% at 14% 10%, #709066aa, transparent 85%), radial-gradient(ellipse 32% 6% at 86% 25%, #7394679c, transparent 90%), radial-gradient(ellipse 32% 7% at 12% 51%, #628463a3, transparent 90%), radial-gradient(ellipse 35% 6% at 91% 79%, #729369b5, transparent 90%), repeating-linear-gradient(174deg, transparent 0 140px, #b38d5745 141px 144px, transparent 145px 360px), linear-gradient(90deg, #889e70 0%, #d4c391 19%, #ead6a5 50%, #d6c18f 81%, #819d72 100%); }
-.campaign-board::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .17; background: radial-gradient(circle at 8% 9%, #435f3e 0 2px, transparent 3px), radial-gradient(circle at 92% 30%, #476649 0 3px, transparent 4px), radial-gradient(circle at 15% 69%, #4d6748 0 2px, transparent 3px); background-size: 67px 89px, 79px 103px, 71px 97px; }
-.campaign-map::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 75px 12px rgba(43,26,10,.38); }
-.campaign-map-heading { position: absolute; z-index: 3; top: 14px; left: 18px; width: 222px; padding: 8px 12px; border: 1px solid #765635; border-radius: 10px; background: #f0dfb8ee; box-shadow: 0 4px 14px #3e2b1d59; text-align: center; }
+/* Campaign map: a tall painting the player scrolls up (campaignMap.ts sizes
+   the board and places every stop in board pixels). The stops are real
+   buttons; the scroller is the only thing that moves. */
+.campaign-map { position: absolute; z-index: 24; inset: 0; overflow: hidden; background: #3a2c18; color: #241c12; }
+.campaign-scroller {
+  position: absolute; inset: 0 0 122px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; outline: none;
+  scrollbar-width: thin; scrollbar-color: #8c6039 #3a2c18; cursor: grab;
+  /* Soft top and bottom edges: there is more map beyond them. */
+  -webkit-mask-image: linear-gradient(transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
+  mask-image: linear-gradient(transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
+}
+.campaign-map.dragging .campaign-scroller { cursor: grabbing; user-select: none; }
+.campaign-board {
+  position: relative; width: 100%; overflow: hidden;
+  background: var(--campaign-map-image, none) var(--art-offset, 0px) 0 / var(--art-width, 100%) 100% no-repeat, linear-gradient(#b9a06c, #d9c18c 40%, #c2a874);
+}
+.campaign-map.map-art-failed .campaign-board { background: radial-gradient(ellipse 40% 8% at 50% 12%, #6b4a3a66, transparent), radial-gradient(ellipse 50% 10% at 50% 55%, #7d9a6a66, transparent), linear-gradient(#a68f63, #d9c18c 40%, #c2a874); }
+/* The land beyond the first locked campaign is shown, but in shadow. */
+.campaign-fog { position: absolute; z-index: 1; top: 0; left: 0; right: 0; height: 0; pointer-events: none; background: linear-gradient(rgba(24,18,10,.5), rgba(24,18,10,.4) calc(100% - 110px), transparent); transition: height .3s ease; }
 .campaign-map-heading span, #campaign-stage { font-size: .78rem; font-weight: 900; letter-spacing: .16em; color: #654020; }
-.campaign-map-heading h2 { margin: 1px 0 0; font-family: Georgia, serif; font-size: 25px; line-height: 1.1; }
 .campaign-map-heading p { margin: 2px 0 0; font-size: .78rem; font-weight: 750; line-height: 1.2; text-wrap: balance; }
-.campaign-home { position: absolute; z-index: 2; left: 50%; top: 21%; transform: translateX(-50%); padding: 4px 12px; border: 1px solid #416442; border-radius: 8px; background: #e7d9a9eb; color: #24522d; box-shadow: 0 2px 8px #261c1280; font-size: 12px; font-weight: 900; letter-spacing: .13em; }
-.province-highlight { position: absolute; z-index: 1; width: min(270px, 74%); height: 108px; transform: translate(-50%,-50%); border: 3px solid #efc064; border-radius: 50%; background: #f1a63a20; box-shadow: 0 0 0 3px #7a3315a3, 0 0 30px 8px #ffe1a770; pointer-events: none; transition: left .25s ease, top .25s ease; }
+.campaign-map-heading { position: absolute; z-index: 3; top: 14px; left: 18px; width: 250px; padding: 8px 12px; border: 1px solid #765635; border-radius: 10px; background: #f0dfb8ee; box-shadow: 0 4px 14px #3e2b1d59; text-align: center; pointer-events: none; }
+.campaign-map-heading h2 { margin: 2px 0 0; font-family: Georgia, serif; font-size: 22px; line-height: 1.1; }
+.province-highlight { position: absolute; z-index: 1; width: 78px; height: 78px; transform: translate(-50%,-50%); border: 3px solid #ffd47a; border-radius: 50%; background: #f1a63a33; box-shadow: 0 0 0 3px #7a3315a3, 0 0 26px 8px #ffe1a790; pointer-events: none; transition: left .25s ease, top .25s ease; animation: stop-pulse 2.4s ease-in-out infinite; }
+@keyframes stop-pulse { 50% { box-shadow: 0 0 0 3px #7a3315a3, 0 0 36px 14px #ffe1a7b0; } }
+@media (prefers-reduced-motion: reduce) { .province-highlight { animation: none; } }
 .campaign-stops { position: absolute; inset: 0; z-index: 2; }
-.campaign-stop { position: absolute; display: flex; align-items: center; gap: 10px; width: min(238px, 68%); min-height: 76px; padding: 8px 12px; border: 2px solid #8e6942; border-radius: 12px; background: #f4e4bde8; box-shadow: 0 5px 0 #7c6544aa, 0 11px 22px #3e311f70; color: #211a0d; cursor: pointer; transform: translate(-50%,-50%); text-align: left; }
-.stop-flag { display: grid; place-items: center; width: 54px; height: 54px; border: 3px solid #ffe2a3; border-radius: 50%; background: #a53b20; box-shadow: 0 3px 0 #4a2719, 0 7px 16px #2b2416a6; color: #fff2c9; font-family: Georgia,serif; font-size: 25px; font-weight: 900; transition: transform .18s; }
-.campaign-stop:hover .stop-flag, .campaign-stop.selected .stop-flag { transform: scale(1.13); box-shadow: 0 3px 0 #4a2719, 0 0 0 5px #fce5a49c, 0 8px 18px #2b2416a6; }
-.campaign-stop.completed .stop-flag { background: #377044; }
-.campaign-map-card { position: absolute; z-index: 3; left: 50%; bottom: 6px; width: min(1080px,calc(100% - 80px)); height: 116px; transform: translateX(-50%); display: grid; grid-template-columns: 265px 1fr 250px; grid-template-rows: 18px 30px 1fr; gap: 0 18px; align-items: center; padding: 5px 18px; text-align: left; }
+.campaign-map-card { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: 122px; padding-inline: max(18px, calc((100% - 1080px) / 2)) !important; border-top: 2px solid #8a6437; background: linear-gradient(#efdcaa, #e4cb92); display: grid; grid-template-columns: 265px 1fr 250px; grid-template-rows: 18px 30px 1fr; gap: 0 18px; align-items: center; padding: 5px 18px; text-align: left; }
 .campaign-map-card h3 { grid-column: 1; grid-row: 2; margin: 0; font-family: Georgia,serif; font-size: 23px; }
 .campaign-map-card p { margin: 0; font-size: .78rem; line-height: 1.3; }
 #campaign-stage { grid-column: 1; grid-row: 1; }
@@ -375,24 +384,45 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .unit-more { margin-left: 4px; color: var(--gold); font-size: .82rem; }
 .battle-empty { color: #aebbae; font-size: .86rem; }
 
-/* --- Campaign map: 25 villages down the southern road -------------------- */
-.campaign-road { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.campaign-road polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; }
-.campaign-road .road-edge { stroke: #6b4829; stroke-width: 26; opacity: .65; }
-.campaign-road .road-center { stroke: #c5a376; stroke-width: 17; opacity: .82; }
-.campaign-origin { position: absolute; z-index: 2; top: 150px; left: 50%; transform: translateX(-50%); display: grid; justify-items: center; min-width: 160px; padding: 9px 20px; border: 2px solid #617047; border-radius: 12px; background: #efe2bce8; box-shadow: 0 6px 13px #3b321e63; font-size: .78rem; letter-spacing: .08em; }
-.campaign-origin span { font-family: Georgia, serif; font-size: 40px; line-height: .8; color: #49613c; }
-.campaign-origin small { margin-top: 3px; font-size: .78rem; letter-spacing: 0; }
-.campaign-region { position: absolute; z-index: 2; left: 50%; transform: translateX(-50%); padding: 4px 15px; border: 1px solid #8f6a42; border-radius: 100px; background: #e7d7b0e8; color: #625035; font-family: Georgia, serif; font-size: 14px; font-style: italic; white-space: nowrap; }
-.stop-flag { flex: none; width: 44px; height: 44px; font-size: 19px; }
-.stop-details { display: grid; gap: 3px; min-width: 0; }
-.stop-title { font-family: Georgia, serif; font-size: 16px; line-height: 1.05; }
-.campaign-stop.locked { cursor: pointer; }
-.campaign-stop.locked { background: #d4c8a9e3; border-color: #928875; }
-.campaign-stop.locked .stop-flag { background: #6d6150; border-color: #cbbd97; color: #efe3c2; animation: none; }
+/* --- Campaign map: the road, stops, chapters, rail ------------------------ */
+.campaign-road { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.campaign-road path { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.campaign-road .road-ahead { stroke: #3b2410; stroke-width: 6; stroke-dasharray: 0.1 12; opacity: .9; filter: drop-shadow(0 0 1.5px #fff2c9); }
+.campaign-road .road-done { stroke: #a8321a; stroke-width: 5; opacity: .9; filter: drop-shadow(0 0 2px #fff2c9); }
+.campaign-stop { position: absolute; width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: none; color: #211a0d; cursor: pointer; transform: translate(-50%,-50%); }
+.stop-flag { display: grid; place-items: center; width: 46px; height: 46px; margin: 3px; border: 3px solid #ffe2a3; border-radius: 50%; background: #a53b20; box-shadow: 0 3px 0 #4a2719, 0 7px 14px #2b2416a6; color: #fff2c9; font-family: Georgia, serif; font-size: 19px; font-weight: 900; transition: transform .18s; }
+.campaign-stop:hover .stop-flag, .campaign-stop.selected .stop-flag { transform: scale(1.12); }
+.campaign-stop.completed .stop-flag { background: #377044; }
 .campaign-stop.current .stop-flag { background: #c07a1c; }
+.campaign-stop.locked .stop-flag { background: #6d6150; border-color: #cbbd97; color: #efe3c2; }
+/* Name and stars beside the stop, on the side away from the road's centre. */
+.stop-label { position: absolute; top: 50%; display: grid; gap: 1px; padding: 4px 9px 5px; border: 1px solid #8e6942; border-radius: 8px; background: #f4e4bdee; box-shadow: 0 4px 10px #3e311f66; white-space: nowrap; transform: translateY(-50%); pointer-events: none; text-align: left; }
+.campaign-stop.label-left .stop-label { right: calc(100% + 4px); text-align: right; }
+.campaign-stop.label-right .stop-label { left: calc(100% + 4px); }
+.stop-label strong { font-family: Georgia, serif; font-size: 14px; line-height: 1.1; }
 .stop-stars { color: #75562d; font-size: .78rem; font-weight: 900; line-height: 1.1; }
 .campaign-stop.completed .stop-stars { color: #8b5b0d; letter-spacing: 1px; }
+.campaign-stop.locked .stop-label { background: #d9cdaee6; color: #4d4436; }
+.campaign-stop.selected .stop-label { border-color: #c07a1c; box-shadow: 0 0 0 2px #ffd47a, 0 4px 10px #3e311f66; }
+.stop-badge { display: none; }
+/* Chapter titles beside the road (wide boards only). */
+.campaign-region { position: absolute; z-index: 1; display: grid; justify-items: center; padding: 6px 16px 7px; border: 1px solid #8f6a42; border-radius: 10px; background: #efdfb6e8; box-shadow: 0 5px 14px #2e22146b; color: #4f3e26; transform: translate(-50%,-50%); white-space: nowrap; pointer-events: none; }
+.campaign-region b { font-family: Georgia, serif; font-size: 13px; letter-spacing: .2em; color: #8a5a22; }
+.campaign-region span { font-family: Georgia, serif; font-size: 18px; font-weight: 700; font-style: italic; }
+.campaign-region small { font-size: .78rem; font-weight: 700; color: #6b5636; }
+/* Chapter rail: jump to a chapter; the one in view is lit. Top chapter first. */
+.campaign-rail { position: absolute; z-index: 4; right: 10px; top: calc((100% - 122px) / 2); display: grid; gap: 6px; padding: 6px; border: 1px solid #8a6437; border-radius: 30px; background: #2a1f12c7; transform: translateY(-50%); }
+.rail-chapter { width: 44px; height: 44px; border: 2px solid #c8a96e; border-radius: 50%; color: #f3e2b5; background: #4a3720; font-family: Georgia, serif; font-size: 14px; font-weight: 900; cursor: pointer; }
+.rail-chapter:hover { background: #6a4d2b; }
+.rail-chapter.active { color: #2a1f12; background: #f0bf58; border-color: #fff2c9; }
+/* "Back to the selected campaign" when it has been scrolled out of view. */
+.campaign-jump { position: absolute; z-index: 4; left: 50%; min-height: 44px; padding: 0 16px; border: 2px solid #5b301c; border-radius: 999px; color: #fff2c9; background: #9d351dee; box-shadow: 0 6px 16px #2a1f1288; font-weight: 900; cursor: pointer; transform: translateX(-50%); }
+.campaign-jump[data-direction="up"] { top: 14px; }
+.campaign-jump[data-direction="down"] { bottom: 136px; left: 18px; transform: none; }
+.campaign-jump[hidden] { display: none; }
+/* Narrow boards: names live on the card below; stars sit under each stop. */
+.campaign-map.narrow-board .stop-label, .campaign-map.narrow-board .campaign-region { display: none; }
+.campaign-map.narrow-board .stop-badge { position: absolute; top: calc(100% - 5px); left: 50%; display: block; padding: 0 5px; border-radius: 6px; color: #f3c65c; background: #2a1f12e6; font-size: .78rem; font-weight: 900; line-height: 1.35; letter-spacing: 1px; white-space: nowrap; transform: translateX(-50%); pointer-events: none; }
 #campaign-launch:disabled { opacity: .55; cursor: not-allowed; }
 
 /* =========================================================================
@@ -443,24 +473,22 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 }
 :root[data-layout="fluid"] .star-rules { flex-wrap: wrap; gap: 4px 14px; }
 
-/* Campaign map: the vertical road on top, briefing below it on compact stages. */
+/* Campaign map: the scrolling road on top, the chapter in view under it,
+   then the selected campaign's card. The rail and the "back to" button sit
+   over the road's area. */
 :root[data-layout="fluid"] .campaign-map {
-  display: grid; grid-template-rows: minmax(0, 1fr) auto auto; grid-template-areas: "board" "card" "head"; background: #3a2c18;
+  display: grid; grid-template-rows: minmax(0, 1fr) auto auto; grid-template-areas: "board" "head" "card";
 }
-:root[data-layout="fluid"] .campaign-map::after { display: none; }
-:root[data-layout="fluid"] .campaign-scroller {
-  position: relative; inset: auto; grid-area: board; overflow-x: hidden; overflow-y: auto;
-  overscroll-behavior: contain; min-height: 0;
-}
-:root[data-layout="fluid"] .campaign-board {
-  position: relative; inset: auto; width: 100%;
-}
-:root[data-layout="fluid"] .campaign-stop { width: min(230px, 68%); min-height: 72px; }
+:root[data-layout="fluid"] .campaign-scroller { position: relative; inset: auto; grid-area: board; min-height: 0; }
+:root[data-layout="fluid"] .campaign-rail { grid-area: board; top: 50%; right: calc(6px + var(--safe-right)); align-self: center; padding: 4px; gap: 4px; }
+:root[data-layout="fluid"] .campaign-jump { grid-area: board; justify-self: center; align-self: start; left: auto; transform: none; }
+:root[data-layout="fluid"] .campaign-jump[data-direction="up"] { top: 10px; }
+:root[data-layout="fluid"] .campaign-jump[data-direction="down"] { top: auto; bottom: 12px; left: calc(10px + var(--safe-left)); align-self: end; justify-self: start; }
 :root[data-layout="fluid"] .campaign-map-card {
   position: relative; left: auto; bottom: auto; transform: none; grid-area: card; width: auto; height: auto;
   grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: none; gap: 3px 16px; align-items: center;
   padding: 12px calc(16px + var(--safe-right)) 10px calc(16px + var(--safe-left));
-  border-top: 2px solid #8a6437; background: linear-gradient(#efdcaa, #e4cb92);
+  border-top: 0; background: linear-gradient(#efdcaa, #e4cb92);
 }
 :root[data-layout="fluid"] #campaign-stage { grid-column: 1; grid-row: 1; }
 :root[data-layout="fluid"] .campaign-map-card h3 { grid-column: 1; grid-row: 2; font-size: 21px; }
@@ -470,7 +498,7 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 :root[data-layout="fluid"] #campaign-copy { grid-column: 1 / -1; grid-row: 5; }
 :root[data-layout="fluid"] .campaign-map-heading {
   position: static; grid-area: head; width: auto; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 0 10px;
-  padding: 0 16px calc(8px + var(--safe-bottom)); background: #e4cb92; text-shadow: none;
+  padding: 7px calc(16px + var(--safe-right)) 3px calc(16px + var(--safe-left)); border: 0; border-top: 2px solid #8a6437; border-radius: 0; background: #efdcaa; box-shadow: none; text-shadow: none;
 }
 :root[data-layout="fluid"] .campaign-map-heading h2 { order: -1; font-size: 15px; }
 :root[data-layout="fluid"] .campaign-map-heading span { display: none; }
@@ -599,10 +627,10 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
   :root[data-layout="fluid"] .tutorial-coach[data-step="growth"]::after { display: none; }
 
   /* The campaign card becomes a column beside the map. */
-  :root[data-layout="fluid"] .campaign-map { grid-template-columns: minmax(0, 1fr) clamp(220px, 32cqw, 300px); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "board card" "board head"; }
+  :root[data-layout="fluid"] .campaign-map { grid-template-columns: minmax(0, 1fr) clamp(220px, 32cqw, 300px); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "board head" "board card"; }
   :root[data-layout="fluid"] .campaign-map-card {
     display: flex; flex-direction: column; align-items: stretch; gap: 5px; overflow-y: auto;
-    padding: calc(12px + var(--safe-top)) calc(14px + var(--safe-right)) 10px 14px; border-top: 0; border-left: 2px solid #8a6437;
+    padding: 8px calc(14px + var(--safe-right)) calc(10px + var(--safe-bottom)) 14px; border-top: 0; border-left: 2px solid #8a6437;
   }
   :root[data-layout="fluid"] #campaign-stage { order: 1; }
   :root[data-layout="fluid"] .campaign-map-card h3 { order: 2; }
@@ -610,7 +638,7 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
   :root[data-layout="fluid"] #campaign-state { order: 4; }
   :root[data-layout="fluid"] #campaign-briefing { order: 5; font-size: 14px; }
   :root[data-layout="fluid"] #campaign-copy { order: 6; }
-  :root[data-layout="fluid"] .campaign-map-heading { justify-content: start; padding: 6px calc(14px + var(--safe-right)) calc(8px + var(--safe-bottom)) 14px; border-left: 2px solid #8a6437; }
+  :root[data-layout="fluid"] .campaign-map-heading { display: grid; justify-content: stretch; gap: 1px; padding: calc(10px + var(--safe-top)) calc(14px + var(--safe-right)) 8px 14px; border-top: 0; border-left: 2px solid #8a6437; border-bottom: 1px solid #c9a96a; text-align: left; }
 
   :root[data-layout="fluid"] .muster-armies { gap: 10px; }
 }

@@ -49,7 +49,7 @@ SOURCES = [
     "Assets/Art/Production/Characters/DirectionalWalk/*-walk32-master-v1.png",
     "Assets/Art/Production/Characters/WorkLoops/*-work8-master-v1.png",
     "Assets/Art/Production/Characters/CombatLoops/*-combat-*8-master-v1.png",
-    "Assets/Art/Production/Campaign/southern-pass-map-v5.png",
+    "Assets/Art/Production/Campaign/southern-road-map-v6.png",  # made by make_campaign_road_map.py
 ]
 # Glob matches that the game does not use.
 EXCLUDE_NAMES = {"campsite-level-1-2x-v1.png"}
@@ -87,7 +87,13 @@ def export(source: Path, target: Path) -> None:
         image = image.resize((1024, 512), Image.Resampling.LANCZOS)
     elif source.name.endswith("-work8-master-v1.png"):
         image = image.resize((1024, 584), Image.Resampling.LANCZOS)
-    image.save(target, "WEBP", quality=QUALITY, method=4, exact=has_alpha)
+    quality = QUALITY
+    if source.name.startswith("southern-road-map-"):
+        # The campaign map is the first screen: 1440 px wide at quality 74
+        # keeps it under 600 KB, and painted terrain hides the difference.
+        image = image.resize((1440, round(image.height * 1440 / image.width)), Image.Resampling.LANCZOS)
+        quality = 74
+    image.save(target, "WEBP", quality=quality, method=4, exact=has_alpha)
 
 
 def main() -> int:

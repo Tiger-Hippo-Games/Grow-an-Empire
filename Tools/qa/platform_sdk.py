@@ -18,7 +18,7 @@ def calls(page):
     return page.evaluate("(window.__goLiveMock && window.__goLiveMock.calls || []).map(c => c.method + (c.method==='track' ? ':' + c.args[0] : ''))")
 
 def speed8(page):
-    for _ in range(3): page.click("#speed-toggle")
+    for _ in range(3): page.keyboard.press("s")  # the control bar hides while a choice is open; S is its shortcut
 
 def play_moves(page, n):
     for _ in range(n):

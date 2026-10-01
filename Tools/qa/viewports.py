@@ -14,8 +14,10 @@ TAG = sys.argv[1] if len(sys.argv) > 1 else "before"
 SIZES = [(1920, 1080), (1280, 720), (1600, 900), (1366, 724), (960, 540), (1024, 768), (1180, 820), (820, 1180),
          (844, 390), (667, 375), (390, 844), (375, 667)]
 CHECK = """() => {
+  // Panels the game has deliberately slid away and faded out (the bars while a choice is open) don't count.
+  const faded = (el) => { for (let p = el; p; p = p.parentElement) if (parseFloat(getComputedStyle(p).opacity) === 0) return true; return false; };
   const vis = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
-    return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0 ? r : null; };
+    return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0 && !faded(el) ? r : null; };
   const W = innerWidth, H = innerHeight;
   const ids = ['.hud', '.settlement-hud', '#build-panel', '.controls'];
   const rects = ids.map(id => [id, document.querySelector(id) && vis(document.querySelector(id))]).filter(x => x[1]);

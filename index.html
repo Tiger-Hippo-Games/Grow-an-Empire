@@ -191,13 +191,16 @@
       </button>
 
       <section id="campaign-map" class="campaign-map hidden" aria-label="Campaign map">
-        <div id="campaign-scroller" class="campaign-scroller">
+        <div id="campaign-scroller" class="campaign-scroller" tabindex="-1">
           <div id="campaign-board" class="campaign-board">
+            <div id="campaign-fog" class="campaign-fog" aria-hidden="true"></div>
             <div id="province-highlight" class="province-highlight" aria-hidden="true"></div>
             <div id="campaign-stops" class="campaign-stops" aria-label="Campaign destinations"></div>
           </div>
         </div>
-        <div class="campaign-map-heading"><span>GROW AN EMPIRE</span><h2>Southern Front</h2><p>Scroll south through 25 campaigns.</p></div>
+        <nav id="campaign-rail" class="campaign-rail" aria-label="Chapters"></nav>
+        <button id="campaign-jump" class="campaign-jump" type="button" hidden>↓ Campaign 1</button>
+        <div class="campaign-map-heading"><span>GROW AN EMPIRE · SOUTHERN FRONT</span><h2 id="campaign-chapter">I · Southern hamlets</h2><p id="campaign-chapter-note">Campaigns 1–5 of 25. Scroll or drag along the road.</p></div>
         <aside class="campaign-map-card" aria-live="polite">
           <span id="campaign-stage"></span><h3 id="campaign-name"></h3>
           <p id="campaign-copy"></p><p id="campaign-briefing"></p>
