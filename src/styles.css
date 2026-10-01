@@ -129,6 +129,7 @@ h1 { margin: 2px 0 0; font-size: 1.25rem; line-height: 1.1; }
 .controls button { min-height: 34px; padding: 0 10px; border: 1px solid rgba(255,255,255,.09); border-radius: 8px; color: #e8eee4; background: rgba(255,255,255,.055); cursor: pointer; font-size: .78rem; font-weight: 750; }
 .controls button:hover { background: rgba(255,255,255,.12); }
 .controls .quiet-control { color: #9faf9c; background: transparent; }
+.controls #restart.armed { color: #ffd2c4; border-color: rgba(255,140,110,.6); background: rgba(190,70,45,.35); }
 /* In the fixed layout every control is in the row; the fluid layout folds the
    secondary ones into the "More" menu (see the end of this file). */
 .controls-secondary { display: contents; }

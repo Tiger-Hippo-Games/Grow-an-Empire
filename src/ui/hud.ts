@@ -517,7 +517,27 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   playToggle.addEventListener("click", callbacks.onPlayToggle);
-  restartButton.addEventListener("click", callbacks.onRestart);
+  // Restart throws the whole run away, and on a phone it sits next to the
+  // other controls, so it asks once in place (the portal forbids confirm()):
+  // the first press arms it for 4 s, the second restarts.
+  let restartArmed = 0;
+  const disarmRestart = (): void => {
+    clearTimeout(restartArmed);
+    restartArmed = 0;
+    restartButton.textContent = "Restart";
+    restartButton.classList.remove("armed");
+  };
+  restartButton.addEventListener("click", (event) => {
+    if (!restartArmed) {
+      event.stopPropagation(); // Keep the More menu open for the second press.
+      restartButton.textContent = "Restart? Press again";
+      restartButton.classList.add("armed");
+      restartArmed = window.setTimeout(disarmRestart, 4000);
+      return;
+    }
+    disarmRestart();
+    callbacks.onRestart();
+  });
   speedToggle.addEventListener("click", () => {
     const speeds = [1, 2, 4, 8];
     const next = speeds[(speeds.indexOf(selectedSpeed) + 1) % speeds.length];

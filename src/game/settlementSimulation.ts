@@ -622,10 +622,11 @@ export class SettlementSimulation {
     const goldSpent = (hire.archers + hire.swordsmen) * SELLSWORD_COST;
     const explanations: string[] = [];
     const t = this.state.trainedUnits;
-    explanations.push(`Trained over the campaign: ${t.archers} archers, ${t.swordsmen} swordsmen, ${t.horsemen} horsemen.`);
+    // trainedUnits is the army still standing: deserters have already left it.
+    explanations.push(`${this.state.deserted ? "Still in the ranks" : "Trained over the campaign"}: ${t.archers} archers, ${t.swordsmen} swordsmen, ${t.horsemen} horsemen.`);
     if (hire.archers || hire.swordsmen) explanations.push(`The Marketplace hired ${hire.archers + hire.swordsmen} sellswords for ${goldSpent} gold.`);
     if (army.militia) explanations.push(`${army.militia} villagers joined as militia.`);
-    if (this.state.deserted) explanations.push(`${this.state.deserted} soldiers deserted for lack of rations.`);
+    if (this.state.deserted) explanations.push(`${this.state.deserted} ${this.state.deserted === 1 ? "soldier" : "soldiers"} deserted for lack of rations: a Bakery or Butchery feeds the army.`);
     if (this.state.gatherMoves) explanations.push(`${this.state.gatherMoves} move${this.state.gatherMoves === 1 ? " was" : "s were"} spent gathering.`);
     let gap: string | null = null;
     const nextTarget = !outcome.win ? 0 : outcome.stars === 1 ? this.campaign.stars.two : outcome.stars === 2 ? this.campaign.stars.three : null;

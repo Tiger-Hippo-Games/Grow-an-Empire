@@ -14,6 +14,9 @@ The campaign map is one tall painting (`southern-road-map-v6`, composed from fou
 | `load_time.py` | ✅ | Slow 4G: playable in 7.7 s (unchanged; the map art loads after the game is playable, over a parchment background) |
 | `pnpm check` | ✅ Pass | 128 tests |
 
+| `journey.py` (new, 2026-10-02) | ✅ Pass | The 0.2.2 ZIP at the portal path, at 1920×1080, 390×844 and 844×390: map (a locked campaign can't start) → Campaign 1 with the full tutorial, pause/play, sound, View city → reload at move 6 (same move, stockpile and people) → muster → watched battle → Victory ★★★ → battle report → Next → Campaign 2 with sellswords hired → map (2 won, 22 locked) → Campaign 3 played badly → defeat, Try again → replay offered on Campaign 1 → Continue settlement → Restart. A save with all 25 won shows 75 ★, no fog, the whole road walked. No console errors, warnings or failed requests; the SDK gets init, login, getGameProgress, saves and tracks |
+| Fixes from the journey | ✅ | The result said "Trained over the campaign: 0 archers…" next to "30 soldiers deserted": deserters are taken off the army, so with desertions the line now reads "Still in the ranks", and the desertion line says a Bakery or Butchery feeds the army. Restart now asks once in place ("Restart? Press again", 4 s) instead of throwing the run away on one tap |
+
 Not yet done: real phones and tablets (touch scrolling momentum, Safari).
 
 ## v0.2.1 (2026-09-25): responsive layout for phones and tablets
