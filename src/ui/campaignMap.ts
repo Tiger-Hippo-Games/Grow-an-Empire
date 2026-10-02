@@ -1,7 +1,7 @@
 import { CAMPAIGNS, isCampaignUnlocked, starsToUnlock, totalStars, type CampaignDefinition } from "../game/campaigns";
 import { assetUrl } from "../render/assetCatalog";
 import { IMAGE_TIMEOUT_MS } from "../render/spriteAssets";
-import { requireElement } from "./dom";
+import { focusFirst, requireElement } from "./dom";
 
 /**
  * The campaign map: one tall painting (Tools/ArtPipeline/make_campaign_road_map.py)
@@ -260,18 +260,21 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   });
   scroller.addEventListener("pointermove", (event) => {
     if (!drag || event.pointerId !== drag.id) return;
+    // The button was released somewhere we didn't hear about (outside the
+    // frame, or before the drag began): stop, so hovering doesn't scroll.
+    if (event.buttons === 0) { endDrag(event); return; }
     // clientY is in screen pixels; the fixed stage may be scaled (index.html).
     const scale = scroller.getBoundingClientRect().height / Math.max(1, scroller.clientHeight) || 1;
     const dy = (event.clientY - drag.y) / scale;
     if (!drag.moved && Math.abs(dy) < 6) return;
     if (!drag.moved) {
       drag.moved = true;
-      scroller.setPointerCapture(event.pointerId);
+      try { scroller.setPointerCapture(event.pointerId); } catch { /* pointer already gone; window pointerup still ends the drag */ }
       map.classList.add("dragging");
     }
     scroller.scrollTop = drag.top - dy;
   });
-  const endDrag = (event: PointerEvent): void => {
+  function endDrag(event: PointerEvent): void {
     if (!drag || event.pointerId !== drag.id) return;
     if (drag.moved) {
       suppressClick = true;
@@ -279,9 +282,11 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     }
     drag = null;
     map.classList.remove("dragging");
-  };
+  }
   scroller.addEventListener("pointerup", endDrag);
   scroller.addEventListener("pointercancel", endDrag);
+  window.addEventListener("pointerup", endDrag);
+  window.addEventListener("blur", () => { drag = null; map.classList.remove("dragging"); });
   scroller.addEventListener("click", (event) => {
     if (!suppressClick) return;
     event.stopPropagation();
@@ -422,7 +427,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       map.classList.add("hidden");
       // The launch button becomes hidden here. Return keyboard focus to the
       // visible map toggle instead of leaving it on the document body.
-      if (hadFocus) document.getElementById("map-toggle")?.focus();
+      if (hadFocus) focusFirst("#map-toggle", "#build-options button:not([disabled])", "#city-ui-toggle");
     },
     get isOpen() { return !map.classList.contains("hidden"); },
   };

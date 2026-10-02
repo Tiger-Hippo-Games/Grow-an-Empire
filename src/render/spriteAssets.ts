@@ -66,8 +66,9 @@ export async function loadTexture(filename: string): Promise<THREE.Texture> {
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(`timed out after ${IMAGE_TIMEOUT_MS / 1000} s`)), IMAGE_TIMEOUT_MS);
   });
+  const loading = textureLoader.loadAsync(url);
   try {
-    const texture = await Promise.race([textureLoader.loadAsync(url), timeout]);
+    const texture = await Promise.race([loading, timeout]);
     const image = texture.image as HTMLImageElement;
     // Atlas consumers call loadTexture directly. Reject a zero-size decode here
     // before frame math can produce NaN UVs or invisible characters.
@@ -78,6 +79,8 @@ export async function loadTexture(filename: string): Promise<THREE.Texture> {
     }
     return configureTexture(texture);
   } catch (cause) {
+    // If the image turns up after the timeout, nobody holds it: free it.
+    loading.then((late) => late.dispose(), () => undefined);
     throw new Error(`Failed to load image "${filename}"`, { cause });
   } finally {
     clearTimeout(timer);

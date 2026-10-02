@@ -172,6 +172,8 @@ export interface ProgressStore {
    * explains why to the player.
    */
   readonly savingDisabledReason: string | null;
+  /** Best stars seen this session, from any copy (this tab, other tabs, the cloud). */
+  readonly knownStars: Record<string, number>;
 }
 
 const NEWER_SAVE_MESSAGE = "Your progress was saved by a newer version of the game. Reload to update; progress in this older version won't be saved.";
@@ -179,16 +181,58 @@ const NEWER_SAVE_MESSAGE = "Your progress was saved by a newer version of the ga
 export function createProgressStore(platform: PlatformAdapter, campaignId: string | null): ProgressStore {
   let pending: SavedGame | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let inFlight: Promise<void> | null = null;
   let savingDisabledReason: string | null = null;
   /** Owner stamped on every save: the signed-in player, else whoever owned the loaded save. */
   let ownerId: string | undefined;
+  /**
+   * True once the cloud has been read successfully. Until then nothing is
+   * written to it: after a failed or slow read, "no cloud save" and "couldn't
+   * tell" look the same, and writing would replace real progress.
+   */
+  let cloudRead = false;
+  /** Another device's run is further along: leave the cloud to it until the next load. */
+  let cloudAhead = false;
+  /**
+   * The run was chosen without seeing the cloud (it was unreadable at load).
+   * Its run id then says nothing about which copy the player meant to keep,
+   * so the first reconcile goes by progress, not by which run is newer.
+   */
+  let choseBlind = false;
+  /**
+   * Every star, victory and finished tutorial seen this session (browser,
+   * cloud, conflict re-reads). Each save is merged with it, so a stale tab or
+   * a conflict can never take stars away.
+   */
+  let known: Pick<SavedGame, "campaignStars" | "completedCampaignIds"> & { tutorialComplete: boolean } =
+    { campaignStars: {}, completedCampaignIds: [], tutorialComplete: false };
+  let failedWrites = 0;
+
+  const remember = (game: SavedGame | null): void => {
+    if (!game) return;
+    known = {
+      campaignStars: mergeStars(known.campaignStars, game.campaignStars),
+      completedCampaignIds: [...new Set([...(known.completedCampaignIds ?? []), ...(game.completedCampaignIds ?? [])])],
+      tutorialComplete: known.tutorialComplete || game.settings.tutorialComplete,
+    };
+  };
+  const withKnown = (game: SavedGame): SavedGame => {
+    remember(game);
+    return {
+      ...game,
+      campaignStars: { ...known.campaignStars },
+      completedCampaignIds: [...(known.completedCampaignIds ?? [])],
+      settings: { ...game.settings, tutorialComplete: game.settings.tutorialComplete || known.tutorialComplete },
+    };
+  };
 
   const disableSaving = (): void => {
     if (savingDisabledReason) return;
     savingDisabledReason = NEWER_SAVE_MESSAGE;
     pending = null;
     if (timer) { clearTimeout(timer); timer = null; }
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     console.warn("[Grow an Empire] A save from a newer game version exists; this session won't save.");
   };
 
@@ -197,24 +241,62 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     flush().catch((error: unknown) => console.warn("[GoLive] Cloud save failed unexpectedly", error));
   };
 
-  async function writeCloud(game: SavedGame): Promise<void> {
-    const result = await platform.saveProgress(game as unknown as Record<string, unknown>);
-    if (result !== "conflict") return;
-    // Another device saved first. Re-read, keep the better copy, retry once.
+  /** Puts a write that didn't happen back in the queue (unless a newer one is waiting) and tries again later. */
+  const retryLater = (game: SavedGame): void => {
+    if (savingDisabledReason || cloudAhead) return;
+    pending = pending ?? game;
+    failedWrites += 1;
+    if (retryTimer) return;
+    const delay = Math.min(120_000, 15_000 * 2 ** Math.min(3, failedWrites - 1));
+    retryTimer = setTimeout(() => { retryTimer = null; flushInBackground(); }, delay);
+  };
+
+  /**
+   * Reads the cloud and decides what to do with `game`: the copy to write, or
+   * null to leave the cloud alone (unreadable, newer version, or another
+   * device's run is further along).
+   */
+  async function reconcile(game: SavedGame): Promise<SavedGame | null | "retry"> {
     const rawCloud = await platform.loadProgress();
+    if (rawCloud === "unavailable") return "retry";
+    cloudRead = true;
     if (isFromNewerVersion(rawCloud)) {
       disableSaving();
-      return;
+      return null;
     }
     const cloud = toSavedGame(rawCloud, campaignId);
+    remember(cloud);
+    const blind = choseBlind;
+    choseBlind = false;
+    if (blind && cloud && cloud.runId !== game.runId && progressOf(cloud) > progressOf(game)) {
+      cloudAhead = true;
+      console.info("[GoLive] The cloud has a run further along than the one started while it was unreachable; it will be offered on next load.");
+      return null;
+    }
     const keep = chooseSave(game, cloud);
     const oursWins = !cloud || (keep !== null && keep.runId === game.runId && keep.savedAt === game.savedAt);
-    if (keep && oursWins) {
-      const retry = await platform.saveProgress(keep as unknown as Record<string, unknown>);
-      if (retry !== "ok") console.warn("[GoLive] Save conflict could not be resolved; the browser copy is kept.");
-    } else {
-      console.info("[GoLive] Another device has further progress in the cloud; it will be offered on next load.");
-    }
+    if (keep && oursWins) return withKnown(keep);
+    cloudAhead = true;
+    console.info("[GoLive] Another device has further progress in the cloud; it will be offered on next load. This session keeps saving in the browser.");
+    return null;
+  }
+
+  async function writeCloud(game: SavedGame): Promise<void> {
+    let toWrite: SavedGame | null | "retry" = game;
+    if (!cloudRead) toWrite = await reconcile(game);
+    if (toWrite === "retry") { retryLater(game); return; }
+    if (!toWrite) return;
+    const result = await platform.saveProgress(toWrite as unknown as Record<string, unknown>);
+    if (result === "ok") { failedWrites = 0; return; }
+    if (result === "error") { retryLater(toWrite); return; }
+    // Another device saved first. Re-read, keep the better copy, retry once.
+    const resolved = await reconcile(toWrite);
+    if (resolved === "retry") { retryLater(toWrite); return; }
+    if (!resolved) return;
+    const retry = await platform.saveProgress(resolved as unknown as Record<string, unknown>);
+    if (retry === "ok") failedWrites = 0;
+    else if (retry === "error") retryLater(resolved);
+    else console.warn("[GoLive] Save conflict could not be resolved; the browser copy is kept.");
   }
 
   async function flush(): Promise<void> {
@@ -223,18 +305,26 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
       timer = null;
     }
     if (inFlight) await inFlight;
-    if (!pending || savingDisabledReason) return;
+    if (!pending || savingDisabledReason || cloudAhead) return;
     const game = pending;
     pending = null;
     inFlight = writeCloud(game).finally(() => { inFlight = null; });
     await inFlight;
   }
 
+  // A player signed in after boot gave up waiting: stamp their id from now on.
+  // The cloud hasn't been read yet, so the next write reads and merges it first.
+  platform.onLateSignIn((player) => {
+    ownerId = player.id;
+    if (pending) flushInBackground();
+  });
+
   return {
     async load(playerId = null) {
       let local = toSavedGame(loadSavedSnapshot(), campaignId);
       const rawCloud = await platform.loadProgress();
-      if (hasNewerLocalSave() || isFromNewerVersion(rawCloud)) {
+      const cloudAvailable = rawCloud !== "unavailable";
+      if (hasNewerLocalSave() || (cloudAvailable && isFromNewerVersion(rawCloud))) {
         disableSaving();
         return null;
       }
@@ -242,21 +332,29 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
         console.info("[Grow an Empire] The browser save belongs to another player; it is ignored and not uploaded.");
         local = null;
       }
-      const cloud = toSavedGame(rawCloud, campaignId);
+      cloudRead = cloudAvailable;
+      choseBlind = !cloudAvailable && platform.kind !== "local";
+      const cloud = cloudAvailable ? toSavedGame(rawCloud, campaignId) : null;
+      remember(local);
+      remember(cloud);
       const chosen = chooseSave(local, cloud);
       ownerId = playerId ?? chosen?.playerId;
-      // If the browser copy won (or the cloud had none), bring the cloud up to date.
-      if (chosen && platform.kind !== "local" && (!cloud || chosen.runId !== cloud.runId || progressOf(chosen) !== progressOf(cloud))) {
-        pending = withOwner(chosen);
+      // If the browser copy won (or the cloud had none), bring the cloud up to
+      // date. Not when the cloud couldn't be read: the first write reads it first.
+      if (chosen && cloudAvailable && platform.kind !== "local" && (!cloud || chosen.runId !== cloud.runId || progressOf(chosen) !== progressOf(cloud))) {
+        pending = withOwner(withKnown(chosen));
         flushInBackground();
       }
       return chosen;
     },
     save(game, options = {}) {
       if (savingDisabledReason) return;
-      const owned = withOwner(game);
+      // Another tab may have won stars since this one loaded: keep them.
+      const stored = toSavedGame(loadSavedSnapshot(), null);
+      if (stored && !belongsToAnotherPlayer(stored, ownerId ?? null)) remember(stored);
+      const owned = withOwner(withKnown(game));
       saveSnapshot(owned);
-      if (platform.kind === "local") return;
+      if (platform.kind === "local" || cloudAhead) return;
       pending = owned;
       if (options.immediate) {
         flushInBackground();
@@ -270,6 +368,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
       if (!savingDisabledReason) clearSavedSnapshot();
     },
     get savingDisabledReason() { return savingDisabledReason; },
+    get knownStars() { return { ...known.campaignStars }; },
   };
 
   function withOwner(game: SavedGame): SavedGame {

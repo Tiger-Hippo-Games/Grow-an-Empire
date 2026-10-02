@@ -11,7 +11,7 @@ import { formatBag, RESOURCE_NAMES, type ResourceBag, type SwapPlan } from "../g
 import type { MoveSummary, SimulationMode, ResourceLedger, TrainedUnits } from "../game/settlementSimulation";
 import { assetUrl } from "../render/assetCatalog";
 import { buildingFilename } from "../render/constructionView";
-import { requireElement } from "./dom";
+import { escapeHtml, focusFirst, requireElement } from "./dom";
 import type { CampaignDefinition } from "../game/campaigns";
 
 /** User actions the HUD reports back to `main.ts`. The HUD never changes game state itself. */
@@ -230,7 +230,7 @@ export function createHud(callbacks: HudCallbacks) {
   /** The "what happened last move" strip at the top of the build panel. */
   function renderSummary(summary: MoveSummary | null): void {
     if (!summary) { moveSummary.classList.add("hidden"); return; }
-    const built = summary.buildingId ? `Built the ${BUILDINGS[summary.buildingId]?.name ?? summary.buildingId}` : "Gathered (nothing built)";
+    const built = summary.buildingId ? `Built the ${escapeHtml(BUILDINGS[summary.buildingId]?.name ?? summary.buildingId)}` : "Gathered (nothing built)";
     const trained = (["archers", "swordsmen", "horsemen"] as const).filter((type) => summary.trained[type] > 0)
       .map((type) => `${summary.trained[type]} ${summary.trained[type] === 1 ? type.slice(0, -1).replace("swordsme", "swordsman").replace("horseme", "horseman") : type}`);
     const parts = [
@@ -239,9 +239,9 @@ export function createHud(callbacks: HudCallbacks) {
       summary.consumed && Object.keys(summary.consumed).length ? `<span class="loss">${signedBag(summary.consumed, "−")}</span>` : "",
       trained.length ? `<span class="gain">Trained ${trained.join(", ")}</span>` : "",
       summary.upkeep ? `Army ate ${summary.upkeep} ration${summary.upkeep === 1 ? "" : "s"}` : "",
-      summary.stalled.length ? `<span class="idle">Idle: ${summary.stalled.map((note) => `${BUILDINGS[note.buildingId]?.name ?? note.buildingId} (${note.reason})`).join("; ")}</span>` : "",
+      summary.stalled.length ? `<span class="idle">Idle: ${summary.stalled.map((note) => `${escapeHtml(BUILDINGS[note.buildingId]?.name ?? note.buildingId)} (${escapeHtml(note.reason)})`).join("; ")}</span>` : "",
     ].filter(Boolean);
-    const warnings = summary.warnings.map((text) => `<p class="summary-warning">${text}</p>`).join("");
+    const warnings = summary.warnings.map((text) => `<p class="summary-warning">${escapeHtml(text)}</p>`).join("");
     moveSummary.innerHTML = `<p>${parts.join(" · ")}</p>${warnings}`;
     moveSummary.classList.remove("hidden");
   }
@@ -267,7 +267,7 @@ export function createHud(callbacks: HudCallbacks) {
     view.cards.forEach((card, index) => {
       const building = BUILDINGS[card.id];
       if (!building) {
-        console.warn(`Skipping unknown building card "${card.id}"`);
+        console.warn(`[Grow an Empire] Skipping unknown building card "${card.id}"`);
         return;
       }
       const button = document.createElement("button");
@@ -573,7 +573,7 @@ export function createHud(callbacks: HudCallbacks) {
   });
   tutorialSkip.addEventListener("click", () => {
     finishTutorial(true);
-    helpToggle.focus();
+    focusFirst(helpToggle, buildPanel.querySelector<HTMLElement>("button:not([disabled])"), cityUiToggle);
   });
   // Keyboard support for the modal dialog: Esc skips it, Tab stays inside it.
   // Listens on the document, not the dialog, so it still works after a click
@@ -588,7 +588,7 @@ export function createHud(callbacks: HudCallbacks) {
     if (event.key === "Escape") {
       event.preventDefault();
       finishTutorial(true);
-      helpToggle.focus();
+      focusFirst(helpToggle, buildPanel.querySelector<HTMLElement>("button:not([disabled])"), cityUiToggle);
     } else if (event.key === "Tab") {
       const focusable = [...tutorialScrim.querySelectorAll<HTMLElement>("button:not([disabled])")].filter((element) => element.offsetParent !== null);
       if (focusable.length === 0) return;
@@ -601,7 +601,7 @@ export function createHud(callbacks: HudCallbacks) {
   tutorialNext.addEventListener("click", () => {
     const hadFocus = document.activeElement === tutorialNext;
     finishTutorial(false);
-    if (hadFocus) helpToggle.focus();
+    if (hadFocus) focusFirst(helpToggle, buildPanel.querySelector<HTMLElement>("button:not([disabled])"), cityUiToggle);
   });
   musterToggle.addEventListener("click", callbacks.onReportToggle);
 

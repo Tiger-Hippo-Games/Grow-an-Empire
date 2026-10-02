@@ -53,7 +53,13 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
   }
   pass("index.html at ZIP root");
 
-  const html = index.read().toString("utf8");
+  let html;
+  try {
+    html = index.read().toString("utf8");
+  } catch (error) {
+    fail(`Could not read index.html from the ZIP: ${error.message}`);
+    return results;
+  }
   (/^\s*<!doctype html>/i.test(html) ? pass : fail)("index.html starts with <!DOCTYPE html>");
   (html.includes(SDK_PATH) ? pass : fail)(`GoLive Platform SDK script tag present (${SDK_PATH})`);
 
@@ -62,11 +68,27 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
     .filter((url) => (url.startsWith("/") && url !== SDK_PATH) || /^(https?:)?\/\//i.test(url));
   (absolute.length === 0 ? pass : fail)(absolute.length === 0 ? "index.html uses only relative asset paths" : `Absolute URLs in index.html: ${absolute.join(", ")}`);
 
+  // Every relative file index.html loads must be in the ZIP (a renamed bundle
+  // file would otherwise only show up as a blank page on the portal).
+  const referenced = [...html.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)]
+    .map((match) => match[1])
+    .filter((url) => url !== SDK_PATH && !/^(?:[a-z]+:|\/\/|#|\/)/i.test(url))
+    .map((url) => decodeURI(url.split(/[?#]/)[0]).replace(/^\.\//, ""))
+    .filter(Boolean);
+  const missing = [...new Set(referenced)].filter((name) => !byName.has(name));
+  (missing.length === 0 ? pass : fail)(missing.length === 0 ? `Every file index.html loads is in the ZIP (${new Set(referenced).size})` : `index.html loads files missing from the ZIP: ${missing.join(", ")}`);
+
   const textEntries = entries.filter((entry) => /\.(html|js|css|json)$/i.test(entry.name));
   const localhostHits = [];
   const dialogHits = [];
   for (const entry of textEntries) {
-    const text = entry.read().toString("utf8");
+    let text;
+    try {
+      text = entry.read().toString("utf8");
+    } catch (error) {
+      fail(`Could not read ${entry.name} from the ZIP: ${error.message}`);
+      continue;
+    }
     if (/localhost|127\.0\.0\.1/.test(text)) localhostHits.push(entry.name);
     if (/(?:^|[^.\w$])(?:window\.)?(?:alert|confirm|prompt)\s*\(/.test(text)) dialogHits.push(entry.name);
   }

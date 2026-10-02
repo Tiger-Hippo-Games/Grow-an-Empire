@@ -67,34 +67,48 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): Platfo
     console.warn(`[GoLive] ${message}`, error);
   };
 
+  const lateListeners: Array<(player: PlayerInfo) => void> = [];
+  const validPlayer = (result: Awaited<ReturnType<GoLiveSdk["login"]>>): PlayerInfo => {
+    const player = result?.player;
+    if (!player || typeof player.id !== "string" || !player.id) throw new Error("Platform.login() returned no player");
+    return player;
+  };
+
   return {
     kind: "golive",
     async connect(): Promise<PlayerInfo | null> {
+      // init() may be sync or async depending on the SDK build. init and
+      // login share one time budget, because boot waits for them.
+      const signIn = (async () => {
+        await sdk.init({ apiBaseUrl, gameId: GAME_ID });
+        return validPlayer(await sdk.login());
+      })();
       try {
-        // init() may be sync or async depending on the SDK build. init and
-        // login share one time budget, because boot waits for them.
-        const signIn = async () => {
-          await sdk.init({ apiBaseUrl, gameId: GAME_ID });
-          return sdk.login();
-        };
-        const result = await withTimeout(signIn(), LOGIN_TIMEOUT_MS, "Platform.init()/login()");
-        const player = result?.player;
-        if (!player || typeof player.id !== "string") throw new Error("Platform.login() returned no player");
+        const player = await withTimeout(signIn, LOGIN_TIMEOUT_MS, "Platform.init()/login()");
         connected = true;
         console.info("[GoLive] Player active", { id: player.id, displayName: player.displayName, authType: player.authType });
         return player;
       } catch (error) {
         warn("connect", "Could not sign in; playing offline with browser saves only.", error);
+        // A slow portal may still sign the player in: switch the cloud on then.
+        signIn.then((player) => {
+          if (connected) return;
+          connected = true;
+          console.info("[GoLive] Signed in late; cloud saves resume", { id: player.id, authType: player.authType });
+          for (const listener of lateListeners) {
+            try { listener(player); } catch (listenerError) { console.warn("[GoLive] Late sign-in handler failed", listenerError); }
+          }
+        }, () => { /* Already reported above. */ });
         return null;
       }
     },
     async loadProgress() {
-      if (!connected) return null;
+      if (!connected) return "unavailable";
       try {
         return normalizeProgress(await withTimeout(sdk.getGameProgress(), REQUEST_TIMEOUT_MS, "Platform.getGameProgress()"));
       } catch (error) {
-        warn("load", "Could not load the cloud save; using the browser save.", error);
-        return null;
+        warn("load", "Could not load the cloud save; using the browser save, and the cloud is left untouched until it can be read.", error);
+        return "unavailable";
       }
     },
     async saveProgress(progress) {
@@ -122,6 +136,9 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): Platfo
       // Analytics must never affect play; failures are reported once.
       callQuietly(() => sdk.track(eventName, properties), (error) => warn("track", "track() failed", error));
     },
+    onLateSignIn(listener) {
+      lateListeners.push(listener);
+    },
   };
 }
 
@@ -130,11 +147,12 @@ export function createLocalPlatform(): PlatformAdapter {
   return {
     kind: "local",
     connect: async () => null,
-    loadProgress: async () => null,
+    loadProgress: async () => "unavailable",
     saveProgress: async () => "error",
     startSession() {},
     endSession() {},
     track() {},
+    onLateSignIn() {},
   };
 }
 
@@ -195,6 +213,7 @@ export function createMockPlatform(): PlatformAdapter {
     startSession: () => record("startSession"),
     endSession: (seconds) => record("endSession", seconds),
     track: (eventName, properties) => record("track", eventName, properties),
+    onLateSignIn() {},
   };
 }
 

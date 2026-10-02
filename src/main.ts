@@ -131,6 +131,7 @@ const hud = createHud({
     hud.setPlayingLabel(playing);
   },
   onRestart: () => {
+    flow.hide(); // A dialog left open over a new run would have nothing to act on.
     progress.clear();
     saveRunId = newRunId();
     resetSettlement();
@@ -213,7 +214,8 @@ function setModalPause(open: boolean): void {
     modalCount += 1;
   } else if (modalCount > 0) {
     modalCount -= 1;
-    if (modalCount === 0 && resumeAfterTutorial) {
+    // A portal pause outlasts the dialog: GP_RESUME resumes play, not closing the dialog.
+    if (modalCount === 0 && resumeAfterTutorial && !pausedByPortal) {
       playing = true;
       resumeAfterTutorial = false;
       hud.setPlayingLabel(true);
@@ -282,12 +284,26 @@ function openCampaignMap(): void {
   playing = false;
   hud.setPlayingLabel(false);
   flow.hide();
+  // Stars won in another tab, or merged in from the cloud, count too.
+  campaignStars = mergeStars(campaignStars, progress.knownStars);
   campaignMap.show(simulation.campaign.id, campaignStars, simulation.state.mode === "complete", simulation.state.move);
   requestRender();
 }
 document.getElementById("map-toggle")!.addEventListener("click", openCampaignMap);
 
-const { renderer, scene, camera, resize: resizeCamera, quality, viewBounds } = createSceneSetup(hud.viewport);
+/** Creates the 3D view, or explains to the player why it can't (WebGL off or unsupported). */
+function createSceneOrExplain(): ReturnType<typeof createSceneSetup> {
+  try {
+    return createSceneSetup(hud.viewport);
+  } catch (error) {
+    console.error("[Grow an Empire] WebGL is unavailable", error);
+    hud.showLoadError("This browser or device can't show the game's 3D graphics: WebGL is turned off or not supported. Try another browser, or turn on hardware acceleration in your browser settings.");
+    // Stop here: nothing below can run without a renderer. The boot watchdog
+    // leaves the message alone because it already has a button.
+    throw error;
+  }
+}
+const { renderer, scene, camera, resize: resizeCamera, quality, viewBounds } = createSceneOrExplain();
 let terrain: TerrainHandle | null = null;
 /** Resizes the canvas and camera, and stretches the terrain to cover the new view. */
 function resize(): void {
@@ -728,14 +744,20 @@ document.addEventListener("visibilitychange", () => {
 });
 
 listenForPortalMessages((message) => {
-  if (message === "GP_PAUSE" && playing) {
+  if (message === "GP_PAUSE") {
+    // Also while a dialog or the map has the game paused: closing it must
+    // not resume behind the portal's back (setModalPause checks this flag).
+    if (playing || modalCount > 0) pausedByPortal = true;
     playing = false;
-    pausedByPortal = true;
     hud.setPlayingLabel(false);
   } else if (message === "GP_RESUME" && pausedByPortal) {
-    playing = true;
     pausedByPortal = false;
-    hud.setPlayingLabel(true);
+    // With a dialog or the map open, play resumes when the player closes it.
+    if (modalCount > 0) resumeAfterTutorial = true;
+    else if (!campaignMap.isOpen) {
+      playing = true;
+      hud.setPlayingLabel(true);
+    }
     // GP_SESSION_END ended the analytics session; a resume means play goes on.
     if (initialized && simulation.state.mode !== "complete") session.start();
   } else if (message === "GP_SESSION_END") {
@@ -832,6 +854,10 @@ async function initialize(): Promise<void> {
     (window as unknown as { __gaeLoadActivityAt: number }).__gaeLoadActivityAt = Date.now();
     hud.setLoadingProgress(settled, requested);
   });
+  platform.onLateSignIn((late) => {
+    player = late;
+    reportLeaderboard("visit");
+  });
   const savedPromise = platform.connect().then((signedIn) => {
     player = signedIn;
     return progress.load(signedIn?.id ?? null);
@@ -922,7 +948,9 @@ function startBackgroundLoads(offered: string[]): void {
 function frame(): void {
   const realDelta = getFrameDelta();
   const delta = realDelta * speed;
-  if (!playing || !initialized || loopFailed) return;
+  // While the graphics are lost the game holds still: moves and the battle
+  // must not go by unseen.
+  if (!playing || !initialized || loopFailed || contextLost) return;
   probeFrameTime(realDelta);
   session.addPlayTime(realDelta);
   animationElapsed += delta;

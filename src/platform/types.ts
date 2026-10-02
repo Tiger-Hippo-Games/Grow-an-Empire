@@ -48,8 +48,13 @@ export interface PlatformAdapter {
   readonly kind: PlatformKind;
   /** Initializes and signs the player in (guest on first visit). Resolves `null` if unavailable. */
   connect(): Promise<PlayerInfo | null>;
-  /** The cloud save blob, or `null` if there is none or the cloud is unavailable. */
-  loadProgress(): Promise<Record<string, unknown> | null>;
+  /**
+   * The cloud save blob, `null` if the player has none, or `"unavailable"` if
+   * it couldn't be read (offline, timed out, SDK error). The difference
+   * matters: progressStore never writes to a cloud it couldn't read, so a slow
+   * read can't replace real progress with a fresh game.
+   */
+  loadProgress(): Promise<Record<string, unknown> | null | "unavailable">;
   /**
    * Writes the cloud save. Resolves `"ok"`, `"conflict"` (another device saved
    * a newer version first) or `"error"`. Never throws.
@@ -59,4 +64,9 @@ export interface PlatformAdapter {
   endSession(durationSeconds: number): void;
   /** Fire-and-forget analytics. Never throws. */
   track(eventName: string, properties?: Record<string, unknown>): void;
+  /**
+   * Called if sign-in finishes after `connect()` gave up waiting (slow
+   * portal), so the session can still use the cloud and the leaderboard.
+   */
+  onLateSignIn(listener: (player: PlayerInfo) => void): void;
 }

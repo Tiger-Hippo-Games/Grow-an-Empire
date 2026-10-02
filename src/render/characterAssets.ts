@@ -77,6 +77,15 @@ export function createCharacterAssets(onReady: () => void = () => undefined) {
   const pendingWalks = new Map<CharacterRole, Promise<void>>();
   const pendingWorks = new Map<CharacterRole, Promise<void>>();
   const warned = new Set<string>();
+  // Frame lookups run every frame. After a failed sheet they would start a new
+  // request each frame (each one waiting out the image timeout), so on-demand
+  // retries wait RETRY_AFTER_MS. ensureRole() still retries straight away.
+  const RETRY_AFTER_MS = 30_000;
+  const failedAt = new Map<string, number>();
+  const mayRetry = (key: string): boolean => {
+    const at = failedAt.get(key);
+    return at === undefined || performance.now() - at >= RETRY_AFTER_MS;
+  };
 
   function loadWalk(role: CharacterRole): Promise<void> {
     if (walks.has(role)) return Promise.resolve();
@@ -85,6 +94,9 @@ export function createCharacterAssets(onReady: () => void = () => undefined) {
     const loading = loadTexture(walkSheetFilename(role)).then((sheet) => {
       walks.set(role, atlasFrames(sheet, 8, 4));
       onReady();
+    }, (error: unknown) => {
+      failedAt.set(`${role}:walk`, performance.now());
+      throw error;
     }).finally(() => pendingWalks.delete(role));
     pendingWalks.set(role, loading);
     return loading;
@@ -97,6 +109,9 @@ export function createCharacterAssets(onReady: () => void = () => undefined) {
     const loading = loadTexture(workSheetFilename(role)).then((sheet) => {
       works.set(role, atlasFrames(sheet, 4, 2));
       onReady();
+    }, (error: unknown) => {
+      failedAt.set(`${role}:work`, performance.now());
+      throw error;
     }).finally(() => pendingWorks.delete(role));
     pendingWorks.set(role, loading);
     return loading;
@@ -118,7 +133,7 @@ export function createCharacterAssets(onReady: () => void = () => undefined) {
   function getFrame(role: CharacterRole, frame: number, direction: WalkDirection = 4): THREE.Texture {
     const frames = walks.get(role);
     if (!frames) {
-      void loadWalk(role).catch((error: unknown) => logFailure(role, "walk", error));
+      if (mayRetry(`${role}:walk`)) void loadWalk(role).catch((error: unknown) => logFailure(role, "walk", error));
       const fallback = walks.get("builder");
       if (!fallback) throw new Error("Builder character art was requested before loading");
       return fallback[walkAtlasIndex(direction, frame)];
@@ -129,7 +144,7 @@ export function createCharacterAssets(onReady: () => void = () => undefined) {
   function getWorkFrame(role: CharacterRole, frame: number): THREE.Texture | null {
     const frames = works.get(role);
     if (!frames) {
-      void loadWork(role).catch((error: unknown) => logFailure(role, "work", error));
+      if (mayRetry(`${role}:work`)) void loadWork(role).catch((error: unknown) => logFailure(role, "work", error));
       return null;
     }
     return frames[((Math.floor(frame) % 8) + 8) % 8];

@@ -153,7 +153,7 @@ export function isKnownBuildingId(id: unknown): id is string {
 }
 
 /**
- * Base population at a civic level: 1, 2, 4, 7, 11, 16, 22, 29, 37 for levels 0–8
+ * Base population at a civic level: 1, 2, 4, 7, 11, … for levels 0–12
  * (one founder plus the triangular number of the level). A House adds a bonus on top;
  * see `SettlementSimulation.update()`.
  */
@@ -161,7 +161,7 @@ export function populationForLevel(level: number): number {
   return 1 + (level * (level + 1)) / 2;
 }
 
-/** Display name for each civic level, indexed by level (0–8). */
+/** Display name for each civic level, indexed by level (0 to MAX_CAMPAIGN_MOVES). */
 export const CIVIC_LEVEL_NAMES = [
   "Founding Campsite",
   "Gathering Place",

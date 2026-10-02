@@ -52,9 +52,9 @@ export function loadSavedSnapshot(): SettlementSnapshot | null {
       console.warn("[Grow an Empire] The autosave is from a newer version of the game; leaving it untouched.");
       return null;
     }
-    console.warn(`Discarding unusable autosave: ${problem}`);
+    console.warn(`[Grow an Empire] Discarding unusable autosave: ${problem}`);
   } catch (error) {
-    console.warn("Discarding autosave that is not valid JSON", error);
+    console.warn("[Grow an Empire] Discarding autosave that is not valid JSON", error);
   }
   clearSavedSnapshot();
   return null;

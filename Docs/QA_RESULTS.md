@@ -1,5 +1,40 @@
 # QA results
 
+## v0.2.4 (2026-10-02): error and exception handling review
+
+Build: **v0.2.4**, `release/grow-an-empire-0.2.4.zip` (121 files, 15.37 MB, validator: ready to upload). Headless Chromium in a cloud workspace.
+
+### Fixed
+
+| Area | Problem | Fix |
+|---|---|---|
+| Cloud save | If the portal couldn't be read at boot, the first autosave overwrote the player's cloud progress with a fresh run | `loadProgress()` tells "unavailable" from "no save"; nothing is written to the cloud until a read succeeds |
+| Cloud save | Two tabs (or two devices) overwrote each other's stars | Every save merges the best stars, completed campaigns and tutorial flag already known; a cloud copy further along stops this session's cloud writes (it keeps saving locally and the other run is offered next load) |
+| Cloud save | A failed write was dropped; conflicts retried on every move | Failed writes go back in the queue with backoff (15 s, doubling, max 2 min) |
+| Sign-in | A login slower than 5 s left the whole session offline | A late login connects the cloud, flushes the queue and reports the leaderboard |
+| Saves | Validation checked shape only: negative gold, a move past 12, a building both built and offered, a damaged battle report or move summary could crash the HUD or result dialog | All of these are checked. A damaged report in a finished city is re-fought, a damaged summary is dropped, the construction timer is clamped, instead of losing the city |
+| Portal pause | Closing a dialog while the portal had paused the game resumed it; resuming while a dialog was open unpaused under it | Portal pause and dialog pause are tracked separately |
+| WebGL | No WebGL showed a blank page; a lost context kept rendering | A clear message on the loading screen; frames skip while the context is lost |
+| Art | A missing character sheet was re-requested every frame; textures arriving after the timeout, and partly loaded building stages, leaked | Retries wait 30 s; late and partial textures are disposed |
+| UI | Restart left an open result dialog on screen; Tab escaped the campaign dialogs; focus fell to the page when its target was folded away; a mouse released outside the map kept dragging it | Fixed; summary text is escaped before display |
+| Rules | A failed swap kept the trade; `muster(null)` threw; campaign unlock accepted 2.5 or 99 | Trade undone; null means no sellswords; unlock rejects them |
+| Tools | The validator didn't check that the files `index.html` loads are in the ZIP; the release server crashed on a read error | Both fixed |
+
+### Not changed (design decisions)
+
+- Desertion is 4 soldiers per missing ration, as in the economy prototype. It's harsh (30 deserters in a weak run) but changing it means recalibrating every enemy.
+- Gold left over from a Marketplace swap is lost. Keeping it would change the balance search.
+- The defeat hint can suggest horsemen when no Stable was built.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| `pnpm check` | ✅ 147 tests (9 new in `saveValidation.test.ts`, 3 new platform tests) |
+| `platform_sdk.py`, `gameplay.py`, `fault_injection.py --quick` (16 scenarios), `campaign_map.py`, `context_loss.py` | ✅ All pass |
+| `viewports.py` | ✅ 12 sizes, no issues |
+| `journey.py` (0.2.4 ZIP at the portal path) | ✅ Full journey; no console errors, warnings or failed requests |
+
 ## v0.2.3 (2026-10-02): leaderboard standing
 
 | Check | Result | Notes |

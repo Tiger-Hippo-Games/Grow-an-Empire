@@ -3,6 +3,7 @@ import { CAMPAIGNS, type CampaignDefinition } from "../game/campaigns";
 import { SELLSWORD_COST } from "../game/economy";
 import type { ArmyReport, SellswordHire } from "../game/settlementSimulation";
 import { iconStyle, playBattle, type IconKind } from "../render/combatScene";
+import { trapTab } from "./dom";
 
 /**
  * The campaign's story screens, all modal dialogs over the city:
@@ -78,6 +79,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
   let stopBattle: (() => void) | null = null;
   let open = false;
   let lastResult: ResultView | null = null;
+  // Modal: Tab and Shift+Tab stay inside the open dialog.
+  document.addEventListener("keydown", (event) => { if (open) trapTab(event, dialog); });
 
   function show(kind: string, html: string): void {
     stopBattle?.();

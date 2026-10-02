@@ -59,10 +59,15 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
     const inFlight = loadingAssets.get(buildingId);
     if (inFlight) return inFlight;
     const promise = (async () => {
+      const results = await Promise.allSettled(CONSTRUCTION_STAGES.map((stage) => loadSpriteAsset(buildingFilename(buildingId, stage))));
+      const failure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+      if (failure) {
+        // Free the stages that did load; the retry loads all four again.
+        for (const result of results) if (result.status === "fulfilled") result.value.texture.dispose();
+        throw failure.reason;
+      }
       const stages = {} as Record<ConstructionStage, SpriteAsset>;
-      await Promise.all(CONSTRUCTION_STAGES.map(async (stage) => {
-        stages[stage] = await loadSpriteAsset(buildingFilename(buildingId, stage));
-      }));
+      CONSTRUCTION_STAGES.forEach((stage, index) => { stages[stage] = (results[index] as PromiseFulfilledResult<SpriteAsset>).value; });
       buildingAssets.set(buildingId, stages);
     })();
     loadingAssets.set(buildingId, promise);

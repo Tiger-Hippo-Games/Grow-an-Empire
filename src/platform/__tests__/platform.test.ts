@@ -16,6 +16,7 @@ function saveAfter(moves: number, runId: string, minute: number, tutorialComplet
 }
 
 const store = new Map<string, string>();
+const BROWSER_SAVE_KEY = "grow-an-empire:save:v1";
 beforeEach(() => {
   store.clear();
   vi.stubGlobal("window", {
@@ -112,6 +113,7 @@ function fakePlatform(overrides: Partial<PlatformAdapter> = {}) {
     startSession: vi.fn(),
     endSession: vi.fn(),
     track: vi.fn(),
+    onLateSignIn: vi.fn(),
     ...overrides,
   };
   return { platform, saves, setCloud: (value: Record<string, unknown> | null) => { cloud = value; } };
@@ -182,7 +184,55 @@ describe("progress store", () => {
     const progress = createProgressStore(platform, campaignId);
     progress.save(saveAfter(2, "r", 5), { immediate: true });
     await progress.flush();
-    expect(calls).toBe(1);
+    // The cloud is read before the first write, so the further-along copy is never even attempted.
+    expect(calls).toBe(0);
+    progress.save(saveAfter(3, "r", 6), { immediate: true });
+    await progress.flush();
+    expect(calls).toBe(0); // and the session stops trying (no save/load every 2 s)
+  });
+
+  it("never writes to a cloud it couldn't read: a slow read can't wipe real progress", async () => {
+    const real = { ...saveAfter(6, "cloud-run", 0), campaignStars: { [campaignId]: 3, "campaign-2-reedmarsh": 2 } };
+    let readable = false;
+    const { platform, saves } = fakePlatform({ loadProgress: async () => (readable ? real as unknown as Record<string, unknown> : "unavailable") });
+    const progress = createProgressStore(platform, campaignId);
+    expect(await progress.load("p")).toBeNull(); // nothing local, cloud unreadable: a fresh game starts
+    progress.save(saveAfter(0, "fresh-run", 9), { immediate: true });
+    await progress.flush();
+    expect(saves).toHaveLength(0);
+    // The cloud comes back: the next write reads it first, keeps the further-along run and its stars.
+    readable = true;
+    progress.save(saveAfter(1, "fresh-run", 10), { immediate: true });
+    await progress.flush();
+    expect(saves).toHaveLength(0);
+    expect(progress.knownStars).toMatchObject({ [campaignId]: 3, "campaign-2-reedmarsh": 2 });
+  });
+
+  it("keeps stars won in another tab", async () => {
+    const { platform, saves } = fakePlatform();
+    const progress = createProgressStore(platform, campaignId);
+    await progress.load("p");
+    // Another tab wrote a win to the shared browser save after this tab loaded.
+    store.set(BROWSER_SAVE_KEY, JSON.stringify({ ...saveAfter(2, "r", 3), playerId: "p", campaignStars: { "campaign-2-reedmarsh": 3 } }));
+    progress.save({ ...saveAfter(3, "r", 4), campaignStars: { [campaignId]: 1 } }, { immediate: true });
+    await progress.flush();
+    const written = saves.at(-1) as unknown as SavedGame;
+    expect(written.campaignStars).toEqual({ [campaignId]: 1, "campaign-2-reedmarsh": 3 });
+    expect(JSON.parse(store.get(BROWSER_SAVE_KEY) as string).campaignStars).toEqual({ [campaignId]: 1, "campaign-2-reedmarsh": 3 });
+  });
+
+  it("puts a failed cloud write back in the queue", async () => {
+    let fail = true;
+    const { platform, saves } = fakePlatform();
+    const save = platform.saveProgress;
+    const progress = createProgressStore({ ...platform, saveProgress: async (value) => (fail ? "error" : save(value)) }, campaignId);
+    await progress.load("p");
+    progress.save(saveAfter(4, "r", 5), { immediate: true });
+    await progress.flush();
+    expect(saves).toHaveLength(0);
+    fail = false;
+    await progress.flush(); // the retry timer would do this; flush runs it now
+    expect(saves).toHaveLength(1);
   });
 
   it("keeps working offline: browser save only, no cloud calls", async () => {
@@ -273,7 +323,7 @@ describe("progress store: saves from a newer game version", () => {
     const progress = createProgressStore({ ...platform, loadProgress: async () => newer() }, campaignId);
     progress.save(saveAfter(1, "r", 1), { immediate: true });
     await progress.flush();
-    expect(calls).toBe(1); // no retry over the newer save
+    expect(calls).toBe(0); // the cloud is read first, and the newer save is never written over
     expect(progress.savingDisabledReason).not.toBeNull();
   });
 

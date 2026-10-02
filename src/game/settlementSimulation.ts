@@ -5,6 +5,7 @@ import {
   BUILDINGS,
   isBuildingEligible,
   isKnownBuildingId,
+  MAX_CAMPAIGN_MOVES,
   nextBuildingOffer,
   OPENING_BUILD_OPTIONS,
   populationForLevel,
@@ -166,11 +167,46 @@ const isKnownIdList = (value: unknown): value is string[] =>
 
 const MODES: SimulationMode[] = ["awaiting-choice", "construction", "muster", "complete"];
 
-/** True when `value` looks like a report written by this version (checked before a finished city is shown). */
+const isCount = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0;
+const isAmount = (value: unknown): value is number => Number.isFinite(value) && (value as number) >= 0;
+const hasCounts = (value: unknown, keys: readonly string[]): boolean =>
+  isPlainObject(value) && keys.every((key) => isCount(value[key]));
+const ARMY_COUNT_KEYS = ["archers", "swordsmen", "horsemen"] as const;
+const ARMY_UNIT_KEYS = ["militia", "spearmen", "archers", "swordsmen", "horsemen", "mercenaries"] as const;
+
+/**
+ * True when `value` looks like a report written by this version (checked
+ * before a finished city is shown). Every field the result dialog and the
+ * battle strip read is checked, so a hand-edited or truncated save can't
+ * crash them: it is re-fought instead.
+ */
 function isValidReport(value: unknown): value is ArmyReport {
-  if (!isPlainObject(value) || !isPlainObject(value.units) || !isPlainObject(value.enemy) || !Array.isArray(value.rounds)) return false;
-  return ["playerStrength", "enemyStrength", "margin", "stars", "totalUnits", "enemyCount"].every((key) => Number.isFinite(value[key]))
-    && (value.outcome === "Victory" || value.outcome === "Settlement Lost") && Array.isArray(value.explanations);
+  if (!isPlainObject(value)) return false;
+  const win = value.outcome === "Victory";
+  if (!win && value.outcome !== "Settlement Lost") return false;
+  if (value.win !== win) return false;
+  if (![0, 1, 2, 3].includes(value.stars as number) || (win && value.stars === 0) || (!win && value.stars !== 0)) return false;
+  if (!["playerStrength", "enemyStrength", "margin", "goldAvailable", "goldSpent"].every((key) => Number.isFinite(value[key]))) return false;
+  if (!isCount(value.totalUnits) || !isCount(value.enemyCount)) return false;
+  if (!hasCounts(value.units, ARMY_UNIT_KEYS) || !hasCounts(value.sellswords, ["archers", "swordsmen"])) return false;
+  if (!hasCounts(value.enemy, ARMY_COUNT_KEYS) || !Number.isFinite((value.enemy as Record<string, unknown>).veterancy)) return false;
+  if (!Array.isArray(value.rounds) || value.rounds.length === 0) return false;
+  if (!value.rounds.every((round) => isPlainObject(round) && hasCounts(round.player, [...ARMY_COUNT_KEYS, "militia"]) && hasCounts(round.enemy, ARMY_COUNT_KEYS))) return false;
+  if (!Array.isArray(value.explanations) || !value.explanations.every((line) => typeof line === "string")) return false;
+  return value.gap === null || value.gap === undefined || typeof value.gap === "string";
+}
+
+const isBag = (value: unknown): boolean => isPlainObject(value) && Object.values(value).every((amount) => Number.isFinite(amount));
+
+/** True for a move summary this version can show again after a reload. */
+function isValidSummary(value: unknown): value is MoveSummary {
+  if (!isPlainObject(value)) return false;
+  return isCount(value.move) && (value.buildingId === null || isKnownBuildingId(value.buildingId))
+    && isCount(value.civicLevel) && isAmount(value.population)
+    && isBag(value.produced) && isBag(value.consumed) && hasCounts(value.trained, SOLDIER_TYPES)
+    && Number.isFinite(value.upkeep) && isCount(value.deserted) && Number.isFinite(value.sold)
+    && Array.isArray(value.warnings) && value.warnings.every((line) => typeof line === "string")
+    && Array.isArray(value.stalled) && value.stalled.every((note) => isPlainObject(note) && typeof note.buildingId === "string" && typeof note.reason === "string");
 }
 
 /**
@@ -189,13 +225,17 @@ export function describeSnapshotProblem(value: unknown): string | null {
   const state = value.state;
   if (!isPlainObject(state)) return "missing state";
   if (!MODES.includes(state.mode as SimulationMode)) return `unknown mode ${String(state.mode)}`;
-  if (!Number.isInteger(state.move) || (state.move as number) < 1) return "invalid move";
+  if (!Number.isInteger(state.move) || (state.move as number) < 1 || (state.move as number) > MAX_CAMPAIGN_MOVES) return "invalid move";
   if (!Number.isInteger(state.civicLevel) || (state.civicLevel as number) < 0 || (state.civicLevel as number) >= TOTAL_SETTLEMENT_LEVELS) return "invalid civic level";
   if (!Number.isFinite(state.population) || (state.population as number) < 0) return "invalid population";
   if (!isKnownIdList(state.builtBuildingIds)) return "builtBuildingIds contains unknown or duplicate buildings";
   if (!isKnownIdList(state.availableBuildingIds)) return "availableBuildingIds contains unknown or duplicate buildings";
-  if (!isPlainObject(state.resources) || !Object.values(state.resources).every((amount) => Number.isFinite(amount))) return "invalid resources";
-  if (!isPlainObject(state.buildingMaturity) || !Object.values(state.buildingMaturity).every((amount) => Number.isFinite(amount))) return "invalid buildingMaturity";
+  if ((state.builtBuildingIds as string[]).some((id) => (state.availableBuildingIds as string[]).includes(id))) return "a building is both built and on offer";
+  if (!isPlainObject(state.resources) || !Object.values(state.resources).every(isAmount)) return "invalid resources";
+  if (!isPlainObject(state.buildingMaturity) || !Object.values(state.buildingMaturity).every(isAmount)) return "invalid buildingMaturity";
+  for (const key of ["deserted", "gatherMoves", "swaps"] as const) {
+    if (state[key] !== undefined && !isCount(state[key])) return `invalid ${key}`;
+  }
   const units = state.trainedUnits;
   if (!isPlainObject(units) || !SOLDIER_TYPES.every((type) => Number.isInteger(units[type]) && (units[type] as number) >= 0)) return "invalid trainedUnits";
   if (state.mode === "construction") {
@@ -204,7 +244,9 @@ export function describeSnapshotProblem(value: unknown): string | null {
     if (state.builtBuildingIds.includes(state.selectedBuildingId)) return "selected building is already built";
     if (!Number.isFinite(state.constructionElapsed)) return "invalid constructionElapsed";
   }
-  if (state.mode === "complete" && state.armyReport !== null && state.armyReport !== undefined && !isValidReport(state.armyReport)) return "invalid armyReport";
+  // A bad report in a finished city is re-fought, and a bad move summary is
+  // dropped, in loadSnapshot(): neither is worth losing the city over.
+  if (state.mode !== "complete" && state.armyReport !== null && state.armyReport !== undefined) return "armyReport outside a finished city";
   return null;
 }
 
@@ -293,7 +335,10 @@ export class SettlementSimulation {
     for (const key of RESOURCE_NAMES) {
       if (Number.isFinite(loaded.resources[key])) resources[key] = loaded.resources[key];
     }
-    Object.assign(this.state, createInitialState(), loaded, { resources, armyReport: loaded.armyReport ?? null });
+    const armyReport = isValidReport(loaded.armyReport) ? loaded.armyReport : null;
+    const lastSummary = isValidSummary(loaded.lastSummary) ? loaded.lastSummary : null;
+    const constructionElapsed = Math.min(CONSTRUCTION_DURATION_SECONDS, Math.max(0, loaded.constructionElapsed || 0));
+    Object.assign(this.state, createInitialState(), loaded, { resources, armyReport, lastSummary, constructionElapsed });
     // A finished city whose report is missing is re-fought without sellswords.
     if (this.state.mode === "complete" && !this.state.armyReport) this.state.armyReport = this.resolveMuster({ archers: 0, swordsmen: 0 });
   }
@@ -347,10 +392,17 @@ export class SettlementSimulation {
   swapAndBuild(buildingId: string): SimulationEvent[] {
     const plan = this.swapPlanFor(buildingId);
     if (!plan) return [];
+    const before = { ...this.state.resources };
     for (const [name, amount] of Object.entries(plan.sell) as Array<[ResourceName, number]>) this.state.resources[name] -= amount;
     for (const [name, amount] of Object.entries(plan.buy) as Array<[ResourceName, number]>) this.state.resources[name] += amount;
+    const started = this.chooseBuilding(buildingId);
+    if (!started.length) {
+      // The plan covers the card, so this shouldn't happen; if it does, undo the trade.
+      this.state.resources = before;
+      return [];
+    }
     this.state.swaps += 1;
-    return [{ type: "swapped", buildingId, plan }, ...this.chooseBuilding(buildingId)];
+    return [{ type: "swapped", buildingId, plan }, ...started];
   }
 
   /** True when the only way forward this move is a Gather move. */
@@ -602,7 +654,8 @@ export class SettlementSimulation {
    * Ends the muster: hires the sellswords, fights the battle and records the result.
    * Ignored unless the run is at the muster and the hire is allowed.
    */
-  muster(hire: SellswordHire = { archers: 0, swordsmen: 0 }): SimulationEvent[] {
+  muster(requested?: SellswordHire | null): SimulationEvent[] {
+    const hire = requested ?? { archers: 0, swordsmen: 0 };
     if (this.state.mode !== "muster" || !this.canHire(hire)) return [];
     this.state.armyReport = this.resolveMuster(hire);
     this.state.mode = "complete";

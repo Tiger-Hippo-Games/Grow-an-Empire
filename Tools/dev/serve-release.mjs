@@ -148,7 +148,9 @@ const server = http.createServer((req, res) => {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { console.warn(`404 ${p}  <- missing from the ZIP`); return send(res, 404, "text/plain", "Not found"); }
     res.writeHead(200, { "Content-Type": TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream", "Content-Length": st.size, "Cache-Control": "no-store" });
-    fs.createReadStream(file).pipe(res);
+    fs.createReadStream(file)
+      .on("error", (error) => { console.warn(`Read failed for ${p}: ${error.message}`); res.destroy(error); })
+      .pipe(res);
   });
 });
 

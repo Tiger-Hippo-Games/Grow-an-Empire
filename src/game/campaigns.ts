@@ -127,6 +127,7 @@ export function totalStars(stars: Readonly<Record<string, number>>): number {
 
 /** Whether campaign `number` is open: the one before it is won, and enough stars are held in total. */
 export function isCampaignUnlocked(number: number, stars: Readonly<Record<string, number>>): boolean {
+  if (!Number.isInteger(number) || number > CAMPAIGNS.length) return false;
   if (number <= 1) return true;
   const previous = CAMPAIGNS[number - 2];
   return (stars[previous.id] ?? 0) >= 1 && totalStars(stars) >= starsToUnlock(number);
