@@ -356,6 +356,7 @@ function presentBattle(animate: boolean): void {
     campaign: simulation.campaign,
     report,
     buildOrder: buildOrderNames(),
+    buildOrderIds: simulation.buildOrderSummary().map(({ buildingId }) => buildingId),
     bestStars: Math.max(previousBest, report.stars),
     nextUnlocked: next ? isCampaignUnlocked(next.number, campaignStars) : false,
     newRecord: report.stars > previousBest,
@@ -532,9 +533,9 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       constructionView.showPlotStage(event.plotIndex, "complete");
       cityLayout.syncBuiltBuildings(simulation.state.builtBuildingIds);
       sound.play("complete");
-      hud.showMilestone(BUILDINGS[event.buildingId].name, `Completed on Move ${event.plotIndex + 1 + simulation.state.gatherMoves}. ${BUILDINGS[event.buildingId].benefit}.`, animationElapsed);
+      hud.showBuiltMilestone(event.buildingId, animationElapsed);
     } else if (event.type === "gathered") {
-      hud.showMilestone("Gathering", `Move ${event.move}: nothing was built, but every building worked.`, animationElapsed);
+      hud.showMilestone("Gathering", "Nothing built; every building worked.", animationElapsed);
     } else if (event.type === "civic-upgraded") {
       civicCenter.setLevel(event.level);
       cityLayout.setCivicLevel(event.level);

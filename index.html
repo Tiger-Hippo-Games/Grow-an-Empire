@@ -150,9 +150,10 @@
 
       <aside id="build-panel" class="build-panel" aria-labelledby="build-title">
         <div class="decision-heading">
-          <div><p class="decision-kicker">Choose your next move</p><h2 id="build-title">What should the settlement build?</h2></div>
+          <div><p class="decision-kicker">Choose a building</p><h2 id="build-title">What should the settlement build?</h2></div>
           <div id="move-chip" class="move-chip">1 OF 12</div>
         </div>
+        <div id="stock-strip" class="stock-strip" role="group"></div>
         <div id="move-summary" class="move-summary hidden" aria-live="polite"></div>
         <div id="build-options" class="build-options"></div>
         <div id="build-foot" class="build-foot"></div>
@@ -211,12 +212,13 @@
       <div id="tutorial-scrim" class="tutorial-scrim hidden">
         <section class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
           <span class="tutorial-kicker">Your first settlement</span>
-          <h2 id="tutorial-title">Choose. Watch. Adapt.</h2>
-          <p>You make twelve decisions. Every building costs wood, stone or planks, and keeps working on every later move, so the order shapes your economy and the army waiting at the end. Soldiers need planks, stone or grain to train, villagers to recruit, and rations to stay.</p>
+          <h2 id="tutorial-title">Build. Grow. Defend.</h2>
+          <p class="tutorial-lead">12 moves. One building each move.</p>
           <div class="tutorial-rules">
-            <div><b>1</b><span>Pick a building you can afford (keys 1-3)</span></div>
-            <div><b>2</b><span>Read the move summary: what was made, eaten and trained</span></div>
-            <div><b>3</b><span>Beat the enemy's strength after move 12; a Marketplace can hire sellswords</span></div>
+            <div><b data-icons="wood stone"></b><span>Pay goods to build</span></div>
+            <div><b data-icons="move"></b><span>Buildings make goods every move</span></div>
+            <div><b data-icons="archers swordsmen rations"></b><span>Goods train soldiers; soldiers eat</span></div>
+            <div><b data-icons="star"></b><span>Win the battle after move 12</span></div>
           </div>
           <div class="tutorial-actions">
             <button id="tutorial-start" type="button">Begin the settlement</button>

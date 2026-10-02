@@ -1,5 +1,19 @@
 # QA results
 
+## v0.3.0 (2026-10-03): icons and fewer words on phones
+
+Build: **v0.3.0**, `release/grow-an-empire-0.3.0.zip` (validator: ready to upload). Headless Chromium in a cloud workspace. The plan and the before/after numbers are in `Docs/MOBILE_UX_PLAN.md`.
+
+| Check | Result | Notes |
+|---|---|---|
+| `text_budget.py` (new) | ✅ Pass | 390×844 and 844×390: every screen within its word budget, no amount of a good written without its icon. Campaign 1 on a phone: 449 words read in v0.2.4, 186 now |
+| `viewports.py` | ✅ Pass | 12 sizes: no overlaps, clipping, page scroll, buttons under 44 px (the card's "i" button is 44 × 44) or small text |
+| `gameplay.py`, `platform_sdk.py`, `fault_injection.py --quick` (16), `campaign_map.py`, `context_loss.py` | ✅ All pass | `fault_injection.py` now counts the cards, not every button in the panel (each card has an "i" button) |
+| `journey.py` (0.3.0 ZIP at the portal path) | ✅ Pass | Full journey at 1920×1080, 390×844 and 844×390; no console errors, warnings or failed requests |
+| `pnpm check` | ✅ Pass | 150 tests (3 new in `src/ui/__tests__/icons.test.ts`) |
+
+Not yet done: the five-second test with real players, and real phones and Safari.
+
 ## v0.2.4 (2026-10-02): error and exception handling review
 
 Build: **v0.2.4**, `release/grow-an-empire-0.2.4.zip` (121 files, 15.37 MB, validator: ready to upload). Headless Chromium in a cloud workspace.

@@ -676,3 +676,119 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
   :root[data-layout="fluid"] .tutorial-rules b { flex: none; margin: 0; }
   :root[data-layout="fluid"] .market-foot { flex-wrap: wrap; gap: 6px; }
 }
+
+/* --- Icons (v0.3.0, Docs/MOBILE_UX_PLAN.md) --------------------------------
+   src/ui/icons.ts draws every resource, unit and rule as a small inline SVG.
+   `amount()` = icon + number (+ a hidden word for screen readers). */
+.gi { flex: none; width: 1.2em; height: 1.2em; vertical-align: -0.25em; }
+.qty { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; font-weight: 800; }
+.qty b { font-weight: 850; }
+.qty small, .per-move, .times, .tag { color: #c9bf9d; font-size: .78rem; font-weight: 700; }
+.arrow, .for { color: #c9bf9d; font-weight: 800; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.qty.short { color: #ffd2c4; }
+.qty.gain { color: #bfe3a8; }
+.qty.loss { color: #f0ce80; }
+.cost-chip.qty { gap: 3px; }
+
+/* Build cards: costs and what the building makes are icons; the sentence and
+   the unlock note sit behind the "i" button (desktop shows the unlock note). */
+.build-slot { position: relative; min-width: 0; display: grid; }
+.build-slot > .build-card { min-width: 0; }
+.build-card { grid-template-rows: auto auto auto auto auto 1fr auto; }
+.build-art { grid-row: 1 / 8; }
+.build-effect { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; margin-top: 5px; color: #f0ce80; font-size: .86rem; }
+.build-benefit { display: none; }
+.build-unlock { display: flex; align-items: flex-start; gap: 4px; }
+.build-unlock .gi { width: 1em; height: 1em; margin-top: 1px; }
+.build-slot.show-info .build-benefit { display: block; }
+.build-swap { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.build-missing { display: inline-flex; gap: 4px; margin-left: 5px; letter-spacing: 0; }
+.build-info {
+  position: absolute; top: 2px; right: 2px; z-index: 2; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer;
+  color: #17301f; font: italic 900 .86rem/1 Georgia, serif;
+}
+.build-info::before { content: ""; position: absolute; inset: 11px; border-radius: 50%; background: rgba(240,191,88,.75); }
+.build-info { isolation: isolate; }
+.build-info::before { z-index: -1; }
+.build-slot.show-info .build-info::before { background: var(--gold); box-shadow: 0 0 0 2px rgba(255,255,255,.5); }
+
+/* The stockpile above the cards. */
+.stock-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 3px 8px; padding: 6px 10px; border-radius: 10px; background: rgba(0,0,0,.22); color: var(--cream); font-size: .9rem; }
+.stock-strip .strip-label { color: #aab9a5; font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.stock-strip .qty.wanted b { color: var(--gold); }
+
+/* Move summary: one row of icons, then short warnings. */
+.move-summary .summary-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: .86rem; }
+.move-summary .summary-move { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 6px; color: #17301f; background: rgba(240,191,88,.85); font-size: .78rem; font-weight: 900; }
+.move-summary .thumb { width: 30px; height: 26px; object-fit: contain; vertical-align: middle; }
+.move-summary .idle { display: inline-flex; align-items: center; gap: 2px; opacity: .8; }
+.move-summary .idle .thumb { width: 24px; height: 22px; filter: grayscale(.8); }
+.move-summary .summary-text { margin-top: 3px; color: #aab9a5; }
+.move-summary .summary-warning { display: flex; align-items: center; gap: 6px; }
+.resource-grid span .gi { display: block; margin: 0 auto 2px; width: 22px; height: 22px; }
+.metrics span .gi { margin-right: 3px; }
+.gather-button { display: flex; align-items: center; gap: 8px; }
+.gather-button .gi { width: 22px; height: 22px; }
+.gather-button b { margin-right: 0; }
+.tutorial-coach .gi { width: 1.25em; height: 1.25em; }
+.tutorial-lead { margin: 0; color: #c7d1c3; font-size: .9rem; }
+.tutorial-rules { grid-template-columns: repeat(4, 1fr); }
+.tutorial-rules b { width: auto; height: 30px; padding: 0; gap: 2px; display: flex; place-items: initial; align-items: center; border-radius: 0; background: transparent; }
+.tutorial-rules b .gi { width: 28px; height: 28px; }
+
+/* Phones and small frames: icons first, sentences behind "i". */
+@container app ((orientation: landscape) and (max-height: 540px)) or ((orientation: portrait) and (max-width: 760px)) {
+  :root[data-layout="fluid"] .build-slot { grid-template-columns: minmax(0, 1fr) 44px; align-items: stretch; gap: 4px; }
+  :root[data-layout="fluid"] .build-info { position: relative; top: auto; right: auto; align-self: center; }
+  :root[data-layout="fluid"] .build-card {
+    grid-template-columns: 52px auto minmax(0, 1fr) auto;
+    grid-template-areas: "art name name action" "art costs effect action" "swap swap swap swap" "benefit benefit benefit benefit" "unlock unlock unlock unlock";
+  }
+  :root[data-layout="fluid"] .build-costs { align-self: center; }
+  :root[data-layout="fluid"] .build-effect { align-self: center; padding-left: 8px; border-left: 1px solid rgba(255,255,255,.14); margin-left: 8px; }
+  :root[data-layout="fluid"] .move-summary { order: 0; margin: 0 0 6px; padding: 6px 8px; }
+  :root[data-layout="fluid"] .tutorial-rules div { display: grid; justify-items: start; align-content: start; gap: 4px; }
+  :root[data-layout="fluid"] .build-art { grid-row: auto; }
+  :root[data-layout="fluid"] .build-effect { grid-area: effect; margin-top: 2px; }
+  :root[data-layout="fluid"] .build-unlock { display: none; }
+  :root[data-layout="fluid"] .build-slot.show-info .build-unlock { display: flex; }
+  :root[data-layout="fluid"] .stock-strip { order: 0; margin: 0 0 6px; padding: 5px 8px; gap: 3px 9px; }
+  :root[data-layout="fluid"] .stock-strip .strip-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  :root[data-layout="fluid"] .move-summary .summary-text { display: none; }
+  :root[data-layout="fluid"] .decision-hint { display: none; }
+  :root[data-layout="fluid"] .tutorial-rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Dialogs: pictures first, sentences under "Details" on phones. */
+.flow-more { display: none; }
+.flow-extra { display: block; }
+.flow-counter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 0 0; color: var(--cream); font-size: .9rem; }
+.flow-counter .gi, .counter .gi { width: 26px; height: 26px; }
+.counter { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border-radius: 8px; background: rgba(240,191,88,.12); }
+.counter b { color: var(--gold); font-size: 1.1rem; }
+.flow-counter .arrive { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.strength-line { display: inline-flex; align-items: center; gap: 5px; }
+.strength-line .gi { width: 22px; height: 22px; }
+.strength-line .vs { color: #aab9a5; font-size: .82rem; }
+.result-order { display: flex; flex-wrap: wrap; gap: 2px; }
+.result-order img { width: 34px; height: 30px; object-fit: contain; }
+.result-order-text { margin: 6px 0 0; color: #aebbae; font-size: .78rem; line-height: 1.4; }
+.result-order-text span { margin-right: 6px; color: var(--gold); font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.flow-note .gi, .market-heading .gi { width: 18px; height: 18px; }
+.flow-dialog .flow-more { min-height: 44px; min-width: 44px; margin: 8px 0 0; padding: 0 14px; border: 1px solid rgba(255,255,255,.18); border-radius: 10px; color: var(--cream); background: rgba(255,255,255,.06); cursor: pointer; font-weight: 800; }
+:root[data-layout="fluid"] .flow-more { display: inline-block; }
+:root[data-layout="fluid"] .flow-extra { display: none; }
+:root[data-layout="fluid"] .flow-dialog.show-extra .flow-extra { display: block; }
+:root[data-layout="fluid"] .result-order-text { display: none; }
+:root[data-layout="fluid"] .flow-dialog.show-extra .result-order-text { display: block; }
+
+/* Campaign map card: the enemy as unit icons, moves until they arrive, the state. */
+#campaign-state { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: .86rem; }
+#campaign-state .map-enemy { display: inline-flex; gap: 6px; }
+#campaign-state .gi { width: 20px; height: 20px; }
+#campaign-state .map-progress { display: inline-flex; align-items: center; gap: 4px; }
+:root[data-layout="fluid"] #campaign-copy { display: none; }
+.milestone-effect { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; font-size: 1rem; }
+.milestone-effect .gi { width: 22px; height: 22px; }
+.flow-extra > :first-child { margin-top: 8px; }

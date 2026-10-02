@@ -3,7 +3,11 @@ import { CAMPAIGNS, type CampaignDefinition } from "../game/campaigns";
 import { SELLSWORD_COST } from "../game/economy";
 import type { ArmyReport, SellswordHire } from "../game/settlementSimulation";
 import { iconStyle, playBattle, type IconKind } from "../render/combatScene";
+import { buildingFilename } from "../render/constructionView";
+import { assetUrl } from "../render/assetCatalog";
+import { BUILDINGS } from "../game/content";
 import { trapTab } from "./dom";
+import { amount, icon } from "./icons";
 
 /**
  * The campaign's story screens, all modal dialogs over the city:
@@ -30,6 +34,29 @@ function winText(margin: number): string {
   return margin >= 2 ? "more than three times their strength" : `won by ${percent(margin)}`;
 }
 
+/** The counter to this army as a picture: "[archer] > [swordsman]". */
+function counterIcons(army: EnemyArmy): string {
+  const beats = (winner: "archers" | "swordsmen" | "horsemen", loser: "archers" | "swordsmen" | "horsemen"): string =>
+    `<span class="counter">${icon(winner)}<b aria-hidden="true">›</b>${icon(loser)}</span>`;
+  if (army.archers === 0 && army.horsemen === 0) return beats("archers", "swordsmen");
+  if (army.swordsmen === 0 && army.horsemen === 0) return beats("horsemen", "archers");
+  return `<span class="counter">${icon("archers")}${icon("swordsmen")}${icon("horsemen")}<span class="tag">mix</span></span>`;
+}
+
+/** "[shield] 59 vs 1.8" */
+function strengthLine(mine: number, theirs: number): string {
+  return `<span class="strength-line">${icon("strength")}<b>${mine.toFixed(1)}</b><span class="vs">vs</span><b>${theirs.toFixed(1)}</b></span>`;
+}
+
+/**
+ * Text that phones fold away behind "Details" (the fixed 1280×720 layout
+ * always shows it). `label` is the button's word.
+ */
+function extra(html: string, label = "Details"): string {
+  if (!html.trim()) return "";
+  return `<button type="button" class="flow-more" data-action="more" aria-expanded="false">${label}</button><div class="flow-extra">${html}</div>`;
+}
+
 function armyChips(army: { archers: number; swordsmen: number; horsemen: number; militia?: number }, enemy: boolean): string {
   const kinds: IconKind[] = ["swordsmen", "archers", "horsemen", "militia"];
   const labels: Record<IconKind, [string, string]> = { swordsmen: ["Swordsman", "Swordsmen"], archers: ["Archer", "Archers"], horsemen: ["Horseman", "Horsemen"], militia: ["Militia", "Militia"] };
@@ -51,7 +78,10 @@ export interface MusterView {
 export interface ResultView {
   campaign: CampaignDefinition;
   report: ArmyReport;
+  /** Building names in build order. */
   buildOrder: string[];
+  /** The same buildings as ids (for their pictures). */
+  buildOrderIds: string[];
   bestStars: number;
   nextUnlocked: boolean;
   newRecord: boolean;
@@ -86,10 +116,17 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     stopBattle?.();
     stopBattle = null;
     dialog.dataset.kind = kind;
+    dialog.classList.remove("show-extra");
     dialog.innerHTML = html;
     scrim.classList.remove("hidden");
     if (!open) { open = true; callbacks.onModalChange(true); }
     dialog.querySelector<HTMLButtonElement>("[data-primary]")?.focus();
+    dialog.querySelector<HTMLButtonElement>("[data-action=more]")?.addEventListener("click", (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      const showing = dialog.classList.toggle("show-extra");
+      button.setAttribute("aria-expanded", String(showing));
+      button.textContent = showing ? "Less" : "Details";
+    });
   }
 
   function hide(): void {
@@ -100,23 +137,24 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
   }
 
   function starRules(stars: StarMargins): string {
-    return `<ul class="star-rules"><li><b>★</b> Win</li><li><b>★★</b> Win by ${percent(stars.two)}</li><li><b>★★★</b> Win by ${percent(stars.three)}</li></ul>`;
+    return `<ul class="star-rules" aria-label="One star for a win, two for winning by ${percent(stars.two)}, three for winning by ${percent(stars.three)}"><li><b>★</b> Win</li><li><b>★★</b> +${percent(stars.two)}</li><li><b>★★★</b> +${percent(stars.three)}</li></ul>`;
   }
 
   /** 1. The enemy briefing at the start of a campaign. */
   function showBriefing(campaign: CampaignDefinition, onBegin: () => void): void {
     const { objective } = campaign;
-    const veteran = objective.army.veterancy > 1 ? `<p class="flow-note">Veterans: every enemy fights ${percent(objective.army.veterancy - 1)} harder.</p>` : "";
+    const veteran = objective.army.veterancy > 1 ? `<p class="flow-note">${icon("warning")} Veterans: +${percent(objective.army.veterancy - 1)} strength</p>` : "";
     show("briefing", `
-      <p class="flow-kicker">CAMPAIGN ${campaign.number} OF ${CAMPAIGNS.length} · ENEMY SIGHTED</p>
+      <p class="flow-kicker">CAMPAIGN ${campaign.number} / ${CAMPAIGNS.length}</p>
       <h2>${escapeHtml(objective.enemyName)}</h2>
-      <p class="flow-sub">from ${escapeHtml(objective.kingdomName)}</p>
-      <p class="flow-lead">${escapeHtml(objective.briefing)}</p>
       <div class="army-chips">${armyChips(objective.army, true)}</div>
       ${veteran}
-      <p class="flow-hint">${escapeHtml(objective.counterHint)}</p>
-      <p class="flow-note">They reach the city after Move ${campaign.moveLimit}. Every building you raise before then shapes the army that meets them.</p>
+      <p class="flow-counter"><span class="tag">Counter</span>${counterIcons(objective.army)}<span class="arrive">${icon("move")}<b>${campaign.moveLimit}</b> moves</span></p>
       ${starRules(campaign.stars)}
+      ${extra(`<p class="flow-sub">from ${escapeHtml(objective.kingdomName)}</p>
+      <p class="flow-lead">${escapeHtml(objective.briefing)}</p>
+      <p class="flow-hint">${escapeHtml(objective.counterHint)}</p>
+      <p class="flow-note">They reach the city after Move ${campaign.moveLimit}. Every building you raise before then shapes the army that meets them.</p>`)}
       <div class="flow-actions"><button type="button" data-primary data-action="begin">Prepare the defence</button><button type="button" class="quiet" data-action="map">Campaign map</button></div>`);
     dialog.querySelector("[data-action=begin]")!.addEventListener("click", () => { callbacks.onSound("click"); hide(); onBegin(); });
     dialog.querySelector("[data-action=map]")!.addEventListener("click", () => { hide(); callbacks.onMap(); });
@@ -128,20 +166,20 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     const enemy: EnemyArmy = campaign.objective.army;
     let hire: SellswordHire = { archers: 0, swordsmen: 0 };
     const market = view.hasMarketplace && view.cap === 0
-      ? `<p class="flow-note market-missing">Their band is too small for the Marketplace to hire sellswords against.</p>`
+      ? `<p class="flow-note market-missing">${icon("market")} Too few enemies to hire sellswords.</p>`
       : view.hasMarketplace
       ? `<div class="market">
-          <div class="market-heading"><strong>Marketplace: hire sellswords</strong><span>${SELLSWORD_COST} gold each · at most ${view.cap} (half their army)</span></div>
-          <p class="flow-note">Selling the whole stockpile raises <b data-gold>${view.gold}</b> gold.</p>
+          <div class="market-heading"><strong>${icon("market")} Sellswords</strong><span>${amount("gold", SELLSWORD_COST)} each · max ${view.cap}</span></div>
+          <p class="flow-note">You can raise ${amount("gold", view.gold)} <span class="tag">(stockpile sold)</span></p>
           <div class="market-rows">
             ${(["archers", "swordsmen"] as const).map((kind) => `<div class="market-row"><i class="unit-icon unit-${kind}" style='${iconStyle(kind, false)}'></i><span>${kind === "archers" ? "Archers" : "Swordsmen"}</span>
               <button type="button" data-step="${kind}:-1" aria-label="One fewer ${kind}">−</button><b data-count="${kind}">0</b><button type="button" data-step="${kind}:1" aria-label="One more ${kind}">+</button></div>`).join("")}
           </div>
-          <div class="market-foot"><span data-spend>Spend 0 gold</span><button type="button" class="quiet" data-action="best">Best mix</button></div>
+          <div class="market-foot"><span data-spend></span><button type="button" class="quiet" data-action="best">Best mix</button></div>
         </div>`
-      : `<p class="flow-note market-missing">No Marketplace: no sellswords can be hired. Next time, a Marketplace turns spare goods into soldiers here.</p>`;
+      : `<p class="flow-note market-missing">${icon("market")} No Marketplace: no sellswords.</p>`;
     show("muster", `
-      <p class="flow-kicker">MOVE ${campaign.moveLimit} COMPLETE · THE ENEMY IS AT THE GATES</p>
+      <p class="flow-kicker">MOVE ${campaign.moveLimit} · THE ENEMY ARRIVES</p>
       <h2>${escapeHtml(campaign.objective.enemyName)} attack</h2>
       <div class="muster-armies">
         <div><span class="side-label">Your army</span><div class="army-chips" data-ours></div></div>
@@ -164,15 +202,16 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       const theirs = enemyStrength(enemy, army);
       const outcome = resolveBattle(army, enemy, campaign.stars);
       bar.style.width = `${Math.round((mine / Math.max(1e-9, mine + theirs)) * 100)}%`;
-      forecast.innerHTML = `Strength <b>${mine.toFixed(1)}</b> against <b>${theirs.toFixed(1)}</b> · ${outcome.win
-        ? `<span class="good">Forecast: victory, ${winText(outcome.margin)} ${starText(outcome.stars)}</span>`
-        : `<span class="bad">Forecast: defeat</span>`}`;
+      forecast.innerHTML = `${strengthLine(mine, theirs)} ${outcome.win
+        ? `<span class="good">Win ${starText(outcome.stars)}</span>`
+        : `<span class="bad">Defeat</span>`}`;
+      forecast.setAttribute("aria-label", `Strength ${mine.toFixed(1)} against ${theirs.toFixed(1)}. Forecast: ${outcome.win ? `victory, ${winText(outcome.margin)}, ${outcome.stars} stars` : "defeat"}`);
       for (const kind of ["archers", "swordsmen"] as const) {
         const count = dialog.querySelector(`[data-count=${kind}]`);
         if (count) count.textContent = String(hire[kind]);
       }
       const spend = dialog.querySelector("[data-spend]");
-      if (spend) spend.textContent = `Spend ${(hire.archers + hire.swordsmen) * SELLSWORD_COST} of ${view.gold} gold · ${budget - hire.archers - hire.swordsmen} more can be hired`;
+      if (spend) spend.innerHTML = `${amount("gold", (hire.archers + hire.swordsmen) * SELLSWORD_COST, { sign: "−" })} <span class="tag">${budget - hire.archers - hire.swordsmen} more</span>`;
     }
     dialog.querySelectorAll<HTMLButtonElement>("[data-step]").forEach((button) => button.addEventListener("click", () => {
       const [kind, delta] = button.dataset.step!.split(":") as ["archers" | "swordsmen", string];
@@ -215,16 +254,18 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     const nextButton = report.win && next && result.nextUnlocked
       ? `<button type="button" data-primary data-action="next">Next: ${escapeHtml(next.name)}</button>` : "";
     const lockedNote = report.win && next && !result.nextUnlocked
-      ? `<p class="flow-note">More stars are needed to open ${escapeHtml(next.name)}: replay earlier campaigns to earn them.</p>` : "";
+      ? `<p class="flow-note">${icon("lock")} More ★ open ${escapeHtml(next.name)}: replay for stars.</p>` : "";
     show("result", `
       <p class="flow-kicker">CAMPAIGN ${campaign.number} · ${escapeHtml(campaign.name.toUpperCase())}</p>
       <h2 class="${report.win ? "good" : "bad"}">${report.win ? "Victory" : "The city has fallen"}</h2>
       <p class="result-stars" aria-label="${report.stars} of 3 stars">${starText(report.stars)}</p>
-      ${result.newRecord && report.stars > 0 ? `<p class="flow-note good">New best for this campaign.</p>` : result.bestStars > report.stars ? `<p class="flow-note">Your best here: ${starText(result.bestStars)}</p>` : ""}
-      <p class="flow-lead">Your strength <b>${report.playerStrength.toFixed(1)}</b> against <b>${report.enemyStrength.toFixed(1)}</b>${report.win ? ` · ${winText(report.margin)}` : ""}.</p>
+      ${result.newRecord && report.stars > 0 ? `<p class="flow-note good">New best!</p>` : result.bestStars > report.stars ? `<p class="flow-note">Best: ${starText(result.bestStars)}</p>` : ""}
+      <p class="flow-lead" aria-label="Your strength ${report.playerStrength.toFixed(1)} against ${report.enemyStrength.toFixed(1)}">${strengthLine(report.playerStrength, report.enemyStrength)}</p>
+      <div class="army-chips">${armyChips(report.units, false)}</div>
       ${report.gap ? `<p class="flow-hint">${escapeHtml(report.gap)}</p>` : ""}
-      <ul class="result-notes">${report.explanations.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
-      <p class="result-order"><span>Build order</span> ${result.buildOrder.map(escapeHtml).join(" → ")}</p>
+      <p class="result-order" aria-label="Build order: ${escapeHtml(result.buildOrder.join(", "))}">${result.buildOrderIds.map((id) => `<img src="${assetUrl(buildingFilename(id, "complete"))}" alt="" title="${escapeHtml(BUILDINGS[id]?.name ?? id)}" />`).join("")}</p>
+      ${extra(`${report.win ? `<p class="flow-note">${escapeHtml(winText(report.margin))}</p>` : ""}<ul class="result-notes">${report.explanations.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
+      <p class="result-order-text"><span>Build order</span> ${result.buildOrder.map(escapeHtml).join(" → ")}</p>`)}
       ${lockedNote}
       <div class="flow-actions">${nextButton}<button type="button" ${nextButton ? "class=\"quiet\"" : "data-primary"} data-action="replay">${report.win ? "Replay for more stars" : "Try again"}</button><button type="button" class="quiet" data-action="map">Campaign map</button><button type="button" class="quiet" data-action="city">View the city</button></div>`);
     dialog.querySelector("[data-action=next]")?.addEventListener("click", () => { hide(); callbacks.onNext(); });

@@ -65,7 +65,7 @@ def status(page):
 
 
 def cards_enabled(page):
-    return page.evaluate("[...document.querySelectorAll('#build-options button')].filter(b => !b.disabled).length")
+    return page.evaluate("[...document.querySelectorAll('#build-options .build-card')].filter(b => !b.disabled).length")
 
 
 def saved(page):

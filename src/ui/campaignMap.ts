@@ -1,7 +1,8 @@
 import { CAMPAIGNS, isCampaignUnlocked, starsToUnlock, totalStars, type CampaignDefinition } from "../game/campaigns";
 import { assetUrl } from "../render/assetCatalog";
 import { IMAGE_TIMEOUT_MS } from "../render/spriteAssets";
-import { focusFirst, requireElement } from "./dom";
+import { escapeHtml, focusFirst, requireElement } from "./dom";
+import { amount, icon } from "./icons";
 
 /**
  * The campaign map: one tall painting (Tools/ArtPipeline/make_campaign_road_map.py)
@@ -235,7 +236,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       else button.removeAttribute("aria-current");
     });
     chapterName.textContent = `${NUMERALS[chapter]} · ${CHAPTERS[chapter]}`;
-    chapterNote.textContent = `Campaigns ${chapter * PER_CHAPTER + 1}–${chapter * PER_CHAPTER + PER_CHAPTER} of ${CAMPAIGNS.length}. Scroll or drag along the road.`;
+    chapterNote.textContent = `Campaigns ${chapter * PER_CHAPTER + 1}–${chapter * PER_CHAPTER + PER_CHAPTER} of ${CAMPAIGNS.length} · scroll the road ↑`;
     const y = toBoard(STOPS[selectedIndex]).y;
     const above = y < scroller.scrollTop + 24;
     const below = y > scroller.scrollTop + scroller.clientHeight - 24;
@@ -355,24 +356,26 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     drawRoute();
 
     const campaign = CAMPAIGNS[selectedIndex];
-    stage.textContent = `CAMPAIGN ${selectedIndex + 1} OF ${CAMPAIGNS.length} · ${totalStars(earnedStars)} ★`;
+    stage.textContent = `CAMPAIGN ${selectedIndex + 1} / ${CAMPAIGNS.length} · ${totalStars(earnedStars)} ★`;
     title.textContent = campaign.name;
     copy.textContent = campaign.subtitle;
     // A run that hasn't built anything yet is offered as a fresh start.
     const isCurrent = activeId === campaign.id && currentMove > 1;
     const movesUntilAttack = isCurrent && !currentRunIsComplete ? Math.max(1, campaign.moveLimit - currentMove + 1) : campaign.moveLimit;
-    briefing.textContent = `${campaign.objective.enemyName} from ${campaign.objective.kingdomName} arrive in ${movesUntilAttack} ${movesUntilAttack === 1 ? "move" : "moves"}. ${campaign.objective.briefing}`;
+    briefing.textContent = campaign.objective.briefing;
     const earned = earnedStars[campaign.id] ?? 0;
     const open = unlocked(selectedIndex);
     let progress: string;
     if (!open) {
       const previous = CAMPAIGNS[selectedIndex - 1];
       const needed = starsToUnlock(selectedIndex + 1);
-      progress = !won(selectedIndex - 1) ? `Locked: win ${previous.name} first` : `Locked: needs ${needed} ★ in total (you have ${totalStars(earnedStars)}). Replay earlier campaigns for more stars.`;
+      progress = !won(selectedIndex - 1) ? `Win ${previous.name} first` : `Needs ${needed} ★ (you have ${totalStars(earnedStars)}): replay for stars`;
     } else {
-      progress = earned ? `Best: ${stars(earned)} · replay for more stars` : isCurrent && currentRunIsComplete ? "Defeat · try again" : isCurrent ? "Settlement in progress" : "Open";
+      progress = earned ? `Best: ${stars(earned)}` : isCurrent && currentRunIsComplete ? "Defeat · try again" : isCurrent ? "In progress" : "Open";
     }
-    state.textContent = `${campaign.objective.strength} enemy ${campaign.objective.strength === 1 ? "soldier" : "soldiers"} · ${progress}`;
+    const army = campaign.objective.army;
+    const enemyIcons = (["swordsmen", "archers", "horsemen"] as const).filter((kind) => army[kind] > 0).map((kind) => amount(kind, army[kind])).join("");
+    state.innerHTML = `<span class="map-enemy" aria-label="${campaign.objective.strength} enemy ${campaign.objective.strength === 1 ? "soldier" : "soldiers"}">${enemyIcons}</span><span class="map-moves">${amount("move", movesUntilAttack)}</span><span class="map-progress">${open ? "" : icon("lock")}${escapeHtml(progress)}</span>`;
     launch.disabled = !open;
     launch.textContent = !open ? "Locked" : isCurrent && !currentRunIsComplete ? "Continue settlement" : earned ? "Replay campaign" : "Begin campaign";
     updateScrollState();

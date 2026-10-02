@@ -11,7 +11,9 @@ import { formatBag, RESOURCE_NAMES, type ResourceBag, type SwapPlan } from "../g
 import type { MoveSummary, SimulationMode, ResourceLedger, TrainedUnits } from "../game/settlementSimulation";
 import { assetUrl } from "../render/assetCatalog";
 import { buildingFilename } from "../render/constructionView";
+import { effectHtml } from "./cardEffect";
 import { escapeHtml, focusFirst, requireElement } from "./dom";
+import { amount, icon, iconWord, type IconName } from "./icons";
 import type { CampaignDefinition } from "../game/campaigns";
 
 /** User actions the HUD reports back to `main.ts`. The HUD never changes game state itself. */
@@ -111,6 +113,7 @@ export function createHud(callbacks: HudCallbacks) {
   const cityUiToggle = requireElement<HTMLButtonElement>("#city-ui-toggle");
   const cityViewToggle = requireElement<HTMLButtonElement>("#city-view-toggle");
   const moveSummary = requireElement<HTMLElement>("#move-summary");
+  const stockStrip = requireElement<HTMLElement>("#stock-strip");
   const buildFoot = requireElement<HTMLElement>("#build-foot");
   const tutorialScrim = requireElement<HTMLElement>("#tutorial-scrim");
   const tutorialCoach = requireElement<HTMLElement>("#tutorial-coach");
@@ -124,10 +127,16 @@ export function createHud(callbacks: HudCallbacks) {
   const resourceElements = new Map<ResourceName, HTMLElement>();
   for (const resource of Object.keys(RESOURCE_LABELS) as ResourceName[]) {
     const item = document.createElement("div");
-    item.innerHTML = `<span>${RESOURCE_LABELS[resource]}</span><strong>0</strong>`;
+    item.innerHTML = `<span>${icon(resource)}${RESOURCE_LABELS[resource]}</span><strong>0</strong>`;
     resourceGrid.appendChild(item);
     resourceElements.set(resource, item.querySelector("strong")!);
   }
+  // Icons beside the settlement numbers and in the tutorial's picture steps.
+  const METRIC_ICONS: Array<[string, IconName]> = [["#move", "move"], ["#population", "people"], ["#archers", "archers"], ["#swordsmen", "swordsmen"], ["#horsemen", "horsemen"]];
+  for (const [selector, name] of METRIC_ICONS) document.querySelector(selector)?.parentElement?.querySelector("span")?.insertAdjacentHTML("afterbegin", icon(name));
+  tutorialScrim.querySelectorAll<HTMLElement>("[data-icons]").forEach((slot) => {
+    slot.innerHTML = (slot.dataset.icons ?? "").split(" ").filter(Boolean).map((name) => icon(name as IconName)).join("");
+  });
   for (let level = 0; level < TOTAL_SETTLEMENT_LEVELS; level += 1) {
     const pip = document.createElement("i");
     pip.title = `Level ${level}: ${CIVIC_LEVEL_NAMES[level]}`;
@@ -222,33 +231,77 @@ export function createHud(callbacks: HudCallbacks) {
     stockpileTotal.textContent = String(Object.values(snapshot.resources).reduce((sum, amount) => sum + (Number.isFinite(amount) ? amount : 0), 0));
   }
 
-  /** "+5 wood, +3 grain" */
+  /** "+5 [wood] +3 [grain]": one icon and number per good. */
   function signedBag(bag: ResourceBag, sign: "+" | "−"): string {
-    return RESOURCE_NAMES.filter((name) => (bag[name] ?? 0) > 0).map((name) => `${sign}${bag[name]} ${RESOURCE_LABELS[name].toLowerCase()}`).join(", ");
+    return RESOURCE_NAMES.filter((name) => (bag[name] ?? 0) > 0).map((name) => amount(name, bag[name] as number, { sign, className: sign === "+" ? "gain" : "loss" })).join("");
   }
 
-  /** The "what happened last move" strip at the top of the build panel. */
+  /** "2 grain spoiled" → "[grain]2 spoiled": amounts in sentences from the rules get their icon too. */
+  function withIcons(html: string): string {
+    return html.replace(/\b(\d+) (wood|stone|grain|livestock|fruit|planks?|rations?|wine|gold)\b/gi, (_match, count: string, word: string) => {
+      const lower = word.toLowerCase();
+      const name = (lower === "plank" ? "planks" : lower === "ration" ? "rations" : lower) as ResourceName;
+      return amount(name, Number(count));
+    });
+  }
+
+  /** A building's painted picture at icon size (falls back to its name if the art fails). */
+  function buildingThumb(buildingId: string): string {
+    const name = escapeHtml(BUILDINGS[buildingId]?.name ?? buildingId);
+    return `<img class="thumb" src="${assetUrl(buildingFilename(buildingId, "complete"))}" alt="${name}" title="${name}" />`;
+  }
+
+  /**
+   * The "what happened last move" strip at the top of the build panel: one row
+   * of icons (what was built, goods in and out, soldiers trained, rations
+   * eaten), then at most two short warnings. Desktop adds the sentence form.
+   */
   function renderSummary(summary: MoveSummary | null): void {
     if (!summary) { moveSummary.classList.add("hidden"); return; }
-    const built = summary.buildingId ? `Built the ${escapeHtml(BUILDINGS[summary.buildingId]?.name ?? summary.buildingId)}` : "Gathered (nothing built)";
+    const built = summary.buildingId ? buildingThumb(summary.buildingId) : `${icon("move")}<span class="tag">Gather</span>`;
     const trained = (["archers", "swordsmen", "horsemen"] as const).filter((type) => summary.trained[type] > 0)
-      .map((type) => `${summary.trained[type]} ${summary.trained[type] === 1 ? type.slice(0, -1).replace("swordsme", "swordsman").replace("horseme", "horseman") : type}`);
-    const parts = [
-      `<b>Move ${summary.move}</b> · ${built}`,
-      summary.produced && Object.keys(summary.produced).length ? `<span class="gain">${signedBag(summary.produced, "+")}</span>` : "",
-      summary.consumed && Object.keys(summary.consumed).length ? `<span class="loss">${signedBag(summary.consumed, "−")}</span>` : "",
-      trained.length ? `<span class="gain">Trained ${trained.join(", ")}</span>` : "",
-      summary.upkeep ? `Army ate ${summary.upkeep} ration${summary.upkeep === 1 ? "" : "s"}` : "",
-      summary.stalled.length ? `<span class="idle">Idle: ${summary.stalled.map((note) => `${escapeHtml(BUILDINGS[note.buildingId]?.name ?? note.buildingId)} (${escapeHtml(note.reason)})`).join("; ")}</span>` : "",
-    ].filter(Boolean);
-    const warnings = summary.warnings.map((text) => `<p class="summary-warning">${escapeHtml(text)}</p>`).join("");
-    moveSummary.innerHTML = `<p>${parts.join(" · ")}</p>${warnings}`;
+      .map((type) => amount(type, summary.trained[type], { sign: "+", className: "gain" })).join("");
+    const deserted = summary.deserted ? amount("people", summary.deserted, { sign: "−", className: "loss" }) : "";
+    const idle = summary.stalled.length
+      ? `<span class="idle" title="Idle: ${escapeHtml(summary.stalled.map((note) => `${BUILDINGS[note.buildingId]?.name ?? note.buildingId} (${note.reason})`).join("; "))}">${icon("idle")}${summary.stalled.map((note) => buildingThumb(note.buildingId)).join("")}</span>`
+      : "";
+    const row = [
+      `<span class="summary-move">${summary.move}</span>`,
+      built,
+      summary.produced ? signedBag(summary.produced, "+") : "",
+      summary.consumed ? signedBag(summary.consumed, "−") : "",
+      trained,
+      deserted,
+      idle,
+    ].filter(Boolean).join("");
+    const label = [
+      `Move ${summary.move}: ${summary.buildingId ? `built the ${BUILDINGS[summary.buildingId]?.name ?? summary.buildingId}` : "gathered"}`,
+      summary.produced && Object.keys(summary.produced).length ? `made ${formatBag(summary.produced)}` : "",
+      summary.consumed && Object.keys(summary.consumed).length ? `used ${formatBag(summary.consumed)}` : "",
+      summary.upkeep ? `the army ate ${summary.upkeep} ration${summary.upkeep === 1 ? "" : "s"}` : "",
+      summary.stalled.length ? `idle: ${summary.stalled.map((note) => `${BUILDINGS[note.buildingId]?.name ?? note.buildingId} (${note.reason})`).join("; ")}` : "",
+    ].filter(Boolean).join(", ");
+    const warnings = summary.warnings.map((text) => `<p class="summary-warning">${icon("warning")}<span>${withIcons(escapeHtml(text))}</span></p>`).join("");
+    moveSummary.innerHTML = `<p class="summary-row" aria-label="${escapeHtml(label)}">${row}</p><p class="summary-text">${escapeHtml(label)}.</p>${warnings}`;
     moveSummary.classList.remove("hidden");
+  }
+
+  /**
+   * The stockpile above the cards: what the player has, as icons, so a card's
+   * cost can be read against it without opening anything. Shows every good
+   * the city holds plus any a card on offer asks for.
+   */
+  function renderStockStrip(view: BuildPanelView): void {
+    const wanted = new Set<ResourceName>();
+    for (const card of view.cards) for (const name of RESOURCE_NAMES) if ((BUILDINGS[card.id]?.cost[name] ?? 0) > 0) wanted.add(name);
+    const shown = RESOURCE_NAMES.filter((name) => (view.resources[name] ?? 0) > 0 || wanted.has(name));
+    stockStrip.innerHTML = `<span class="strip-label">You have</span>${shown.map((name) => amount(name, Math.floor(view.resources[name] ?? 0), { className: wanted.has(name) ? "wanted" : undefined })).join("")}`;
+    stockStrip.setAttribute("aria-label", `You have ${shown.map((name) => `${Math.floor(view.resources[name] ?? 0)} ${iconWord(name, view.resources[name] ?? 0)}`).join(", ")}`);
   }
 
   function costChips(cost: ResourceBag, resources: ResourceLedger): string {
     return RESOURCE_NAMES.filter((name) => (cost[name] ?? 0) > 0)
-      .map((name) => `<span class="cost-chip${(resources[name] ?? 0) < (cost[name] ?? 0) ? " short" : ""}">${cost[name]} ${RESOURCE_LABELS[name].toLowerCase()}</span>`).join("");
+      .map((name) => amount(name, cost[name] as number, { className: `cost-chip${(resources[name] ?? 0) < (cost[name] ?? 0) ? " short" : ""}` })).join("");
   }
 
   /**
@@ -264,6 +317,7 @@ export function createHud(callbacks: HudCallbacks) {
     buildPanel.removeAttribute("aria-busy");
     moveChip.textContent = `${view.move} OF ${campaignMoveLimit}`;
     renderSummary(view.summary);
+    renderStockStrip(view);
     view.cards.forEach((card, index) => {
       const building = BUILDINGS[card.id];
       if (!building) {
@@ -275,10 +329,11 @@ export function createHud(callbacks: HudCallbacks) {
       const state = card.affordable ? "affordable" : card.swap ? "swappable" : "unaffordable";
       button.className = `build-card ${state}`;
       button.dataset.key = String(index + 1);
-      const action = card.affordable ? "BUILD" : card.swap ? "SWAP & BUILD" : `NEEDS ${formatBag(card.missing).toUpperCase()}`;
-      const swapLine = card.swap ? `<span class="build-swap">Market: sell ${formatBag(card.swap.sell)} to buy ${formatBag(card.swap.buy)}</span>` : "";
+      const action = card.affordable ? "BUILD" : card.swap ? "SWAP & BUILD" : "NEEDS";
+      const missing = state === "unaffordable" ? RESOURCE_NAMES.filter((name) => (card.missing[name] ?? 0) > 0).map((name) => amount(name, card.missing[name] as number, { className: "short" })).join("") : "";
+      const swapLine = card.swap ? `<span class="build-swap">${icon("market")}${signedBag(card.swap.sell, "−")}<span class="arrow">→</span>${signedBag(card.swap.buy, "+")}</span>` : "";
       button.setAttribute("aria-label", `${index + 1}: ${card.affordable ? "Build" : card.swap ? "Swap goods and build" : "Can't afford"} ${building.name}. Costs ${formatBag(building.cost)}. ${building.benefit}. ${building.unlocks}`);
-      button.innerHTML = `<span class="build-key" aria-hidden="true">${index + 1}</span><span class="build-art"><img src="${assetUrl(buildingFilename(card.id, "complete"))}" alt="" /></span><span class="build-name">${building.name}</span><span class="build-costs">${costChips(building.cost, view.resources)}</span><span class="build-benefit">${building.benefit}</span>${swapLine}<span class="build-unlock">${building.unlocks}</span><span class="build-action">${action}</span>`;
+      button.innerHTML = `<span class="build-key" aria-hidden="true">${index + 1}</span><span class="build-art"><img src="${assetUrl(buildingFilename(card.id, "complete"))}" alt="" /></span><span class="build-name">${building.name}</span><span class="build-costs">${costChips(building.cost, view.resources)}</span><span class="build-effect">${effectHtml(card.id)}</span><span class="build-benefit">${building.benefit}</span>${swapLine}<span class="build-unlock">${icon("unlock")}${building.unlocks}</span><span class="build-action">${action}${missing ? `<span class="build-missing">${missing}</span>` : ""}</span>`;
       if (state === "unaffordable") button.setAttribute("aria-disabled", "true");
       button.addEventListener("click", () => {
         if (state === "unaffordable") return;
@@ -289,22 +344,35 @@ export function createHud(callbacks: HudCallbacks) {
         if (state === "affordable") callbacks.onSelectBuilding(card.id);
         else callbacks.onSwapBuild(card.id);
       });
-      buildOptions.appendChild(button);
+      const slot = document.createElement("div");
+      slot.className = "build-slot";
+      const info = document.createElement("button");
+      info.type = "button";
+      info.className = "build-info";
+      info.setAttribute("aria-label", `About the ${building.name}`);
+      info.setAttribute("aria-expanded", "false");
+      info.textContent = "i";
+      info.addEventListener("click", () => {
+        const showing = slot.classList.toggle("show-info");
+        info.setAttribute("aria-expanded", String(showing));
+      });
+      slot.append(button, info);
+      buildOptions.appendChild(slot);
     });
     buildFoot.replaceChildren();
     if (view.canGather) {
       const gather = document.createElement("button");
       gather.type = "button";
       gather.className = "gather-button";
-      gather.innerHTML = `<b>Gather</b> <span>Nothing on offer is affordable${view.hasMarketplace ? " even with a swap" : ""}. Skip building this move: every building still works, and the move counts. (G)</span>`;
+      gather.innerHTML = `${icon("move")}<b>Gather</b> <span>Build nothing this move; every building still works. (G)</span>`;
       gather.addEventListener("click", callbacks.onGather);
       buildFoot.appendChild(gather);
     } else {
       const hint = document.createElement("p");
       hint.className = "decision-hint";
       hint.textContent = view.cards.some((card) => card.swap)
-        ? "Nothing is affordable: the Marketplace can swap your spare goods (at twice the price) for what a card needs."
-        : "Costs are paid when building starts. Built earlier means more moves to produce and mature. Keys 1-3 choose.";
+        ? "Swap spare goods at the Marketplace (twice the price)."
+        : "Paid now. Built earlier, it works for more moves. Keys 1-3.";
       buildFoot.appendChild(hint);
     }
     buildPanel.classList.remove("hidden");
@@ -361,8 +429,18 @@ export function createHud(callbacks: HudCallbacks) {
     milestoneKicker.textContent = final ? `${campaignMoveLimit} MOVES COMPLETE` : "MOVE COMPLETE";
     milestoneTitle.textContent = title;
     milestoneCopy.textContent = copy;
+    milestoneCopy.removeAttribute("aria-label");
     milestone.classList.add("visible");
     milestoneUntil = animationElapsed + (final ? 6 : 3.5);
+  }
+
+  /** The "building finished" toast: its name and what it now makes, as icons. */
+  function showBuiltMilestone(buildingId: string, animationElapsed: number): void {
+    const building = BUILDINGS[buildingId];
+    showMilestone(building?.name ?? buildingId, "", animationElapsed);
+    milestoneKicker.textContent = "BUILT";
+    milestoneCopy.innerHTML = `<span class="milestone-effect">${effectHtml(buildingId)}</span>`;
+    milestoneCopy.setAttribute("aria-label", building?.benefit ?? "");
   }
 
   function hideMilestone(): void {
@@ -486,8 +564,8 @@ export function createHud(callbacks: HudCallbacks) {
     callbacks.onTutorialModalChange(false);
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 1);
     tutorialStep.textContent = "STEP 1 OF 2";
-    tutorialCoachTitle.textContent = "Your first decision";
-    tutorialCoachCopy.textContent = "Choose a building you can afford: its cost is shown on the card and paid now. Earlier buildings work for more moves, so watch what each one produces and unlocks.";
+    tutorialCoachTitle.textContent = "Pick a building";
+    tutorialCoachCopy.innerHTML = `Cost ${icon("wood")} is paid now. It makes ${icon("move")} every move after.`;
     tutorialNext.classList.add("hidden");
     tutorialCoach.dataset.step = "choice";
     tutorialCoach.classList.remove("hidden");
@@ -499,8 +577,8 @@ export function createHud(callbacks: HudCallbacks) {
     callbacks.onTutorialModalChange(false);
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
     tutorialStep.textContent = "STEP 2 OF 2";
-    tutorialCoachTitle.textContent = "Watch the whole city react";
-    tutorialCoachCopy.textContent = `After every move, each building works once: raw goods first, then workshops turn them into planks, rations and soldiers, and the army eats. The move summary on the build panel shows what happened. The enemy arrives after Move ${campaignMoveLimit}.`;
+    tutorialCoachTitle.textContent = "Every move, the city works";
+    tutorialCoachCopy.innerHTML = `Goods ${icon("wood")} become soldiers ${icon("archers")}. Soldiers eat ${icon("rations")}. Battle after move ${campaignMoveLimit}.`;
     tutorialNext.classList.remove("hidden");
     tutorialCoach.dataset.step = "growth";
     tutorialCoach.classList.remove("hidden");
@@ -673,6 +751,7 @@ export function createHud(callbacks: HudCallbacks) {
     setBuildPanelBusy,
     showLoadError,
     showMilestone,
+    showBuiltMilestone,
     hideMilestone,
     updateMilestoneVisibility,
     setPlayingLabel,

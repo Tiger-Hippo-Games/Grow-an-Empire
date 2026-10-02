@@ -1,6 +1,6 @@
 # Submission checklist
 
-A ticked copy of `common/GAME_SUBMISSION_GUIDE.md` §16 and `common/GAME_DEVELOPER_GUIDE.md` §8, as of v0.2.4 (updated 2026-10-02).
+A ticked copy of `common/GAME_SUBMISSION_GUIDE.md` §16 and `common/GAME_DEVELOPER_GUIDE.md` §8, as of v0.3.0 (updated 2026-10-02).
 
 - ✅ Done and verified in code or tests.
 - ⬜ Can only be done on the portal, or needs the owner.
@@ -14,7 +14,7 @@ Listing text and images: `Docs/STORE_LISTING.md`. Test evidence: `Docs/QA_RESULT
 - ✅ The built `index.html` uses relative asset paths. The one absolute path is the portal SDK tag, `/api/v1/sdk/platform-sdk.js`, which the portal serves itself (SUBMISSION §5).
 - ✅ No localhost URLs in the built output (the validator checks this)
 - ✅ `index.html` is at the ZIP root
-- ✅ The ZIP is under 50 MB (`release/grow-an-empire-0.2.4.zip`, 15.4 MB; 15.9 MB unpacked)
+- ✅ The ZIP is under 50 MB (`release/grow-an-empire-0.3.0.zip`, 15.4 MB; 15.9 MB unpacked)
 - ✅ No `alert()`, `confirm()` or `prompt()` (the validator and ESLint `no-alert` check this)
 - n/a Unity/Godot threading settings
 
@@ -60,7 +60,7 @@ Listing text and images: `Docs/STORE_LISTING.md`. Test evidence: `Docs/QA_RESULT
 - ✅ Title "Grow an Empire" (the same in `<title>`)
 - ✅ Description is 233 characters (150–500 allowed)
 - ✅ Genre `strategy`, tags set
-- ✅ **Orientation `any`**, declared in the game itself: `index.html` has `<meta name="orientation" content="any">` and `<meta name="screen-orientation" content="any">` (both are in the 0.2.4 ZIP, SUBMISSION §1). The same value is in `STORE_LISTING.md` and its create-listing JSON. The game plays in both: 16:9 stage in large frames, rearranged layout on phones and tablets in portrait or landscape (no "turn sideways" screen).
+- ✅ **Orientation `any`**, declared in the game itself: `index.html` has `<meta name="orientation" content="any">` and `<meta name="screen-orientation" content="any">` (both are in the 0.3.0 ZIP, SUBMISSION §1). The same value is in `STORE_LISTING.md` and its create-listing JSON. The game plays in both: 16:9 stage in large frames, rearranged layout on phones and tablets in portrait or landscape (no "turn sideways" screen).
 - ⬜ **Art provenance**: fill in the TODO rows in `Assets/Art/PROVENANCE.md` (tool and commercial-use terms)
 - ⬜ Confirm "Grow an Empire" and "Ashfang Raiders" don't copy an existing title or brand
 
