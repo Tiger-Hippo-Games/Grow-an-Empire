@@ -1,5 +1,6 @@
 import { migrateSnapshot, type SettlementSnapshot } from "../game/settlementSimulation";
 import { clearSavedSnapshot, hasNewerLocalSave, isFromNewerVersion, loadSavedSnapshot, saveSnapshot } from "../game/saveGame";
+import { readLeaderboardEntry, type LeaderboardEntry } from "../game/leaderboard";
 import type { PlatformAdapter } from "./types";
 
 /**
@@ -39,6 +40,13 @@ export type SavedGame = SettlementSnapshot & {
    * must never be loaded, or pushed into another player's cloud save.
    */
   playerId?: string;
+  /**
+   * The player's leaderboard standing (game/leaderboard.ts): highest campaign
+   * won, its id, total stars and score. Recomputed on every save from
+   * `campaignStars`; the portal reads it from the cloud save, which is stored
+   * against the player id (Docs/LEADERBOARD.md).
+   */
+  leaderboard?: LeaderboardEntry;
 };
 
 export const DEFAULT_SETTINGS: SavedSettings = { tutorialComplete: false, muted: false };
@@ -73,6 +81,9 @@ export function toSavedGame(raw: unknown, campaignId: string | null): SavedGame 
     campaignStars: readStars(snapshot.campaignStars, snapshot.completedCampaignIds),
   };
   if (typeof snapshot.playerId !== "string" || !snapshot.playerId) delete game.playerId;
+  const leaderboard = readLeaderboardEntry(snapshot.leaderboard);
+  if (leaderboard) game.leaderboard = leaderboard;
+  else delete game.leaderboard;
   return game;
 }
 

@@ -6,7 +6,8 @@ import type { GoLiveSdk, PlatformAdapter, PlayerInfo } from "./types";
  * - `createGoLivePlatform` wraps the real SDK when the portal has loaded it.
  * - `createLocalPlatform` is the offline fallback: no cloud, no identity, no
  *   analytics. The game still saves to the browser (see progressStore.ts).
- * - `createMockPlatform` imitates the SDK for local testing (`?platform=mock`):
+ * - `createMockPlatform` imitates the SDK for local testing (`?platform=mock`,
+ *   plus `&auth=email` for a signed-in rather than a guest player):
  *   a "cloud" kept in localStorage, a guest player, and console logging of every
  *   call, so the whole integration can be exercised without the portal backend.
  */
@@ -168,7 +169,11 @@ export function createMockPlatform(): PlatformAdapter {
     async connect() {
       record("init", { gameId: GAME_ID });
       record("login");
-      return { id: "mock-player", displayName: "Guest_mock", authType: "GUEST" };
+      // ?platform=mock&auth=email signs in as a registered player (the leaderboard path).
+      const auth = new URLSearchParams(window.location.search).get("auth");
+      return auth && auth.toUpperCase() !== "GUEST"
+        ? { id: "mock-player-registered", displayName: "Mock Player", authType: auth.toUpperCase() }
+        : { id: "mock-player", displayName: "Guest_mock", authType: "GUEST" };
     },
     async loadProgress() {
       record("getGameProgress");

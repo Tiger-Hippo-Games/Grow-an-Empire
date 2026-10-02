@@ -1,5 +1,14 @@
 # QA results
 
+## v0.2.3 (2026-10-02): leaderboard standing
+
+| Check | Result | Notes |
+|---|---|---|
+| `leaderboard.test.ts` (7 tests) | ✅ Pass | Level = highest campaign won; score = level × 100 + stars, so a higher campaign always ranks above more stars on a lower one; `reachedAt` kept until the score improves; unknown ids ignored, stars capped at 3; old saves without the field still load; EMAIL/GOOGLE count as signed in, GUEST doesn't |
+| Mock portal, signed in (`?platform=mock&auth=email`) | ✅ Pass | Winning Campaign 1 sends one `leaderboard_score` (player id, level 1, `campaign-1-first-muster`, 3 stars, score 103), and the cloud save holds `playerId` and `leaderboard`; a reload sends one `visit` event with the same `reached_at` |
+| Mock portal, guest | ✅ Pass | The cloud save holds `leaderboard`; no event is sent |
+| `pnpm check` | ✅ Pass | 135 tests |
+
 ## v0.2.2 (2026-10-01): scrolling campaign map
 
 Build: **v0.2.2**, `release/grow-an-empire-0.2.2.zip` (15.91 MB unpacked, validator: ready to upload). Headless Chromium in a cloud workspace.

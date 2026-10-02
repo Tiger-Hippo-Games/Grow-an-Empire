@@ -2,7 +2,9 @@ import { Timer } from "three";
 import { BUILDINGS, OPENING_BUILD_OPTIONS } from "./game/content";
 import { CAMPAIGNS, campaignById, isCampaignUnlocked, totalStars, type CampaignDefinition } from "./game/campaigns";
 import { missingFor, SettlementSimulation, type SellswordHire, type SettlementSnapshot, type SimulationEvent } from "./game/settlementSimulation";
+import { isRegisteredPlayer, leaderboardEntry, type LeaderboardEntry } from "./game/leaderboard";
 import { createPlatform } from "./platform/adapters";
+import type { PlayerInfo } from "./platform/types";
 import { createProgressStore, DEFAULT_SETTINGS, mergeStars, newRunId, type SavedGame, type SavedSettings } from "./platform/progressStore";
 import { createSessionTracker, listenForPortalMessages, notifyPortalReady } from "./platform/session";
 import { createSceneSetup } from "./render/sceneSetup";
@@ -75,6 +77,10 @@ let simulation = new SettlementSimulation();
 let completedCampaignIds: string[] = [];
 /** Best stars per campaign id (saved; unlocks later campaigns). */
 let campaignStars: Record<string, number> = {};
+/** The signed-in portal player (null offline), for the leaderboard. */
+let player: PlayerInfo | null = null;
+/** Last leaderboard entry saved or reported (keeps its time when nothing improved). */
+let leaderboard: LeaderboardEntry | null = null;
 const sound = createSound(false);
 let tutorialPending = false;
 /** The GoLive SDK when running on the portal; an offline stand-in otherwise. */
@@ -328,6 +334,7 @@ function presentBattle(animate: boolean): void {
   const previousBest = campaignStars[id] ?? 0;
   if (report.stars > previousBest) campaignStars = mergeStars(campaignStars, { [id]: report.stars });
   if (report.win && !completedCampaignIds.includes(id)) completedCampaignIds.push(id);
+  if (report.stars > previousBest) reportLeaderboard("improved");
   const next = CAMPAIGNS[simulation.campaign.number];
   const view = {
     campaign: simulation.campaign,
@@ -387,9 +394,37 @@ function buildPanelView(): BuildPanelView {
   };
 }
 
-/** The current run as a save (snapshot + run id + settings + stars). */
+/** The current run as a save (snapshot + run id + settings + stars + leaderboard standing). */
 function currentSave(): SavedGame {
-  return { ...simulation.serialize(), runId: saveRunId, settings, completedCampaignIds, campaignStars };
+  leaderboard = leaderboardEntry(campaignStars, leaderboard);
+  return { ...simulation.serialize(), runId: saveRunId, settings, completedCampaignIds, campaignStars, leaderboard };
+}
+
+/**
+ * Sends the player's standing to the portal (Docs/LEADERBOARD.md) as a
+ * `leaderboard_score` event, against their player id. Sent for signed-in
+ * players when the score goes up, and once per visit so a player who
+ * registered after playing as a guest shows up. Guests' standing is still
+ * kept in their own cloud save.
+ */
+let reportedScore = -1;
+function reportLeaderboard(reason: "improved" | "visit"): void {
+  const entry = leaderboardEntry(campaignStars, leaderboard);
+  leaderboard = entry;
+  if (!player || !isRegisteredPlayer(player.authType) || entry.score === 0 || entry.score === reportedScore) return;
+  reportedScore = entry.score;
+  track("leaderboard_score", {
+    player_id: player.id,
+    display_name: player.displayName,
+    auth_type: player.authType,
+    level: entry.level,
+    campaign_id: entry.campaignId,
+    campaign_name: entry.campaignName,
+    total_stars: entry.totalStars,
+    score: entry.score,
+    reached_at: entry.reachedAt,
+    reason,
+  });
 }
 
 /**
@@ -797,7 +832,10 @@ async function initialize(): Promise<void> {
     (window as unknown as { __gaeLoadActivityAt: number }).__gaeLoadActivityAt = Date.now();
     hud.setLoadingProgress(settled, requested);
   });
-  const savedPromise = platform.connect().then((player) => progress.load(player?.id ?? null));
+  const savedPromise = platform.connect().then((signedIn) => {
+    player = signedIn;
+    return progress.load(signedIn?.id ?? null);
+  });
   // Only what the first screen needs blocks boot (about 1 MB). Everything else
   // starts once the game is playable (see startBackgroundLoads) so it doesn't
   // compete for bandwidth on a slow connection (MOBILE_PERFORMANCE §34-§37).
@@ -812,6 +850,7 @@ async function initialize(): Promise<void> {
   if (saved) {
     completedCampaignIds = saved.completedCampaignIds ?? [];
     campaignStars = { ...saved.campaignStars };
+    leaderboard = saved.leaderboard ?? null;
     const report = saved.state.mode === "complete" ? saved.state.armyReport : null;
     if (report?.win) {
       if (!completedCampaignIds.includes(saved.campaignId)) completedCampaignIds.push(saved.campaignId);
@@ -856,6 +895,7 @@ async function initialize(): Promise<void> {
   hud.setPlayingLabel(false);
   campaignMap.show(simulation.campaign.id, campaignStars, simulation.state.mode === "complete", simulation.state.move);
   track("game_start", { resumed, move: simulation.state.move, campaign_number: simulation.campaign.number, total_stars: totalStars(campaignStars) });
+  reportLeaderboard("visit");
   notifyPortalReady(__APP_VERSION__);
   startBackgroundLoads(offered);
   tutorialPending = !resumed;
