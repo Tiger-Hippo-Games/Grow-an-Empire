@@ -1,5 +1,20 @@
 # QA results
 
+## v0.5.0 (2026-10-03): the remaining review items
+
+Build: **v0.5.0**, `release/grow-an-empire-0.5.0.zip`. Headless Chromium in a cloud workspace.
+
+| Change | Notes |
+|---|---|
+| Desertion warning | The rule is kept (Ravi, 2026-10-03: one ration feeds 4 soldiers, so each missing ration sends 4 away). The "rations last N moves" warning now comes 3 moves ahead instead of 2, and the muster shows how many soldiers deserted |
+| Marketplace swap change | Goods sell in whole units, so a swap can raise more gold than it needs; the change (whole gold) is now kept and shown on the card (+[gold]). Balance tests unchanged |
+| Defeat hint | Suggests only soldiers the city could train (their building stands), or, if none, ones whose building the campaign offers, naming it: "5 more horsemen (from a Stable) would have won" |
+| Dead code | The unused end-of-campaign villager formation (`beginArmyMuster`, `renderMuster`, its config and helper) is removed |
+| Per-frame allocations | The render loop no longer builds strings, arrays or vectors every frame: cached status lines and survey routes, in-place route measuring, garrison counts without `filter`, a reused garrison target, the route cache keyed without `join` |
+| Card tags | "no spoiling", "training", "sellswords" are learning-only words now; the Marketplace shows [market][sword] |
+| 1024×600 | The "Move complete" toast no longer shows through the build panel (checked: hidden while a choice is open) |
+| Tests | 154 (3 new in `rulesPolish.test.ts`: swap change, the defeat hint, the 3-move ration warning) |
+
 ## v0.4.0 (2026-10-03): icons only after the tutorial; testing with portal players
 
 Build: **v0.4.0**, `release/grow-an-empire-0.4.0.zip` (validator: ready to upload). Headless Chromium in a cloud workspace. Decisions and rules: `Docs/MOBILE_UX_PLAN.md`.

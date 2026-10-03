@@ -20,10 +20,4 @@ export const CITY_ANIMATION = {
     workingFps: 2,
   },
   productionPulseSeconds: 1.15,
-  muster: {
-    assemblySeconds: 3.5,
-    formationSpacingX: 0.75,
-    formationSpacingY: 0.58,
-    civilianOrbitSpeed: 0.16,
-  },
 } as const;

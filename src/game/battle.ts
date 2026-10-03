@@ -117,9 +117,9 @@ export function resolveBattle(army: PlayerArmy, enemy: EnemyArmy, margins: StarM
  * The cheapest single addition that would have won (or reached the next star):
  * how many more of one soldier type. Used for "4 more archers would have won."
  */
-export function gapToTarget(army: PlayerArmy, enemy: EnemyArmy, targetMargin: number): { type: keyof ArmyCounts; count: number } | null {
+export function gapToTarget(army: PlayerArmy, enemy: EnemyArmy, targetMargin: number, types: ReadonlyArray<keyof ArmyCounts> = ["archers", "swordsmen", "horsemen"]): { type: keyof ArmyCounts; count: number } | null {
   let best: { type: keyof ArmyCounts; count: number } | null = null;
-  for (const type of ["archers", "swordsmen", "horsemen"] as const) {
+  for (const type of types) {
     for (let count = 1; count <= 60; count += 1) {
       const trial = { ...army, [type]: army[type] + count };
       const ours = playerStrength(trial, enemy);

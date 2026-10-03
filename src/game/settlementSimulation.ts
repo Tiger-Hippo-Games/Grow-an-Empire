@@ -395,6 +395,8 @@ export class SettlementSimulation {
     const before = { ...this.state.resources };
     for (const [name, amount] of Object.entries(plan.sell) as Array<[ResourceName, number]>) this.state.resources[name] -= amount;
     for (const [name, amount] of Object.entries(plan.buy) as Array<[ResourceName, number]>) this.state.resources[name] += amount;
+    // Goods sell in whole units, so a swap can raise more gold than it needs: the change is kept.
+    if (plan.change > 0) this.state.resources.gold += plan.change;
     const started = this.chooseBuilding(buildingId);
     if (!started.length) {
       // The plan covers the card, so this shouldn't happen; if it does, undo the trade.
@@ -600,7 +602,8 @@ export class SettlementSimulation {
     const nextUpkeep = this.upkeep;
     if (nextUpkeep > 0 && !deserted) {
       const movesLeft = Math.floor(resources.rations / nextUpkeep);
-      if (movesLeft <= 2) warnings.push(movesLeft === 0 ? "No rations left: soldiers will desert next move." : `Rations last ${movesLeft} more move${movesLeft === 1 ? "" : "s"} at this army size.`);
+      // Three moves' notice: enough to build a Bakery or Butchery in time.
+      if (movesLeft <= 3) warnings.push(movesLeft === 0 ? "No rations left: soldiers will desert next move." : `Rations last ${movesLeft} more move${movesLeft === 1 ? "" : "s"} at this army size.`);
     }
 
     return {
@@ -684,10 +687,18 @@ export class SettlementSimulation {
     let gap: string | null = null;
     const nextTarget = !outcome.win ? 0 : outcome.stars === 1 ? this.campaign.stars.two : outcome.stars === 2 ? this.campaign.stars.three : null;
     if (nextTarget !== null) {
-      const needed = gapToTarget(army, enemy, nextTarget);
+      // Suggest soldiers this city could train: ones whose building stands; if
+      // none does, ones whose building this campaign offers (and say which).
+      const built = this.state.builtBuildingIds;
+      const allowed = this.campaign.availableBuildingIds;
+      const trainable = SOLDIER_TYPES.filter((type) => built.includes(SOLDIERS[type].building));
+      const offered = SOLDIER_TYPES.filter((type) => !allowed || allowed.includes(SOLDIERS[type].building));
+      const needed = gapToTarget(army, enemy, nextTarget, trainable.length ? trainable : offered);
       if (needed) {
         const label = needed.count === 1 ? SOLDIERS[needed.type].singular : SOLDIERS[needed.type].label;
-        gap = outcome.win ? `${needed.count} more ${label} would have earned ${outcome.stars + 1} stars.` : `${needed.count} more ${label} would have won.`;
+        const building = SOLDIERS[needed.type].building;
+        const via = built.includes(building) ? "" : ` (from a ${BUILDINGS[building]?.name ?? building})`;
+        gap = outcome.win ? `${needed.count} more ${label}${via} would have earned ${outcome.stars + 1} stars.` : `${needed.count} more ${label}${via} would have won.`;
       }
     }
     return {

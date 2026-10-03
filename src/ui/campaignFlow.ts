@@ -73,6 +73,8 @@ export interface MusterView {
   gold: number;
   cap: number;
   bestHire: SellswordHire;
+  /** Soldiers who left for lack of rations during the run. */
+  deserted?: number;
 }
 
 export interface ResultView {
@@ -190,6 +192,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
         <div><span class="side-label">${icon("strength")}<span class="w">Your army</span></span><div class="army-chips" data-ours></div></div>
         <div><span class="side-label">${escapeHtml(campaign.objective.kingdomName)}</span><div class="army-chips">${armyChips(enemy, true)}</div></div>
       </div>
+      ${view.deserted ? `<p class="flow-note deserted" aria-label="${view.deserted} soldiers deserted for lack of rations">${icon("warning")}${amount("people", view.deserted, { sign: "−", className: "loss" })}${icon("rations")}<span class="w"> deserted for lack of rations</span></p>` : ""}
       <div class="forecast"><div class="forecast-bar"><i data-bar></i></div><p data-forecast></p></div>
       ${market}
       <div class="flow-actions"><button type="button" data-primary data-action="fight">Fight</button></div>`);

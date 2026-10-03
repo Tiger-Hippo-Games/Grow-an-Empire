@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { loadTexture } from "./spriteAssets";
-import type { ArmyUnits } from "../game/settlementSimulation";
 
 /** Identity references for every civilian, defender, and raider role. */
 export const CHARACTER_FILES = {
@@ -39,19 +38,6 @@ const BUILDING_ROLES: Record<string, CharacterRole> = {
 };
 
 export function roleForBuilding(buildingId: string): CharacterRole { return BUILDING_ROLES[buildingId] ?? "builder"; }
-
-export function roleForArmyUnitAtIndex(units: ArmyUnits, index: number): CharacterRole {
-  if (index < units.swordsmen) return "swordsman";
-  index -= units.swordsmen;
-  if (index < units.horsemen) return "horseman";
-  index -= units.horsemen;
-  if (index < units.archers) return "archer";
-  index -= units.archers;
-  if (index < units.spearmen) return "spearman";
-  index -= units.spearmen;
-  if (index < units.militia) return "militia";
-  return "horseman";
-}
 
 function atlasFrames(sheet: THREE.Texture, columns: number, rows: number): THREE.Texture[] {
   const image = sheet.image as HTMLImageElement;

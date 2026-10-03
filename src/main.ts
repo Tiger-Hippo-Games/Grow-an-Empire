@@ -243,7 +243,6 @@ const flow = createCampaignFlow(document.getElementById("app")!, {
   onSound: (name) => sound.play(name),
   onModalChange: (open) => setModalPause(open),
   onUxEvent: (name, properties) => {
-    if (name === "ux_clarity_vote") rememberClarityVote();
     track(name, { ...properties, layout: (window as { __gaeLayout?: string }).__gaeLayout ?? "unknown" });
   },
 });
@@ -256,7 +255,8 @@ const CLARITY_KEY = "grow-an-empire:ux-clarity:v1";
 function clarityAsked(): boolean {
   try { return window.localStorage.getItem(CLARITY_KEY) !== null; } catch { return true; }
 }
-function rememberClarityVote(): void {
+/** Marked when the question is shown, so it is asked once whether or not it is answered. */
+function rememberClarityAsked(): void {
   try { window.localStorage.setItem(CLARITY_KEY, new Date().toISOString()); } catch { /* Storage unavailable: the question may come again. */ }
 }
 
@@ -349,6 +349,7 @@ function openMuster(): void {
     gold: simulation.musterGold,
     cap: simulation.sellswordCap,
     bestHire: simulation.bestHire(),
+    deserted: simulation.state.deserted,
   });
 }
 
@@ -379,6 +380,7 @@ function presentBattle(animate: boolean): void {
     newRecord: report.stars > previousBest,
     askClarity: animate && !clarityAsked(),
   };
+  if (view.askClarity) rememberClarityAsked();
   hud.setReportAvailable(true);
   hud.setStatus(`Campaign complete: ${report.win ? `victory ${"★".repeat(report.stars)}` : "the city fell"}`, 1);
   if (animate) flow.showBattle(view);

@@ -142,7 +142,8 @@ export function formatBag(bag: ResourceBag): string {
  * the card itself needs) to buy what the card is missing. `null` when the
  * city can't cover it. Deterministic, so the UI preview and the rules agree.
  */
-export interface SwapPlan { buy: ResourceBag; sell: ResourceBag; goldNeeded: number; goldRaised: number }
+/** A Marketplace swap. `change`: whole gold left over after buying (goods sell in whole units), kept by the player. */
+export interface SwapPlan { buy: ResourceBag; sell: ResourceBag; goldNeeded: number; goldRaised: number; change: number }
 export function planSwap(stock: Record<ResourceName, number>, cost: ResourceBag): SwapPlan | null {
   const buy = shortfall(stock, cost);
   const goldNeeded = (Object.entries(buy) as Array<[ResourceName, number]>).reduce((sum, [name, amount]) => sum + amount * SELL_PRICE[name] * BUY_MULTIPLIER, 0);
@@ -160,5 +161,5 @@ export function planSwap(stock: Record<ResourceName, number>, cost: ResourceBag)
     if (goldRaised >= goldNeeded) break;
   }
   if (goldRaised < goldNeeded) return null;
-  return { buy, sell, goldNeeded, goldRaised };
+  return { buy, sell, goldNeeded, goldRaised, change: Math.floor(goldRaised - goldNeeded + 1e-9) };
 }

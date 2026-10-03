@@ -859,3 +859,5 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .clarity button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.18); border-radius: 10px; background: rgba(255,255,255,.06); cursor: pointer; }
 .clarity button .gi { width: 24px; height: 24px; }
 .move-chip .gi * { stroke: #17301f; }
+.flow-note.deserted { display: flex; align-items: center; gap: 6px; color: #ffb49c; font-weight: 800; }
+.flow-note.deserted .gi { width: 20px; height: 20px; }

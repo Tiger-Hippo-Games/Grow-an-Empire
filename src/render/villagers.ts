@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import type { ArmyReport, TrainedUnits } from "../game/settlementSimulation";
+import type { TrainedUnits } from "../game/settlementSimulation";
 import { civicGround, getBuildingPosition, getRoadRoute, getServiceRoute } from "./cityLayout";
 import { CITY_ANIMATION } from "./animationDesign";
-import { directionFromVector, roleForArmyUnitAtIndex, roleForBuilding, WALK_CELL_ASPECT, WORK_CELL_ASPECT, type CharacterAssets, type CharacterRole, type WalkDirection } from "./characterAssets";
+import { directionFromVector, roleForBuilding, WALK_CELL_ASPECT, WORK_CELL_ASPECT, type CharacterAssets, type CharacterRole, type WalkDirection } from "./characterAssets";
 
 /**
  * Kinds of commute a villager can walk:
@@ -154,7 +154,8 @@ function pingPongProgress(elapsed: number, duration: number): { progress: number
 }
 
 /**
- * Functional population renderer: citizens commute, deliver goods, then form the final army.
+ * Functional population renderer: citizens commute and deliver goods; trained soldiers
+ * stand in the garrison. (The battle itself is shown in the dialog's unit strip.)
  *
  * Citizens share each profession's directional atlas frames but own materials, so
  * their walking phases can differ without cloning a texture per villager.
@@ -162,23 +163,23 @@ function pingPongProgress(elapsed: number, duration: number): { progress: number
 export function createVillagerField(scene: THREE.Scene, characters: CharacterAssets) {
   const villagers: Villager[] = [];
   const garrison: GarrisonSoldier[] = [];
-  let muster: { report: ArmyReport; startedAt: number } | null = null;
   let combatActive = false;
-  const musterOrigin = new THREE.Vector2(civicGround.x + 0.2, civicGround.y - 2.0);
-  let lastMusterElapsed: number | null = null;
   let lastGarrisonElapsed: number | null = null;
 
   // Routes only change when a building completes, but used to be rebuilt (and
   // measured twice per villager) on every frame. They're now cached per build order.
-  let routeKey: string | null = null;
+  let routeKey = -1;
   let routes: WorkRoute[] = [];
   let routeLengths: number[] = [];
   const sampled = new THREE.Vector2();
 
+  // The build list only grows during a run and is a new array after a restart
+  // or load, so (array, length) identifies it without joining a string every frame.
+  let routeSource: string[] | null = null;
   function routesFor(builtBuildingIds: string[]): void {
-    const key = builtBuildingIds.join("|");
-    if (key === routeKey) return;
-    routeKey = key;
+    if (builtBuildingIds === routeSource && builtBuildingIds.length === routeKey) return;
+    routeSource = builtBuildingIds;
+    routeKey = builtBuildingIds.length;
     routes = buildFunctionalRoutes(builtBuildingIds);
     routeLengths = routes.map((route) => routeLength(route.points));
   }
@@ -224,12 +225,13 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     villagers.forEach((villager, index) => { villager.sprite.visible = index < targetPopulation; });
   }
 
-  function garrisonTarget(role: GarrisonSoldier["role"], index: number, swordsmen: number, archers: number): THREE.Vector2 {
+  function garrisonTarget(role: GarrisonSoldier["role"], index: number, swordsmen: number, archers: number, out = new THREE.Vector2()): THREE.Vector2 {
     const precedingRows = role === "archer" ? Math.ceil(swordsmen / 5) : role === "horseman" ? Math.ceil(swordsmen / 5) + Math.ceil(archers / 5) : 0;
     const row = Math.floor(index / 5) + precedingRows;
     const column = index % 5;
-    return new THREE.Vector2(civicGround.x + (column - 2) * (role === "horseman" ? 1.85 : 1.35), civicGround.y - 3.3 - row * 1.65);
+    return out.set(civicGround.x + (column - 2) * (role === "horseman" ? 1.85 : 1.35), civicGround.y - 3.3 - row * 1.65);
   }
+  const garrisonSpot = new THREE.Vector2();
 
   /** Each trained soldier travels from the training building to the town hall formation. */
   function syncGarrison(units: TrainedUnits, animationElapsed?: number, builtBuildingIds: string[] = []): void {
@@ -250,7 +252,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
         sprite.scale.set(size * WALK_CELL_ASPECT, size, 1);
         sprite.position.set(origin.x, origin.y + size / 2, 2.6);
         sprite.renderOrder = 60 + Math.floor(currentCount / 5);
-        sprite.visible = muster === null && !combatActive;
+        sprite.visible = !combatActive;
         scene.add(sprite);
         garrison.push({ sprite, role, bornAt: animationElapsed ?? null, frame: 0, route, routeLength: routeLength(route) });
         currentCount += 1;
@@ -278,15 +280,19 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     const delta = lastGarrisonElapsed === null ? 1 / 60 : Math.max(0, animationElapsed - lastGarrisonElapsed);
     lastGarrisonElapsed = animationElapsed;
     const blend = 1 - Math.pow(0.84, delta * 60);
-    const swordsmen = garrison.filter((soldier) => soldier.role === "swordsman").length;
-    const archers = garrison.filter((soldier) => soldier.role === "archer").length;
+    let swordsmen = 0;
+    let archers = 0;
+    for (const soldier of garrison) {
+      if (soldier.role === "swordsman") swordsmen += 1;
+      else if (soldier.role === "archer") archers += 1;
+    }
     let swordIndex = 0;
     let archerIndex = 0;
     let horseIndex = 0;
     for (const soldier of garrison) {
       if (!soldier.sprite.visible) continue;
       const index = soldier.role === "swordsman" ? swordIndex++ : soldier.role === "archer" ? archerIndex++ : horseIndex++;
-      const target = garrisonTarget(soldier.role, index, swordsmen, archers);
+      const target = garrisonTarget(soldier.role, index, swordsmen, archers, garrisonSpot);
       if (soldier.bornAt !== null) {
         const travel = (animationElapsed - soldier.bornAt) / (soldier.routeLength / 5.5);
         if (travel < 1) {
@@ -324,16 +330,8 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     }
   }
 
-  /** Switches from commuting to the end-of-campaign formation. */
-  function beginArmyMuster(report: ArmyReport, animationElapsed: number): void {
-    muster = { report, startedAt: animationElapsed };
-    lastMusterElapsed = null;
-    for (const soldier of garrison) soldier.sprite.visible = false;
-  }
-
-  /** Returns to commuting on restart. */
+  /** Back to commuting (a new run, or after the battle): everyone visible, untinted. */
   function clearArmyMuster(): void {
-    muster = null;
     combatActive = false;
     for (const soldier of garrison) soldier.sprite.visible = true;
     for (const villager of villagers) { villager.sprite.visible = true; villager.material.color.setHex(0xffffff); }
@@ -345,57 +343,9 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     for (const soldier of garrison) soldier.sprite.visible = false;
   }
 
-  /**
-   * Army formation: the first `totalUnits` visible villagers glide into a block
-   * in front of the Town Hall using each unit's own art.
-   */
-  function renderMuster(animationElapsed: number): void {
-    if (!muster) return;
-    let visibleCount = 0;
-    for (const villager of villagers) if (villager.sprite.visible) visibleCount += 1;
-    const armyCount = Math.min(muster.report.totalUnits, visibleCount);
-    const assembly = THREE.MathUtils.smoothstep(Math.min(1, (animationElapsed - muster.startedAt) / CITY_ANIMATION.muster.assemblySeconds), 0, 1);
-    const origin = musterOrigin;
-    // Time-based easing (THREEJS_STANDARDS §15): the old per-frame factor
-    // (0.04-0.12 at 60 fps) converted to a rate, so 120 Hz screens aren't faster.
-    const dt = lastMusterElapsed === null ? 1 / 60 : Math.max(0, animationElapsed - lastMusterElapsed);
-    lastMusterElapsed = animationElapsed;
-    const perFrame = 0.04 + assembly * 0.08;
-    const blend = 1 - Math.pow(1 - perFrame, dt * 60);
-    const columns = Math.min(6, Math.max(3, Math.ceil(Math.sqrt(Math.max(armyCount, 1)))));
-    for (let index = 0; index < villagers.length; index += 1) {
-      const villager = villagers[index];
-      if (!villager.sprite.visible) continue;
-      if (index < armyCount) {
-        const profession = roleForArmyUnitAtIndex(muster.report.units, index);
-        setProfession(villager, profession);
-        const row = Math.floor(index / columns);
-        const column = index % columns;
-        const targetX = origin.x + (column - (Math.min(columns, armyCount - row * columns) - 1) / 2) * CITY_ANIMATION.muster.formationSpacingX;
-        const targetY = origin.y - row * CITY_ANIMATION.muster.formationSpacingY;
-        villager.sprite.position.x = THREE.MathUtils.lerp(villager.sprite.position.x, targetX, blend);
-        villager.sprite.position.y = THREE.MathUtils.lerp(villager.sprite.position.y, targetY + Math.abs(villager.sprite.scale.y) / 2, blend);
-        const facing = assembly < 0.96
-          ? directionFromVector(targetX - villager.sprite.position.x, targetY + Math.abs(villager.sprite.scale.y) / 2 - villager.sprite.position.y)
-          : 4;
-        setFrame(villager, assembly < 0.96 ? Math.floor(animationElapsed * 7 + villager.phase * 4) : 0, facing);
-        villager.material.color.setHex(0xffffff);
-      } else {
-        setProfession(villager, "builder");
-        const angle = animationElapsed * CITY_ANIMATION.muster.civilianOrbitSpeed + villager.phase * Math.PI * 2;
-        villager.sprite.position.set(civicGround.x + Math.cos(angle) * 4.2, civicGround.y + Math.sin(angle) * 1.9 + Math.abs(villager.sprite.scale.y) / 2, 2.4);
-        setFrame(villager, Math.floor(animationElapsed * 6 + villager.phase * 4), directionFromVector(-Math.sin(angle), Math.cos(angle)));
-      }
-    }
-  }
-
   /** Per-frame: positions, flips, tints, and animates every visible villager. */
   function renderVillagers(animationElapsed: number, builtBuildingIds: string[]): void {
     if (combatActive) return;
-    if (muster) {
-      renderMuster(animationElapsed);
-      return;
-    }
     renderGarrison(animationElapsed);
     routesFor(builtBuildingIds);
     for (let index = 0; index < villagers.length; index += 1) {
@@ -420,5 +370,5 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     }
   }
 
-  return { syncVillagers, syncGarrison, renderVillagers, beginArmyMuster, clearArmyMuster, setCombatActive };
+  return { syncVillagers, syncGarrison, renderVillagers, clearArmyMuster, setCombatActive };
 }

@@ -124,14 +124,17 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
 
   /** Moves the construction crew along the same road polyline revealed for the chosen plot. */
   function moveWorkerAlong(points: THREE.Vector2[], progress: number): void {
-    const lengths = points.slice(1).map((point, index) => point.distanceTo(points[index]));
-    let remaining = THREE.MathUtils.clamp(progress, 0, 1) * lengths.reduce((sum, length) => sum + length, 0);
+    // Runs every frame of a survey: measure in place instead of building arrays.
+    let total = 0;
+    for (let index = 1; index < points.length; index += 1) total += points[index].distanceTo(points[index - 1]);
+    let remaining = THREE.MathUtils.clamp(progress, 0, 1) * total;
     for (let index = 1; index < points.length; index += 1) {
-      if (remaining <= lengths[index - 1] || index === points.length - 1) {
-        moveWorker(points[index - 1], points[index], lengths[index - 1] > 0 ? remaining / lengths[index - 1] : 1);
+      const length = points[index].distanceTo(points[index - 1]);
+      if (remaining <= length || index === points.length - 1) {
+        moveWorker(points[index - 1], points[index], length > 0 ? remaining / length : 1);
         return;
       }
-      remaining -= lengths[index - 1];
+      remaining -= length;
     }
     placeWorker(points[0]);
   }

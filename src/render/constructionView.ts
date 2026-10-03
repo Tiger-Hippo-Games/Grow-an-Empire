@@ -6,6 +6,9 @@ import type { WorkerAnimation } from "./workerAnimation";
 import { CITY_ANIMATION } from "./animationDesign";
 import { roleForBuilding } from "./characterAssets";
 
+/** One woodcutter loop (travel, chop, fall, pickup, carry, deposit), in seconds. */
+const HARVEST_CYCLE_SECONDS = HARVEST_PHASES.reduce((sum, phase) => sum + phase.duration, 0);
+
 /** The four art states of a building plot, in order. */
 export type ConstructionStage = "foundation" | "frame" | "late" | "complete";
 /** Callback that updates the HUD's activity label and progress bar. */
@@ -148,34 +151,52 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
    * `progress` (0–1) selects the phase using the thresholds in `CITY_ANIMATION.construction`:
    * survey (walk to site) → foundation → frame → finishing → opening.
    */
+  // Per-frame work allocates nothing: the survey route and the five status
+  // lines are built once per building, the harvest cycle length once.
+  const serviceRoutes = new Map<string, THREE.Vector2[]>();
+  const statusLines = new Map<string, readonly string[]>();
+  function statusFor(buildingId: string, stage: number): string {
+    let lines = statusLines.get(buildingId);
+    if (!lines) {
+      const name = BUILDINGS[buildingId].name;
+      lines = [`Surveying the ${name} site`, `Laying the ${name} foundation`, `Raising the ${name} frame`, `Finishing the ${name}`, `Opening the new ${name}`];
+      statusLines.set(buildingId, lines);
+    }
+    return lines[stage];
+  }
+  function serviceRoute(buildingId: string): THREE.Vector2[] {
+    let route = serviceRoutes.get(buildingId);
+    if (!route) { route = getServiceRoute(buildingId); serviceRoutes.set(buildingId, route); }
+    return route;
+  }
+
   function renderConstruction(buildingId: string, plotIndex: number, progress: number, constructionElapsed: number, animationElapsed: number): void {
     const plot = getBuildingPosition(buildingId);
-    const name = BUILDINGS[buildingId].name;
     cityLayout.placementMaterial.opacity = 0.13 + Math.sin(animationElapsed * Math.PI * 2 * CITY_ANIMATION.construction.placementPulseHz) * 0.05;
     workerAnimation.worker.visible = true;
 
     if (progress < CITY_ANIMATION.construction.surveyEnd) {
-      setStatus(`Surveying the ${name} site`, progress);
-      workerAnimation.moveWorkerAlong(getServiceRoute(buildingId), progress / CITY_ANIMATION.construction.surveyEnd);
+      setStatus(statusFor(buildingId, 0), progress);
+      workerAnimation.moveWorkerAlong(serviceRoute(buildingId), progress / CITY_ANIMATION.construction.surveyEnd);
       workerAnimation.useCharacter(roleForBuilding(buildingId), Math.floor(constructionElapsed * 8));
       showPlotStage(plotIndex, "foundation");
     } else if (progress < CITY_ANIMATION.construction.foundationEnd) {
-      setStatus(`Laying the ${name} foundation`, progress);
+      setStatus(statusFor(buildingId, 1), progress);
       workerAnimation.placeWorker(plot);
       workerAnimation.useWork("builder", Math.floor(constructionElapsed * 8));
       showPlotStage(plotIndex, "foundation");
     } else if (progress < CITY_ANIMATION.construction.frameEnd) {
-      setStatus(`Raising the ${name} frame`, progress);
+      setStatus(statusFor(buildingId, 2), progress);
       workerAnimation.placeWorker(plot);
       workerAnimation.useWork("builder", Math.floor(constructionElapsed * 8));
       showPlotStage(plotIndex, "frame");
     } else if (progress < CITY_ANIMATION.construction.finishingEnd) {
-      setStatus(`Finishing the ${name}`, progress);
+      setStatus(statusFor(buildingId, 3), progress);
       workerAnimation.placeWorker(plot);
       workerAnimation.useWork("builder", Math.floor(constructionElapsed * 8));
       showPlotStage(plotIndex, "late");
     } else {
-      setStatus(`Opening the new ${name}`, progress);
+      setStatus(statusFor(buildingId, 4), progress);
       workerAnimation.placeWorker(plot);
       workerAnimation.useCharacter(roleForBuilding(buildingId), 0);
       showPlotStage(plotIndex, "complete");
@@ -193,8 +214,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
       return;
     }
     const home = getBuildingPosition("woodcutter");
-    const cycleDuration = HARVEST_PHASES.reduce((sum, phase) => sum + phase.duration, 0);
-    let cursor = animationElapsed % cycleDuration;
+    let cursor = animationElapsed % HARVEST_CYCLE_SECONDS;
     let phase: (typeof HARVEST_PHASES)[number] = HARVEST_PHASES[0];
     for (const candidate of HARVEST_PHASES) {
       if (cursor <= candidate.duration) { phase = candidate; break; }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BUILDINGS } from "../../game/content";
 import { civicGround, getBuildingPosition, getRoadRoute, getServiceRoute, getVisibleRoadSegments } from "../cityLayout";
 import { buildFunctionalRoutes } from "../villagers";
-import { CHARACTER_FILES, directionFromVector, roleForArmyUnitAtIndex, roleForBuilding, walkAtlasIndex, walkSheetFilename, workSheetFilename } from "../characterAssets";
+import { CHARACTER_FILES, directionFromVector, roleForBuilding, walkAtlasIndex, walkSheetFilename, workSheetFilename } from "../characterAssets";
 
 describe("functional city routes", () => {
   it("places every building at its reserved anchor in the 1920 × 1080 plan", () => {
@@ -61,12 +61,6 @@ describe("functional city routes", () => {
       expect(CHARACTER_FILES[roleForBuilding(id)]).toMatch(/\.png$/);
       if (id !== "house") expect(roleForBuilding(id)).not.toBe("builder");
     }
-  });
-
-  it("maps each final army unit to its own artwork", () => {
-    const units = { swordsmen: 1, archers: 1, horsemen: 1, spearmen: 1, militia: 1, mercenaries: 1 };
-    expect([0, 1, 2, 3, 4, 5].map((index) => roleForArmyUnitAtIndex(units, index)))
-      .toEqual(["swordsman", "horseman", "archer", "spearman", "militia", "horseman"]);
   });
 
   it("maps every character to 32 walk and eight action frames", () => {
