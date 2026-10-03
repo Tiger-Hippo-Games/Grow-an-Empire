@@ -38,7 +38,9 @@ function row(kind: IconKind, count: number, enemy: boolean): { element: HTMLElem
   element.className = "unit-row";
   const label = document.createElement("span");
   label.className = "unit-row-label";
-  label.textContent = `${LABELS[kind]} ${count}`;
+  label.title = LABELS[kind];
+  label.setAttribute("aria-label", `${LABELS[kind]} ${count}`);
+  label.textContent = `${count}`;
   const strip = document.createElement("div");
   strip.className = "unit-row-icons";
   const icons: HTMLElement[] = [];
@@ -113,7 +115,8 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
           // Grey icons from the end of the row; with "+N" rows, scale to the icons shown.
           const shown = Math.round((left / Math.max(1, start)) * built.icons.length);
           built.icons.forEach((icon, iconIndex) => icon.classList.toggle("fallen", iconIndex >= shown));
-          built.label.textContent = `${LABELS[kind]} ${left} / ${start}`;
+          built.label.textContent = `${left} / ${start}`;
+          built.label.setAttribute("aria-label", `${LABELS[kind]} ${left} of ${start}`);
         }
       });
       callbacks.onRound?.(index);

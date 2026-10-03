@@ -75,9 +75,9 @@ with sync_playwright() as p:
     fr = page.frame(url=lambda u: "platform=mock" in u)
     enter(fr)
     page.click("[data-msg=GP_PAUSE]"); time.sleep(0.3)
-    paused_label = fr.inner_text("#play-toggle")
+    paused_label = fr.get_attribute("#play-toggle", "aria-label")
     page.click("[data-msg=GP_RESUME]"); time.sleep(0.3)
-    resumed_label = fr.inner_text("#play-toggle")
+    resumed_label = fr.get_attribute("#play-toggle", "aria-label")
     page.click("[data-msg=GP_SESSION_END]"); time.sleep(0.5)
     log_text = page.inner_text("#log")
     R["B_iframe_portal"] = {

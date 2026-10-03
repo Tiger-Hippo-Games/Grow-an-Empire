@@ -65,7 +65,7 @@ LIMIT 100;
 { "player_id": "…", "display_name": "…", "auth_type": "EMAIL", "level": 2,
   "campaign_id": "campaign-2-reedmarsh", "campaign_name": "Reedmarsh Crossing",
   "total_stars": 5, "score": 205, "reached_at": "2026-10-02T10:15:00.000Z",
-  "reason": "improved", "game_version": "0.3.0" }
+  "reason": "improved", "game_version": "0.4.0" }
 ```
 
 Leaderboard from events: for each player, keep the row with the highest `score` (earliest `reached_at` on a tie).

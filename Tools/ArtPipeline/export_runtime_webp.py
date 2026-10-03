@@ -50,6 +50,9 @@ SOURCES = [
     "Assets/Art/Production/Characters/WorkLoops/*-work8-master-v1.png",
     "Assets/Art/Production/Characters/CombatLoops/*-combat-*8-master-v1.png",
     "Assets/Art/Production/Campaign/southern-road-map-v6.png",  # made by make_campaign_road_map.py
+    # Commissioned painted icons (Docs/ICON_COMMISSION_BRIEF.md). src/ui/icons.ts
+    # uses each one as soon as it is exported; until then it draws its SVG.
+    "Assets/Art/Production/Icons/icon-*-v1.png",
 ]
 # Glob matches that the game does not use.
 EXCLUDE_NAMES = {"campsite-level-1-2x-v1.png"}
@@ -87,6 +90,9 @@ def export(source: Path, target: Path) -> None:
         image = image.resize((1024, 512), Image.Resampling.LANCZOS)
     elif source.name.endswith("-work8-master-v1.png"):
         image = image.resize((1024, 584), Image.Resampling.LANCZOS)
+    elif source.name.startswith("icon-"):
+        # Icons show at 18–28 stage px, up to 1.5× scale on a 2× screen: 96 px is enough.
+        image = image.resize((96, 96), Image.Resampling.LANCZOS)
     quality = QUALITY
     if source.name.startswith("southern-road-map-"):
         # The campaign map is the first screen: 1440 px wide at quality 74

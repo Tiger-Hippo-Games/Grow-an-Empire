@@ -287,7 +287,7 @@ def session_end(browser):
     enter(game)  # the session starts when a campaign starts, not on the map
     page.evaluate("document.getElementById('g').contentWindow.postMessage({ type: 'GP_SESSION_END' }, '*')")
     page.wait_for_timeout(500)
-    label = game.inner_text("#play-toggle").strip()
+    label = (game.get_attribute("#play-toggle", "aria-label") or "").strip()
     ended = game.evaluate("window.__sdkLog.some(c => c[0] === 'endSession')")
     page.evaluate("document.getElementById('g').contentWindow.postMessage({ type: 'GP_RESUME' }, '*')")
     page.wait_for_timeout(300)

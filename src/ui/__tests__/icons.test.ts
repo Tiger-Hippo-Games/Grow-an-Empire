@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BUILDINGS } from "../../game/content";
 import { RESOURCE_NAMES } from "../../game/economy";
 import { effectHtml } from "../cardEffect";
-import { amount, icon, iconWord } from "../icons";
+import { amount, icon, iconWord, PAINTED_ICON_NAMES, paintedIconFilename } from "../icons";
 
 describe("icon set", () => {
   it("draws every resource", () => {
@@ -17,5 +17,18 @@ describe("icon set", () => {
 
   it("gives every building on offer an icon effect", () => {
     for (const id of Object.keys(BUILDINGS)) expect(effectHtml(id), id).toContain("<svg");
+  });
+
+  it("falls back to the drawn icon until a painted one is bundled", () => {
+    for (const name of PAINTED_ICON_NAMES) {
+      expect(paintedIconFilename(name)).toBe(`icon-${name}-v1.png`);
+      expect(icon(name)).toMatch(/^<(svg|img) class="gi gi-/);
+    }
+  });
+
+  it("draws every control icon", () => {
+    for (const name of ["play", "pause", "speed", "map", "more", "sound", "mute", "grid", "help", "fullscreen", "restart", "eye", "report", "close", "thumbup", "thumbdown"] as const) {
+      expect(icon(name)).toContain("<svg");
+    }
   });
 });

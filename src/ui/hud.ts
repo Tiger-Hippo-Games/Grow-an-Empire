@@ -36,6 +36,8 @@ export interface HudCallbacks {
   onTutorialStarted(): void;
   /** The tutorial was finished or skipped; the caller remembers it in the save. */
   onTutorialFinished(result: { skipped: boolean; stepCount: number; seconds: number }): void;
+  /** UX analytics for portal-user testing (Docs/PLAYTEST_PORTAL.md). */
+  onUxEvent?(name: string, properties: Record<string, unknown>): void;
 }
 
 /** One offered card, as the build panel shows it. */
@@ -127,13 +129,18 @@ export function createHud(callbacks: HudCallbacks) {
   const resourceElements = new Map<ResourceName, HTMLElement>();
   for (const resource of Object.keys(RESOURCE_LABELS) as ResourceName[]) {
     const item = document.createElement("div");
-    item.innerHTML = `<span>${icon(resource)}${RESOURCE_LABELS[resource]}</span><strong>0</strong>`;
+    item.innerHTML = `<span title="${RESOURCE_LABELS[resource]}">${icon(resource)}<span class="sr">${RESOURCE_LABELS[resource]}</span></span><strong>0</strong>`;
     resourceGrid.appendChild(item);
     resourceElements.set(resource, item.querySelector("strong")!);
   }
   // Icons beside the settlement numbers and in the tutorial's picture steps.
-  const METRIC_ICONS: Array<[string, IconName]> = [["#move", "move"], ["#population", "people"], ["#archers", "archers"], ["#swordsmen", "swordsmen"], ["#horsemen", "horsemen"]];
-  for (const [selector, name] of METRIC_ICONS) document.querySelector(selector)?.parentElement?.querySelector("span")?.insertAdjacentHTML("afterbegin", icon(name));
+  const METRIC_ICONS: Array<[string, IconName]> = [["#move", "move"], ["#civic-level", "civic"], ["#population", "people"], ["#archers", "archers"], ["#swordsmen", "swordsmen"], ["#horsemen", "horsemen"]];
+  for (const [selector, name] of METRIC_ICONS) {
+    const label = document.querySelector(selector)?.parentElement?.querySelector("span");
+    if (label) { const word = label.textContent ?? ""; label.title = word; label.innerHTML = `${icon(name)}<span class="sr">${word}</span>`; }
+  }
+  stockpileToggle.querySelector("span")!.innerHTML = `${icon("stockpile")}<span class="sr">Stockpile</span>`;
+  stockpileToggle.title = "Stockpile";
   tutorialScrim.querySelectorAll<HTMLElement>("[data-icons]").forEach((slot) => {
     slot.innerHTML = (slot.dataset.icons ?? "").split(" ").filter(Boolean).map((name) => icon(name as IconName)).join("");
   });
@@ -142,6 +149,50 @@ export function createHud(callbacks: HudCallbacks) {
     pip.title = `Level ${level}: ${CIVIC_LEVEL_NAMES[level]}`;
     levelPips.appendChild(pip);
   }
+
+  // Words mode: while the player is learning (tutorial not yet finished, or
+  // replayed from "How to play") labels and sentences show beside the icons
+  // (`.w` elements, styles.css). After that the game speaks in icons only.
+  let learning = true;
+  function syncWords(): void {
+    document.documentElement.classList.toggle("words", learning || tutorialActive);
+  }
+  /** main.ts: false once the player has finished or skipped the tutorial before. */
+  function setLearning(on: boolean): void {
+    learning = on;
+    syncWords();
+  }
+
+  /** An icon button: the icon, its word only while learning, the word as its accessible name and tooltip. */
+  function setButton(button: HTMLElement, name: IconName, label: string, visible = ""): void {
+    button.innerHTML = `${icon(name)}${visible ? `<b>${visible}</b>` : ""}<span class="w btn-label">${label}</span>`;
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  }
+  setButton(musterToggle, "report", "Battle report");
+  setButton(requireElement<HTMLButtonElement>("#map-toggle"), "map", "Campaign map");
+  setButton(controlsMore, "more", "More");
+  setButton(gridToggle, "grid", "Grid · Off");
+  setButton(helpToggle, "help", "How to play");
+  setButton(restartButton, "restart", "Restart");
+  setButton(cityViewToggle, "eye", "View city");
+  setButton(cityUiToggle, "more", "Controls");
+  setButton(stockpileClose, "close", "Close stockpile");
+  setButton(fullscreenToggle, "fullscreen", "Full screen");
+  setButton(muteToggle, "sound", "Sound · On");
+  setButton(playToggle, "pause", "Pause");
+  setButton(speedToggle, "speed", "Speed · 1×", "1×");
+
+  // What the player did while choosing (moves 1-3 are reported, for testing).
+  let choiceShownAt = 0;
+  let choiceInfoOpens = 0;
+  let choiceBlockedTaps = 0;
+  let choiceMove = 0;
+  const ux = (name: string, properties: Record<string, unknown>): void => {
+    try { callbacks.onUxEvent?.(name, { ...properties, learning: learning || tutorialActive }); } catch (error) { console.warn("[Grow an Empire] UX event failed", error); }
+  };
+  const reducedMotion = (): boolean => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let lastFlownSummary = "";
 
   let milestoneUntil = 0;
   let campaignMoveLimit = TOTAL_MOVES;
@@ -208,7 +259,8 @@ export function createHud(callbacks: HudCallbacks) {
   /** Updates the civic level readout, level-track label, and pips. */
   function setCivicLevel(level: number): void {
     civicLabel.textContent = `${level} / ${campaignMoveLimit}`;
-    levelTrackLabel.textContent = `LEVEL ${level} · ${(CIVIC_LEVEL_NAMES[level] ?? "").toUpperCase()}`;
+    levelTrackLabel.innerHTML = `${icon("civic")}<b>${level}</b><span class="w"> · ${escapeHtml((CIVIC_LEVEL_NAMES[level] ?? "").toUpperCase())}</span>`;
+    levelTrackLabel.title = `Level ${level}: ${CIVIC_LEVEL_NAMES[level] ?? ""}`;
     [...levelPips.children].forEach((pip, index) => pip.classList.toggle("active", index <= level));
   }
 
@@ -242,6 +294,46 @@ export function createHud(callbacks: HudCallbacks) {
       const lower = word.toLowerCase();
       const name = (lower === "plank" ? "planks" : lower === "ration" ? "rations" : lower) as ResourceName;
       return amount(name, Number(count));
+    });
+  }
+
+  /**
+   * "Goods fly to the stockpile": what the city made last move rises from the
+   * city and lands on its count in the strip, which pulses. Screen pixels, on
+   * <body>, so the stage's scale transform doesn't distort the path. Skipped
+   * with reduced motion.
+   */
+  function flyGoods(produced: ResourceBag): void {
+    if (reducedMotion() || typeof Element.prototype.animate !== "function") return;
+    const city = viewport.getBoundingClientRect();
+    const scale = (window as { __gaeStageScale?: number }).__gaeStageScale ?? 1;
+    const goods = RESOURCE_NAMES.filter((name) => (produced[name] ?? 0) > 0).slice(0, 6);
+    goods.forEach((name, index) => {
+      const target = stockStrip.querySelector<HTMLElement>(`.qty-${name}`);
+      if (!target) return;
+      const to = target.getBoundingClientRect();
+      if (to.width === 0) return;
+      const ghost = document.createElement("div");
+      ghost.className = "fly-good";
+      ghost.setAttribute("aria-hidden", "true");
+      ghost.innerHTML = amount(name, produced[name] as number, { sign: "+" });
+      ghost.style.transform = `scale(${scale})`;
+      document.body.appendChild(ghost);
+      const startX = city.left + city.width * (0.42 + 0.04 * index), startY = city.top + city.height * 0.42;
+      const endX = to.left + to.width / 2 - 14, endY = to.top + to.height / 2 - 12;
+      const flight = ghost.animate([
+        { transform: `translate(${startX}px, ${startY}px) scale(${scale * 0.6})`, opacity: 0 },
+        { transform: `translate(${startX}px, ${startY - 30}px) scale(${scale * 1.15})`, opacity: 1, offset: 0.25 },
+        { transform: `translate(${endX}px, ${endY}px) scale(${scale * 0.8})`, opacity: 0.9 },
+      ], { duration: 900, delay: 120 * index, easing: "cubic-bezier(.4,0,.2,1)", fill: "backwards" });
+      const done = (): void => {
+        ghost.remove();
+        target.classList.remove("bump");
+        void target.offsetWidth; // Restart the pulse.
+        target.classList.add("bump");
+      };
+      flight.onfinish = done;
+      flight.oncancel = () => ghost.remove();
     });
   }
 
@@ -282,7 +374,7 @@ export function createHud(callbacks: HudCallbacks) {
       summary.stalled.length ? `idle: ${summary.stalled.map((note) => `${BUILDINGS[note.buildingId]?.name ?? note.buildingId} (${note.reason})`).join("; ")}` : "",
     ].filter(Boolean).join(", ");
     const warnings = summary.warnings.map((text) => `<p class="summary-warning">${icon("warning")}<span>${withIcons(escapeHtml(text))}</span></p>`).join("");
-    moveSummary.innerHTML = `<p class="summary-row" aria-label="${escapeHtml(label)}">${row}</p><p class="summary-text">${escapeHtml(label)}.</p>${warnings}`;
+    moveSummary.innerHTML = `<p class="summary-row" aria-label="${escapeHtml(label)}">${row}</p><p class="summary-text w">${escapeHtml(label)}.</p>${warnings}`;
     moveSummary.classList.remove("hidden");
   }
 
@@ -295,7 +387,14 @@ export function createHud(callbacks: HudCallbacks) {
     const wanted = new Set<ResourceName>();
     for (const card of view.cards) for (const name of RESOURCE_NAMES) if ((BUILDINGS[card.id]?.cost[name] ?? 0) > 0) wanted.add(name);
     const shown = RESOURCE_NAMES.filter((name) => (view.resources[name] ?? 0) > 0 || wanted.has(name));
-    stockStrip.innerHTML = `<span class="strip-label">You have</span>${shown.map((name) => amount(name, Math.floor(view.resources[name] ?? 0), { className: wanted.has(name) ? "wanted" : undefined })).join("")}`;
+    stockStrip.innerHTML = `<span class="strip-label w">You have</span>${shown.map((name) => amount(name, Math.floor(view.resources[name] ?? 0), { className: wanted.has(name) ? "wanted" : undefined })).join("")}`;
+    if (view.summary) {
+      const key = `${view.move}:${view.summary.move}`;
+      if (key !== lastFlownSummary) {
+        lastFlownSummary = key;
+        requestAnimationFrame(() => flyGoods(view.summary!.produced ?? {}));
+      }
+    }
     stockStrip.setAttribute("aria-label", `You have ${shown.map((name) => `${Math.floor(view.resources[name] ?? 0)} ${iconWord(name, view.resources[name] ?? 0)}`).join(", ")}`);
   }
 
@@ -315,9 +414,16 @@ export function createHud(callbacks: HudCallbacks) {
     if (view.mode !== "awaiting-choice") return;
     buildOptions.replaceChildren();
     buildPanel.removeAttribute("aria-busy");
-    moveChip.textContent = `${view.move} OF ${campaignMoveLimit}`;
+    moveChip.innerHTML = `${icon("move")}${view.move}/${campaignMoveLimit}`;
+    moveChip.setAttribute("aria-label", `Move ${view.move} of ${campaignMoveLimit}`);
     renderSummary(view.summary);
     renderStockStrip(view);
+    if (choiceMove !== view.move) {
+      choiceMove = view.move;
+      choiceShownAt = performance.now();
+      choiceInfoOpens = 0;
+      choiceBlockedTaps = 0;
+    }
     view.cards.forEach((card, index) => {
       const building = BUILDINGS[card.id];
       if (!building) {
@@ -329,14 +435,42 @@ export function createHud(callbacks: HudCallbacks) {
       const state = card.affordable ? "affordable" : card.swap ? "swappable" : "unaffordable";
       button.className = `build-card ${state}`;
       button.dataset.key = String(index + 1);
-      const action = card.affordable ? "BUILD" : card.swap ? "SWAP & BUILD" : "NEEDS";
+      const action = card.affordable ? `${icon("build")}<span class="w">BUILD</span>` : card.swap ? `${icon("market")}${icon("build")}<span class="w">SWAP</span>` : `<span class="w">NEEDS</span>`;
       const missing = state === "unaffordable" ? RESOURCE_NAMES.filter((name) => (card.missing[name] ?? 0) > 0).map((name) => amount(name, card.missing[name] as number, { className: "short" })).join("") : "";
       const swapLine = card.swap ? `<span class="build-swap">${icon("market")}${signedBag(card.swap.sell, "−")}<span class="arrow">→</span>${signedBag(card.swap.buy, "+")}</span>` : "";
       button.setAttribute("aria-label", `${index + 1}: ${card.affordable ? "Build" : card.swap ? "Swap goods and build" : "Can't afford"} ${building.name}. Costs ${formatBag(building.cost)}. ${building.benefit}. ${building.unlocks}`);
-      button.innerHTML = `<span class="build-key" aria-hidden="true">${index + 1}</span><span class="build-art"><img src="${assetUrl(buildingFilename(card.id, "complete"))}" alt="" /></span><span class="build-name">${building.name}</span><span class="build-costs">${costChips(building.cost, view.resources)}</span><span class="build-effect">${effectHtml(card.id)}</span><span class="build-benefit">${building.benefit}</span>${swapLine}<span class="build-unlock">${icon("unlock")}${building.unlocks}</span><span class="build-action">${action}${missing ? `<span class="build-missing">${missing}</span>` : ""}</span>`;
+      button.innerHTML = `<span class="build-key" aria-hidden="true">${index + 1}</span><span class="build-art"><img src="${assetUrl(buildingFilename(card.id, "complete"))}" alt="" /></span><span class="build-name">${building.name}</span><span class="build-costs">${costChips(building.cost, view.resources)}</span><span class="build-effect">${effectHtml(card.id)}</span><span class="build-benefit w">${building.benefit}</span>${swapLine}<span class="build-unlock w">${icon("unlock")}${building.unlocks}</span><span class="build-action">${action}${missing ? `<span class="build-missing">${missing}</span>` : ""}</span>`;
       if (state === "unaffordable") button.setAttribute("aria-disabled", "true");
-      button.addEventListener("click", () => {
-        if (state === "unaffordable") return;
+      let longPressed = false;
+      let pressTimer = 0;
+      const cancelPress = (): void => { clearTimeout(pressTimer); pressTimer = 0; };
+      // Long press (touch or pen) opens the card's details instead of choosing it.
+      button.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse") return;
+        longPressed = false;
+        cancelPress();
+        const startX = event.clientX, startY = event.clientY;
+        const move = (moveEvent: PointerEvent): void => { if (Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 10) cancelPress(); };
+        button.addEventListener("pointermove", move);
+        button.addEventListener("pointerup", () => { cancelPress(); button.removeEventListener("pointermove", move); }, { once: true });
+        button.addEventListener("pointercancel", () => { cancelPress(); button.removeEventListener("pointermove", move); }, { once: true });
+        pressTimer = window.setTimeout(() => {
+          longPressed = true;
+          openInfo("long_press");
+          navigator.vibrate?.(12);
+        }, 450);
+      });
+      button.addEventListener("contextmenu", (event) => event.preventDefault());
+      button.addEventListener("click", (event) => {
+        if (longPressed) { longPressed = false; event.preventDefault(); return; }
+        if (state === "unaffordable") {
+          choiceBlockedTaps += 1;
+          ux("ux_unaffordable_tap", { building_id: card.id, move: view.move });
+          return;
+        }
+        if (view.move <= 3) {
+          ux("ux_choice", { move: view.move, building_id: card.id, seconds: Math.round((performance.now() - choiceShownAt) / 100) / 10, info_opened: choiceInfoOpens, unaffordable_taps: choiceBlockedTaps, swap: state === "swappable" });
+        }
         if (tutorialActive) {
           tutorialCoach.classList.add("hidden");
           buildPanel.classList.remove("tutorial-focus");
@@ -352,9 +486,17 @@ export function createHud(callbacks: HudCallbacks) {
       info.setAttribute("aria-label", `About the ${building.name}`);
       info.setAttribute("aria-expanded", "false");
       info.textContent = "i";
+      function openInfo(via: "button" | "long_press"): void {
+        slot.classList.add("show-info");
+        info.setAttribute("aria-expanded", "true");
+        choiceInfoOpens += 1;
+        ux("ux_card_info", { building_id: card.id, move: view.move, via });
+      }
       info.addEventListener("click", () => {
-        const showing = slot.classList.toggle("show-info");
-        info.setAttribute("aria-expanded", String(showing));
+        if (slot.classList.contains("show-info")) {
+          slot.classList.remove("show-info");
+          info.setAttribute("aria-expanded", "false");
+        } else openInfo("button");
       });
       slot.append(button, info);
       buildOptions.appendChild(slot);
@@ -364,12 +506,13 @@ export function createHud(callbacks: HudCallbacks) {
       const gather = document.createElement("button");
       gather.type = "button";
       gather.className = "gather-button";
-      gather.innerHTML = `${icon("move")}<b>Gather</b> <span>Build nothing this move; every building still works. (G)</span>`;
+      gather.innerHTML = `${icon("move")}<b>Gather</b> <span class="w">Build nothing this move; every building still works. (G)</span>`;
+      gather.setAttribute("aria-label", "Gather: build nothing this move; every building still works");
       gather.addEventListener("click", callbacks.onGather);
       buildFoot.appendChild(gather);
     } else {
       const hint = document.createElement("p");
-      hint.className = "decision-hint";
+      hint.className = "decision-hint w";
       hint.textContent = view.cards.some((card) => card.swap)
         ? "Swap spare goods at the Marketplace (twice the price)."
         : "Paid now. Built earlier, it works for more moves. Keys 1-3.";
@@ -438,7 +581,7 @@ export function createHud(callbacks: HudCallbacks) {
   function showBuiltMilestone(buildingId: string, animationElapsed: number): void {
     const building = BUILDINGS[buildingId];
     showMilestone(building?.name ?? buildingId, "", animationElapsed);
-    milestoneKicker.textContent = "BUILT";
+    milestoneKicker.innerHTML = `${icon("build")}<span class="w">BUILT</span>`;
     milestoneCopy.innerHTML = `<span class="milestone-effect">${effectHtml(buildingId)}</span>`;
     milestoneCopy.setAttribute("aria-label", building?.benefit ?? "");
   }
@@ -450,9 +593,11 @@ export function createHud(callbacks: HudCallbacks) {
   function setCampaign(campaign: CampaignDefinition, index: number): void {
     campaignMoveLimit = campaign.moveLimit;
     [...levelPips.children].forEach((pip, pipIndex) => { (pip as HTMLElement).hidden = pipIndex > campaignMoveLimit; });
-    campaignKicker.textContent = `CAMPAIGN ${index + 1} OF 25`;
+    campaignKicker.textContent = `CAMPAIGN ${index + 1} / 25`;
     campaignTitle.textContent = campaign.name;
-    raidObjective.textContent = `${campaign.objective.enemyName}: ${campaign.objective.strength} ${campaign.objective.strength === 1 ? "soldier" : "soldiers"} after move ${campaign.moveLimit}`;
+    const army = campaign.objective.army;
+    raidObjective.innerHTML = `${(["swordsmen", "archers", "horsemen"] as const).filter((kind) => army[kind] > 0).map((kind) => amount(kind, army[kind])).join("")}${amount("move", campaign.moveLimit)}`;
+    raidObjective.setAttribute("aria-label", `${campaign.objective.enemyName}: ${campaign.objective.strength} ${campaign.objective.strength === 1 ? "soldier" : "soldiers"} after move ${campaign.moveLimit}`);
   }
 
   /** Shows or hides the "Battle report" button (shown once a battle has been fought). */
@@ -461,7 +606,7 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   function setMuted(muted: boolean): void {
-    muteToggle.textContent = muted ? "Sound · Off" : "Sound · On";
+    setButton(muteToggle, muted ? "mute" : "sound", muted ? "Sound · Off" : "Sound · On");
     muteToggle.setAttribute("aria-pressed", String(muted));
   }
 
@@ -469,7 +614,7 @@ export function createHud(callbacks: HudCallbacks) {
     fullscreenToggle.classList.toggle("hidden", !available);
   }
   function setFullscreenLabel(active: boolean): void {
-    fullscreenToggle.textContent = active ? "Exit full screen" : "Full screen";
+    setButton(fullscreenToggle, "fullscreen", active ? "Exit full screen" : "Full screen");
   }
 
   /** Called once per frame; hides the milestone toast once its timer expires. */
@@ -478,12 +623,12 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   function setPlayingLabel(playing: boolean): void {
-    playToggle.textContent = playing ? "Pause" : "Play";
+    setButton(playToggle, playing ? "pause" : "play", playing ? "Pause" : "Play");
   }
 
   function setSpeedLabel(speed: number): void {
     selectedSpeed = speed;
-    speedToggle.textContent = `Speed · ${speed}×`;
+    setButton(speedToggle, "speed", `Speed · ${speed}×`, `${speed}×`);
   }
 
   function setStockpileVisible(visible: boolean): void {
@@ -535,6 +680,8 @@ export function createHud(callbacks: HudCallbacks) {
   function finishTutorial(skipped: boolean): void {
     const wasActive = tutorialActive;
     tutorialActive = false;
+    learning = false;
+    syncWords();
     tutorialScrim.classList.add("hidden");
     tutorialCoach.classList.add("hidden");
     buildPanel.classList.remove("tutorial-focus");
@@ -551,6 +698,7 @@ export function createHud(callbacks: HudCallbacks) {
       callbacks.onTutorialStarted();
     }
     tutorialActive = true;
+    syncWords();
     tutorialCoach.classList.add("hidden");
     tutorialNext.classList.add("hidden");
     buildPanel.classList.remove("tutorial-focus");
@@ -602,13 +750,13 @@ export function createHud(callbacks: HudCallbacks) {
   const disarmRestart = (): void => {
     clearTimeout(restartArmed);
     restartArmed = 0;
-    restartButton.textContent = "Restart";
+    setButton(restartButton, "restart", "Restart");
     restartButton.classList.remove("armed");
   };
   restartButton.addEventListener("click", (event) => {
     if (!restartArmed) {
       event.stopPropagation(); // Keep the More menu open for the second press.
-      restartButton.textContent = "Restart? Press again";
+      setButton(restartButton, "restart", "Restart? Press again", "Again?");
       restartButton.classList.add("armed");
       restartArmed = window.setTimeout(disarmRestart, 4000);
       return;
@@ -623,7 +771,7 @@ export function createHud(callbacks: HudCallbacks) {
   });
   gridToggle.addEventListener("click", () => {
     gridVisible = !gridVisible;
-    gridToggle.textContent = `Grid · ${gridVisible ? "On" : "Off"}`;
+    setButton(gridToggle, "grid", `Grid · ${gridVisible ? "On" : "Off"}`);
     gridToggle.setAttribute("aria-pressed", String(gridVisible));
     callbacks.onGridToggle(gridVisible);
   });
@@ -762,6 +910,7 @@ export function createHud(callbacks: HudCallbacks) {
     setFullscreenAvailable,
     setFullscreenLabel,
     maybeStartTutorial,
+    setLearning,
     handleTutorialEvent,
   };
 }

@@ -792,3 +792,70 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .milestone-effect { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; font-size: 1rem; }
 .milestone-effect .gi { width: 22px; height: 22px; }
 .flow-extra > :first-child { margin-top: 8px; }
+
+/* --- Icons only after the tutorial (v0.4.0) ---------------------------------
+   `:root.words` is set while the player is learning (tutorial not finished, or
+   replayed). `.w` = words shown only then. `.ws` = words shown then and kept
+   for screen readers afterwards. Everything else speaks in icons. */
+:root:not(.words) .w { display: none; }
+:root:not(.words) .ws { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Sentences open on demand in either mode: the card's "i", a dialog's Details. */
+.build-benefit { display: none; }
+:root.words .build-benefit { display: block; }
+.build-slot.show-info .build-benefit, .build-slot.show-info .build-unlock { display: flex; }
+.build-slot.show-info .build-benefit { display: block; }
+:root[data-layout="fluid"] .build-unlock { display: flex; }
+:root[data-layout="fluid"]:not(.words) .build-unlock { display: none; }
+:root[data-layout="fluid"] .build-slot.show-info .build-unlock { display: flex; }
+:root[data-layout="fluid"] .move-summary .summary-text { display: block; }
+:root[data-layout="fluid"]:not(.words) .move-summary .summary-text { display: none; }
+:root[data-layout="fluid"] .decision-hint { display: block; }
+:root[data-layout="fluid"]:not(.words) .decision-hint { display: none; }
+/* Details folds in every layout; while learning its button says "Details". */
+.flow-more { display: inline-flex; align-items: center; gap: 6px; }
+.flow-extra { display: none; }
+.flow-dialog.show-extra .flow-extra { display: block; }
+:root[data-layout="fluid"] .flow-more { display: inline-flex; }
+:root[data-layout="fluid"] .flow-extra { display: none; }
+:root[data-layout="fluid"] .flow-dialog.show-extra .flow-extra { display: block; }
+.result-order-text { display: block; }
+:root[data-layout="fluid"] .result-order-text { display: block; }
+.flow-more .gi { width: 20px; height: 20px; }
+
+/* Icon buttons: the controls, More, map, sound… */
+.controls button:not(.hidden):not(.controls-more), #stockpile-close { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+:root[data-layout="fluid"] .controls .controls-more { display: inline-flex; align-items: center; justify-content: center; }
+.controls button .gi, .city-ui-toggle .gi, #stockpile-close .gi, .flow-more .gi { width: 22px; height: 22px; }
+.controls button b { font-weight: 900; }
+:root:not(.words) .controls button { min-width: 44px; padding-left: 10px; padding-right: 10px; }
+.controls #restart.armed b { color: #ffb49c; }
+#map-toggle .label-long, #map-toggle .label-short { display: none; }
+.move-chip { display: inline-flex; align-items: center; gap: 4px; }
+.move-chip .gi { width: 16px; height: 16px; }
+#level-track-label { display: inline-flex; align-items: center; gap: 4px; }
+#level-track-label .gi { width: 16px; height: 16px; }
+.raid-objective strong { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.raid-objective .gi { width: 20px; height: 20px; }
+.stockpile-toggle span .gi { width: 22px; height: 22px; }
+.side-label .gi { width: 18px; height: 18px; vertical-align: -4px; }
+.flow-note.market-missing .gi { width: 22px; height: 22px; }
+.build-action { display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
+.build-action .gi { width: 22px; height: 22px; }
+.milestone #milestone-kicker .gi { width: 16px; height: 16px; vertical-align: -3px; }
+/* The More menu is a list: its items keep their words. */
+:root .controls.expanded .controls-secondary .btn-label { display: inline; }
+:root[data-layout="fluid"] .controls.expanded .controls-secondary button { justify-content: flex-start; }
+.flow-actions .icon-button, .flow-actions [data-action=replay] { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; }
+.flow-actions .gi { width: 22px; height: 22px; }
+.per-move .gi { width: 14px; height: 14px; vertical-align: -2px; opacity: .85; }
+
+/* Goods fly to the stockpile (hud.ts flyGoods). */
+.fly-good { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; transform-origin: 0 0; padding: 2px 6px; border-radius: 8px; color: #bfe3a8; background: rgba(9,28,18,.85); font: 800 14px/1.2 system-ui, sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.fly-good .gi { width: 18px; height: 18px; }
+.stock-strip .qty.bump { animation: stock-bump 420ms ease; }
+@keyframes stock-bump { 0% { transform: scale(1); } 40% { transform: scale(1.3); color: #bfe3a8; } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .stock-strip .qty.bump { animation: none; } }
+.clarity { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; color: var(--cream); font-size: .86rem; font-weight: 800; }
+.clarity button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.18); border-radius: 10px; background: rgba(255,255,255,.06); cursor: pointer; }
+.clarity button .gi { width: 24px; height: 24px; }
+.move-chip .gi * { stroke: #17301f; }

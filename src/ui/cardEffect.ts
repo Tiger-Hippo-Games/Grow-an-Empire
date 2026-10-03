@@ -7,7 +7,7 @@ import { amount, icon } from "./icons";
  * Built from the same numbers as `benefitText()` in content.ts, so the
  * picture and the sentence (still shown on desktop and read aloud) agree.
  */
-const PER_MOVE = `<small class="per-move">/move</small>`;
+const PER_MOVE = `<small class="per-move" title="every move">${icon("move")}<span class="sr">every move</span></small>`;
 
 function bag(goods: ResourceBag): string {
   return RESOURCE_NAMES.filter((name) => (goods[name] ?? 0) > 0).map((name) => amount(name, goods[name] as number)).join("");

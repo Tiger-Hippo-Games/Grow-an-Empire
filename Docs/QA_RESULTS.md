@@ -1,5 +1,21 @@
 # QA results
 
+## v0.4.0 (2026-10-03): icons only after the tutorial; testing with portal players
+
+Build: **v0.4.0**, `release/grow-an-empire-0.4.0.zip` (validator: ready to upload). Headless Chromium in a cloud workspace. Decisions and rules: `Docs/MOBILE_UX_PLAN.md`.
+
+| Check | Result | Notes |
+|---|---|---|
+| `text_budget.py` | ✅ Pass | 390×844 and 844×390, 10 screens each. After the tutorial: first choice 7 words, move 6 14, muster 9, battle 10, result 14, map 14, briefing 7 |
+| `viewports.py` | ✅ Pass | 12 sizes: no overlaps, clipping, page scroll, buttons under 44 px or small text, with the icon controls |
+| `gameplay.py`, `platform_sdk.py`, `fault_injection.py --quick` (16), `campaign_map.py`, `context_loss.py` | ✅ All pass | `platform_sdk.py` and `fault_injection.py` read the Play/Pause button's `aria-label` (it is an icon now) |
+| `journey.py` (0.4.0 ZIP at the portal path) | ✅ Pass | No console errors, warnings or failed requests |
+| UX analytics (mock portal, phone) | ✅ Pass | `ux_card_info`, `ux_choice` (moves 1–3), `ux_clarity_vote`, `ux_details_opened` sent with `layout`, `learning`, `campaign_number` |
+| Long press | ✅ Pass | A 450 ms touch press opens the card's details and doesn't build it (1280×720 and 390×844) |
+| `pnpm check` | ✅ Pass | 152 tests |
+
+Not yet done: the five-second test with portal players (`Docs/PLAYTEST_PORTAL.md`), real phones and Safari, painted icons.
+
 ## v0.3.0 (2026-10-03): icons and fewer words on phones
 
 Build: **v0.3.0**, `release/grow-an-empire-0.3.0.zip` (validator: ready to upload). Headless Chromium in a cloud workspace. The plan and the before/after numbers are in `Docs/MOBILE_UX_PLAN.md`.

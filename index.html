@@ -120,15 +120,15 @@
           <h1>The First Muster</h1>
         </div>
         <div class="status-block">
-          <span class="status-label">SETTLEMENT ACTIVITY</span>
+          <span class="status-label w">SETTLEMENT ACTIVITY</span>
           <strong id="phase">Loading assets…</strong>
           <div class="progress-track" aria-hidden="true"><div id="phase-progress" class="progress-fill"></div></div>
         </div>
-        <div class="raid-objective"><span>DEFEND THE CITY</span><strong>The enemy arrives after move 12</strong></div>
+        <div class="raid-objective"><span class="w">DEFEND THE CITY</span><strong>The enemy arrives after move 12</strong></div>
       </section>
 
       <section class="settlement-hud" aria-label="Settlement progress">
-        <div class="settlement-heading">SETTLEMENT</div>
+        <div class="settlement-heading w">SETTLEMENT</div>
         <div class="metrics" aria-label="Settlement metrics">
           <div><span>Move</span><strong id="move">1 / 12</strong></div>
           <div><span>Civic</span><strong id="civic-level">0 / 12</strong></div>
@@ -150,7 +150,7 @@
 
       <aside id="build-panel" class="build-panel" aria-labelledby="build-title">
         <div class="decision-heading">
-          <div><p class="decision-kicker">Choose a building</p><h2 id="build-title">What should the settlement build?</h2></div>
+          <div><p class="decision-kicker w">Choose a building</p><h2 id="build-title" class="w">What should the settlement build?</h2></div>
           <div id="move-chip" class="move-chip">1 OF 12</div>
         </div>
         <div id="stock-strip" class="stock-strip" role="group"></div>
@@ -160,7 +160,7 @@
       </aside>
 
       <aside id="resource-ledger" class="resource-drawer hidden" aria-label="Settlement resources">
-        <div class="drawer-heading"><div><span>Settlement stockpile</span><small>Resolved after every move</small></div><button id="stockpile-close" type="button" aria-label="Close stockpile">Close</button></div>
+        <div class="drawer-heading"><div><span>Stockpile</span><small class="w">Resolved after every move</small></div><button id="stockpile-close" type="button" aria-label="Close stockpile">Close</button></div>
         <div id="resource-grid" class="resource-grid"></div>
       </aside>
 
@@ -201,10 +201,10 @@
         </div>
         <nav id="campaign-rail" class="campaign-rail" aria-label="Chapters"></nav>
         <button id="campaign-jump" class="campaign-jump" type="button" hidden>↓ Campaign 1</button>
-        <div class="campaign-map-heading"><span>GROW AN EMPIRE · SOUTHERN FRONT</span><h2 id="campaign-chapter">I · Southern hamlets</h2><p id="campaign-chapter-note">Campaigns 1–5 of 25. Scroll or drag along the road.</p></div>
+        <div class="campaign-map-heading"><span class="w">GROW AN EMPIRE · SOUTHERN FRONT</span><h2 id="campaign-chapter">I · Southern hamlets</h2><p id="campaign-chapter-note" class="w">Campaigns 1–5 of 25. Scroll or drag along the road.</p></div>
         <aside class="campaign-map-card" aria-live="polite">
           <span id="campaign-stage"></span><h3 id="campaign-name"></h3>
-          <p id="campaign-copy"></p><p id="campaign-briefing"></p>
+          <p id="campaign-copy"></p><p id="campaign-briefing" class="w"></p>
           <strong id="campaign-state"></strong><button id="campaign-launch" type="button">Begin campaign</button>
         </aside>
       </section>

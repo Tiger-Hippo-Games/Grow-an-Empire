@@ -150,6 +150,7 @@ const hud = createHud({
     track("settings_changed", { setting: "grid", value: visible });
   },
   onTutorialStarted: () => track("tutorial_started", { replay: settings.tutorialComplete }),
+  onUxEvent: (name, properties) => track(name, { ...properties, campaign_number: simulation.campaign.number, layout: (window as { __gaeLayout?: string }).__gaeLayout ?? "unknown" }),
   onTutorialFinished: ({ skipped, stepCount, seconds }) => {
     const firstTime = !settings.tutorialComplete;
     settings = { ...settings, tutorialComplete: true };
@@ -241,7 +242,23 @@ const flow = createCampaignFlow(document.getElementById("app")!, {
   },
   onSound: (name) => sound.play(name),
   onModalChange: (open) => setModalPause(open),
+  onUxEvent: (name, properties) => {
+    if (name === "ux_clarity_vote") rememberClarityVote();
+    track(name, { ...properties, layout: (window as { __gaeLayout?: string }).__gaeLayout ?? "unknown" });
+  },
 });
+
+/**
+ * Portal-user testing (Docs/PLAYTEST_PORTAL.md): each player is asked once,
+ * on their first result, whether the game was easy to follow.
+ */
+const CLARITY_KEY = "grow-an-empire:ux-clarity:v1";
+function clarityAsked(): boolean {
+  try { return window.localStorage.getItem(CLARITY_KEY) !== null; } catch { return true; }
+}
+function rememberClarityVote(): void {
+  try { window.localStorage.setItem(CLARITY_KEY, new Date().toISOString()); } catch { /* Storage unavailable: the question may come again. */ }
+}
 
 /**
  * Opens a campaign from the map (or the result screen). The current run
@@ -360,6 +377,7 @@ function presentBattle(animate: boolean): void {
     bestStars: Math.max(previousBest, report.stars),
     nextUnlocked: next ? isCampaignUnlocked(next.number, campaignStars) : false,
     newRecord: report.stars > previousBest,
+    askClarity: animate && !clarityAsked(),
   };
   hud.setReportAvailable(true);
   hud.setStatus(`Campaign complete: ${report.win ? `victory ${"★".repeat(report.stars)}` : "the city fell"}`, 1);
@@ -887,6 +905,7 @@ async function initialize(): Promise<void> {
   }
   settings = resetRequested ? { ...DEFAULT_SETTINGS } : { ...DEFAULT_SETTINGS, ...saved?.settings };
   if (!resetRequested && legacyTutorialCompleted()) settings.tutorialComplete = true;
+  hud.setLearning(!settings.tutorialComplete);
   sound.setMuted(settings.muted === true);
   hud.setMuted(settings.muted === true);
   // A resumed city needs its built (and under-construction) buildings on screen

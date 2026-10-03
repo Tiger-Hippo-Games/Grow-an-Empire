@@ -24,8 +24,11 @@ import flow  # noqa: E402
 URL = os.environ.get("GAE_URL", "http://127.0.0.1:4174/") + "?reset"
 OUT = Path(__file__).parent / "out"
 BUDGET = {
-    "map": 30, "briefing": 20, "tutorial": 38, "first-choice": 22, "later-choice": 30,
-    "muster": 30, "battle": 22, "result": 30,
+    # First visit: the player is learning, so labels show beside the icons.
+    "map": 30, "briefing": 24, "tutorial": 38,
+    # From here on the tutorial is done (skipped): icons only.
+    "first-choice": 14, "later-choice": 20, "muster": 14, "battle": 14, "result": 22,
+    "map-again": 16, "briefing-again": 12,
 }
 GOODS = r"wood|stone|grain|livestock|fruit|planks?|rations?|wine|gold"
 
@@ -66,6 +69,7 @@ def run(width, height):
 
         def check(name):
             page.wait_for_timeout(600)
+            page.wait_for_function("!document.querySelector('.fly-good')", timeout=6000)  # goods landing in the stockpile
             data = page.evaluate(COUNT)
             budget = BUDGET[name]
             bare = re.findall(rf"\b\d+\s+(?:{GOODS})\b", data["text"], re.I)
@@ -95,11 +99,19 @@ def run(width, height):
         flow.play_to_muster(page, timeout=60000)
         check("muster")
         page.click(".flow-dialog [data-action=fight]")
-        page.wait_for_timeout(800)
+        page.wait_for_selector(".flow-dialog[data-kind=battle]")
         check("battle")
-        page.click(".flow-dialog [data-action=skip]")
+        if page.is_visible(".flow-dialog [data-action=skip]"):
+            page.click(".flow-dialog [data-action=skip]")
         page.wait_for_selector(".flow-dialog[data-kind=result]")
         check("result")
+        # After the tutorial the game speaks in icons only: the map and the next briefing.
+        page.click(".flow-dialog [data-action=map]")
+        page.wait_for_selector("#campaign-launch", state="visible")
+        check("map-again")
+        page.click("#campaign-launch")
+        page.wait_for_selector(".flow-dialog[data-kind=briefing]")
+        check("briefing-again")
         browser.close()
     if errors:
         problems.append(f"{size} page errors: {errors}")
