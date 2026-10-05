@@ -991,7 +991,7 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .campaign-realm .gi { width: 22px; height: 22px; }
 
 /* Realm standing on the result, and the Realm board. */
-.realm-standing { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 14px; margin: 2px 0 8px; }
+.realm-standing { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 6px 14px; margin: 2px 0 8px; }
 .realm-rank, .realm-overtaken { display: inline-flex; align-items: center; gap: 5px; }
 .realm-rank .gi, .realm-overtaken .gi { width: 22px; height: 22px; }
 .realm-rank s { opacity: .55; }

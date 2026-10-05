@@ -69,7 +69,7 @@ export function createBattleField(scene: THREE.Scene, characters: CharacterAsset
   }
 
   /** Where the two front lines meet: the open ground south of the civic centre. */
-  const MEET_Y = civicGround.y - 12.5;
+  const MEET_Y = civicGround.y - 10;
   const ROW_GAP = 1.25;
 
   function formation(counts: BattleCounts, enemy: boolean): void {
@@ -78,7 +78,7 @@ export function createBattleField(scene: THREE.Scene, characters: CharacterAsset
       const shown = Math.min(counts[kind], MAX_PER_KIND);
       if (shown === 0) continue;
       const { size } = ROLES[kind];
-      const perRow = kind === "horsemen" ? 7 : 10;
+      const perRow = kind === "horsemen" ? 9 : 14;
       const spacing = kind === "horsemen" ? 1.8 : 1.25;
       for (let index = 0; index < shown; index += 1) {
         const column = index % perRow;
