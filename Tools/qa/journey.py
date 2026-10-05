@@ -28,7 +28,7 @@ shot_n = [0]
 def shot(pg, name):
     shot_n[0] += 1; pg.screenshot(path=str(O / f"{TAG}_{shot_n[0]:02d}_{name}.png"))
 
-MILITARY = ("Weapons", "Blacksmith", "Barracks", "Stable", "Marketplace", "House", "Bakery", "Butchery")
+MILITARY = ("Bow Hall", "Lohar Forge", "Akhara", "Ashvashala", "Bazaar", "House", "Royal Kitchen", "Ghee House")
 
 def wait_choice_or_muster(pg, t=90000):
     pg.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .gather-button, .flow-dialog[data-kind=muster]", timeout=t)
@@ -167,7 +167,7 @@ with sync_playwright() as p:
     if pg.is_visible(".flow-dialog [data-step='archers:1']"):
         pg.click(".flow-dialog [data-step='archers:1']"); note("hired 1 archer:", pg.inner_text(".flow-dialog [data-spend]"))
     if pg.is_visible(".flow-dialog [data-action=best]"): pg.click(".flow-dialog [data-action=best]"); note("best mix:", pg.inner_text(".flow-dialog [data-forecast]"))
-    pg.click(".flow-dialog [data-action=fight]"); pg.wait_for_selector(".flow-dialog[data-kind=battle]"); pg.click(".flow-dialog [data-action=skip]")
+    pg.click(".flow-dialog [data-action=fight]"); pg.wait_for_selector(".battle-hud:not(.hidden), .flow-dialog[data-kind=result]"); pg.is_visible(".battle-hud:not(.hidden)") and pg.click(".battle-hud .bh-skip", timeout=3000)
     r2 = result_text(pg); shot(pg, "c2_result"); note("C2 result:", r2.replace("\n", " | ")[:400])
 
     # --- map after two campaigns
@@ -180,7 +180,7 @@ with sync_playwright() as p:
     for _ in range(3): pg.keyboard.press("s")
     moves = play_campaign(pg, "weak"); note("C3 weak moves:", moves)
     note("C3 muster:", pg.inner_text(".flow-dialog [data-forecast]") if pg.is_visible(".flow-dialog [data-forecast]") else "")
-    pg.click(".flow-dialog [data-action=fight]"); pg.wait_for_selector(".flow-dialog[data-kind=battle]"); pg.click(".flow-dialog [data-action=skip]")
+    pg.click(".flow-dialog [data-action=fight]"); pg.wait_for_selector(".battle-hud:not(.hidden), .flow-dialog[data-kind=result]"); pg.is_visible(".battle-hud:not(.hidden)") and pg.click(".battle-hud .bh-skip", timeout=3000)
     r3 = result_text(pg); shot(pg, "c3_result"); note("C3 result:", r3.replace("\n", " | ")[:500])
     note("C3 buttons:", pg.locator(".flow-dialog button").all_inner_texts())
     pg.click(".flow-dialog [data-action=map]"); pg.wait_for_timeout(800); shot(pg, "map_after_c3")

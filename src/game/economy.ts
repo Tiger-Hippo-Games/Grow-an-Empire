@@ -15,8 +15,8 @@ export type ResourceBag = Partial<Record<ResourceName, number>>;
 
 /** Player-facing label for each resource. Its key order is also the HUD stockpile order. */
 export const RESOURCE_LABELS: Record<ResourceName, string> = {
-  wood: "Wood", stone: "Stone", grain: "Grain", livestock: "Livestock", fruit: "Fruit",
-  planks: "Planks", rations: "Rations", wine: "Wine", gold: "Gold",
+  wood: "Wood", stone: "Stone", grain: "Grain", livestock: "Cattle", fruit: "Mangoes",
+  planks: "Planks", rations: "Rations", wine: "Soma", gold: "Gold",
 };
 export const RESOURCE_NAMES = Object.keys(RESOURCE_LABELS) as ResourceName[];
 

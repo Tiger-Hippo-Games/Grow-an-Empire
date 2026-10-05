@@ -4,7 +4,7 @@ import type { SettlementSimulation } from "../settlementSimulation";
 /**
  * Test helper: plays one move the way a player would. Builds the first
  * preferred card that is affordable (else the first affordable card), else
- * swaps at the Marketplace, else gathers. Returns what it did.
+ * swaps at the Bazaar, else gathers. Returns what it did.
  */
 export function playMove(sim: SettlementSimulation, prefer: string[] = []): "built" | "swapped" | "gathered" | "none" {
   if (sim.state.mode === "construction") { sim.update(CONSTRUCTION_DURATION_SECONDS); return "built"; }

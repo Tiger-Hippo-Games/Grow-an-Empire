@@ -91,7 +91,7 @@ describe("loadSnapshot", () => {
 
 describe("campaign building whitelist", () => {
   it("skips a disallowed top-ranked building instead of offering nothing", () => {
-    // On Move 3, right after a Woodcutter, the Sawmill is the top pick. Without it,
+    // On Move 3, right after a Woodcutter, the Carpenter's Yard is the top pick. Without it,
     // the next eligible building should be offered instead.
     const built = ["farm", "woodcutter"];
     const pool = ["swine-farm", "bakery"];

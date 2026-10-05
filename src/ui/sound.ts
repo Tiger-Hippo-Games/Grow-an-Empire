@@ -1,23 +1,36 @@
 /**
  * Small synthesized sound effects (Web Audio, no audio files to download or
- * ship). The audio context starts on the first click or key press, as browsers
+ * ship), tuned to the Bharatvarsha setting: a temple bell when a move ends,
+ * the shankh (conch) as the armies meet, dhol beats and a Bhupali phrase on
+ * victory. The audio context starts on the first click or key press, as browsers
  * require, and is suspended while the game is muted or the tab is hidden.
  */
-export type SoundName = "click" | "build" | "complete" | "trained" | "coins" | "warning" | "hit" | "victory" | "defeat";
+export type SoundName = "click" | "build" | "complete" | "trained" | "coins" | "warning" | "hit" | "victory" | "defeat" | "conch";
 
 type Note = { frequency: number; at: number; length: number; type?: OscillatorType; volume?: number; slideTo?: number };
 
 const SOUNDS: Record<SoundName, Note[]> = {
   click: [{ frequency: 660, at: 0, length: 0.05, type: "triangle", volume: 0.12 }],
   build: [{ frequency: 180, at: 0, length: 0.08, type: "square", volume: 0.07 }, { frequency: 150, at: 0.1, length: 0.08, type: "square", volume: 0.07 }],
-  complete: [{ frequency: 523, at: 0, length: 0.12, type: "triangle" }, { frequency: 784, at: 0.1, length: 0.18, type: "triangle" }],
+  // A small temple bell: a bright strike and its octave, ringing out.
+  complete: [{ frequency: 1046, at: 0, length: 0.7, type: "sine", volume: 0.07 }, { frequency: 2093, at: 0, length: 0.35, type: "sine", volume: 0.03 }, { frequency: 1568, at: 0.02, length: 0.5, type: "sine", volume: 0.025 }],
   trained: [{ frequency: 392, at: 0, length: 0.08, type: "sawtooth", volume: 0.05 }, { frequency: 523, at: 0.08, length: 0.12, type: "sawtooth", volume: 0.05 }],
   coins: [{ frequency: 1318, at: 0, length: 0.06, type: "square", volume: 0.05 }, { frequency: 1760, at: 0.06, length: 0.1, type: "square", volume: 0.05 }],
   warning: [{ frequency: 220, at: 0, length: 0.18, type: "triangle", volume: 0.12, slideTo: 170 }],
   hit: [{ frequency: 140, at: 0, length: 0.09, type: "sawtooth", volume: 0.08, slideTo: 60 }, { frequency: 900, at: 0, length: 0.03, type: "square", volume: 0.03 }],
+  // Dhol beats under a rising Bhupali phrase (Sa Re Ga Pa Dha Sa).
   victory: [
-    { frequency: 392, at: 0, length: 0.16, type: "triangle" }, { frequency: 523, at: 0.16, length: 0.16, type: "triangle" },
-    { frequency: 659, at: 0.32, length: 0.16, type: "triangle" }, { frequency: 784, at: 0.48, length: 0.45, type: "triangle" },
+    { frequency: 90, at: 0, length: 0.14, type: "sine", volume: 0.16, slideTo: 55 }, { frequency: 90, at: 0.28, length: 0.14, type: "sine", volume: 0.16, slideTo: 55 },
+    { frequency: 140, at: 0.42, length: 0.08, type: "sine", volume: 0.1, slideTo: 90 }, { frequency: 90, at: 0.56, length: 0.14, type: "sine", volume: 0.16, slideTo: 55 },
+    { frequency: 392, at: 0, length: 0.14, type: "triangle" }, { frequency: 440, at: 0.14, length: 0.14, type: "triangle" },
+    { frequency: 494, at: 0.28, length: 0.14, type: "triangle" }, { frequency: 587, at: 0.42, length: 0.14, type: "triangle" },
+    { frequency: 659, at: 0.56, length: 0.14, type: "triangle" }, { frequency: 784, at: 0.7, length: 0.5, type: "triangle" },
+  ],
+  // The shankh: a breathy low call that swells and bends up a little.
+  conch: [
+    { frequency: 233, at: 0, length: 1.1, type: "sawtooth", volume: 0.035, slideTo: 247 },
+    { frequency: 466, at: 0.05, length: 1.0, type: "triangle", volume: 0.05, slideTo: 494 },
+    { frequency: 699, at: 0.1, length: 0.9, type: "sine", volume: 0.025, slideTo: 741 },
   ],
   defeat: [
     { frequency: 330, at: 0, length: 0.25, type: "triangle" }, { frequency: 262, at: 0.25, length: 0.25, type: "triangle" },

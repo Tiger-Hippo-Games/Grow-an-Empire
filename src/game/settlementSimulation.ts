@@ -31,7 +31,7 @@ import {
  *        processing, training, market, upkeep, spoilage), a move summary is emitted
  *     -> next card offered, or after the last move the muster begins.
  *   A stuck move (nothing affordable) is solved by swapAndBuild() with a
- *   Marketplace, or by gather(): no building, but the move still runs.
+ *   Bazaar, or by gather(): no building, but the move still runs.
  * The finale:
  *   muster --muster(hire)--> the battle is resolved, stars awarded --> complete.
  */
@@ -137,7 +137,7 @@ export interface SettlementState {
   deserted: number;
   /** Moves spent gathering (nothing was affordable). */
   gatherMoves: number;
-  /** Stuck moves solved at the Marketplace. */
+  /** Stuck moves solved at the Bazaar. */
   swaps: number;
   /** The summary of the last completed move (shown again after a reload). */
   lastSummary: MoveSummary | null;
@@ -358,7 +358,7 @@ export class SettlementSimulation {
 
   get hasMarketplace(): boolean { return this.state.builtBuildingIds.includes("marketplace"); }
 
-  /** On a stuck move with a Marketplace: the swap that would pay for `buildingId`, or null. */
+  /** On a stuck move with a Bazaar: the swap that would pay for `buildingId`, or null. */
   swapPlanFor(buildingId: string): SwapPlan | null {
     if (!this.isStuck() || !this.hasMarketplace || !this.state.availableBuildingIds.includes(buildingId)) return null;
     return planSwap(this.state.resources, this.costOf(buildingId));
@@ -386,7 +386,7 @@ export class SettlementSimulation {
   }
 
   /**
-   * Stuck move, with a Marketplace: sells goods to cover the card's shortfall
+   * Stuck move, with a Bazaar: sells goods to cover the card's shortfall
    * (at twice the selling price) and starts building it.
    */
   swapAndBuild(buildingId: string): SimulationEvent[] {
@@ -415,7 +415,7 @@ export class SettlementSimulation {
 
   /**
    * Stuck move: build nothing, but every building still runs and the move counts.
-   * Only allowed when no offered card is affordable (and, with a Marketplace,
+   * Only allowed when no offered card is affordable (and, with a Bazaar,
    * when no swap can cover any of them).
    */
   gather(): SimulationEvent[] {
@@ -478,7 +478,7 @@ export class SettlementSimulation {
         if (nextOffer) this.state.availableBuildingIds.push(nextOffer);
       }
       this.state.mode = "awaiting-choice";
-      if (this.isStuck()) summary.warnings.unshift(this.canGather() ? "Nothing on offer is affordable: this move is a Gather move." : "Nothing on offer is affordable: swap goods at the Marketplace.");
+      if (this.isStuck()) summary.warnings.unshift(this.canGather() ? "Nothing on offer is affordable: this move is a Gather move." : "Nothing on offer is affordable: swap goods at the Bazaar.");
       summary.warnings = summary.warnings.slice(0, 2);
     }
     this.state.lastSummary = summary;
@@ -514,9 +514,9 @@ export class SettlementSimulation {
    * Runs every completed building once, at the end of each move, in a fixed order:
    *   1. every building ages by one move; population grows with the civic level and Houses;
    *   2. raw producers add resources (output +1 every 3 moves standing);
-   *   3. processors (Sawmill, Bakery, Butchery, Winery) convert inputs, limited by capacity and stock;
+   *   3. processors (Carpenter's Yard, Royal Kitchen, Ghee House, Soma Press) convert inputs, limited by capacity and stock;
    *   4. military buildings train soldiers from materials and free villagers;
-   *   5. the Marketplace sells wine (and spare planks) for gold;
+   *   5. the Bazaar sells wine (and spare planks) for gold;
    *   6. the army eats; unfed soldiers desert;
    *   7. grain above the cap spoils without a Granary.
    */
@@ -602,7 +602,7 @@ export class SettlementSimulation {
     const nextUpkeep = this.upkeep;
     if (nextUpkeep > 0 && !deserted) {
       const movesLeft = Math.floor(resources.rations / nextUpkeep);
-      // Three moves' notice: enough to build a Bakery or Butchery in time.
+      // Three moves' notice: enough to build a Royal Kitchen or Ghee House in time.
       if (movesLeft <= 3) warnings.push(movesLeft === 0 ? "No rations left: soldiers will desert next move." : `Rations last ${movesLeft} more move${movesLeft === 1 ? "" : "s"} at this army size.`);
     }
 
@@ -614,7 +614,7 @@ export class SettlementSimulation {
 
   // --- The muster and the battle ---------------------------------------------
 
-  /** Gold the pre-battle market can raise by selling everything (0 without a Marketplace). */
+  /** Gold the pre-battle market can raise by selling everything (0 without a Bazaar). */
   get musterGold(): number { return this.hasMarketplace ? goldValue(this.state.resources) : 0; }
 
   /** At most half the enemy's head count can be hired. */
@@ -680,9 +680,9 @@ export class SettlementSimulation {
     const t = this.state.trainedUnits;
     // trainedUnits is the army still standing: deserters have already left it.
     explanations.push(`${this.state.deserted ? "Still in the ranks" : "Trained over the campaign"}: ${t.archers} archers, ${t.swordsmen} swordsmen, ${t.horsemen} horsemen.`);
-    if (hire.archers || hire.swordsmen) explanations.push(`The Marketplace hired ${hire.archers + hire.swordsmen} sellswords for ${goldSpent} gold.`);
+    if (hire.archers || hire.swordsmen) explanations.push(`The Bazaar hired ${hire.archers + hire.swordsmen} sellswords for ${goldSpent} gold.`);
     if (army.militia) explanations.push(`${army.militia} villagers joined as militia.`);
-    if (this.state.deserted) explanations.push(`${this.state.deserted} ${this.state.deserted === 1 ? "soldier" : "soldiers"} deserted for lack of rations: a Bakery or Butchery feeds the army.`);
+    if (this.state.deserted) explanations.push(`${this.state.deserted} ${this.state.deserted === 1 ? "soldier" : "soldiers"} deserted for lack of rations: a Royal Kitchen or Ghee House feeds the army.`);
     if (this.state.gatherMoves) explanations.push(`${this.state.gatherMoves} move${this.state.gatherMoves === 1 ? " was" : "s were"} spent gathering.`);
     let gap: string | null = null;
     const nextTarget = !outcome.win ? 0 : outcome.stars === 1 ? this.campaign.stars.two : outcome.stars === 2 ? this.campaign.stars.three : null;

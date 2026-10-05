@@ -23,7 +23,7 @@ export interface HudCallbacks {
   onSpeedChange(speed: number): void;
   onGridToggle(visible: boolean): void;
   onSelectBuilding(buildingId: string): void;
-  /** Stuck move with a Marketplace: sell goods to pay for this card, then build it. */
+  /** Stuck move with a Bazaar: sell goods to pay for this card, then build it. */
   onSwapBuild(buildingId: string): void;
   /** Stuck move: build nothing this move. */
   onGather(): void;
@@ -170,6 +170,7 @@ export function createHud(callbacks: HudCallbacks) {
     button.title = label;
   }
   setButton(musterToggle, "report", "Battle report");
+  setButton(requireElement<HTMLButtonElement>("#realm-toggle"), "rank", "Realm");
   setButton(requireElement<HTMLButtonElement>("#map-toggle"), "map", "Campaign map");
   setButton(controlsMore, "more", "More");
   setButton(gridToggle, "grid", "Grid · Off");
@@ -290,9 +291,10 @@ export function createHud(callbacks: HudCallbacks) {
 
   /** "2 grain spoiled" → "[grain]2 spoiled": amounts in sentences from the rules get their icon too. */
   function withIcons(html: string): string {
-    return html.replace(/\b(\d+) (wood|stone|grain|livestock|fruit|planks?|rations?|wine|gold)\b/gi, (_match, count: string, word: string) => {
+    return html.replace(/\b(\d+) (wood|stone|grain|livestock|cattle|fruit|mangoes|mango|planks?|rations?|wine|soma|gold)\b/gi, (_match, count: string, word: string) => {
       const lower = word.toLowerCase();
-      const name = (lower === "plank" ? "planks" : lower === "ration" ? "rations" : lower) as ResourceName;
+      const alias: Record<string, ResourceName> = { plank: "planks", ration: "rations", cattle: "livestock", mango: "fruit", mangoes: "fruit", soma: "wine" };
+      const name = (alias[lower] ?? lower) as ResourceName;
       return amount(name, Number(count));
     });
   }
@@ -406,7 +408,7 @@ export function createHud(callbacks: HudCallbacks) {
   /**
    * Rebuilds the choice cards for the current move and shows the panel.
    * Only acts while the simulation is awaiting a choice. Affordable cards call
-   * `onSelectBuilding`; on a stuck move with a Marketplace, a card that a swap
+   * `onSelectBuilding`; on a stuck move with a Bazaar, a card that a swap
    * can pay for calls `onSwapBuild`; otherwise it is disabled and says what it
    * lacks. When nothing can be built, a Gather button appears.
    */
@@ -514,7 +516,7 @@ export function createHud(callbacks: HudCallbacks) {
       const hint = document.createElement("p");
       hint.className = "decision-hint w";
       hint.textContent = view.cards.some((card) => card.swap)
-        ? "Swap spare goods at the Marketplace (twice the price)."
+        ? "Swap spare goods at the Bazaar (twice the price)."
         : "Paid now. Built earlier, it works for more moves. Keys 1-3.";
       buildFoot.appendChild(hint);
     }
@@ -531,7 +533,7 @@ export function createHud(callbacks: HudCallbacks) {
     }
     const affordable = view.cards.filter((card) => card.affordable).length;
     setStatus(view.canGather ? `Move ${view.move}: nothing is affordable, so gather this move`
-      : affordable === 0 ? `Move ${view.move}: swap goods at the Marketplace to build`
+      : affordable === 0 ? `Move ${view.move}: swap goods at the Bazaar to build`
       : `Move ${view.move} ready: choose one of ${affordable} affordable building${affordable === 1 ? "" : "s"}`, 0);
   }
 
@@ -592,6 +594,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   function setCampaign(campaign: CampaignDefinition, index: number): void {
     campaignMoveLimit = campaign.moveLimit;
+    for (const node of document.querySelectorAll<HTMLElement>("[data-move-limit]")) node.textContent = String(campaign.moveLimit);
     [...levelPips.children].forEach((pip, pipIndex) => { (pip as HTMLElement).hidden = pipIndex > campaignMoveLimit; });
     campaignKicker.textContent = `CAMPAIGN ${index + 1} / 25`;
     campaignTitle.textContent = campaign.name;

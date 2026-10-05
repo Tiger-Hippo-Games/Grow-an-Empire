@@ -66,29 +66,29 @@ export function benefitText(id: string): string {
   switch (id) {
     case "house": return `+${HOUSE_PEOPLE_PER_MOVE} people for every move it stands`;
     case "granary": return "+1 grain a move; stops grain spoiling";
-    case "marketplace": return "Sells wine for gold; swaps goods when you're stuck";
+    case "marketplace": return "Sells soma for gold; swaps goods when you're stuck";
     case "barracks": return "+1 soldier a move at every military building";
     default: return "";
   }
 }
 
 export const BUILDINGS: Record<string, BuildingDefinition> = {
-  woodcutter: building({ id: "woodcutter", name: "Woodcutter's Hut", description: "A forest camp that steadily gathers timber.", unlocks: "Unlocks the Sawmill", artKey: "woodcutter", offerMove: 1, offerPriority: 1, resource: "wood" }),
-  farm: building({ id: "farm", name: "Farm", description: "Cultivated fields provide grain for the settlement.", unlocks: "Opens the Orchard and Swine Farm", artKey: "farm", offerMove: 1, offerPriority: 2, resource: "grain" }),
-  "swine-farm": building({ id: "swine-farm", name: "Swine Farm", description: "Raises livestock for a reliable food chain.", unlocks: "Unlocks the Butchery", artKey: "swine-farm", offerMove: 2, offerPriority: 3, requiresAll: ["farm"], resource: "livestock" }),
-  bakery: building({ id: "bakery", name: "Bakery", description: "Turns stored grain into dependable campaign rations.", unlocks: "Rations feed the army: 1 per 4 soldiers", artKey: "bakery", offerMove: 4, offerPriority: 4, requiresAll: ["farm", "sawmill", "quarry"], resource: "rations" }),
-  sawmill: building({ id: "sawmill", name: "Sawmill", description: "Cuts timber into construction-ready planks.", unlocks: "Enables archers and industry", artKey: "sawmill", offerMove: 2, offerPriority: 5, requiresAll: ["woodcutter"], resource: "planks" }),
-  butchery: building({ id: "butchery", name: "Butchery", description: "Preserves livestock into durable army provisions.", unlocks: "More rations for a bigger army", artKey: "butchery", offerMove: 3, offerPriority: 6, requiresAll: ["swine-farm", "sawmill"], resource: "rations" }),
-  "fruit-orchard": building({ id: "fruit-orchard", name: "Fruit Orchard", description: "Rows of fruit trees broaden the harvest.", unlocks: "Unlocks the Winery", artKey: "fruit-orchard", offerMove: 2, offerPriority: 7, requiresAll: ["farm"], resource: "fruit" }),
-  winery: building({ id: "winery", name: "Winery", description: "Presses orchard fruit into valuable wine.", unlocks: "Wine sells for 5 gold", artKey: "winery", offerMove: 4, offerPriority: 8, requiresAll: ["farm", "sawmill", "quarry"], resource: "wine" }),
-  quarry: building({ id: "quarry", name: "Quarry", description: "Extracts stone for lasting civic works.", unlocks: "With Sawmill, opens stone buildings", artKey: "quarry", offerMove: 1, offerPriority: 9, resource: "stone" }),
-  house: building({ id: "house", name: "House", description: "A permanent home brings more people into the settlement.", unlocks: "More recruits and militia", artKey: "house", offerMove: 3, offerPriority: 13, requiresAll: ["sawmill", "quarry"] }),
-  granary: building({ id: "granary", name: "Granary", description: "Stores the harvest safely between seasons.", unlocks: "Secures the food economy", artKey: "granary", offerMove: 4, offerPriority: 14, requiresAll: ["farm", "sawmill", "quarry"], resource: "grain" }),
-  marketplace: building({ id: "marketplace", name: "Marketplace", description: "A lively square turns surplus goods into gold.", unlocks: "Hires sellswords before the battle", artKey: "marketplace", offerMove: 4, offerPriority: 12, requiresAll: ["farm", "butchery"], resource: "gold" }),
-  blacksmith: building({ id: "blacksmith", name: "Blacksmith", description: "Stone-built forges arm and train swordsmen.", unlocks: "Swordsmen stop a cavalry charge", artKey: "blacksmith", offerMove: 3, offerPriority: 11, requiresAll: ["sawmill", "quarry"], resource: "planks" }),
-  "weapons-workshop": building({ id: "weapons-workshop", name: "Weapons Workshop", description: "Fletchers and bowyers train archers.", unlocks: "Archers counter a swordsman horde", artKey: "weapons-workshop", offerMove: 3, offerPriority: 10, requiresAll: ["sawmill", "quarry"], resource: "planks" }),
-  barracks: building({ id: "barracks", name: "Barracks", description: "Drill yards speed up every kind of training.", unlocks: "Stations the city's defenders", artKey: "barracks", offerMove: 3, offerPriority: 15, requiresAll: ["sawmill", "quarry"], resource: "rations" }),
-  stable: building({ id: "stable", name: "Stable", description: "Warhorses and riders train for a cavalry charge.", unlocks: "Horsemen ride down archers", artKey: "stable", offerMove: 5, offerPriority: 16, requiresAll: ["blacksmith", "weapons-workshop"], resource: "rations" }),
+  woodcutter: building({ id: "woodcutter", name: "Woodcutter's Hut", description: "A forest camp that cuts sal and teak timber.", unlocks: "Unlocks the Carpenter's Yard", artKey: "woodcutter", offerMove: 1, offerPriority: 1, resource: "wood" }),
+  farm: building({ id: "farm", name: "Farm", description: "Paddy fields provide grain for the settlement.", unlocks: "Opens the Mango Grove and Goshala", artKey: "farm", offerMove: 1, offerPriority: 2, resource: "grain" }),
+  "swine-farm": building({ id: "swine-farm", name: "Goshala", description: "A cattle shed; the herd gives milk for ghee.", unlocks: "Unlocks the Ghee House", artKey: "swine-farm", offerMove: 2, offerPriority: 3, requiresAll: ["farm"], resource: "livestock" }),
+  bakery: building({ id: "bakery", name: "Royal Kitchen", description: "The royal kitchen turns grain into rotis for the army.", unlocks: "Rations feed the army: 1 per 4 soldiers", artKey: "bakery", offerMove: 4, offerPriority: 4, requiresAll: ["farm", "sawmill", "quarry"], resource: "rations" }),
+  sawmill: building({ id: "sawmill", name: "Carpenter's Yard", description: "Carpenters cut timber into construction-ready planks.", unlocks: "Enables archers and industry", artKey: "sawmill", offerMove: 2, offerPriority: 5, requiresAll: ["woodcutter"], resource: "planks" }),
+  butchery: building({ id: "butchery", name: "Ghee House", description: "Churns milk into ghee, the army's best provision.", unlocks: "More rations for a bigger army", artKey: "butchery", offerMove: 3, offerPriority: 6, requiresAll: ["swine-farm", "sawmill"], resource: "rations" }),
+  "fruit-orchard": building({ id: "fruit-orchard", name: "Mango Grove", description: "Mango trees broaden the harvest.", unlocks: "Unlocks the Soma Press", artKey: "fruit-orchard", offerMove: 2, offerPriority: 7, requiresAll: ["farm"], resource: "fruit" }),
+  winery: building({ id: "winery", name: "Soma Press", description: "Presses fruit into soma, prized in every bazaar.", unlocks: "Soma sells for 5 gold", artKey: "winery", offerMove: 4, offerPriority: 8, requiresAll: ["farm", "sawmill", "quarry"], resource: "wine" }),
+  quarry: building({ id: "quarry", name: "Quarry", description: "Cuts stone for forts and temples.", unlocks: "With Carpenter's Yard, opens stone buildings", artKey: "quarry", offerMove: 1, offerPriority: 9, resource: "stone" }),
+  house: building({ id: "house", name: "House", description: "A family home brings more people into the settlement.", unlocks: "More recruits and militia", artKey: "house", offerMove: 3, offerPriority: 13, requiresAll: ["sawmill", "quarry"] }),
+  granary: building({ id: "granary", name: "Granary", description: "A kothar stores the harvest safely between monsoons.", unlocks: "Secures the food economy", artKey: "granary", offerMove: 4, offerPriority: 14, requiresAll: ["farm", "sawmill", "quarry"], resource: "grain" }),
+  marketplace: building({ id: "marketplace", name: "Bazaar", description: "A busy haat turns surplus goods into gold.", unlocks: "Hires sellswords before the battle", artKey: "marketplace", offerMove: 4, offerPriority: 12, requiresAll: ["farm", "butchery"], resource: "gold" }),
+  blacksmith: building({ id: "blacksmith", name: "Lohar Forge", description: "The lohar's forge arms and trains swordsmen.", unlocks: "Swordsmen stop a cavalry charge", artKey: "blacksmith", offerMove: 3, offerPriority: 11, requiresAll: ["sawmill", "quarry"], resource: "planks" }),
+  "weapons-workshop": building({ id: "weapons-workshop", name: "Bow Hall", description: "Bowyers string bows and train archers.", unlocks: "Archers counter a swordsman horde", artKey: "weapons-workshop", offerMove: 3, offerPriority: 10, requiresAll: ["sawmill", "quarry"], resource: "planks" }),
+  barracks: building({ id: "barracks", name: "Akhara", description: "The akhara drills every kind of soldier faster.", unlocks: "Stations the city's defenders", artKey: "barracks", offerMove: 3, offerPriority: 15, requiresAll: ["sawmill", "quarry"], resource: "rations" }),
+  stable: building({ id: "stable", name: "Ashvashala", description: "Warhorses and riders train for a cavalry charge.", unlocks: "Horsemen ride down archers", artKey: "stable", offerMove: 5, offerPriority: 16, requiresAll: ["blacksmith", "weapons-workshop"], resource: "rations" }),
 };
 
 /** The three cards offered on Move 1 of every run. */
@@ -110,7 +110,7 @@ export function isBuildingEligible(definition: BuildingDefinition, builtIds: str
  * completes (the pool is "rolling": the chosen card leaves, one new card arrives).
  *
  * Ranking, in order:
- *   1. Barracks once a military workshop exists, then military workshops once
+ *   1. Akhara once a military workshop exists, then military workshops once
  *      their stone and timber prerequisites are ready;
  *   2. buildings that directly depend on the one just built;
  *   3. earliest `offerMove`, then lowest `offerPriority`.

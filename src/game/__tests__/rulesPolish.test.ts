@@ -21,7 +21,7 @@ describe("rules polish", () => {
   });
 
   it("only suggests soldiers the city could have trained", () => {
-    // Only a Weapons Workshop stands: the defeat hint is about archers, not horsemen.
+    // Only a Bow Hall stands: the defeat hint is about archers, not horsemen.
     const sim = new SettlementSimulation(CAMPAIGNS[2]);
     Object.assign(sim.state, { mode: "muster", move: 12, builtBuildingIds: ["woodcutter", "quarry", "sawmill", "weapons-workshop"], trainedUnits: { archers: 1, swordsmen: 0, horsemen: 0 } });
     sim.muster(null);

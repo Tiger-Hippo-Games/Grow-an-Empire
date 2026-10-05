@@ -1,5 +1,5 @@
 import { enemyStrength, playerStrength, resolveBattle, type EnemyArmy, type PlayerArmy, type StarMargins } from "../game/battle";
-import { CAMPAIGNS, type CampaignDefinition } from "../game/campaigns";
+import { CAMPAIGNS, CHAPTERS, type CampaignDefinition } from "../game/campaigns";
 import { SELLSWORD_COST } from "../game/economy";
 import type { ArmyReport, SellswordHire } from "../game/settlementSimulation";
 import { iconStyle, playBattle, type IconKind } from "../render/combatScene";
@@ -13,7 +13,7 @@ import { amount, icon } from "./icons";
  * The campaign's story screens, all modal dialogs over the city:
  *   1. the enemy briefing when a campaign starts;
  *   2. the muster when the last move ends: the enemy at the gates, both
- *      armies, and (with a Marketplace) the sellsword market;
+ *      armies, and (with a Bazaar) the sellsword market;
  *   3. the battle strip; then
  *   4. the result, with stars and what would have done better.
  * main.ts decides when each appears; this module only draws and reports clicks.
@@ -40,6 +40,7 @@ function counterIcons(army: EnemyArmy): string {
     `<span class="counter">${icon(winner)}<b aria-hidden="true">›</b>${icon(loser)}</span>`;
   if (army.archers === 0 && army.horsemen === 0) return beats("archers", "swordsmen");
   if (army.swordsmen === 0 && army.horsemen === 0) return beats("horsemen", "archers");
+  if (army.swordsmen === 0 && army.archers === 0) return beats("swordsmen", "horsemen");
   return `<span class="counter">${icon("archers")}${icon("swordsmen")}${icon("horsemen")}<span class="tag">mix</span></span>`;
 }
 
@@ -89,6 +90,63 @@ export interface ResultView {
   bestStars: number;
   nextUnlocked: boolean;
   newRecord: boolean;
+  /** The realm standing after this battle (absent on an old result reopened from a save). */
+  realm?: RealmView;
+}
+
+/** The player's place in the realm after a result (game/realm.ts). */
+export interface RealmView {
+  before: number;
+  rank: number;
+  of: number;
+  overtaken: number;
+  title: string;
+  /** The most notable raja overtaken, and the one now just above. */
+  notable: { name: string; title: string; colour: string } | null;
+  nemesis: { name: string; title: string; colour: string; campaignsAhead: number } | null;
+}
+
+/** "Easy", "Medium" or "Hard" as a small coloured chip. */
+export function tierChip(campaign: CampaignDefinition): string {
+  const label = campaign.tier[0].toUpperCase() + campaign.tier.slice(1);
+  return `<span class="tier-chip tier-${campaign.tier}" aria-label="Difficulty: ${label}">${label}</span>`;
+}
+
+const number = (value: number): string => value.toLocaleString("en-IN");
+
+/** The rank line on the result: "[chakra] 812 → 655 / 1,009 · +157 [banner] · Samanta". */
+function realmLine(realm: RealmView): string {
+  const moved = realm.before !== realm.rank;
+  return `<div class="realm-standing" aria-label="Realm rank ${realm.rank} of ${realm.of}${realm.overtaken ? `, ${realm.overtaken} rajas overtaken` : ""}">
+    <span class="realm-rank">${icon("rank")}${moved ? `<s>${number(realm.before)}</s><b aria-hidden="true">→</b>` : ""}<b class="realm-now" data-from="${realm.before}" data-to="${realm.rank}">${number(realm.rank)}</b><small>/ ${number(realm.of)}</small></span>
+    ${realm.overtaken ? `<span class="realm-overtaken">${icon("rival")}<b>+${number(realm.overtaken)}</b></span>` : ""}
+    <span class="realm-title">${escapeHtml(realm.title)}</span>
+  </div>`;
+}
+
+function realmDetails(realm: RealmView): string {
+  const banner = (colour: string) => `<i class="banner-dot" style="--banner:${colour}"></i>`;
+  const lines: string[] = [];
+  if (realm.notable) lines.push(`<p class="flow-note">${banner(realm.notable.colour)} You overtook ${escapeHtml(realm.notable.title)} ${escapeHtml(realm.notable.name)}${realm.overtaken > 1 ? ` and ${number(realm.overtaken - 1)} more` : ""}.</p>`);
+  if (realm.nemesis) lines.push(`<p class="flow-note">${banner(realm.nemesis.colour)} Next above you: ${escapeHtml(realm.nemesis.title)} ${escapeHtml(realm.nemesis.name)}${realm.nemesis.campaignsAhead > 0 ? `, ${realm.nemesis.campaignsAhead} ${realm.nemesis.campaignsAhead === 1 ? "campaign" : "campaigns"} ahead` : ""}.</p>`);
+  else lines.push(`<p class="flow-note good">You lead all ${number(realm.of)} rajas of the realm.</p>`);
+  lines.push(`<p class="flow-note quiet">The other rajas are AI rivals on the same road.</p>`);
+  return lines.join("");
+}
+
+/** Rolls the rank number from its old value to its new one (skipped with reduced motion). */
+function rollRank(root: HTMLElement): void {
+  const node = root.querySelector<HTMLElement>(".realm-now");
+  if (!node) return;
+  const from = Number(node.dataset.from), to = Number(node.dataset.to);
+  if (!(from > to) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const start = performance.now(), duration = 900;
+  const step = (now: number): void => {
+    const t = Math.min(1, (now - start) / duration);
+    node.textContent = number(Math.round(from + (to - from) * (1 - (1 - t) ** 3)));
+    if (t < 1 && node.isConnected) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 export interface FlowCallbacks {
@@ -97,7 +155,7 @@ export interface FlowCallbacks {
   onReplay(): void;
   onNext(): void;
   onViewCity(): void;
-  onSound(name: "click" | "hit" | "victory" | "defeat" | "coins"): void;
+  onSound(name: "click" | "hit" | "victory" | "defeat" | "coins" | "conch"): void;
   onModalChange(open: boolean): void;
   /** UX analytics (Docs/PLAYTEST_PORTAL.md): Details opened, the clarity vote. */
   onUxEvent?(name: string, properties: Record<string, unknown>): void;
@@ -152,13 +210,14 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     const { objective } = campaign;
     const veteran = objective.army.veterancy > 1 ? `<p class="flow-note">${icon("warning")} Veterans: +${percent(objective.army.veterancy - 1)} strength</p>` : "";
     show("briefing", `
-      <p class="flow-kicker">CAMPAIGN ${campaign.number} / ${CAMPAIGNS.length}</p>
+      <p class="flow-kicker">CAMPAIGN ${campaign.number} / ${CAMPAIGNS.length} ${tierChip(campaign)}</p>
       <h2>${escapeHtml(objective.enemyName)}</h2>
       <div class="army-chips">${armyChips(objective.army, true)}</div>
       ${veteran}
       <p class="flow-counter"><span class="tag w">Counter</span>${counterIcons(objective.army)}<span class="arrive" aria-label="Arrive after move ${campaign.moveLimit}">${icon("move")}<b>${campaign.moveLimit}</b><span class="w"> moves</span></span></p>
       ${starRules(campaign.stars)}
-      ${extra(`<p class="flow-sub">from ${escapeHtml(objective.kingdomName)}</p>
+      ${extra(`<p class="flow-sub">${["I", "II", "III", "IV", "V"][campaign.chapter] ?? ""} · ${escapeHtml(CHAPTERS[campaign.chapter]?.name ?? "")}: ${escapeHtml(CHAPTERS[campaign.chapter]?.lore ?? "")}</p>
+      <p class="flow-sub">from ${escapeHtml(objective.kingdomName)}</p>
       <p class="flow-lead">${escapeHtml(objective.briefing)}</p>
       <p class="flow-hint">${escapeHtml(objective.counterHint)}</p>
       <p class="flow-note">They reach the city after Move ${campaign.moveLimit}. Every building you raise before then shapes the army that meets them.</p>`)}
@@ -167,7 +226,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     dialog.querySelector("[data-action=map]")!.addEventListener("click", () => { hide(); callbacks.onMap(); });
   }
 
-  /** 2. The muster: the enemy has arrived. With a Marketplace, sellswords can be hired. */
+  /** 2. The muster: the enemy has arrived. With a Bazaar, sellswords can be hired. */
   function showMuster(view: MusterView): void {
     const { campaign } = view;
     const enemy: EnemyArmy = campaign.objective.army;
@@ -184,7 +243,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
           </div>
           <div class="market-foot"><span data-spend></span><button type="button" class="quiet" data-action="best">Best mix</button></div>
         </div>`
-      : `<p class="flow-note market-missing" aria-label="No Marketplace: no sellswords">${icon("market")}${icon("lock")}<span class="w"> No Marketplace: no sellswords.</span></p>`;
+      : `<p class="flow-note market-missing" aria-label="No Bazaar: no sellswords">${icon("market")}${icon("lock")}<span class="w"> No Bazaar: no sellswords.</span></p>`;
     show("muster", `
       <p class="flow-kicker w">MOVE ${campaign.moveLimit} · THE ENEMY ARRIVES</p>
       <h2>${escapeHtml(campaign.objective.enemyName)} attack</h2>
@@ -244,6 +303,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       <div class="battle-strip" data-strip></div>
       <div class="flow-actions"><button type="button" class="quiet" data-primary data-action="skip">Skip</button></div>`);
     const strip = dialog.querySelector<HTMLElement>("[data-strip]")!;
+    callbacks.onSound("conch");
     const finish = (): void => showResult(result);
     stopBattle = playBattle(strip,
       { title: "Your army", start: { archers: report.units.archers, swordsmen: report.units.swordsmen, horsemen: report.units.horsemen, militia: report.units.militia } },
@@ -268,15 +328,17 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       <h2 class="${report.win ? "good" : "bad"}">${report.win ? "Victory" : "The city has fallen"}</h2>
       <p class="result-stars" aria-label="${report.stars} of 3 stars">${starText(report.stars)}</p>
       ${result.newRecord && report.stars > 0 ? `<p class="flow-note good">New best!</p>` : result.bestStars > report.stars ? `<p class="flow-note">Best: ${starText(result.bestStars)}</p>` : ""}
+      ${result.realm ? realmLine(result.realm) : ""}
       <p class="flow-lead" aria-label="Your strength ${report.playerStrength.toFixed(1)} against ${report.enemyStrength.toFixed(1)}">${strengthLine(report.playerStrength, report.enemyStrength)}</p>
       <div class="army-chips">${armyChips(report.units, false)}</div>
       ${report.gap ? `<p class="flow-hint">${escapeHtml(report.gap)}</p>` : ""}
       <p class="result-order" aria-label="Build order: ${escapeHtml(result.buildOrder.join(", "))}">${result.buildOrderIds.map((id) => `<img src="${assetUrl(buildingFilename(id, "complete"))}" alt="" title="${escapeHtml(BUILDINGS[id]?.name ?? id)}" />`).join("")}</p>
       ${extra(`${report.win ? `<p class="flow-note">${escapeHtml(winText(report.margin))}</p>` : ""}<ul class="result-notes">${report.explanations.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
-      <p class="result-order-text"><span>Build order</span> ${result.buildOrder.map(escapeHtml).join(" → ")}</p>`)}
+      <p class="result-order-text"><span>Build order</span> ${result.buildOrder.map(escapeHtml).join(" → ")}</p>${result.realm ? realmDetails(result.realm) : ""}`)}
       ${lockedNote}
       ${result.askClarity && !quiet ? `<div class="clarity" data-clarity><span>Easy to follow?</span><button type="button" data-vote="up" aria-label="Yes, easy to follow" title="Yes">${icon("thumbup")}</button><button type="button" data-vote="down" aria-label="No, hard to follow" title="No">${icon("thumbdown")}</button></div>` : ""}
       <div class="flow-actions">${nextButton}<button type="button" ${nextButton ? "class=\"quiet icon-button\"" : "data-primary"} data-action="replay" aria-label="${report.win ? "Replay for more stars" : "Try again"}" title="${report.win ? "Replay for more stars" : "Try again"}">${icon("restart")}<span class="${nextButton ? "w" : ""}">${report.win ? "Replay" : "Try again"}</span></button><button type="button" class="quiet icon-button" data-action="map" aria-label="Campaign map" title="Campaign map">${icon("map")}<span class="w">Campaign map</span></button><button type="button" class="quiet icon-button" data-action="city" aria-label="View the city" title="View the city">${icon("eye")}<span class="w">View the city</span></button></div>`);
+    if (!quiet) rollRank(dialog);
     dialog.querySelectorAll<HTMLButtonElement>("[data-vote]").forEach((button) => button.addEventListener("click", () => {
       callbacks.onUxEvent?.("ux_clarity_vote", { vote: button.dataset.vote, campaign_number: campaign.number, won: report.win, stars: report.stars });
       const box = dialog.querySelector<HTMLElement>("[data-clarity]");

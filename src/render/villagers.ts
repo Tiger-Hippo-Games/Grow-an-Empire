@@ -155,7 +155,7 @@ function pingPongProgress(elapsed: number, duration: number): { progress: number
 
 /**
  * Functional population renderer: citizens commute and deliver goods; trained soldiers
- * stand in the garrison. (The battle itself is shown in the dialog's unit strip.)
+ * stand still in the garrison. (The battle itself is fought by render/battleField.ts.)
  *
  * Citizens share each profession's directional atlas frames but own materials, so
  * their walking phases can differ without cloning a texture per villager.
@@ -318,11 +318,11 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
       soldier.sprite.position.x = THREE.MathUtils.lerp(soldier.sprite.position.x, target.x, blend);
       soldier.sprite.position.y = THREE.MathUtils.lerp(soldier.sprite.position.y, target.y + soldier.sprite.scale.y / 2, blend);
       const nearLine = Math.hypot(target.x - soldier.sprite.position.x, target.y + soldier.sprite.scale.y / 2 - soldier.sprite.position.y) < 0.2;
-      const workTexture = nearLine ? characters.getWorkFrame(soldier.role, Math.floor(animationElapsed * 8 + index)) : null;
-      const texture = workTexture ?? (nearLine
+      // In formation the army stands at ease (still, facing the viewer); it only strikes in the battle.
+      const texture = nearLine
         ? characters.getFrame(soldier.role, 0, 4)
-        : characters.getFrame(soldier.role, Math.floor(animationElapsed * 7 + index), directionFromVector(target.x - soldier.sprite.position.x, target.y + soldier.sprite.scale.y / 2 - soldier.sprite.position.y)));
-      soldier.sprite.scale.x = soldier.sprite.scale.y * (workTexture ? WORK_CELL_ASPECT : WALK_CELL_ASPECT);
+        : characters.getFrame(soldier.role, Math.floor(animationElapsed * 7 + index), directionFromVector(target.x - soldier.sprite.position.x, target.y + soldier.sprite.scale.y / 2 - soldier.sprite.position.y));
+      soldier.sprite.scale.x = soldier.sprite.scale.y * WALK_CELL_ASPECT;
       if (soldier.sprite.material.map !== texture) {
         soldier.sprite.material.map = texture;
         soldier.sprite.material.needsUpdate = true;

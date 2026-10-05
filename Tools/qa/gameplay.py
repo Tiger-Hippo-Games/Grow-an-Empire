@@ -78,11 +78,11 @@ with sync_playwright() as p:
     set_speed8(page)
     page.click(".build-card >> text=Farm"); wait_move(page, 2); time.sleep(0.3)
     wood_before = saved(page)["state"]["resources"]["wood"]
-    page.click(".build-card >> text=Swine Farm"); time.sleep(1.0)
+    page.click(".build-card >> text=Goshala"); time.sleep(1.0)
     panel_hidden = page.evaluate("document.querySelector('#build-panel').classList.contains('hidden')")
     state1 = saved(page)["state"]
     block["on"] = False
-    page.click(".build-card >> text=Swine Farm"); time.sleep(1.0)
+    page.click(".build-card >> text=Goshala"); time.sleep(1.0)
     state2 = saved(page)["state"]
     R["3_art_failure_retry"] = {"panel_hidden_after_fail": panel_hidden, "status_after_fail": page.inner_text("#phase"),
         "mode_after_fail": state1["mode"], "wood_kept": state1["resources"]["wood"] == wood_before,

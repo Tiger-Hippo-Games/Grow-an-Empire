@@ -68,7 +68,7 @@ describe("move economy", () => {
     expect(sim.state.resources.wood).toBe(wood + 5 - 3);
   });
 
-  it("turns wood into planks at the Sawmill", () => {
+  it("turns wood into planks at the Carpenter's Yard", () => {
     const sim = new SettlementSimulation();
     for (const id of ["woodcutter", "quarry", "farm"]) build(sim, id);
     const events = build(sim, "sawmill");
@@ -103,7 +103,7 @@ describe("move economy", () => {
 });
 
 describe("stuck moves", () => {
-  it("gathers when nothing is affordable and there is no Marketplace", () => {
+  it("gathers when nothing is affordable and there is no Bazaar", () => {
     const sim = new SettlementSimulation();
     emptyAll(sim);
     expect(sim.isStuck()).toBe(true);
@@ -120,7 +120,7 @@ describe("stuck moves", () => {
     expect(new SettlementSimulation().gather()).toEqual([]);
   });
 
-  it("swaps goods at twice the selling price when stuck with a Marketplace", () => {
+  it("swaps goods at twice the selling price when stuck with a Bazaar", () => {
     const sim = new SettlementSimulation();
     sim.state.builtBuildingIds.push("marketplace");
     emptyAll(sim);
@@ -192,7 +192,7 @@ describe("the muster and the battle", () => {
     if (affordable < cap) expect(sim.canHire({ archers: affordable + 1, swordsmen: 0 })).toBe(false);
   });
 
-  it("hires no sellswords without a Marketplace", () => {
+  it("hires no sellswords without a Bazaar", () => {
     const sim = new SettlementSimulation();
     playToMuster(sim, ["woodcutter", "quarry", "farm", "sawmill", "bakery", "weapons-workshop"]);
     sim.state.builtBuildingIds = sim.state.builtBuildingIds.filter((id) => id !== "marketplace");

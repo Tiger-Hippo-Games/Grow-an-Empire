@@ -1,4 +1,5 @@
-import { CAMPAIGNS, isCampaignUnlocked, starsToUnlock, totalStars, type CampaignDefinition } from "../game/campaigns";
+import { CAMPAIGNS, CHAPTERS as CHAPTER_INFO, isCampaignUnlocked, starsToUnlock, totalStars, type CampaignDefinition } from "../game/campaigns";
+import { tierChip } from "./campaignFlow";
 import { assetUrl } from "../render/assetCatalog";
 import { IMAGE_TIMEOUT_MS } from "../render/spriteAssets";
 import { escapeHtml, focusFirst, requireElement } from "./dom";
@@ -28,7 +29,7 @@ export const STOPS: ReadonlyArray<{ x: number; y: number }> = [
 /** Where the road enters the map, below campaign 1. */
 const ROAD_START = { x: 0.5, y: 1 };
 /** Five campaigns per chapter, bottom to top. */
-const CHAPTERS = ["Southern hamlets", "River country", "Woodland road", "Outer marches", "Far frontier"] as const;
+const CHAPTERS = CHAPTER_INFO.map((chapter) => chapter.name);
 const PER_CHAPTER = 5;
 const NUMERALS = ["I", "II", "III", "IV", "V"] as const;
 /**
@@ -57,7 +58,18 @@ function roadPath(points: ReadonlyArray<{ x: number; y: number }>): string {
 }
 
 /** The illustrated route is UI only; main.ts owns campaign selection and saves. */
-export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => void) {
+/** The rival realm as the map shows it (game/realm.ts). */
+export interface MapRealmView {
+  rank: number;
+  of: number;
+  title: string;
+  /** Rajas who have conquered each campaign. */
+  conquerors: number[];
+  /** Up to 3 rajas camped before each campaign (their next one). */
+  camped: Array<Array<{ name: string; title: string; colour: string }>>;
+}
+
+export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => void, onRealm?: () => void) {
   const map = requireElement<HTMLElement>("#campaign-map");
   const scroller = requireElement<HTMLElement>("#campaign-scroller");
   const board = requireElement<HTMLElement>("#campaign-board");
@@ -74,6 +86,10 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   const briefing = requireElement<HTMLElement>("#campaign-briefing");
   const state = requireElement<HTMLElement>("#campaign-state");
   const launch = requireElement<HTMLButtonElement>("#campaign-launch");
+  const realmButton = document.querySelector<HTMLButtonElement>("#campaign-realm");
+  let realm: MapRealmView | null = null;
+  realmButton?.addEventListener("click", () => onRealm?.());
+  const formatCount = (value: number): string => value.toLocaleString("en-IN");
 
   // CSS backgrounds don't report load errors. Probe the same bundled image so
   // a failed download falls back to a plain parchment map (still playable)
@@ -208,9 +224,13 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   }
 
   // --- Scrolling -----------------------------------------------------------
+  /** Until when a smooth scroll the player asked for is still running (re-fits wait for it). */
+  let smoothUntil = 0;
   function scrollToY(y: number, smooth: boolean): void {
     const top = Math.max(0, Math.min(y - scroller.clientHeight / 2, scroller.scrollHeight - scroller.clientHeight));
-    scroller.scrollTo({ top, behavior: smooth && !reducedMotion() ? "smooth" : "instant" });
+    const animate = smooth && !reducedMotion();
+    if (animate) smoothUntil = performance.now() + 900;
+    scroller.scrollTo({ top, behavior: animate ? "smooth" : "instant" });
   }
 
   function centerSelected(smooth = false): void {
@@ -342,6 +362,14 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       progress.textContent = earned ? stars(earned) : open ? "Open" : "Locked";
       label.append(name, progress);
       button.append(flag, label);
+      const conquered = realm?.conquerors[index] ?? 0;
+      if (conquered > 0) {
+        const chip = document.createElement("span");
+        chip.className = "stop-rivals";
+        chip.setAttribute("aria-hidden", "true");
+        chip.innerHTML = `${icon("rival")}${formatCount(conquered)}`;
+        button.appendChild(chip);
+      }
       if (earned) {
         const badge = document.createElement("span");
         badge.className = "stop-badge";
@@ -356,7 +384,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     drawRoute();
 
     const campaign = CAMPAIGNS[selectedIndex];
-    stage.textContent = `CAMPAIGN ${selectedIndex + 1} / ${CAMPAIGNS.length} · ${totalStars(earnedStars)} ★`;
+    stage.innerHTML = `CAMPAIGN ${selectedIndex + 1} / ${CAMPAIGNS.length} · ${totalStars(earnedStars)} ★ ${tierChip(campaign)}`;
     title.textContent = campaign.name;
     copy.textContent = campaign.subtitle;
     // A run that hasn't built anything yet is offered as a fresh start.
@@ -375,7 +403,10 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     }
     const army = campaign.objective.army;
     const enemyIcons = (["swordsmen", "archers", "horsemen"] as const).filter((kind) => army[kind] > 0).map((kind) => amount(kind, army[kind])).join("");
-    state.innerHTML = `<span class="map-enemy" aria-label="${campaign.objective.strength} enemy ${campaign.objective.strength === 1 ? "soldier" : "soldiers"}">${enemyIcons}</span><span class="map-moves">${amount("move", movesUntilAttack)}</span><span class="map-progress">${open ? "" : icon("lock")}${escapeHtml(progress)}</span>`;
+    const conquered = realm?.conquerors[selectedIndex] ?? 0;
+    const camped = realm?.camped[selectedIndex] ?? [];
+    const rivals = realm ? `<span class="map-rivals" aria-label="${conquered} rajas have conquered it${camped.length ? `; camped here: ${camped.map((raja) => `${raja.title} ${raja.name}`).join(", ")}` : ""}">${icon("rival")}<b>${formatCount(conquered)}</b>${camped.map((raja) => `<i class="banner-dot" style="--banner:${raja.colour}" title="${escapeHtml(`${raja.title} ${raja.name}`)}"></i>`).join("")}</span>` : "";
+    state.innerHTML = `${rivals}<span class="map-enemy" aria-label="${campaign.objective.strength} enemy ${campaign.objective.strength === 1 ? "soldier" : "soldiers"}">${enemyIcons}</span><span class="map-moves">${amount("move", movesUntilAttack)}</span><span class="map-progress">${open ? "" : icon("lock")}${escapeHtml(progress)}</span>`;
     launch.disabled = !open;
     launch.textContent = !open ? "Locked" : isCurrent && !currentRunIsComplete ? "Continue settlement" : earned ? "Replay campaign" : "Begin campaign";
     updateScrollState();
@@ -387,7 +418,13 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   let lastHeight = 0;
   const refit = (): void => {
     if (map.classList.contains("hidden")) return;
-    if (scroller.clientWidth === lastWidth && scroller.clientHeight === lastHeight) return;
+    // Mid-scroll, the panels can re-flow for a frame as the chapter in view changes; re-centring
+    // then would cancel the scroll the player started. Check again once it has finished.
+    const wait = smoothUntil - performance.now();
+    if (wait > 0) { window.setTimeout(refit, wait + 50); return; }
+    // A pixel or two (a heading re-flowing as the chapter name changes mid-scroll) is not a re-fit:
+    // re-centring then would cancel the scroll the player just started.
+    if (scroller.clientWidth === lastWidth && Math.abs(scroller.clientHeight - lastHeight) <= 2) return;
     lastWidth = scroller.clientWidth;
     lastHeight = scroller.clientHeight;
     layout();
@@ -407,7 +444,21 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     }
   });
 
+  function renderRealm(): void {
+    if (!realmButton || !realm) return;
+    realmButton.hidden = false;
+    realmButton.innerHTML = `${icon("rank")}<b>${formatCount(realm.rank)}</b><small>/ ${formatCount(realm.of)}</small><span class="realm-title">${escapeHtml(realm.title)}</span>`;
+    realmButton.setAttribute("aria-label", `Realm rank ${realm.rank} of ${realm.of}, ${realm.title}: open the realm board`);
+    realmButton.title = "The realm";
+  }
+
   return {
+    /** The rival realm's counts, banners and the player's rank. */
+    setRealm(view: MapRealmView) {
+      realm = view;
+      renderRealm();
+      if (!map.classList.contains("hidden")) { render(); requestAnimationFrame(refit); }
+    },
     show(activeCampaignId: string, campaignStars: Readonly<Record<string, number>>, runComplete: boolean, move: number) {
       activeId = activeCampaignId;
       earnedStars = { ...campaignStars };
@@ -424,6 +475,10 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       centerSelected();
       updateScrollState();
       launch.focus({ preventScroll: true });
+      // The card can settle a frame later (or when the display font arrives) and
+      // land back on a size the observer already reported, so check once more.
+      requestAnimationFrame(refit);
+      void document.fonts?.ready.then(refit).catch(() => undefined);
     },
     hide() {
       const hadFocus = map.contains(document.activeElement);

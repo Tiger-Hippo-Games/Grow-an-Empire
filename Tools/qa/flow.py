@@ -17,7 +17,7 @@ def enter(page, skip_tutorial=True, timeout=10000):
 
 
 def play_move(page, timeout=30000):
-    """Builds the first affordable card, else swaps at the Marketplace, else gathers. Returns what it did."""
+    """Builds the first affordable card, else swaps at the Bazaar, else gathers. Returns what it did."""
     page.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .gather-button", timeout=timeout)
     for selector, kind in (("#build-options .build-card.affordable", "built"), ("#build-options .build-card.swappable", "swapped"), ("#build-foot .gather-button", "gathered")):
         target = page.locator(selector)
@@ -49,11 +49,15 @@ def play_to_muster(page, on_move=None, timeout=40000):
 
 
 def fight(page, best=True):
-    """At the muster: optionally hire the best sellswords, fight, skip the animation, and return the result text."""
+    """At the muster: optionally hire the best sellswords, fight (in the city, with the battle HUD bar), skip, and return the result text."""
     if best and page.is_visible(".flow-dialog [data-action=best]"):
         page.click(".flow-dialog [data-action=best]")
     page.click(".flow-dialog [data-action=fight]")
-    page.wait_for_selector(".flow-dialog[data-kind=battle]", timeout=5000)
-    page.click(".flow-dialog [data-action=skip]")
+    page.wait_for_selector(".battle-hud:not(.hidden), .flow-dialog[data-kind=result]", timeout=5000)
+    if page.is_visible(".battle-hud:not(.hidden) .bh-skip"):
+        try:
+            page.click(".battle-hud .bh-skip", timeout=2000)
+        except Exception:
+            pass  # The fight ended on its own first.
     page.wait_for_selector(".flow-dialog[data-kind=result]", timeout=5000)
     return page.inner_text(".flow-dialog")

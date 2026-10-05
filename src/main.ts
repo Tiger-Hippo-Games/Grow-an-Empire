@@ -3,6 +3,7 @@ import { BUILDINGS, OPENING_BUILD_OPTIONS } from "./game/content";
 import { CAMPAIGNS, campaignById, isCampaignUnlocked, totalStars, type CampaignDefinition } from "./game/campaigns";
 import { missingFor, SettlementSimulation, type SellswordHire, type SettlementSnapshot, type SimulationEvent } from "./game/settlementSimulation";
 import { isRegisteredPlayer, leaderboardEntry, type LeaderboardEntry } from "./game/leaderboard";
+import { AiRealmSource, campedAt, conquerorsByCampaign, newRealmState, realmStanding, readRealmState, recordBattle, standingFromStars, visitRealm, type RealmState } from "./game/realm";
 import { createPlatform } from "./platform/adapters";
 import type { PlayerInfo } from "./platform/types";
 import { createProgressStore, DEFAULT_SETTINGS, mergeStars, newRunId, type SavedGame, type SavedSettings } from "./platform/progressStore";
@@ -17,7 +18,10 @@ import { createCharacterAssets, roleForBuilding } from "./render/characterAssets
 import { onImageLoadProgress } from "./render/spriteAssets";
 import { createHud, type BuildPanelView, type HudStateSnapshot } from "./ui/hud";
 import { createCampaignMap } from "./ui/campaignMap";
-import { createCampaignFlow } from "./ui/campaignFlow";
+import { createCampaignFlow, type RealmView } from "./ui/campaignFlow";
+import { createRealmBoard } from "./ui/realmBoard";
+import { createBattleHud } from "./ui/battleHud";
+import { createBattleField } from "./render/battleField";
 import { createSound } from "./ui/sound";
 import "./styles.css";
 
@@ -81,6 +85,11 @@ let campaignStars: Record<string, number> = {};
 let player: PlayerInfo | null = null;
 /** Last leaderboard entry saved or reported (keeps its time when nothing improved). */
 let leaderboard: LeaderboardEntry | null = null;
+/** The rival realm (game/realm.ts): the AI field now, real players later behind the same source. */
+const realmSource = new AiRealmSource();
+let realm: RealmState = newRealmState();
+/** The name the realm board shows for the player. */
+function playerName(): string { return player?.displayName?.trim() || "You"; }
 const sound = createSound(false);
 let tutorialPending = false;
 /** The GoLive SDK when running on the portal; an offline stand-in otherwise. */
@@ -295,7 +304,21 @@ function selectCampaign(campaign: CampaignDefinition, options: { fresh?: boolean
   else startPlaying();
 }
 
-const campaignMap = createCampaignMap(selectCampaign);
+const realmBoard = createRealmBoard(document.getElementById("app")!, (open) => setModalPause(open));
+function openRealmBoard(): void {
+  realmBoard.show({ source: realmSource, state: realm, player: standingFromStars(campaignStars, playerName()) });
+}
+const campaignMap = createCampaignMap(selectCampaign, openRealmBoard);
+document.getElementById("realm-toggle")?.addEventListener("click", openRealmBoard);
+/** Pushes the realm's counts, camps and the player's rank to the map. */
+function refreshRealm(): void {
+  const standing = realmStanding(realmSource, realm, standingFromStars(campaignStars, playerName()));
+  campaignMap.setRealm({
+    rank: standing.rank, of: standing.of, title: standing.player.title,
+    conquerors: conquerorsByCampaign(realmSource, realm.season),
+    camped: campedAt(realmSource, realm.season).map((camp) => camp.map((row) => ({ name: row.name, title: row.title, colour: row.colour }))),
+  });
+}
 function openCampaignMap(): void {
   if (!initialized) return;
   playing = false;
@@ -334,6 +357,9 @@ const characterAssets = createCharacterAssets(requestRender);
 const workerAnimation = createWorkerAnimation(scene, characterAssets);
 const constructionView = createConstructionView(scene, workerAnimation, cityLayout, hud.setStatus);
 const villagerField = createVillagerField(scene, characterAssets);
+/** The fight, shown in the city (render/battleField.ts) with its HUD bar at the top (ui/battleHud.ts). */
+const battleField = createBattleField(scene, characterAssets);
+const battleHud = createBattleHud(document.getElementById("app")!, () => battleField.skip());
 /** The muster: the last move is over and the enemy has arrived. */
 function openMuster(): void {
   if (simulation.state.mode !== "muster") return;
@@ -341,6 +367,7 @@ function openMuster(): void {
   workerAnimation.worker.visible = false;
   hud.setStatus(`${simulation.campaign.objective.enemyName} are at the gates`, 1);
   sound.play("warning");
+  void battleField.prepare();
   flow.showMuster({
     campaign: simulation.campaign,
     trained: { ...simulation.state.trainedUnits },
@@ -360,13 +387,55 @@ function fight(hire: SellswordHire): void {
   handleSimulationEvents(events);
 }
 
-/** Records the result's stars and shows the battle strip, then the result. */
+/**
+ * The fight in the city: the dialogs step aside, the armies meet on the
+ * ground in front of the civic centre and the HUD bar at the top shows who
+ * is winning, round by round; then the result opens.
+ */
+function startFight(view: Parameters<typeof flow.showResult>[0]): void {
+  const { report } = view;
+  const enemy = simulation.campaign.objective.army;
+  const app = document.getElementById("app")!;
+  flow.hide();
+  app.classList.add("fighting");
+  villagerField.setCombatActive(true);
+  sound.play("conch");
+  battleHud.show({ enemyName: simulation.campaign.objective.enemyName, player: { ...report.units }, enemy, rounds: report.rounds.length });
+  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  battleField.play({ ...report.units }, { archers: report.enemy.archers, swordsmen: report.enemy.swordsmen, horsemen: report.enemy.horsemen }, report.rounds, {
+    onRound: (index, round) => { battleHud.round(index, round); sound.play("hit"); requestRender(); },
+    onDone: () => {
+      battleHud.hide();
+      app.classList.remove("fighting");
+      flow.showResult(view);
+      requestRender();
+    },
+  }, performance.now(), reduced);
+  requestRender();
+}
+
+/** Records the result's stars and shows the battle in the city, then the result. */
 function presentBattle(animate: boolean): void {
   const report = simulation.state.armyReport;
   if (!report) return;
   const id = simulation.campaign.id;
   const previousBest = campaignStars[id] ?? 0;
+  const before = standingFromStars(campaignStars, playerName());
   if (report.stars > previousBest) campaignStars = mergeStars(campaignStars, { [id]: report.stars });
+  // Each battle fought moves the realm a season; a reopened result doesn't.
+  let realmView: RealmView | undefined;
+  if (animate) {
+    const result = recordBattle(realmSource, realm, before, standingFromStars(campaignStars, playerName()));
+    realm = result.state;
+    const nemesis = result.after.nemesis;
+    realmView = {
+      before: result.before, rank: result.after.rank, of: result.after.of, overtaken: result.overtaken, title: result.after.player.title,
+      notable: result.notable ? { name: result.notable.name, title: result.notable.title, colour: result.notable.colour } : null,
+      nemesis: nemesis ? { name: nemesis.name, title: nemesis.title, colour: nemesis.colour, campaignsAhead: nemesis.level - result.after.player.level } : null,
+    };
+    refreshRealm();
+    track("realm_rank", { rank: result.after.rank, of: result.after.of, before: result.before, overtaken: result.overtaken, season: realm.season, campaign_number: simulation.campaign.number });
+  }
   if (report.win && !completedCampaignIds.includes(id)) completedCampaignIds.push(id);
   if (report.stars > previousBest) reportLeaderboard("improved");
   const next = CAMPAIGNS[simulation.campaign.number];
@@ -379,11 +448,12 @@ function presentBattle(animate: boolean): void {
     nextUnlocked: next ? isCampaignUnlocked(next.number, campaignStars) : false,
     newRecord: report.stars > previousBest,
     askClarity: animate && !clarityAsked(),
+    realm: realmView,
   };
   if (view.askClarity) rememberClarityAsked();
   hud.setReportAvailable(true);
   hud.setStatus(`Campaign complete: ${report.win ? `victory ${"★".repeat(report.stars)}` : "the city fell"}`, 1);
-  if (animate) flow.showBattle(view);
+  if (animate) startFight(view);
   else flow.showResult(view, true);
   requestRender();
 }
@@ -434,7 +504,7 @@ function buildPanelView(): BuildPanelView {
 /** The current run as a save (snapshot + run id + settings + stars + leaderboard standing). */
 function currentSave(): SavedGame {
   leaderboard = leaderboardEntry(campaignStars, leaderboard);
-  return { ...simulation.serialize(), runId: saveRunId, settings, completedCampaignIds, campaignStars, leaderboard };
+  return { ...simulation.serialize(), runId: saveRunId, settings, completedCampaignIds, campaignStars, leaderboard, realm };
 }
 
 /**
@@ -649,6 +719,9 @@ function resetSettlement(): void {
   hud.setCivicLevel(0);
   hud.updateHud(stateSnapshot());
   villagerField.clearArmyMuster();
+  battleField.clear();
+  battleHud.hide();
+  document.getElementById("app")?.classList.remove("fighting");
   villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
   villagerField.syncGarrison(simulation.state.trainedUnits);
   workerAnimation.worker.visible = true;
@@ -674,6 +747,9 @@ function hydrateFromLoadedState(): void {
   hud.hideMilestone();
   hud.setReportAvailable(false);
   villagerField.clearArmyMuster();
+  battleField.clear();
+  battleHud.hide();
+  document.getElementById("app")?.classList.remove("fighting");
 
   simulation.state.builtBuildingIds.forEach((buildingId, plotIndex) => {
     constructionView.createPlotSprites(buildingId, plotIndex);
@@ -898,6 +974,7 @@ async function initialize(): Promise<void> {
     completedCampaignIds = saved.completedCampaignIds ?? [];
     campaignStars = { ...saved.campaignStars };
     leaderboard = saved.leaderboard ?? null;
+    realm = readRealmState(saved.realm);
     const report = saved.state.mode === "complete" ? saved.state.armyReport : null;
     if (report?.win) {
       if (!completedCampaignIds.includes(saved.campaignId)) completedCampaignIds.push(saved.campaignId);
@@ -906,6 +983,9 @@ async function initialize(): Promise<void> {
     simulation = new SettlementSimulation(campaignById(saved.campaignId) ?? CAMPAIGNS[0]);
   }
   settings = resetRequested ? { ...DEFAULT_SETTINGS } : { ...DEFAULT_SETTINGS, ...saved?.settings };
+  if (resetRequested) realm = newRealmState();
+  realm = visitRealm(realm, new Date());
+  refreshRealm();
   if (!resetRequested && legacyTutorialCompleted()) settings.tutorialComplete = true;
   hud.setLearning(!settings.tutorialComplete);
   sound.setMuted(settings.muted === true);
@@ -1034,6 +1114,7 @@ renderer.setAnimationLoop(() => {
   // Draw only while the scene can change: the game is playing, or something
   // asked for a redraw (MOBILE_PERFORMANCE §48: stop work when paused).
   if (contextLost || !initialized || renderFailed) return;
+  if (battleField.active) { battleField.update(performance.now()); renderRequested = true; }
   if ((playing && !loopFailed) || renderRequested) {
     renderRequested = false;
     try {

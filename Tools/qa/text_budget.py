@@ -30,7 +30,7 @@ BUDGET = {
     "first-choice": 14, "later-choice": 20, "muster": 14, "battle": 14, "result": 22,
     "map-again": 16, "briefing-again": 12,
 }
-GOODS = r"wood|stone|grain|livestock|fruit|planks?|rations?|wine|gold"
+GOODS = r"wood|stone|grain|livestock|cattle|fruit|mangoes|mango|planks?|rations?|wine|soma|gold"
 
 COUNT = """() => {
   const vw = innerWidth, vh = innerHeight;
@@ -99,10 +99,10 @@ def run(width, height):
         flow.play_to_muster(page, timeout=60000)
         check("muster")
         page.click(".flow-dialog [data-action=fight]")
-        page.wait_for_selector(".flow-dialog[data-kind=battle]")
+        page.wait_for_selector(".battle-hud:not(.hidden)")
         check("battle")
-        if page.is_visible(".flow-dialog [data-action=skip]"):
-            page.click(".flow-dialog [data-action=skip]")
+        if page.is_visible(".battle-hud:not(.hidden) .bh-skip"):
+            page.click(".battle-hud .bh-skip", timeout=3000)
         page.wait_for_selector(".flow-dialog[data-kind=result]")
         check("result")
         # After the tutorial the game speaks in icons only: the map and the next briefing.

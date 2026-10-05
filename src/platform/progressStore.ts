@@ -1,6 +1,7 @@
 import { migrateSnapshot, type SettlementSnapshot } from "../game/settlementSimulation";
 import { clearSavedSnapshot, hasNewerLocalSave, isFromNewerVersion, loadSavedSnapshot, saveSnapshot } from "../game/saveGame";
 import { readLeaderboardEntry, type LeaderboardEntry } from "../game/leaderboard";
+import { mergeRealmStates, readRealmState, type RealmState } from "../game/realm";
 import type { PlatformAdapter } from "./types";
 
 /**
@@ -47,6 +48,8 @@ export type SavedGame = SettlementSnapshot & {
    * against the player id (Docs/LEADERBOARD.md).
    */
   leaderboard?: LeaderboardEntry;
+  /** The rival realm's seasons and the player's last rank (game/realm.ts). Optional: older saves start a fresh realm. */
+  realm?: RealmState;
 };
 
 export const DEFAULT_SETTINGS: SavedSettings = { tutorialComplete: false, muted: false };
@@ -84,6 +87,8 @@ export function toSavedGame(raw: unknown, campaignId: string | null): SavedGame 
   const leaderboard = readLeaderboardEntry(snapshot.leaderboard);
   if (leaderboard) game.leaderboard = leaderboard;
   else delete game.leaderboard;
+  if (snapshot.realm !== undefined) game.realm = readRealmState(snapshot.realm);
+  else delete game.realm;
   return game;
 }
 
@@ -151,6 +156,7 @@ export function chooseSave(local: SavedGame | null, cloud: SavedGame | null): Sa
     settings: { ...winner.settings, tutorialComplete: local.settings.tutorialComplete || cloud.settings.tutorialComplete },
     completedCampaignIds: [...new Set([...(local.completedCampaignIds ?? []), ...(cloud.completedCampaignIds ?? [])])],
     campaignStars: mergeStars(local.campaignStars, cloud.campaignStars),
+    ...(local.realm || cloud.realm ? { realm: mergeRealmStates(local.realm, cloud.realm) } : {}),
   };
 }
 

@@ -117,14 +117,14 @@
       <section class="hud" aria-label="Campaign status">
         <div class="brand">
           <span class="eyebrow">CAMPAIGN 1</span>
-          <h1>The First Muster</h1>
+          <h1>The First Fire</h1>
         </div>
         <div class="status-block">
           <span class="status-label w">SETTLEMENT ACTIVITY</span>
           <strong id="phase">Loading assets…</strong>
           <div class="progress-track" aria-hidden="true"><div id="phase-progress" class="progress-fill"></div></div>
         </div>
-        <div class="raid-objective"><span class="w">DEFEND THE CITY</span><strong>The enemy arrives after move 12</strong></div>
+        <div class="raid-objective"><span class="w">DEFEND THE CITY</span><strong>The enemy arrives after move <span data-move-limit>12</span></strong></div>
       </section>
 
       <section class="settlement-hud" aria-label="Settlement progress">
@@ -179,6 +179,7 @@
         <button id="controls-more" class="controls-more" type="button" aria-expanded="false" aria-controls="controls-secondary">More</button>
         <div id="controls-secondary" class="controls-secondary">
           <button id="grid-toggle" type="button" aria-pressed="false">Grid · Off</button>
+          <button id="realm-toggle" type="button">Realm</button>
           <button id="help-toggle" type="button">How to play</button>
           <button id="mute-toggle" type="button" aria-pressed="false">Sound · On</button>
           <button id="fullscreen-toggle" class="hidden" type="button">Full screen</button>
@@ -201,7 +202,8 @@
         </div>
         <nav id="campaign-rail" class="campaign-rail" aria-label="Chapters"></nav>
         <button id="campaign-jump" class="campaign-jump" type="button" hidden>↓ Campaign 1</button>
-        <div class="campaign-map-heading"><span class="w">GROW AN EMPIRE · SOUTHERN FRONT</span><h2 id="campaign-chapter">I · Southern hamlets</h2><p id="campaign-chapter-note" class="w">Campaigns 1–5 of 25. Scroll or drag along the road.</p></div>
+        <div class="campaign-map-heading"><span class="w">BHARATVARSHA</span><h2 id="campaign-chapter">I · Vanavasa</h2><p id="campaign-chapter-note" class="w">Campaigns 1–5 of 25. Scroll or drag along the road.</p></div>
+        <button id="campaign-realm" class="campaign-realm" type="button" hidden></button>
         <aside class="campaign-map-card" aria-live="polite">
           <span id="campaign-stage"></span><h3 id="campaign-name"></h3>
           <p id="campaign-copy"></p><p id="campaign-briefing" class="w"></p>
@@ -213,12 +215,12 @@
         <section class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
           <span class="tutorial-kicker">Your first settlement</span>
           <h2 id="tutorial-title">Build. Grow. Defend.</h2>
-          <p class="tutorial-lead">12 moves. One building each move.</p>
+          <p class="tutorial-lead"><span data-move-limit>12</span> moves. One building each move.</p>
           <div class="tutorial-rules">
             <div><b data-icons="wood stone"></b><span>Pay goods to build</span></div>
             <div><b data-icons="move"></b><span>Buildings make goods every move</span></div>
             <div><b data-icons="archers swordsmen rations"></b><span>Goods train soldiers; soldiers eat</span></div>
-            <div><b data-icons="star"></b><span>Win the battle after move 12</span></div>
+            <div><b data-icons="star"></b><span>Win the battle after move <span data-move-limit>12</span></span></div>
           </div>
           <div class="tutorial-actions">
             <button id="tutorial-start" type="button">Begin the settlement</button>
