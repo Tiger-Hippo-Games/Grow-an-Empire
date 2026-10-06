@@ -16,9 +16,20 @@ def enter(page, skip_tutorial=True, timeout=10000):
         page.click("#tutorial-skip")
 
 
+CHOICE = "#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .gather-button, #build-panel:not(.hidden) .report-continue"
+
+
+def past_report(page, timeout=30000):
+    """From move 2 on, the last move's report shows before the cards: read it (press Choose)."""
+    if page.is_visible("#build-panel:not(.hidden) .report-continue"):
+        page.click("#build-panel .report-continue")
+        page.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .gather-button", timeout=timeout)
+
+
 def play_move(page, timeout=30000):
     """Builds the first affordable card, else swaps at the Bazaar, else gathers. Returns what it did."""
-    page.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .gather-button", timeout=timeout)
+    page.wait_for_selector(CHOICE, timeout=timeout)
+    past_report(page, timeout)
     for selector, kind in (("#build-options .build-card.affordable", "built"), ("#build-options .build-card.swappable", "swapped"), ("#build-foot .gather-button", "gathered")):
         target = page.locator(selector)
         if target.count():
@@ -34,7 +45,7 @@ def at_muster(page):
 def play_to_muster(page, on_move=None, timeout=40000):
     """Plays moves until the muster dialog opens. `on_move(move_number)` runs before each move."""
     for _ in range(40):
-        page.wait_for_selector("#build-panel:not(.hidden) .build-card, .flow-dialog[data-kind=muster]", timeout=timeout)
+        page.wait_for_selector(f"{CHOICE}, .flow-dialog[data-kind=muster]", timeout=timeout)
         if at_muster(page):
             return
         move = int(page.inner_text("#move").split(" ")[0])
@@ -42,7 +53,7 @@ def play_to_muster(page, on_move=None, timeout=40000):
             on_move(move)
             if at_muster(page):
                 return
-            page.wait_for_selector("#build-panel:not(.hidden) .build-card", timeout=timeout)
+            page.wait_for_selector(CHOICE, timeout=timeout)
         play_move(page)
         page.wait_for_timeout(150)
     raise AssertionError("never reached the muster")

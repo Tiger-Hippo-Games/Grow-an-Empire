@@ -27,7 +27,7 @@ BUDGET = {
     # First visit: the player is learning, so labels show beside the icons.
     "map": 30, "briefing": 24, "tutorial": 38,
     # From here on the tutorial is done (skipped): icons only.
-    "first-choice": 14, "later-choice": 20, "muster": 14, "battle": 14, "result": 22,
+    "first-choice": 14, "report": 12, "later-choice": 20, "muster": 14, "battle": 14, "result": 22,
     "map-again": 16, "briefing-again": 12,
 }
 GOODS = r"wood|stone|grain|livestock|cattle|fruit|mangoes|mango|planks?|rations?|wine|soma|gold"
@@ -94,7 +94,9 @@ def run(width, height):
             page.keyboard.press("s")
         for _ in range(5):
             flow.play_move(page)
-            page.wait_for_selector("#build-panel:not(.hidden) .build-card", timeout=60000)
+            page.wait_for_selector(flow.CHOICE, timeout=60000)
+        check("report")
+        flow.past_report(page)
         check("later-choice")
         flow.play_to_muster(page, timeout=60000)
         check("muster")

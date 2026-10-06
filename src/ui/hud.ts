@@ -194,6 +194,9 @@ export function createHud(callbacks: HudCallbacks) {
   };
   const reducedMotion = (): boolean => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let lastFlownSummary = "";
+  /** The move whose report the player has read (then the cards show). */
+  let reportReadFor = -1;
+  let lastPanelView: BuildPanelView | null = null;
 
   let milestoneUntil = 0;
   let campaignMoveLimit = TOTAL_MOVES;
@@ -376,7 +379,13 @@ export function createHud(callbacks: HudCallbacks) {
       summary.stalled.length ? `idle: ${summary.stalled.map((note) => `${BUILDINGS[note.buildingId]?.name ?? note.buildingId} (${note.reason})`).join("; ")}` : "",
     ].filter(Boolean).join(", ");
     const warnings = summary.warnings.map((text) => `<p class="summary-warning">${icon("warning")}<span>${withIcons(escapeHtml(text))}</span></p>`).join("");
-    moveSummary.innerHTML = `<p class="summary-row" aria-label="${escapeHtml(label)}">${row}</p><p class="summary-text w">${escapeHtml(label)}.</p>${warnings}`;
+    const reopen = summary.ledger ? `<button type="button" class="summary-reopen" aria-label="Show the move ${summary.move} report again" title="Move report">${icon("report")}</button>` : "";
+    moveSummary.innerHTML = `<p class="summary-row" aria-label="${escapeHtml(label)}">${row}${reopen}</p><p class="summary-text w">${escapeHtml(label)}.</p>${warnings}`;
+    moveSummary.querySelector(".summary-reopen")?.addEventListener("click", () => {
+      if (!lastPanelView) return;
+      reportReadFor = -1;
+      renderBuildPanel(lastPanelView);
+    });
     moveSummary.classList.remove("hidden");
   }
 
@@ -405,6 +414,80 @@ export function createHud(callbacks: HudCallbacks) {
       .map((name) => amount(name, cost[name] as number, { className: `cost-chip${(resources[name] ?? 0) < (cost[name] ?? 0) ? " short" : ""}` })).join("");
   }
 
+  /** A building's picture (or the army, or spoilage) for a report line. */
+  function ledgerSource(source: string): { art: string; name: string } {
+    if (source === "army") return { art: icon("strength"), name: "Army" };
+    if (source === "spoilage") return { art: icon("warning"), name: "Spoiled" };
+    const name = BUILDINGS[source]?.name ?? source;
+    return { art: `<img src="${assetUrl(buildingFilename(source, "complete"))}" alt="" />`, name };
+  }
+
+  /**
+   * The move report, shown before the next choice: every building's line
+   * (what it took → what it made, soldiers trained, or why it stood idle),
+   * the army's rations, spoilage, then each good from before to after. The
+   * cards come after "Choose" (or a key 1–3 / Enter), so the player reads what
+   * the last move did before ordering the next building.
+   */
+  function renderReport(view: BuildPanelView, summary: MoveSummary): void {
+    const ledger = summary.ledger ?? [];
+    const lines = ledger.map((entry) => {
+      const { art, name } = ledgerSource(entry.source);
+      const used = signedBag(entry.used, "−");
+      const made = signedBag(entry.made, "+");
+      const trained = (["archers", "swordsmen", "horsemen"] as const).filter((type) => (entry.trained?.[type] ?? 0) > 0)
+        .map((type) => amount(type, entry.trained![type] as number, { sign: "+", className: "gain" })).join("");
+      const deserted = entry.deserted ? amount("people", entry.deserted, { sign: "−", className: "loss" }) : "";
+      const output = `${made}${trained}${deserted}`;
+      const body = entry.idle
+        ? `<span class="ledger-idle">${icon("idle")}<span class="w">${escapeHtml(entry.idle)}</span></span>`
+        : `${used ? `<span class="ledger-used">${used}</span>` : ""}${used && output ? `<span class="ledger-arrow" aria-hidden="true">→</span>` : ""}<span class="ledger-made">${output}</span>`;
+      const spoken = entry.idle ? `idle, ${entry.idle}` : [
+        Object.keys(entry.used).length ? `used ${formatBag(entry.used)}` : "",
+        Object.keys(entry.made).length ? `made ${formatBag(entry.made)}` : "",
+        trained ? `trained ${(["archers", "swordsmen", "horsemen"] as const).filter((type) => (entry.trained?.[type] ?? 0) > 0).map((type) => `${entry.trained![type]} ${type}`).join(", ")}` : "",
+        entry.deserted ? `${entry.deserted} deserted` : "",
+      ].filter(Boolean).join("; ");
+      return `<li class="ledger-line${entry.idle ? " idle" : ""}${entry.source === "army" || entry.source === "spoilage" ? " upkeep" : ""}" aria-label="${escapeHtml(`${name}: ${spoken}`)}" title="${escapeHtml(name)}"><span class="ledger-art" aria-hidden="true">${art}</span><span class="ledger-name w">${escapeHtml(name)}</span><span class="ledger-flow" aria-hidden="true">${body}</span></li>`;
+    }).join("");
+    const before = summary.before ?? {};
+    const changed = RESOURCE_NAMES.filter((name) => Math.floor(before[name] ?? 0) !== Math.floor(view.resources[name] ?? 0));
+    const net = changed.map((name) => {
+      const from = Math.floor(before[name] ?? 0);
+      const to = Math.floor(view.resources[name] ?? 0);
+      const delta = to - from;
+      return `<span class="net-good ${delta > 0 ? "gain" : "loss"}" aria-label="${iconWord(name, to)}: ${from} to ${to}">${icon(name)}<s>${from}</s><b>${to}</b><small>${delta > 0 ? "+" : "−"}${Math.abs(delta)}</small></span>`;
+    }).join("");
+    const built = summary.buildingId ? `<span class="report-built" title="${escapeHtml(BUILDINGS[summary.buildingId]?.name ?? "")}"><img src="${assetUrl(buildingFilename(summary.buildingId, "complete"))}" alt="" />${icon("build")}</span>` : `<span class="tag">Gather</span>`;
+    const warnings = summary.warnings.map((text) => `<p class="summary-warning">${icon("warning")}<span>${withIcons(escapeHtml(text))}</span></p>`).join("");
+    buildOptions.innerHTML = `<section class="move-report" aria-label="Move ${summary.move} report">
+      <p class="report-head"><span class="summary-move" aria-label="Move ${summary.move}">${icon("move")}${summary.move}</span><span class="report-title">${icon("report")}<span class="w">Move report</span></span>${built}</p>
+      ${lines ? `<ul class="ledger">${lines}</ul>` : `<p class="report-empty w">Nothing worked yet: build producers first.</p>`}
+      ${net ? `<div class="report-net" aria-label="Stockpile after the move">${net}</div>` : ""}
+      ${warnings}
+    </section>`;
+    buildFoot.replaceChildren();
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "report-continue";
+    next.dataset.primary = "";
+    next.innerHTML = `${icon("build")}<b>Choose</b><span class="w"> the next building (Enter)</span>`;
+    next.setAttribute("aria-label", `Choose the building for move ${view.move}`);
+    next.addEventListener("click", () => {
+      reportReadFor = summary.move;
+      ux("ux_report_read", { move: summary.move, seconds: Math.round((performance.now() - choiceShownAt) / 100) / 10 });
+      renderBuildPanel(view);
+      buildOptions.querySelector<HTMLButtonElement>(".build-card.affordable, .build-card.swappable")?.focus({ preventScroll: true });
+    });
+    buildFoot.appendChild(next);
+    buildPanel.classList.add("reporting");
+    buildPanel.classList.remove("hidden");
+    buildPanel.scrollTop = 0;
+    chromeOpen = false;
+    syncPresentation();
+    setStatus(`Move ${summary.move} report: read it, then choose`, 0);
+  }
+
   /**
    * Rebuilds the choice cards for the current move and shows the panel.
    * Only acts while the simulation is awaiting a choice. Affordable cards call
@@ -414,11 +497,11 @@ export function createHud(callbacks: HudCallbacks) {
    */
   function renderBuildPanel(view: BuildPanelView): void {
     if (view.mode !== "awaiting-choice") return;
+    lastPanelView = view;
     buildOptions.replaceChildren();
     buildPanel.removeAttribute("aria-busy");
     moveChip.innerHTML = `${icon("move")}${view.move}/${campaignMoveLimit}`;
     moveChip.setAttribute("aria-label", `Move ${view.move} of ${campaignMoveLimit}`);
-    renderSummary(view.summary);
     renderStockStrip(view);
     if (choiceMove !== view.move) {
       choiceMove = view.move;
@@ -426,6 +509,14 @@ export function createHud(callbacks: HudCallbacks) {
       choiceInfoOpens = 0;
       choiceBlockedTaps = 0;
     }
+    // First the report of the move just played; the cards once it has been read.
+    if (view.summary?.ledger && reportReadFor !== view.summary.move && !tutorialActive) {
+      moveSummary.classList.add("hidden");
+      renderReport(view, view.summary);
+      return;
+    }
+    buildPanel.classList.remove("reporting");
+    renderSummary(view.summary);
     view.cards.forEach((card, index) => {
       const building = BUILDINGS[card.id];
       if (!building) {
@@ -870,7 +961,10 @@ export function createHud(callbacks: HudCallbacks) {
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
     if (document.querySelector(".flow-scrim:not(.hidden), .tutorial-scrim:not(.hidden), .campaign-map:not(.hidden)")) return;
     const key = event.key.toLowerCase();
-    if (["1", "2", "3"].includes(key) && !buildPanel.classList.contains("hidden")) {
+    if (["1", "2", "3", "enter"].includes(key) && buildPanel.classList.contains("reporting") && !buildPanel.classList.contains("hidden")) {
+      event.preventDefault();
+      buildFoot.querySelector<HTMLButtonElement>(".report-continue")?.click();
+    } else if (["1", "2", "3"].includes(key) && !buildPanel.classList.contains("hidden")) {
       const card = buildOptions.querySelector<HTMLButtonElement>(`button[data-key="${key}"]`);
       if (card && !card.disabled) { event.preventDefault(); card.click(); }
     } else if (key === "g" && !buildPanel.classList.contains("hidden")) {

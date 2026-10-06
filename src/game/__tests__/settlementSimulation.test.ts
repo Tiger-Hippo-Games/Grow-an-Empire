@@ -250,3 +250,31 @@ describe("reset, summaries and saves", () => {
     "rejects malformed snapshot %j", (value) => expect(isValidSnapshot(value)).toBe(false),
   );
 });
+
+describe("the move report ledger", () => {
+  it("accounts for every good the move made and used, per building", async () => {
+    const { SettlementSimulation } = await import("../settlementSimulation");
+    const sim = new SettlementSimulation();
+    for (let move = 0; move < 8 && sim.state.mode === "awaiting-choice"; move += 1) {
+      const id = sim.state.availableBuildingIds.find((option) => sim.canAffordBuilding(option));
+      if (id) sim.chooseBuilding(id); else sim.gather();
+      sim.update(1e9);
+      const summary = sim.state.lastSummary!;
+      const ledger = summary.ledger!;
+      expect(ledger.length).toBeGreaterThan(0);
+      const total = (key: "used" | "made"): Record<string, number> => {
+        const sum: Record<string, number> = {};
+        for (const entry of ledger) for (const [name, amount] of Object.entries(entry[key])) sum[name] = (sum[name] ?? 0) + (amount as number);
+        return sum;
+      };
+      expect(total("made")).toEqual(summary.produced);
+      expect(total("used")).toEqual(summary.consumed);
+      // before + made − used = after, for every good.
+      for (const name of Object.keys(sim.state.resources)) {
+        const before = summary.before?.[name as keyof typeof summary.before] ?? 0;
+        expect(before + (summary.produced[name as keyof typeof summary.produced] ?? 0) - (summary.consumed[name as keyof typeof summary.consumed] ?? 0), name)
+          .toBeCloseTo(sim.state.resources[name as keyof typeof sim.state.resources]);
+      }
+    }
+  });
+});

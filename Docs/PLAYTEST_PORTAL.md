@@ -12,6 +12,7 @@ All through `Platform.track` with `game_version`, `campaign_number` and `layout`
 | `ux_card_info` | A card's details are opened | `building_id`, `move`, `via` (`button` or `long_press`) |
 | `ux_unaffordable_tap` | A card the player can't pay for is tapped | `building_id`, `move` |
 | `ux_details_opened` | A dialog's "…" Details is opened | `dialog` (`briefing`, `result`) |
+| `ux_report_read` | The move report is closed with Choose | `move`, `seconds` it was open |
 | `ux_clarity_vote` | The one-time "Easy to follow?" on the first result | `vote` (`up` or `down`), `won`, `stars` |
 | `tutorial_completed` / `tutorial_skipped` | Already sent since v0.2 | `step_count`, `time_seconds` |
 

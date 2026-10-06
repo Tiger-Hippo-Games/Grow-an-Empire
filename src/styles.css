@@ -1076,3 +1076,50 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
   .bh-units .gi { width: 18px; height: 18px; }
   .bh-units .qty { font-size: .92rem; }
 }
+
+/* The move report (hud.ts renderReport): read before the next building is chosen. */
+.move-report { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(244,233,211,.06); box-shadow: inset 0 0 0 1px rgba(224,165,38,.3); }
+.report-head { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: .78rem; color: var(--haldi-soft); }
+.report-title { display: inline-flex; align-items: center; gap: 5px; }
+.report-title .gi { width: 18px; height: 18px; }
+.report-built { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.report-built img { width: 40px; height: 32px; object-fit: contain; }
+.report-built .gi { width: 16px; height: 16px; }
+.ledger { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.ledger-line { display: grid; grid-template-columns: 40px auto 1fr; align-items: center; gap: 8px; min-height: 34px; padding: 2px 6px; border-radius: 9px; background: rgba(18,21,54,.55); }
+.ledger-line.idle { opacity: .72; }
+.ledger-line.upkeep { background: rgba(179,38,30,.18); }
+.ledger-art { display: grid; place-items: center; width: 40px; height: 32px; }
+.ledger-art img { width: 40px; height: 32px; object-fit: contain; }
+.ledger-art .gi { width: 22px; height: 22px; }
+.ledger-name { font-size: .8rem; font-weight: 800; color: var(--ivory); white-space: nowrap; }
+.ledger-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; justify-content: flex-end; font-weight: 900; }
+.ledger-flow .qty .gi { width: 18px; height: 18px; }
+.ledger-used .qty, .ledger-flow .loss { color: #f0ce80; }
+.ledger-made .qty { color: #9fe0c9; }
+.ledger-used, .ledger-made { display: inline-flex; flex-wrap: wrap; gap: 3px 8px; }
+.ledger-arrow { color: var(--haldi-soft); }
+.ledger-idle { display: inline-flex; align-items: center; gap: 5px; color: #c9c3b4; font-size: .78rem; font-weight: 700; }
+.ledger-idle .gi { width: 18px; height: 18px; }
+.report-net { display: flex; flex-wrap: wrap; gap: 6px 12px; padding-top: 6px; border-top: 1px solid rgba(224,165,38,.25); }
+.net-good { display: inline-flex; align-items: baseline; gap: 4px; font-weight: 900; }
+.net-good .gi { width: 18px; height: 18px; align-self: center; }
+.net-good s { opacity: .55; font-weight: 700; }
+.net-good s::after { content: " →"; text-decoration: none; display: inline-block; margin-left: 2px; }
+.net-good b { color: var(--ivory); font-size: 1.02rem; }
+.net-good small { font-size: .74rem; }
+.net-good.gain small { color: #9fe0c9; }
+.net-good.loss small { color: #f0ce80; }
+.report-empty { margin: 0; font-size: .8rem; opacity: .8; }
+.report-continue { width: 100%; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; cursor: pointer; font-size: 1.02rem;
+  color: #fff4e0; background: linear-gradient(var(--sindoor), var(--sindoor-deep)); box-shadow: inset 0 0 0 1px rgba(243,207,107,.7), 0 4px 0 #4b0e0b; }
+.report-continue .gi { width: 22px; height: 22px; }
+.summary-reopen { margin-left: auto; min-width: 32px; min-height: 32px; display: inline-grid; place-items: center; border: 0; border-radius: 8px; background: rgba(244,233,211,.1); cursor: pointer; }
+.summary-reopen .gi { width: 18px; height: 18px; }
+#build-panel.reporting .build-foot { margin-top: 8px; }
+.move-report .summary-move { display: inline-flex; align-items: center; gap: 3px; min-width: 22px; height: 24px; padding: 0 7px; border-radius: 7px; color: var(--lampblack); background: var(--haldi); font-size: .86rem; font-weight: 900; }
+/* Phones: a tighter report, and Choose always in reach at the bottom of the panel. */
+:root[data-layout="fluid"] .ledger-line { min-height: 28px; grid-template-columns: 30px auto 1fr; gap: 6px; padding: 1px 6px; }
+:root[data-layout="fluid"] .ledger-art, :root[data-layout="fluid"] .ledger-art img { width: 30px; height: 24px; }
+:root[data-layout="fluid"] .move-report { gap: 6px; padding: 8px; }
+#build-panel.reporting .build-foot { position: sticky; bottom: 0; z-index: 2; padding-top: 6px; background: linear-gradient(transparent, rgba(18,21,54,.96) 30%); }

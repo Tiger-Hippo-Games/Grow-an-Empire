@@ -78,6 +78,21 @@ export interface BuildOrderEntry { move: number; buildingId: string; }
 /** Why a building produced or trained nothing this move. */
 export interface StallNote { buildingId: string; reason: string }
 
+/**
+ * One line of the move report: what one building (or the army, or spoilage)
+ * took from the stockpile and put into it this move. `source` is a building
+ * id, "army" (rations eaten, deserters) or "spoilage" (grain lost).
+ */
+export interface LedgerLine {
+  source: string;
+  used: ResourceBag;
+  made: ResourceBag;
+  trained?: Partial<TrainedUnits>;
+  deserted?: number;
+  /** Why it did nothing this move (idle buildings). */
+  idle?: string;
+}
+
 /** Everything that happened in one move, for the move summary card. */
 export interface MoveSummary {
   move: number;
@@ -93,6 +108,10 @@ export interface MoveSummary {
   stalled: StallNote[];
   warnings: string[];
   sold: number;
+  /** Per building, in the order the economy ran (absent in older saves). */
+  ledger?: LedgerLine[];
+  /** The stockpile before the move's economy ran (absent in older saves). */
+  before?: ResourceBag;
 }
 
 /**
@@ -206,7 +225,11 @@ function isValidSummary(value: unknown): value is MoveSummary {
     && isBag(value.produced) && isBag(value.consumed) && hasCounts(value.trained, SOLDIER_TYPES)
     && Number.isFinite(value.upkeep) && isCount(value.deserted) && Number.isFinite(value.sold)
     && Array.isArray(value.warnings) && value.warnings.every((line) => typeof line === "string")
-    && Array.isArray(value.stalled) && value.stalled.every((note) => isPlainObject(note) && typeof note.buildingId === "string" && typeof note.reason === "string");
+    && Array.isArray(value.stalled) && value.stalled.every((note) => isPlainObject(note) && typeof note.buildingId === "string" && typeof note.reason === "string")
+    && (value.before === undefined || isBag(value.before))
+    && (value.ledger === undefined || (Array.isArray(value.ledger) && value.ledger.every((entry) => isPlainObject(entry)
+      && typeof entry.source === "string" && isBag(entry.used) && isBag(entry.made)
+      && (entry.idle === undefined || typeof entry.idle === "string") && (entry.deserted === undefined || isCount(entry.deserted)))));
 }
 
 /**
@@ -528,6 +551,14 @@ export class SettlementSimulation {
     const stalled: StallNote[] = [];
     const warnings: string[] = [];
     const age = (id: string): number => this.state.buildingMaturity[id] ?? 1;
+    const before: ResourceBag = {};
+    for (const name of RESOURCE_NAMES) if (resources[name] > 0) before[name] = resources[name];
+    const ledger: LedgerLine[] = [];
+    const line = (source: string): LedgerLine => {
+      let entry = ledger.find((item) => item.source === source);
+      if (!entry) { entry = { source, used: {}, made: {} }; ledger.push(entry); }
+      return entry;
+    };
     for (const id of this.state.builtBuildingIds) this.state.buildingMaturity[id] = (this.state.buildingMaturity[id] ?? 0) + 1;
     this.state.population = populationForLevel(this.state.civicLevel) + HOUSE_PEOPLE_PER_MOVE * (this.state.buildingMaturity.house ?? 0);
 
@@ -536,19 +567,20 @@ export class SettlementSimulation {
       const amount = base + ageBonus(age(id));
       resources[name] += amount;
       addTo(produced, name, amount);
+      addTo(line(id).made, name, amount);
     }
-    if (built.has("granary")) { resources.grain += GRANARY_GRAIN; addTo(produced, "grain", GRANARY_GRAIN); }
+    if (built.has("granary")) { resources.grain += GRANARY_GRAIN; addTo(produced, "grain", GRANARY_GRAIN); addTo(line("granary").made, "grain", GRANARY_GRAIN); }
 
     for (const processor of PROCESSORS) {
       if (!built.has(processor.id)) continue;
       const capacity = processor.cycles + ageBonus(age(processor.id));
       let cycles = 0;
       while (cycles < capacity && canAfford(resources, processor.input)) {
-        for (const [name, amount] of Object.entries(processor.input) as Array<[ResourceName, number]>) { resources[name] -= amount; addTo(consumed, name, amount); }
-        for (const [name, amount] of Object.entries(processor.output) as Array<[ResourceName, number]>) { resources[name] += amount; addTo(produced, name, amount); }
+        for (const [name, amount] of Object.entries(processor.input) as Array<[ResourceName, number]>) { resources[name] -= amount; addTo(consumed, name, amount); addTo(line(processor.id).used, name, amount); }
+        for (const [name, amount] of Object.entries(processor.output) as Array<[ResourceName, number]>) { resources[name] += amount; addTo(produced, name, amount); addTo(line(processor.id).made, name, amount); }
         cycles += 1;
       }
-      if (cycles === 0) stalled.push({ buildingId: processor.id, reason: `needs ${formatBag(processor.input)}` });
+      if (cycles === 0) { stalled.push({ buildingId: processor.id, reason: `needs ${formatBag(processor.input)}` }); line(processor.id).idle = `needs ${formatBag(processor.input)}`; }
     }
 
     const trained: TrainedUnits = { archers: 0, swordsmen: 0, horsemen: 0 };
@@ -558,19 +590,26 @@ export class SettlementSimulation {
       const capacity = this.trainingCapacity(soldier.building);
       let count = 0;
       while (count < capacity && this.freeVillagers > 0 && canAfford(resources, soldier.cost)) {
-        for (const [name, amount] of Object.entries(soldier.cost) as Array<[ResourceName, number]>) { resources[name] -= amount; addTo(consumed, name, amount); }
+        for (const [name, amount] of Object.entries(soldier.cost) as Array<[ResourceName, number]>) { resources[name] -= amount; addTo(consumed, name, amount); addTo(line(soldier.building).used, name, amount); }
         this.state.trainedUnits[type] += 1;
         trained[type] += 1;
         count += 1;
       }
-      if (count === 0) stalled.push({ buildingId: soldier.building, reason: this.freeVillagers === 0 ? "no free villagers" : `needs ${formatBag(soldier.cost)} per ${soldier.singular}` });
+      if (count > 0) { const entry = line(soldier.building); entry.trained = { ...entry.trained, [type]: count }; }
+      if (count === 0) {
+        const reason = this.freeVillagers === 0 ? "no free villagers" : `needs ${formatBag(soldier.cost)} per ${soldier.singular}`;
+        stalled.push({ buildingId: soldier.building, reason });
+        line(soldier.building).idle = reason;
+      }
     }
 
     let sold = 0;
     if (built.has("marketplace")) {
       const sales = MARKET_SALES_PER_MOVE + ageBonus(age("marketplace"));
-      while (sold < sales && resources.wine > 0) { resources.wine -= 1; resources.gold += SELL_PRICE.wine; addTo(consumed, "wine", 1); addTo(produced, "gold", SELL_PRICE.wine); sold += 1; }
-      while (sold < sales && resources.planks > MARKET_PLANK_RESERVE) { resources.planks -= 1; resources.gold += SELL_PRICE.planks; addTo(consumed, "planks", 1); addTo(produced, "gold", SELL_PRICE.planks); sold += 1; }
+      const market = line("marketplace");
+      while (sold < sales && resources.wine > 0) { resources.wine -= 1; resources.gold += SELL_PRICE.wine; addTo(consumed, "wine", 1); addTo(produced, "gold", SELL_PRICE.wine); addTo(market.used, "wine", 1); addTo(market.made, "gold", SELL_PRICE.wine); sold += 1; }
+      while (sold < sales && resources.planks > MARKET_PLANK_RESERVE) { resources.planks -= 1; resources.gold += SELL_PRICE.planks; addTo(consumed, "planks", 1); addTo(produced, "gold", SELL_PRICE.planks); addTo(market.used, "planks", 1); addTo(market.made, "gold", SELL_PRICE.planks); sold += 1; }
+      if (sold === 0) market.idle = "nothing to sell";
     }
 
     const upkeep = this.upkeep;
@@ -579,6 +618,7 @@ export class SettlementSimulation {
       const paid = Math.min(upkeep, resources.rations);
       resources.rations -= paid;
       addTo(consumed, "rations", paid);
+      if (paid > 0) addTo(line("army").used, "rations", paid);
       let unfed = (upkeep - paid) * SOLDIERS_PER_RATION;
       // Unfed soldiers leave, the largest group first (a horseman counts for two).
       while (unfed > 0 && this.soldierCount > 0) {
@@ -589,6 +629,7 @@ export class SettlementSimulation {
         deserted += 1;
       }
       this.state.deserted += deserted;
+      if (deserted) line("army").deserted = deserted;
       if (deserted) warnings.push(`${deserted} soldier${deserted === 1 ? "" : "s"} deserted: there weren't enough rations.`);
     }
 
@@ -596,6 +637,7 @@ export class SettlementSimulation {
       const spoiled = resources.grain - GRAIN_SPOIL_CAP;
       resources.grain = GRAIN_SPOIL_CAP;
       addTo(consumed, "grain", spoiled);
+      addTo(line("spoilage").used, "grain", spoiled);
       warnings.push(`${spoiled} grain spoiled: a Granary would keep it.`);
     }
 
@@ -608,7 +650,7 @@ export class SettlementSimulation {
 
     return {
       move: this.state.civicLevel, buildingId: builtThisMove, civicLevel: this.state.civicLevel, population: this.state.population,
-      produced, consumed, trained, upkeep, deserted, stalled, warnings: warnings.slice(0, 2), sold,
+      produced, consumed, trained, upkeep, deserted, stalled, warnings: warnings.slice(0, 2), sold, ledger, before,
     };
   }
 

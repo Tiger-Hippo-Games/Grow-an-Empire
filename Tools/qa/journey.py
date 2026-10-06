@@ -31,7 +31,11 @@ def shot(pg, name):
 MILITARY = ("Bow Hall", "Lohar Forge", "Akhara", "Ashvashala", "Bazaar", "House", "Royal Kitchen", "Ghee House")
 
 def wait_choice_or_muster(pg, t=90000):
-    pg.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .gather-button, .flow-dialog[data-kind=muster]", timeout=t)
+    pg.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .gather-button, #build-panel:not(.hidden) .report-continue, .flow-dialog[data-kind=muster]", timeout=t)
+    if pg.is_visible("#build-panel:not(.hidden) .report-continue"):
+        note("report:", pg.inner_text("#build-panel .move-report").replace("\n", " ")[:160])
+        pg.click("#build-panel .report-continue")
+        pg.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .gather-button", timeout=t)
 
 def play_move(pg, strategy):
     wait_choice_or_muster(pg)

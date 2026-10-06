@@ -9,7 +9,7 @@ OUT.mkdir(exist_ok=True)
 sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
 import json, time
 from playwright.sync_api import sync_playwright
-from flow import enter, fight, play_move, play_to_muster  # noqa: E402
+from flow import enter, fight, past_report, play_move, play_to_muster  # noqa: E402
 
 URL = "http://127.0.0.1:4173/"
 KEY = "grow-an-empire:save:v1"
@@ -77,6 +77,8 @@ with sync_playwright() as p:
     page.goto(URL + "?reset"); loaded(page); enter(page)
     set_speed8(page)
     page.click(".build-card >> text=Farm"); wait_move(page, 2); time.sleep(0.3)
+    page.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .report-continue", timeout=30000)
+    past_report(page)
     wood_before = saved(page)["state"]["resources"]["wood"]
     page.click(".build-card >> text=Goshala"); time.sleep(1.0)
     panel_hidden = page.evaluate("document.querySelector('#build-panel').classList.contains('hidden')")
@@ -110,7 +112,7 @@ with sync_playwright() as p:
             after = page.inner_text("#stockpile-total"), page.inner_text("#population")
             checks["resumed_mid"] = saved(page)["state"]["mode"] == "construction" and before == after
             set_speed8(page)
-            page.wait_for_selector("#build-panel:not(.hidden) .build-card, .flow-dialog[data-kind=muster]", timeout=30000)
+            page.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .report-continue, .flow-dialog[data-kind=muster]", timeout=30000)
     play_to_muster(page, on_move)
     page.screenshot(path=str(OUT / "muster.png"))
     page.reload(); loaded(page); enter(page)
