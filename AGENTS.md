@@ -35,6 +35,8 @@ Useful URLs on the dev server: `?reset` (discard the save), `?platform=mock` (fa
 
 ## Rules that are easy to break
 
+- **Versions:** every build handed over gets a new version in `package.json` (patch +1 for fixes and small features, minor for a feature set), so `pnpm package` writes a new `release/grow-an-empire-<version>.zip`. Never rebuild over an existing ZIP. History: 0.6.0 Bharatvarsha, realm, difficulty, battle in the city · 0.6.1 battle centred for 1920×1080 · 0.6.2 move report · 0.6.3 fills the portal iframe edge to edge.
+
 - **Saves:** `SAVE_SCHEMA_VERSION` is 6 (`migrateSnapshot` converts v4 and v5). Changing the snapshot shape needs a new version *and* a migration, and must keep `src/game/__tests__/fixtures/save-v4-mid-construction.json` loading. Never edit that fixture. Stars live beside the snapshot in `SavedGame.campaignStars` (merged with the best of local and cloud).
 - **Portal:** asset paths must stay relative (`base: "./"`). No `alert`, `confirm` or `prompt`. No top-level navigation. The SDK script tag in `index.html` must stay. `GAME_ID` in `src/platform/adapters.ts` must equal the portal slug.
 - **Art:** add new runtime art as a PNG under `Assets/Art/…`, then run `pnpm art:export`. A test fails if a referenced file isn't bundled, or if the WebP is stale. The campaign map `southern-road-map-v6.png` is composed from four campaign paintings by `python Tools/ArtPipeline/make_campaign_road_map.py`; if the art changes, re-place the stops in `campaignMap.ts` and run `Tools/qa/campaign_map.py`.
