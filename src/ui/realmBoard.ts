@@ -51,13 +51,14 @@ export function createRealmBoard(root: HTMLElement, onModalChange: (open: boolea
     const top = shown.slice(0, 5);
     const near = shown.slice(Math.max(0, at - 3), at + 4).filter((entry) => !top.includes(entry));
     dialog.innerHTML = `
+      <button type="button" class="realm-close" data-primary data-action="close" aria-label="Close the realm board" title="Close">${icon("close")}</button>
       <p class="flow-kicker">THE REALM · ${number(all.length)} <span class="w">RAJAS</span></p>
       <h2 class="realm-head">${icon("rank")}<b>${number(me.rank)}</b><small>/ ${number(all.length)}</small><span class="realm-title">${escapeHtml(me.title)}</span></h2>
       <label class="realm-filter"><span class="w">Janapada</span><select aria-label="Show rajas from one janapada"><option value="">All</option>${JANAPADAS.map((name) => `<option${name === filter ? " selected" : ""}>${name}</option>`).join("")}</select></label>
       <ol class="realm-list" aria-label="Top rajas">${top.map(row).join("")}</ol>
       ${near.length ? `<p class="realm-gap" aria-hidden="true">⋯</p><ol class="realm-list" aria-label="Around you">${near.map(row).join("")}</ol>` : ""}
       <p class="flow-note quiet w">The other rajas are AI rivals on the same road. Win campaigns and stars to climb.</p>
-      <div class="flow-actions"><button type="button" data-primary data-action="close">${icon("close")}<span class="w">Close</span></button></div>`;
+`;
     dialog.querySelector<HTMLSelectElement>("select")!.addEventListener("change", (event) => {
       filter = (event.target as HTMLSelectElement).value;
       render();

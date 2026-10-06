@@ -11,7 +11,7 @@ URL = "http://127.0.0.1:4174/"
 TAG = sys.argv[1] if len(sys.argv) > 1 else "before"
 # Fixed 16:9 stage (1280×720 and up), then the fluid layout: small windows,
 # tablets both ways, phones both ways.
-SIZES = [(1920, 1080), (1280, 720), (1600, 900), (1366, 724), (960, 540), (1024, 768), (1180, 820), (820, 1180),
+SIZES = [(1920, 1080), (1920, 1036), (1920, 916), (1280, 720), (1600, 900), (1366, 724), (960, 540), (1024, 768), (1180, 820), (820, 1180),
          (844, 390), (667, 375), (390, 844), (375, 667)]
 CHECK = """() => {
   // Panels the game has deliberately slid away and faded out (the bars while a choice is open) don't count.
@@ -48,12 +48,12 @@ with sync_playwright() as p:
         pg.evaluate("localStorage.setItem('grow-an-empire:tutorial:v1','complete')")
         pg.wait_for_timeout(600)
         pg.screenshot(path=f"{OUT}/vp_{TAG}_map_{w}x{h}.png")
-        # Fixed layout: the 16:9 stage is centred. Fluid layout: the stage fills the frame.
+        # Both layouts: the stage is centred and fills the frame (no bars; the portal checklist).
         stage = pg.evaluate("""() => { const r = document.getElementById('app').getBoundingClientRect();
           const layout = document.documentElement.dataset.layout;
           return { layout, left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height),
                    centred: Math.abs((r.left + r.right) / 2 - innerWidth / 2) < 1.5 && Math.abs((r.top + r.bottom) / 2 - innerHeight / 2) < 1.5,
-                   fills: layout !== 'fluid' || (Math.abs(r.width - innerWidth) < 1.5 && Math.abs(r.height - innerHeight) < 1.5) }; }""")
+                   fills: (Math.abs(r.width - innerWidth) < 1.5 && Math.abs(r.height - innerHeight) < 1.5) }; }""")
         pg.click("#campaign-launch"); pg.wait_for_timeout(400)
         pg.screenshot(path=f"{OUT}/vp_{TAG}_brief_{w}x{h}.png")
         pg.click(".flow-dialog [data-action=begin]"); pg.wait_for_timeout(400)

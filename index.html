@@ -7,14 +7,17 @@
     <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Plays in either orientation: 16:9 stage in large frames (designed for 1920×1080), a rearranged layout on phones and tablets. -->
     <meta name="orientation" content="any" />
     <meta name="screen-orientation" content="any" />
-    <meta name="description" content="Build a medieval city one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Plan twelve moves, trade at the market when you're stuck, and beat 25 enemy armies to earn up to three stars each. A short strategy game for your browser." />
+    <meta name="description" content="Build a kingdom in mythic Bharatvarsha one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Beat 25 enemy armies of swordsmen, archers and horsemen and climb past 1,008 rival rajas to rank 1. A short strategy game for your browser." />
     <title>Grow an Empire</title>
     <script>
       // Stage fit. Two layouts:
       //  - "fixed": when the window or portal frame can show the 1280×720 stage
-      //    at 95% or more, the game is laid out once at 1280×720 and scaled as a
-      //    whole, centred, with bars on the long side (a 1920×1080 frame shows
-      //    it at exactly 1.5×).
+      //    at 95% or more, the game is laid out at 1280×720 or more and scaled
+      //    as a whole. The stage takes the frame's own shape (wider or taller
+      //    than 16:9, never smaller than 1280×720), so the game fills the
+      //    portal's iframe edge to edge with no bars: the portal's frame is the
+      //    window height minus its 44 px bar, so a 1920×1080 screen gives about
+      //    1920×1036 or less (a 1920×1080 frame shows exactly 1.5×).
       //  - "fluid": in smaller frames (phones, tablets, small windows, either
       //    orientation) the stage takes the frame's own shape at 1:1 (scaled
       //    down only below 568×320 / 320×568), and styles.css rearranges the
@@ -30,7 +33,7 @@
           var w = window.innerWidth, h = window.innerHeight;
           if (!(w > 0 && h > 0)) return; // A hidden 0×0 frame: keep the last good fit.
           var scale = Math.min(w / WIDTH, h / HEIGHT);
-          var layout = "fixed", stageW = WIDTH, stageH = HEIGHT;
+          var layout = "fixed", stageW = Math.round(w / scale), stageH = Math.round(h / scale);
           if (scale < FIXED_MIN_SCALE) {
             layout = "fluid";
             var portrait = h > w;

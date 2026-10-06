@@ -1123,3 +1123,12 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 :root[data-layout="fluid"] .ledger-art, :root[data-layout="fluid"] .ledger-art img { width: 30px; height: 24px; }
 :root[data-layout="fluid"] .move-report { gap: 6px; padding: 8px; }
 #build-panel.reporting .build-foot { position: sticky; bottom: 0; z-index: 2; padding-top: 6px; background: linear-gradient(transparent, rgba(18,21,54,.96) 30%); }
+/* Realm board: Close sits in the top corner so it is always in view; rows are compact so the board fits a short portal frame. */
+.realm-board { position: relative; max-height: calc(100% - 8px); }
+.realm-close { position: absolute; top: 10px; right: 12px; z-index: 2; min-width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; border-radius: 12px; cursor: pointer;
+  color: var(--ivory); background: rgba(244,233,211,.12) !important; box-shadow: inset 0 0 0 1px rgba(224,165,38,.45) !important; }
+.realm-close .gi { width: 22px; height: 22px; }
+.realm-row { min-height: 32px; }
+.realm-who small { line-height: 1.1; }
+/* The rank chip on the map: bottom right, above the campaign card, clear of the chapter titles and the stops. */
+:root[data-layout="fixed"] .campaign-realm { top: auto; right: 18px; bottom: 136px; }
