@@ -42,6 +42,12 @@ export function createSound(initiallyMuted: boolean) {
   let muted = initiallyMuted;
   let context: AudioContext | null = null;
   let master: GainNode | null = null;
+  const warned = new Set<string>();
+  const warnOnce = (operation: string, error: unknown): void => {
+    if (warned.has(operation)) return;
+    warned.add(operation);
+    console.warn(`[Grow an Empire] Audio ${operation} failed; continuing without that sound.`, error);
+  };
 
   function ensureContext(): AudioContext | null {
     if (context) return context;
@@ -49,11 +55,17 @@ export function createSound(initiallyMuted: boolean) {
     if (!Context) return null;
     try {
       context = new Context();
-      master = context.createGain();
-      master.gain.value = 0.6;
-      master.connect(context.destination);
-    } catch {
+      const gain = context.createGain();
+      gain.gain.value = 0.6;
+      gain.connect(context.destination);
+      master = gain;
+    } catch (error) {
+      // Close a partially initialized context so retries don't leak resources.
+      const partial = context;
       context = null;
+      master = null;
+      if (partial) void partial.close().catch((cause: unknown) => warnOnce("cleanup", cause));
+      warnOnce("initialization", error);
     }
     return context;
   }
@@ -62,14 +74,14 @@ export function createSound(initiallyMuted: boolean) {
   const unlock = (): void => {
     if (muted) return;
     const audio = ensureContext();
-    if (audio?.state === "suspended") void audio.resume().catch(() => undefined);
+    if (audio?.state === "suspended") void audio.resume().catch((error: unknown) => warnOnce("resume", error));
   };
   window.addEventListener("pointerdown", unlock, { passive: true });
   window.addEventListener("keydown", unlock);
   document.addEventListener("visibilitychange", () => {
     if (!context) return;
-    if (document.visibilityState === "hidden") void context.suspend().catch(() => undefined);
-    else if (!muted) void context.resume().catch(() => undefined);
+    if (document.visibilityState === "hidden") void context.suspend().catch((error: unknown) => warnOnce("suspend", error));
+    else if (!muted) void context.resume().catch((error: unknown) => warnOnce("resume", error));
   });
 
   function play(name: SoundName): void {
@@ -92,8 +104,9 @@ export function createSound(initiallyMuted: boolean) {
         oscillator.start(now + note.at);
         oscillator.stop(now + note.at + note.length + 0.02);
       }
-    } catch {
+    } catch (error) {
       // Audio is decoration: never let it break the game.
+      warnOnce("playback", error);
     }
   }
 
@@ -103,8 +116,8 @@ export function createSound(initiallyMuted: boolean) {
     setMuted(value: boolean) {
       muted = value;
       if (!context) { if (!muted) unlock(); return; }
-      if (muted) void context.suspend().catch(() => undefined);
-      else void context.resume().catch(() => undefined);
+      if (muted) void context.suspend().catch((error: unknown) => warnOnce("suspend", error));
+      else void context.resume().catch((error: unknown) => warnOnce("resume", error));
     },
   };
 }

@@ -320,7 +320,7 @@ function refreshRealm(): void {
   });
 }
 function openCampaignMap(): void {
-  if (!initialized) return;
+  if (!initialized || loopFailed || renderFailed) return;
   playing = false;
   hud.setPlayingLabel(false);
   flow.hide();
@@ -885,13 +885,15 @@ function buildingsNeededFor(saved: SettlementSnapshot): string[] {
 function tryResume(saved: SettlementSnapshot): boolean {
   try {
     simulation.loadSnapshot(saved);
-    hydrateFromLoadedState();
-    return true;
   } catch (error) {
-    console.warn("Saved settlement could not be restored; starting a new one.", error);
+    console.warn("[Grow an Empire] Saved settlement data could not be restored; starting a new one.", error);
     progress.clear();
     return false;
   }
+  // A scene/HUD failure is a boot failure, not evidence of damaged save data.
+  // Let initialize's handler offer Reload while leaving valid progress intact.
+  hydrateFromLoadedState();
+  return true;
 }
 
 /** Before the tutorial flag moved into the save it had its own localStorage key; honour it once. */
@@ -1114,21 +1116,20 @@ renderer.setAnimationLoop(() => {
   // Draw only while the scene can change: the game is playing, or something
   // asked for a redraw (MOBILE_PERFORMANCE §48: stop work when paused).
   if (contextLost || !initialized || renderFailed) return;
-  if (battleField.active) { battleField.update(performance.now()); renderRequested = true; }
-  if ((playing && !loopFailed) || renderRequested) {
-    renderRequested = false;
-    try {
+  try {
+    if (!loopFailed && battleField.active) { battleField.update(performance.now()); renderRequested = true; }
+    if ((playing && !loopFailed) || renderRequested) {
+      renderRequested = false;
       renderer.render(scene, camera);
-    } catch (error) {
-      renderFailed = true;
-      playing = false;
-      hud.setPlayingLabel(false);
-      hud.setStatus("The graphics failed to draw. Reload to continue from your last save.", 0);
-      console.error(error);
-      reportRuntimeError(error, "render");
-      return;
+      perfOverlay?.sample();
     }
-    perfOverlay?.sample();
+  } catch (error) {
+    renderFailed = true;
+    playing = false;
+    hud.setPlayingLabel(false);
+    hud.setStatus("The graphics failed to draw. Reload to continue from your last save.", 0);
+    console.warn("[Grow an Empire] Graphics or battle animation failed; rendering stopped.", error);
+    reportRuntimeError(error, "render");
   }
 });
 

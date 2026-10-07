@@ -214,6 +214,20 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
   let known: Pick<SavedGame, "campaignStars" | "completedCampaignIds"> & { tutorialComplete: boolean } =
     { campaignStars: {}, completedCampaignIds: [], tutorialComplete: false };
   let failedWrites = 0;
+  const warned = new Set<string>();
+  const warnOnce = (operation: string, error: unknown): void => {
+    if (warned.has(operation)) return;
+    warned.add(operation);
+    console.warn(`[Grow an Empire] Cloud ${operation} failed unexpectedly; keeping browser progress and retrying later.`, error);
+  };
+  const readCloud = async (): ReturnType<PlatformAdapter["loadProgress"]> => {
+    try {
+      return await platform.loadProgress();
+    } catch (error) {
+      warnOnce("read", error);
+      return "unavailable";
+    }
+  };
 
   const remember = (game: SavedGame | null): void => {
     if (!game) return;
@@ -263,7 +277,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
    * device's run is further along).
    */
   async function reconcile(game: SavedGame): Promise<SavedGame | null | "retry"> {
-    const rawCloud = await platform.loadProgress();
+    const rawCloud = await readCloud();
     if (rawCloud === "unavailable") return "retry";
     cloudRead = true;
     if (isFromNewerVersion(rawCloud)) {
@@ -311,10 +325,14 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
       timer = null;
     }
     if (inFlight) await inFlight;
+    if (hasNewerLocalSave()) disableSaving();
     if (!pending || savingDisabledReason || cloudAhead) return;
     const game = pending;
     pending = null;
-    inFlight = writeCloud(game).finally(() => { inFlight = null; });
+    inFlight = writeCloud(game).catch((error: unknown) => {
+      warnOnce("write", error);
+      retryLater(game);
+    }).finally(() => { inFlight = null; });
     await inFlight;
   }
 
@@ -328,7 +346,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
   return {
     async load(playerId = null) {
       let local = toSavedGame(loadSavedSnapshot(), campaignId);
-      const rawCloud = await platform.loadProgress();
+      const rawCloud = await readCloud();
       const cloudAvailable = rawCloud !== "unavailable";
       if (hasNewerLocalSave() || (cloudAvailable && isFromNewerVersion(rawCloud))) {
         disableSaving();
@@ -354,6 +372,8 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
       return chosen;
     },
     save(game, options = {}) {
+      // Another tab may have upgraded since this session loaded.
+      if (hasNewerLocalSave()) disableSaving();
       if (savingDisabledReason) return;
       // Another tab may have won stars since this one loaded: keep them.
       const stored = toSavedGame(loadSavedSnapshot(), null);
@@ -371,6 +391,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     flush,
     clear() {
       // Never delete progress a newer version wrote.
+      if (hasNewerLocalSave()) disableSaving();
       if (!savingDisabledReason) clearSavedSnapshot();
     },
     get savingDisabledReason() { return savingDisabledReason; },

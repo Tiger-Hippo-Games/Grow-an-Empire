@@ -122,6 +122,64 @@ function fakePlatform(overrides: Partial<PlatformAdapter> = {}) {
 describe("progress store", () => {
   const campaignId = new SettlementSimulation().campaign.id;
 
+  it("resumes local progress when a cloud read rejects and retries before uploading", async () => {
+    vi.useFakeTimers();
+    let fail = true;
+    const { platform, saves } = fakePlatform({ loadProgress: async () => {
+      if (fail) throw new Error("SDK rejected");
+      return null;
+    } });
+    store.set(BROWSER_SAVE_KEY, JSON.stringify(saveAfter(2, "r", 1)));
+    const progress = createProgressStore(platform, campaignId);
+    expect((await progress.load("p"))?.runId).toBe("r");
+    progress.save(saveAfter(3, "r", 2));
+    await progress.flush();
+    expect(saves).toHaveLength(0);
+    fail = false;
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect((saves.at(-1) as unknown as SavedGame).state.builtBuildingIds).toHaveLength(3);
+  });
+
+  it("retries rejected writes without losing a newer save queued during the request", async () => {
+    vi.useFakeTimers();
+    let rejectWrite!: (error: Error) => void;
+    const { platform, saves } = fakePlatform();
+    const save = platform.saveProgress;
+    let first = true;
+    platform.saveProgress = (value) => {
+      if (!first) return save(value);
+      first = false;
+      return new Promise((_, reject) => { rejectWrite = reject; });
+    };
+    const progress = createProgressStore(platform, campaignId);
+    await progress.load("p");
+    progress.save(saveAfter(2, "r", 1));
+    const flushing = progress.flush();
+    progress.save(saveAfter(3, "r", 2));
+    rejectWrite(new Error("network"));
+    await expect(flushing).resolves.toBeUndefined();
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(saves).toHaveLength(1);
+    expect((saves[0] as unknown as SavedGame).state.builtBuildingIds).toHaveLength(3);
+  });
+
+  it.each(["save", "flush", "clear"] as const)("protects a newer-version save arriving in another tab before %s", async (action) => {
+    vi.useFakeTimers();
+    const { platform, saves } = fakePlatform();
+    const progress = createProgressStore(platform, campaignId);
+    await progress.load("p");
+    progress.save(saveAfter(1, "r", 1));
+    const newer = JSON.stringify({ ...saveAfter(2, "r", 2), schemaVersion: 99 });
+    store.set(BROWSER_SAVE_KEY, newer);
+    if (action === "save") progress.save(saveAfter(3, "r", 3));
+    else if (action === "clear") progress.clear();
+    else await progress.flush();
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(store.get(BROWSER_SAVE_KEY)).toBe(newer);
+    expect(saves).toHaveLength(0);
+    expect(progress.savingDisabledReason).toContain("newer version");
+  });
+
   it("saves to the browser at once and batches cloud writes", async () => {
     vi.useFakeTimers();
     const { platform, saves } = fakePlatform();
