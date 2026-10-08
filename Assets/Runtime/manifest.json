@@ -554,9 +554,9 @@
   },
   "southern-road-map-v6.webp": {
     "source": "Assets/Art/Production/Campaign/southern-road-map-v6.png",
-    "sha256": "a7bfb5f55fbfeef1cce0675278604a06b2fa67d902a09d7a37e83a4b43e0da15",
+    "sha256": "5e74cc358e9061c7eb2d1ddc3ff6e64ea85fad4974cf44b9322e9fb396071161",
     "exportRevision": 2,
-    "sourceBytes": 6930703,
+    "sourceBytes": 6936473,
     "bytes": 619374
   },
   "spearman-walk32-master-v1.webp": {
