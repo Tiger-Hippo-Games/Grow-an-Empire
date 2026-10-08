@@ -1,5 +1,17 @@
 # QA results
 
+## v0.7.0 (2026-10-08): current GoLive developer reference
+
+Updated the SDK integration against `common/GOLIVE_DEVELOPER_REFERENCE.md`: official SDK URL and default API host, `GAME_READY` after the first screen is ready, portal display names, real signed-in leaderboard submissions, save/score rate limits, UTF-8 payload limits, and nonfatal cloud/leaderboard failures. Access remains the portal's responsibility before iframe launch; guests and trial players can continue playing when cloud saving is denied. AI Realm standings remain distinct from real portal scores.
+
+Validation: TypeScript, ESLint and 197 tests pass (20 new regression cases). Local iframe testing confirmed initialization before login, cloud loading and `GAME_READY`. The signed-in mock player's display name appeared in the Realm board with rivals identified as AI. The production ZIP `release/grow-an-empire-0.7.0.zip` is 15.41 MB and passed the bundle validator, including official SDK, relative assets, mobile viewport, permitted formats and navigation checks. Existing release ZIPs remain untouched.
+
+Catalog upload images were verified at 480×270 / 60,258 bytes and 1280×720 / 320,280 bytes, below the reference limits.
+
+A full signed-in mock campaign reached the three-star Victory screen and recorded `submitScore campaign-progress 103`; no browser warnings or errors were captured. This verifies the game-to-adapter path, not the real portal board.
+
+Still required: create/activate the `campaign-progress` leaderboard (or configure an existing board's exact slug), then run Developer Console Sandbox Preview with guest, trial and subscribed/favourite accounts. Local mocks cannot establish real portal compliance. Python Playwright is unavailable in the bundled runtime, so the full automated viewport and fault-injection scripts were not rerun. See `Docs/SUBMISSION_CHECKLIST.md` for the remaining portal and provenance checks.
+
 ## v0.6.7 (2026-10-08): reliability review
 
 - Cloud read exceptions fall back to browser progress. Rejected writes retain the queue and retry with backoff, preserving newer queued moves and logging once per operation.

@@ -18,7 +18,7 @@ SAVE_KEY = "grow-an-empire:save:v1"
 QUICK = "--quick" in sys.argv
 TUTORIAL_DONE = "try { localStorage.setItem('grow-an-empire:tutorial:v1','complete') } catch (e) {}"
 
-# A scriptable stand-in for the portal SDK, served in place of /api/v1/sdk/platform-sdk.js.
+# A scriptable stand-in for the portal SDK, served in place of /sdk/platform-sdk.js.
 def fake_sdk(player_id="bob", login="ok", rejecting=False, cloud="null"):
     login_js = {
         "ok": f"return {{ player: {{ id: '{player_id}', displayName: 'Guest_{player_id}' }} }};",
@@ -49,7 +49,7 @@ def open_game(browser, *, init_scripts=(), sdk_js=None, routes=(), viewport=(128
     page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
     page.on("console", lambda m: errors.append(f"console.error: {m.text}") if m.type == "error" else None)
     if sdk_js is not None:
-        page.route("**/api/v1/sdk/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body=sdk_js))
+        page.route("**/sdk/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body=sdk_js))
     for pattern, handler in routes:
         page.route(pattern, handler)
     page.goto(url, wait_until="commit")  # boot is awaited separately; a stalled image would block "load"
@@ -276,7 +276,7 @@ def session_end(browser):
     ctx = browser.new_context(viewport={"width": 1280, "height": 800})
     ctx.add_init_script(TUTORIAL_DONE)
     page = ctx.new_page()
-    page.route("**/api/v1/sdk/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body=fake_sdk()))
+    page.route("**/sdk/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body=fake_sdk()))
     page.set_content(f"<iframe id=g src='{URL}' style='width:1200px;height:700px'></iframe>")
     for _ in range(100):
         if len(page.frames) > 1:

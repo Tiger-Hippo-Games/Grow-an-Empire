@@ -108,10 +108,9 @@
       })();
     </script>
     <!--
-      GoLive Platform SDK (common/GAME_SUBMISSION_GUIDE.md §5). This is the one
-      absolute path in the game on purpose: it is served by the portal itself,
-      not from our bundle. On the portal it defines window.Platform; locally it
-      is a harmless stub (see vite.config.ts) and the game plays offline.
+      GoLive SDK 1.5.0 (common/GOLIVE_DEVELOPER_REFERENCE.md §1).
+      This official SDK URL is the exception to relative game asset paths.
+      Local dev uses a harmless stub (vite.config.ts); production keeps this URL.
     -->
     <script src="https://golive-platform.netlify.app/sdk/platform-sdk.js"></script>
   </head>

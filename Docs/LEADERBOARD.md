@@ -1,83 +1,44 @@
-# Leaderboard: what the game sends, and what the portal needs to build
+# Portal leaderboard (GoLive SDK 1.5.0)
 
-Grow an Empire has 25 campaigns, played in order. A player's **level** is the highest campaign they have won, and the leaderboard ranks players by it. The GoLive SDK has no leaderboard call (common/SDK_REFERENCE.md), so the game puts each player's standing where the portal can read it, against the player id. The portal builds the board itself.
+The current contract is `common/GOLIVE_DEVELOPER_REFERENCE.md`, section 5. Real player rankings use the SDK leaderboard API. The `leaderboard_score` analytics event and the leaderboard object in saves are diagnostics and migration data; they do not post a score to the portal board.
 
-## The standing (game/leaderboard.ts)
+## Developer Console setup required
 
-| Field | Meaning |
+For game slug `grow-an-empire`, create this board before sandbox testing:
+
+| Setting | Value |
 |---|---|
-| `level` | Highest campaign won, 0–25 |
-| `campaignId` | That campaign's id, e.g. `campaign-7-wolfmoor` (`null` before the first win) |
-| `campaignName` | Its name, e.g. `Wolfmoor` |
-| `totalStars` | Best stars summed over all campaigns, 0–75 |
-| `score` | `level × 100 + totalStars`, 0–2575. Level always decides first; among players on the same campaign, more stars rank higher |
-| `reachedAt` | ISO time the score last went up. **Ties: whoever got there first ranks higher** |
-| `schema` | 1 |
+| Name | Campaign Progress |
+| Slug | `campaign-progress` |
+| Reset period | All-Time |
+| Metric | Highest Score Wins |
+| Max score | 2575 |
 
-The score never goes down: a replay can only add stars.
+The slug must match `LEADERBOARD_SLUG` in `src/platform/adapters.ts`. It must be active and belong to this game. If a board already exists with a different slug, update that constant before packaging. Slugs cannot be renamed after creation. All-Time has no reset date; a future periodic board must show its period and reset time wherever it is displayed.
 
-**Ranking:** `score` descending, then `reachedAt` ascending. Show signed-in players only (`authType` `EMAIL` or `GOOGLE`; not `GUEST`).
+## Score and identity
 
-## Where the game puts it
+Score is `highest campaign won * 100 + total best stars`, from 0 to 2575. Campaigns range from 1 to 25 and total stars from 0 to 75. A replay never removes stars. The platform retains each player's best score; do not implement a separate server ranking or rely on a client-provided timestamp to decide platform ties.
 
-The same standing goes to two places. Use either one; using both lets one check the other.
+`Platform.init({ gameId: "grow-an-empire" })` precedes `Platform.login()`. The returned player id owns saves. The game uses the portal's `displayName` in the Realm board, escapes it as text, and falls back to username or Guest if it is malformed. Offline play uses You. Scores are submitted only for signed-in accounts; guests play normally without posting.
 
-### 1. The cloud save (always, every player)
+## Posting
 
-Every `Platform.saveGameProgress()` call, which the portal stores per player for game `grow-an-empire`, now includes:
+At battle end, `src/platform/scoreSubmission.ts` sends the standing through the platform adapter:
 
-```json
-{
-  "playerId": "<the id from Platform.login()>",
-  "campaignStars": { "campaign-1-first-muster": 3, "campaign-2-reedmarsh": 2 },
-  "leaderboard": {
-    "schema": 1, "level": 2, "campaignId": "campaign-2-reedmarsh", "campaignName": "Reedmarsh Crossing",
-    "totalStars": 5, "score": 205, "reachedAt": "2026-10-02T10:15:00.000Z"
-  }
-}
+```typescript
+await Platform.submitScore("campaign-progress", score, {
+  level, campaignId, totalStars, reachedAt
+});
 ```
 
-It's written after every move and at the end of each campaign, so it's always current. Guests have it too, so if the portal keeps the same player id when a guest registers, their progress counts straight away.
+Metadata stays below 2 KB of UTF-8 JSON. Attempts are at least 30 seconds apart. Fast battle results coalesce to the highest pending score; duplicate or worse successful scores are skipped. Missing/deactivated boards, rejected scores, an old SDK, sign-in failures and permission failures never block the result screen or the next campaign. A later battle may retry a rejected result; there is no endless score retry loop.
 
-Example query, if progress is a JSON column (adapt it to the portal's schema):
+The in-game Realm ranks the player against 1,008 seeded AI rajas. It is a separate single-player feature and must not be presented as the live player leaderboard. The portal displays the real board and owns its player names, ranks and best scores.
 
-```sql
-SELECT p.id, p.display_name,
-       (gp.progress->'leaderboard'->>'level')::int        AS level,
-       gp.progress->'leaderboard'->>'campaignName'         AS campaign,
-       (gp.progress->'leaderboard'->>'totalStars')::int   AS stars,
-       (gp.progress->'leaderboard'->>'score')::int        AS score,
-       (gp.progress->'leaderboard'->>'reachedAt')::timestamptz AS reached_at
-FROM game_progress gp
-JOIN players p ON p.id = gp.player_id
-WHERE gp.game_id = (SELECT id FROM games WHERE slug = 'grow-an-empire')
-  AND p.auth_type <> 'GUEST'
-  AND gp.progress ? 'leaderboard'
-ORDER BY score DESC, reached_at ASC
-LIMIT 100;
-```
+## Verification
 
-### 2. A `leaderboard_score` analytics event (signed-in players only)
-
-`Platform.track("leaderboard_score", …)` is sent when a signed-in player's score goes up (after a campaign result) and once per visit (`reason: "visit"`), so players who registered after playing as guests appear without waiting for their next win:
-
-```json
-{ "player_id": "…", "display_name": "…", "auth_type": "EMAIL", "level": 2,
-  "campaign_id": "campaign-2-reedmarsh", "campaign_name": "Reedmarsh Crossing",
-  "total_stars": 5, "score": 205, "reached_at": "2026-10-02T10:15:00.000Z",
-  "reason": "improved", "game_version": "0.5.0" }
-```
-
-Leaderboard from events: for each player, keep the row with the highest `score` (earliest `reached_at` on a tie).
-
-## For the portal developers
-
-- **Trust the token, not the payload.** Take the player from the request's access token. The `player_id` in the event and the `playerId` in the save are for convenience and cross-checking. A browser can send anything, so reject `level > 25`, `totalStars > 75`, `score` that isn't `level × 100 + totalStars`, and any `campaignId` whose number doesn't match `level`. The save also has the full `campaignStars` table, so the server can recompute the standing itself.
-- **Names:** show the portal's current display name for the player id. `display_name` in the event is only a snapshot.
-- **If the SDK gets a leaderboard call** (for example `Platform.submitScore(score, metadata)`), the game can switch to it in one place: `reportLeaderboard()` in `src/main.ts`. Nothing else in the game needs to change.
-
-## Testing
-
-- `?platform=mock&auth=email` on the dev server signs in as a registered mock player. After a win, `window.__goLiveMock.calls` has the `leaderboard_score` event, and `localStorage["grow-an-empire:mock-cloud"]` holds the save with `leaderboard`.
-- `?platform=mock` (guest): the save has `leaderboard`, and no event is sent.
-- Unit tests: `src/game/__tests__/leaderboard.test.ts`.
+- `?platform=mock&auth=email`: after a battle, the mock log records `submitScore`, `campaign-progress`, score and metadata.
+- `?platform=mock`: guests have progress and AI Realm standings but no score submission.
+- Unit tests cover slug selection, guests, rejected calls, byte caps, 30-second spacing and coalescing.
+- Required live sandbox checks: registered player score appears under their portal name, guest posts are absent, a denied trial save does not stop play, and a replay cannot lower the platform best score.

@@ -17,6 +17,8 @@ import { amount, icon } from "./icons";
  * road, the buttons, the highlight ring and the scroll position agree.
  */
 const MAP_ART = "southern-road-map-v6.png";
+// A title-screen fallback must settle before the 20-second boot watchdog.
+const MAP_ART_TIMEOUT_MS = Math.min(IMAGE_TIMEOUT_MS, 15_000);
 /** Height ÷ width of the painting. */
 const ART_ASPECT = 1930 / 1672;
 export const STOPS: ReadonlyArray<{ x: number; y: number }> = [
@@ -108,7 +110,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       resolveReady();
       console.warn(`[Grow an Empire] Campaign map artwork failed to load: ${MAP_ART}`, cause);
     };
-    const timeout = setTimeout(() => fail(new Error(`Timed out after ${IMAGE_TIMEOUT_MS / 1000} s`)), IMAGE_TIMEOUT_MS);
+    const timeout = setTimeout(() => fail(new Error(`Timed out after ${MAP_ART_TIMEOUT_MS / 1000} s`)), MAP_ART_TIMEOUT_MS);
     image.onload = () => {
       if (settled) return;
       settled = true;

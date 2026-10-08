@@ -133,7 +133,7 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl?: string): Platf
         return "ok";
       } catch (error) {
         if (isConflict(error)) return "conflict";
-        warn("save", "Cloud save failed; progress is still saved in this browser.", error);
+        warn("save", "Cloud save failed; gameplay continues with browser saving when available.", error);
         return "error";
       }
     },

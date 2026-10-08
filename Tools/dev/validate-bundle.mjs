@@ -1,8 +1,7 @@
 // Pre-upload validator for the GoLive portal bundle.
 //
-// Reproduces the checks in common/GAME_SUBMISSION_GUIDE.md §7 (the portal's own
-// validator lives in its backend repo, which we don't have) plus the manual
-// items from §15/§16 that the portal validator skips, such as relative paths.
+// Checks the SDK 1.5.0 contract in common/GOLIVE_DEVELOPER_REFERENCE.md.
+// This does not replace the live Developer Console Sandbox Preview.
 //
 // Usage: node Tools/dev/validate-bundle.mjs release/grow-an-empire-0.1.0.zip [--verbose]
 // Exit code 1 if any check FAILs; WARNs don't block.
@@ -64,19 +63,20 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
     return results;
   }
   (/^\s*<!doctype html>/i.test(html) ? pass : fail)("index.html starts with <!DOCTYPE html>");
-  const sdkScripts = [...html.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi)].map((match) => match[1]);
+  const activeHtml = html.replace(/<!--[\s\S]*?-->/g, "");
+  const sdkScripts = [...activeHtml.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi)].map((match) => match[1]);
   (sdkScripts.includes(SDK_PATH) ? pass : fail)(`Official GoLive SDK script tag present (${SDK_PATH})`);
-  const viewport = html.match(/<meta\b[^>]*name=["']viewport["'][^>]*content=["']([^"']+)["']/i)?.[1] ?? "";
+  const viewport = activeHtml.match(/<meta\b[^>]*name=["']viewport["'][^>]*content=["']([^"']+)["']/i)?.[1] ?? "";
   (/width=device-width/.test(viewport) && /maximum-scale=1(?:\.0)?(?:,|\s|$)/.test(viewport) && /user-scalable=no/.test(viewport) ? pass : fail)("Viewport prevents unwanted mobile zooming");
 
-  const absolute = [...html.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)]
+  const absolute = [...activeHtml.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)]
     .map((match) => match[1])
     .filter((url) => url !== SDK_PATH && (url.startsWith("/") || /^(https?:)?\/\//i.test(url)));
   (absolute.length === 0 ? pass : fail)(absolute.length === 0 ? "index.html uses only relative asset paths" : `Absolute URLs in index.html: ${absolute.join(", ")}`);
 
   // Every relative file index.html loads must be in the ZIP (a renamed bundle
   // file would otherwise only show up as a blank page on the portal).
-  const referenced = [...html.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)]
+  const referenced = [...activeHtml.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)]
     .map((match) => match[1])
     .filter((url) => url !== SDK_PATH && !/^(?:[a-z]+:|\/\/|#|\/)/i.test(url))
     .map((url) => decodeURI(url.split(/[?#]/)[0]).replace(/^\.\//, ""))

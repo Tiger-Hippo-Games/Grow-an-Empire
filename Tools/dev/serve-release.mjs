@@ -4,7 +4,7 @@
 //   node Tools/dev/serve-release.mjs <unpacked-zip-folder> [--lan] [--port 4175] [--no-open]
 //
 // - The game is served at /api/v1/games/grow-an-empire/play/index.html (the portal path).
-// - /api/v1/sdk/platform-sdk.js is a stand-in portal SDK: guest login, and a "cloud"
+// - /sdk/platform-sdk.js is a local stand-in SDK: guest login, and a "cloud"
 //   save kept in this browser's localStorage, so closing and reopening restores the run.
 // - http://127.0.0.1:<port>/ is a test page that puts the game in an iframe of a chosen
 //   size (1920×1080 portal frame, laptop, phone portrait/landscape, or the whole window).
@@ -46,8 +46,9 @@ const SDK = `// Stand-in for the GoLive portal SDK (local testing only).
   window.Platform = {
     init: function (o) { log("init", [o]); return Promise.resolve(); },
     login: function () { log("login", []); return Promise.resolve({ player: { id: "local-guest", displayName: "Local guest", authType: "guest" } }); },
-    getGameProgress: function () { log("getGameProgress", []); var raw = null; try { raw = localStorage.getItem(KEY); } catch (e) {} return Promise.resolve(raw ? JSON.parse(raw) : null); },
-    saveGameProgress: function (d) { log("saveGameProgress", []); try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} return Promise.resolve({ ok: true }); },
+    getGameProgress: function () { log("getGameProgress", []); try { var raw = localStorage.getItem(KEY); return Promise.resolve({ progress: raw ? JSON.parse(raw) : null }); } catch (e) { return Promise.reject(e); } },
+    saveGameProgress: function (d) { log("saveGameProgress", []); try { localStorage.setItem(KEY, JSON.stringify(d)); return Promise.resolve({ ok: true }); } catch (e) { return Promise.reject(e); } },
+    submitScore: function () { return Promise.reject(new Error("Local stand-in is a guest; use the registered mock to test scores.")); },
     startSession: function () { log("startSession", []); },
     endSession: function (s) { log("endSession", [s]); },
     track: function (e, p) { log("track", [e, p]); }
@@ -138,13 +139,25 @@ const server = http.createServer((req, res) => {
   let p;
   try { p = decodeURIComponent(url.pathname); } catch { return send(res, 400, "text/plain", "Bad request"); }
   if (p === "/" || p === "/index.html") return send(res, 200, TYPES[".html"], TEST_PAGE);
-  if (p === "/api/v1/sdk/platform-sdk.js") return send(res, 200, TYPES[".js"], SDK);
+  if (p === "/sdk/platform-sdk.js") return send(res, 200, TYPES[".js"], SDK);
   if (p === "/favicon.ico") return send(res, 204, "image/x-icon", "");
   if (p === PLAY.slice(0, -1)) return send(res, 301, "text/plain", "", { Location: PLAY });
   if (!p.startsWith(PLAY)) { console.warn(`404 ${p}`); return send(res, 404, "text/plain", "Not found"); }
   let rel = p.slice(PLAY.length) || "index.html";
   const file = path.resolve(root, rel);
   if (!file.startsWith(root + path.sep) && file !== root) return send(res, 403, "text/plain", "Forbidden");
+  if (rel === "index.html") {
+    // Local QA only: avoid contacting the production portal. The ZIP itself
+    // retains the official SDK URL required for submission.
+    fs.readFile(file, "utf8", (error, html) => {
+      if (error) {
+        console.warn(`Read failed for ${p}: ${error.message}`);
+        return send(res, 500, "text/plain", "Could not read the game entry point");
+      }
+      send(res, 200, TYPES[".html"], html.replace("https://golive-platform.netlify.app/sdk/platform-sdk.js", "/sdk/platform-sdk.js"));
+    });
+    return;
+  }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { console.warn(`404 ${p}  <- missing from the ZIP`); return send(res, 404, "text/plain", "Not found"); }
     res.writeHead(200, { "Content-Type": TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream", "Content-Length": st.size, "Cache-Control": "no-store" });

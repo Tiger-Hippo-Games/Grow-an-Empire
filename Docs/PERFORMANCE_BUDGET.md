@@ -4,7 +4,7 @@
 
 | Metric | Budget | Measured (2026-09-23) | Source of the target |
 |---|---|---|---|
-| Upload ZIP | ≤ 50 MB (hard limit) | **7.4 MB** | SUBMISSION_GUIDE §1 |
+| Upload ZIP | ≤ 50 MB (our performance target; portal limit 200 MB) | **7.4 MB** (historical) | GOLIVE_DEVELOPER_REFERENCE §1 |
 | Time to playable at 10 Mbps | ≤ 5 s (hard requirement) | **1.3 s** | DEVELOPER_GUIDE §8 |
 | Time to playable on Slow 4G (1.6 Mbps) | ≤ 10 s | **6.9 s** | QA_CHECKLIST §9 "startup works on slow networks" |
 | Download before playable | ≤ 3 MB | **1.24 MB**, 21 requests | DEVELOPER_GUIDE §3.5 ("initial bundle under 5 MB") |

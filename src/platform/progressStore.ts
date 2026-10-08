@@ -168,7 +168,7 @@ export interface ProgressStore {
   load(playerId?: string | null): Promise<SavedGame | null>;
   /** Saves locally now and to the cloud soon (or now, with `immediate`). */
   save(game: SavedGame, options?: { immediate?: boolean }): void;
-  /** Sends any pending cloud write right away (tab hidden, page closing). */
+  /** Requests a pending cloud write; still respects the 5-second SDK interval. */
   flush(): Promise<void>;
   /** Deletes the browser copy (Restart, `?reset`). The cloud copy is replaced by the next save. */
   clear(): void;
@@ -311,7 +311,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     const result = await platform.saveProgress(toWrite as unknown as Record<string, unknown>);
     if (result === "ok") { failedWrites = 0; return; }
     if (result === "error") { retryLater(toWrite); return; }
-    // Another device saved first. Re-read, keep the better copy, retry once.
+    // Another device saved first. Re-read and keep the better copy for a later retry.
     const resolved = await reconcile(toWrite);
     if (resolved === "retry") { retryLater(toWrite); return; }
     if (!resolved) return;

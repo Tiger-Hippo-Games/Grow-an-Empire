@@ -40,7 +40,7 @@ with sync_playwright() as p:
     speed8(page)
     play_moves(page, 2)
     page.wait_for_function("document.querySelector('#move').textContent.startsWith('3 ')", timeout=30000)
-    time.sleep(2.5)  # let the debounced cloud save go out
+    time.sleep(5.5)  # SDK 1.5.0 cloud checkpoint cadence
     first_calls = calls(page)
     cloud = json.loads(page.evaluate("localStorage.getItem('grow-an-empire:mock-cloud')") or "null")
     # Wipe the browser save; keep the mock cloud -> the game must resume from the cloud.
@@ -64,7 +64,7 @@ with sync_playwright() as p:
         and R["A_mock_sdk"]["cloud_moves_built"] >= 2 and resumed_move.startswith("3 ") and not tutorial_again and not errs)
     ctx.close()
 
-    # B. Portal iframe harness: GP_GAME_READY, pause/resume, session end.
+    # B. Portal iframe harness: GAME_READY, pause/resume, session end.
     ctx = b.new_context(viewport={"width": 1700, "height": 900})
     page = ctx.new_page(); errs = []
     page.on("pageerror", lambda e: errs.append(str(e)))
@@ -81,7 +81,7 @@ with sync_playwright() as p:
     page.click("[data-msg=GP_SESSION_END]"); time.sleep(0.5)
     log_text = page.inner_text("#log")
     R["B_iframe_portal"] = {
-        "game_ready_received": "GP_GAME_READY" in log_text,
+        "game_ready_received": '"type":"GAME_READY"' in log_text,
         "pause_label": paused_label, "resume_label": resumed_label,
         "endSession_logged": "Platform.endSession(" in log_text,
         "errors": errs,

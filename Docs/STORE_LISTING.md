@@ -11,9 +11,9 @@ The metadata for the GoLive listing (SUBMISSION_GUIDE §2 and §16 "Content & me
 | Tags | `city-builder, strategy, medieval, short-session, single-player` | Optional, comma-separated |
 | Age | 13+ | Mild fantasy combat, shown as unit icons greying out; no gore |
 
-## Description (299 characters; the portal needs 150–500)
+## Description (up to 2,000 characters under the current reference)
 
-> Build a medieval city one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Plan twelve moves, trade at the market when you're stuck, and beat 25 enemy armies to earn up to three stars each. A short strategy game for your browser.
+> Build a kingdom in mythic Bharatvarsha one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Beat 25 enemy armies of swordsmen, archers and horsemen and climb past 1,008 rival rajas to rank 1. A short strategy game for your browser.
 
 The same text is the `<meta name="description">` in `index.html`. Keep them in sync.
 
@@ -27,7 +27,7 @@ Content-Type: application/json
 {
   "title": "Grow an Empire",
   "slug": "grow-an-empire",
-  "description": "Build a medieval city one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Plan twelve moves, trade at the market when you're stuck, and beat 25 enemy armies to earn up to three stars each. A short strategy game for your browser.",
+  "description": "Build a kingdom in mythic Bharatvarsha one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Beat 25 enemy armies of swordsmen, archers and horsemen and climb past 1,008 rival rajas to rank 1. A short strategy game for your browser.",
   "genre": "strategy",
   "orientation": "any"
 }
@@ -35,7 +35,7 @@ Content-Type: application/json
 
 ## Images
 
-The portal docs disagree on sizes, so both sets are made. Regenerate them with `python Tools/ArtPipeline/make_store_art.py` after the art changes.
+The current reference requires the 480x270 thumbnail and 1280x720 banner in `Assets/Art/Store/upload/`. Upload those in the Developer Console. The older differently sized copies in `public/assets/` remain bundled for compatibility. Regenerate with `python Tools/ArtPipeline/make_store_art.py` after art changes.
 
 | File | Size | Used for |
 |---|---|---|
