@@ -140,6 +140,29 @@ describe("progress store", () => {
     expect((saves.at(-1) as unknown as SavedGame).state.builtBuildingIds).toHaveLength(3);
   });
 
+  it("retains a rejected write and retries with backoff even without another move", async () => {
+    vi.useFakeTimers();
+    let failures = 2;
+    const { platform, saves } = fakePlatform();
+    const save = platform.saveProgress;
+    platform.saveProgress = async (value) => {
+      if (failures-- > 0) throw new Error("network");
+      return save(value);
+    };
+    const progress = createProgressStore(platform, campaignId);
+    await progress.load("p");
+    progress.save(saveAfter(2, "r", 1));
+    await progress.flush();
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(saves).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(saves).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(saves).toHaveLength(1);
+    expect((saves[0] as unknown as SavedGame).state.builtBuildingIds).toHaveLength(2);
+    expect(console.warn).toHaveBeenCalledTimes(1);
+  });
+
   it("retries rejected writes without losing a newer save queued during the request", async () => {
     vi.useFakeTimers();
     let rejectWrite!: (error: Error) => void;

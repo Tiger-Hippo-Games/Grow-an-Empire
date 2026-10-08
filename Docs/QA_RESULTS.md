@@ -1,5 +1,19 @@
 # QA results
 
+## v0.6.7 (2026-10-08): reliability review
+
+- Cloud read exceptions fall back to browser progress. Rejected writes retain the queue and retry with backoff, preserving newer queued moves and logging once per operation.
+- A newer-schema save arriving from another tab disables saving and clearing, including delayed cloud flushes.
+- Valid saves survive scene/HUD restoration errors. Autosaving stops after simulation/rendering failures to preserve the last safe snapshot.
+- Battle animation updates are covered by the render guard; failed rendering blocks simulation updates and Play.
+- Optional audio failures log once; partially initialized contexts are closed.
+- Refreshed the stale campaign-map WebP. The exporter now removes orphaned WebPs absent from its manifest, including the unused v5 map.
+- ZIP creation uses exclusive writes so existing releases cannot be overwritten.
+
+Validation: TypeScript, ESLint and 177 tests pass (8 new cloud/audio regression cases), including exhaustive balance and offer-path checks. Browser smoke testing on the production preview covered map, briefing, tutorial dismissal, one build, speed controls, move report and reload at move 2; no captured browser warnings/errors. The refreshed map was visually inspected.
+
+Limits: Python Playwright is unavailable in the bundled runtime, so the full fault-injection, campaign-map, viewport and context-loss scripts were not rerun. Real devices, Safari and player comprehension remain unverified. Interim 0.6.4 through 0.6.6 ZIPs were kept untouched; use 0.6.7 for this handover.
+
 ## v0.5.0 (2026-10-03): the remaining review items
 
 Build: **v0.5.0**, `release/grow-an-empire-0.5.0.zip`. Headless Chromium in a cloud workspace.

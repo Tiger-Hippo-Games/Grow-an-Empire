@@ -121,7 +121,9 @@ def main() -> int:
         if args.all or not entry or entry.get("sha256") != digest or entry.get("exportRevision") != EXPORT_REVISION or not (OUT_DIR / name).exists():
             stale.append((source, name, digest))
 
-    removed = [name for name in manifest if name not in expected]
+    # Also find orphaned exports absent from the manifest: Vite's glob bundles
+    # every WebP in this directory, so these otherwise ship forever.
+    removed = sorted((set(manifest) | {path.name for path in OUT_DIR.glob("*.webp")}) - expected)
     if args.check:
         for _, name, _ in stale:
             print(f"stale: {name}")

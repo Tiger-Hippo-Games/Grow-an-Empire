@@ -33,7 +33,8 @@ const zip = createZip(files.map((file) => ({ name: file, data: fs.readFileSync(p
 const releaseDir = path.join(root, "release");
 fs.mkdirSync(releaseDir, { recursive: true });
 const zipPath = path.join(releaseDir, `${name}-${version}.zip`);
-fs.writeFileSync(zipPath, zip);
+// Never overwrite a release: each handover must have its own version.
+fs.writeFileSync(zipPath, zip, { flag: "wx" });
 console.log(`Wrote ${path.relative(root, zipPath)} (${files.length} files, ${(zip.length / 1e6).toFixed(2)} MB)\n`);
 
 const rows = validateBundle(zipPath);

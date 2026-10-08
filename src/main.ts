@@ -129,6 +129,11 @@ window.addEventListener("unhandledrejection", (event) => {
 
 const hud = createHud({
   onPlayToggle: () => {
+    if (renderFailed) {
+      hud.setPlayingLabel(false);
+      hud.setStatus("The graphics failed to draw. Reload to continue from your last save.", 0);
+      return;
+    }
     if (loopFailed) {
       // Resuming would just hit the same error again; only Restart or a reload recovers.
       hud.setPlayingLabel(false);
@@ -540,7 +545,7 @@ function reportLeaderboard(reason: "improved" | "visit"): void {
  * finished (see `initialized`).
  */
 function autosave(options: { immediate?: boolean } = {}): void {
-  if (!initialized) return;
+  if (!initialized || loopFailed || renderFailed) return;
   progress.save(currentSave(), options);
 }
 
@@ -1054,7 +1059,7 @@ function frame(): void {
   const delta = realDelta * speed;
   // While the graphics are lost the game holds still: moves and the battle
   // must not go by unseen.
-  if (!playing || !initialized || loopFailed || contextLost) return;
+  if (!playing || !initialized || loopFailed || renderFailed || contextLost) return;
   probeFrameTime(realDelta);
   session.addPlayTime(realDelta);
   animationElapsed += delta;
