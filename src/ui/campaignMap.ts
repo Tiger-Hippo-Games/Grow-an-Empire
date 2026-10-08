@@ -94,6 +94,8 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   // CSS backgrounds don't report load errors. Probe the same bundled image so
   // a failed download falls back to a plain parchment map (still playable)
   // with a logged warning. The browser cache avoids a second transfer.
+  let resolveReady!: () => void;
+  const ready = new Promise<void>((resolve) => { resolveReady = resolve; });
   try {
     const url = assetUrl(MAP_ART);
     const image = new Image();
@@ -103,6 +105,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       settled = true;
       clearTimeout(timeout);
       map.classList.add("map-art-failed");
+      resolveReady();
       console.warn(`[Grow an Empire] Campaign map artwork failed to load: ${MAP_ART}`, cause);
     };
     const timeout = setTimeout(() => fail(new Error(`Timed out after ${IMAGE_TIMEOUT_MS / 1000} s`)), IMAGE_TIMEOUT_MS);
@@ -112,11 +115,13 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       clearTimeout(timeout);
       board.style.setProperty("--campaign-map-image", `url("${url}")`);
       map.classList.add("map-art-ready");
+      resolveReady();
     };
     image.onerror = (event) => fail(event);
     image.src = url;
   } catch (error) {
     map.classList.add("map-art-failed");
+    resolveReady();
     console.warn(`[Grow an Empire] Campaign map artwork is unavailable: ${MAP_ART}`, error);
   }
 
@@ -453,6 +458,8 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   }
 
   return {
+    /** First-screen artwork loaded, or its playable fallback is ready. */
+    ready,
     /** The rival realm's counts, banners and the player's rank. */
     setRealm(view: MapRealmView) {
       realm = view;

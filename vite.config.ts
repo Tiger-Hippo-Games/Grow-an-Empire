@@ -3,18 +3,22 @@ import { defineConfig, type Plugin } from "vite";
 import { readFileSync } from "node:fs";
 
 /**
- * Locally there is no portal backend, so /api/v1/sdk/platform-sdk.js would
+ * Locally there is no portal backend, so /sdk/platform-sdk.js would
  * otherwise fall through to index.html and fail as a script. Serve an empty
  * stub instead; the game then runs offline (or with ?platform=mock).
  */
 function goLiveSdkStub(): Plugin {
   const handler = (req: { url?: string }, res: { setHeader(k: string, v: string): void; end(body: string): void }, next: () => void) => {
-    if (!req.url?.startsWith("/api/v1/sdk/platform-sdk.js")) return next();
+    if (!req.url?.startsWith("/sdk/platform-sdk.js")) return next();
     res.setHeader("Content-Type", "application/javascript");
     res.end("/* GoLive SDK stub: the real SDK is served by the portal. */\n");
   };
   return {
     name: "golive-sdk-stub",
+    apply: "serve",
+    transformIndexHtml(html) {
+      return html.replace("https://golive-platform.netlify.app/sdk/platform-sdk.js", "/sdk/platform-sdk.js");
+    },
     configureServer(server) { server.middlewares.use(handler); },
     configurePreviewServer(server) { server.middlewares.use(handler); },
   };

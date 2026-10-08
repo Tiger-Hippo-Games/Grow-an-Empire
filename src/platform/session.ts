@@ -61,12 +61,12 @@ export function listenForPortalMessages(handler: (message: PortalMessage) => voi
   return () => window.removeEventListener("message", onMessage);
 }
 
-/** Tells the portal the game has finished loading (optional `GP_GAME_READY`, CONVERSION_GUIDE §6). */
+/** SDK 1.5.0 ready handshake; call after the first screen has drawn. */
 export function notifyPortalReady(version: string): void {
   if (window.parent === window) return;
   try {
-    window.parent.postMessage({ type: "GP_GAME_READY", gameVersion: version }, "*");
-  } catch {
-    // The portal treats this message as optional.
+    window.parent.postMessage({ type: "GAME_READY", gameVersion: version }, "*");
+  } catch (error) {
+    console.warn("[Grow an Empire] Could not notify the portal that the game is ready.", error);
   }
 }

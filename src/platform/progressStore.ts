@@ -10,7 +10,7 @@ import type { PlatformAdapter } from "./types";
  * 1. **The browser** (localStorage), synchronously on every save. Fast, works
  *    offline, but blocked in Safari iframes and private windows.
  * 2. **The GoLive cloud** (`Platform.saveGameProgress`), debounced to at most
- *    one write per 2 s, and flushed immediately when the tab is hidden, the
+ *    one write per 5 s, including when the tab is hidden, the
  *    page closes, or a run ends. This is the primary copy on the portal
  *    (GAME_SUBMISSION_GUIDE §5.1; GAME_ARCHITECTURE §8).
  *
@@ -53,7 +53,7 @@ export type SavedGame = SettlementSnapshot & {
 };
 
 export const DEFAULT_SETTINGS: SavedSettings = { tutorialComplete: false, muted: false };
-const CLOUD_DEBOUNCE_MS = 2000;
+const CLOUD_DEBOUNCE_MS = 5000;
 
 /** A fresh run id. */
 export function newRunId(): string {
@@ -214,6 +214,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
   let known: Pick<SavedGame, "campaignStars" | "completedCampaignIds"> & { tutorialComplete: boolean } =
     { campaignStars: {}, completedCampaignIds: [], tutorialComplete: false };
   let failedWrites = 0;
+  let lastCloudWrite = -Infinity;
   const warned = new Set<string>();
   const warnOnce = (operation: string, error: unknown): void => {
     if (warned.has(operation)) return;
@@ -306,6 +307,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     if (!cloudRead) toWrite = await reconcile(game);
     if (toWrite === "retry") { retryLater(game); return; }
     if (!toWrite) return;
+    lastCloudWrite = Date.now();
     const result = await platform.saveProgress(toWrite as unknown as Record<string, unknown>);
     if (result === "ok") { failedWrites = 0; return; }
     if (result === "error") { retryLater(toWrite); return; }
@@ -313,10 +315,8 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     const resolved = await reconcile(toWrite);
     if (resolved === "retry") { retryLater(toWrite); return; }
     if (!resolved) return;
-    const retry = await platform.saveProgress(resolved as unknown as Record<string, unknown>);
-    if (retry === "ok") failedWrites = 0;
-    else if (retry === "error") retryLater(resolved);
-    else console.warn("[GoLive] Save conflict could not be resolved; the browser copy is kept.");
+    // Conflict retries also obey the SDK's 5–10 second save cadence.
+    retryLater(resolved);
   }
 
   async function flush(): Promise<void> {
@@ -327,6 +327,11 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     if (inFlight) await inFlight;
     if (hasNewerLocalSave()) disableSaving();
     if (!pending || savingDisabledReason || cloudAhead) return;
+    const wait = CLOUD_DEBOUNCE_MS - (Date.now() - lastCloudWrite);
+    if (wait > 0) {
+      timer = setTimeout(() => { timer = null; flushInBackground(); }, wait);
+      return;
+    }
     const game = pending;
     pending = null;
     inFlight = writeCloud(game).catch((error: unknown) => {

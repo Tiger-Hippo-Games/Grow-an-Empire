@@ -1,4 +1,5 @@
 import type { GoLiveSdk, PlatformAdapter, PlayerInfo } from "./types";
+import { isRegisteredPlayer } from "../game/leaderboard";
 
 /**
  * The three platform backends.
@@ -14,6 +15,10 @@ import type { GoLiveSdk, PlatformAdapter, PlayerInfo } from "./types";
 
 /** Slug registered in the Developer Console. Must match it exactly (DEVELOPER_GUIDE §8). */
 export const GAME_ID = "grow-an-empire";
+/** Create this All-Time, Highest Score Wins board in the Developer Console. */
+export const LEADERBOARD_SLUG = "campaign-progress";
+export const MAX_CLOUD_SAVE_BYTES = 64 * 1024;
+const MAX_SCORE_METADATA_BYTES = 2 * 1024;
 
 /** Portal login falls back to a guest within ~3 s; we stop waiting after this. */
 const LOGIN_TIMEOUT_MS = 5000;
@@ -58,8 +63,9 @@ function callQuietly(call: () => unknown, onError: (error: unknown) => void): vo
 }
 
 /** Wraps `window.Platform`. Every call is guarded so the SDK can never break the game. */
-export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): PlatformAdapter {
+export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl?: string): PlatformAdapter {
   let connected = false;
+  let activePlayer: PlayerInfo | null = null;
   const warnOnce = new Set<string>();
   const warn = (key: string, message: string, error: unknown): void => {
     if (warnOnce.has(key)) return;
@@ -71,7 +77,11 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): Platfo
   const validPlayer = (result: Awaited<ReturnType<GoLiveSdk["login"]>>): PlayerInfo => {
     const player = result?.player;
     if (!player || typeof player.id !== "string" || !player.id) throw new Error("Platform.login() returned no player");
-    return player;
+    return {
+      ...player,
+      displayName: typeof player.displayName === "string" && player.displayName.trim()
+        ? player.displayName.trim() : typeof player.username === "string" && player.username.trim() ? player.username.trim() : "Guest",
+    };
   };
 
   return {
@@ -80,12 +90,13 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): Platfo
       // init() may be sync or async depending on the SDK build. init and
       // login share one time budget, because boot waits for them.
       const signIn = (async () => {
-        await sdk.init({ apiBaseUrl, gameId: GAME_ID });
+        await sdk.init({ gameId: GAME_ID, ...(apiBaseUrl ? { apiBaseUrl } : {}) });
         return validPlayer(await sdk.login());
       })();
       try {
         const player = await withTimeout(signIn, LOGIN_TIMEOUT_MS, "Platform.init()/login()");
         connected = true;
+        activePlayer = player;
         console.info("[GoLive] Player active", { id: player.id, displayName: player.displayName, authType: player.authType });
         return player;
       } catch (error) {
@@ -94,6 +105,7 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): Platfo
         signIn.then((player) => {
           if (connected) return;
           connected = true;
+          activePlayer = player;
           console.info("[GoLive] Signed in late; cloud saves resume", { id: player.id, authType: player.authType });
           for (const listener of lateListeners) {
             try { listener(player); } catch (listenerError) { console.warn("[GoLive] Late sign-in handler failed", listenerError); }
@@ -114,11 +126,32 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl: string): Platfo
     async saveProgress(progress) {
       if (!connected) return "error";
       try {
+        if (new TextEncoder().encode(JSON.stringify(progress)).byteLength > MAX_CLOUD_SAVE_BYTES) {
+          throw new Error("Cloud save exceeds the 64 KB limit");
+        }
         await withTimeout(sdk.saveGameProgress(progress), REQUEST_TIMEOUT_MS, "Platform.saveGameProgress()");
         return "ok";
       } catch (error) {
         if (isConflict(error)) return "conflict";
         warn("save", "Cloud save failed; progress is still saved in this browser.", error);
+        return "error";
+      }
+    },
+    async submitScore(score, metadata) {
+      if (!connected || !isRegisteredPlayer(activePlayer?.authType)) return "unavailable";
+      try {
+        if (typeof sdk.submitScore !== "function") {
+          warn("score-sdk", "Leaderboard unavailable: update the portal SDK to 1.5.0.", undefined);
+          return "unavailable";
+        }
+        if (!Number.isFinite(score) || score < 0) throw new Error("Leaderboard score must be a finite non-negative number");
+        if (new TextEncoder().encode(JSON.stringify(metadata)).byteLength > MAX_SCORE_METADATA_BYTES) {
+          throw new Error("Leaderboard metadata exceeds the 2 KB limit");
+        }
+        await withTimeout(sdk.submitScore(LEADERBOARD_SLUG, score, metadata), REQUEST_TIMEOUT_MS, "Platform.submitScore()");
+        return "ok";
+      } catch (error) {
+        warn("score", "Score was not posted; gameplay continues. Check the board slug, sign-in and portal access.", error);
         return "error";
       }
     },
@@ -149,6 +182,7 @@ export function createLocalPlatform(): PlatformAdapter {
     connect: async () => null,
     loadProgress: async () => "unavailable",
     saveProgress: async () => "error",
+    submitScore: async () => "unavailable",
     startSession() {},
     endSession() {},
     track() {},
@@ -182,6 +216,7 @@ export function createMockPlatform(): PlatformAdapter {
     }
   };
 
+  let registered = false;
   return {
     kind: "mock",
     async connect() {
@@ -189,9 +224,15 @@ export function createMockPlatform(): PlatformAdapter {
       record("login");
       // ?platform=mock&auth=email signs in as a registered player (the leaderboard path).
       const auth = new URLSearchParams(window.location.search).get("auth");
+      registered = Boolean(auth && auth.toUpperCase() !== "GUEST");
       return auth && auth.toUpperCase() !== "GUEST"
         ? { id: "mock-player-registered", displayName: "Mock Player", authType: auth.toUpperCase() }
         : { id: "mock-player", displayName: "Guest_mock", authType: "GUEST" };
+    },
+    async submitScore(score, metadata) {
+      if (!registered) return "unavailable";
+      record("submitScore", LEADERBOARD_SLUG, score, metadata);
+      return "ok";
     },
     async loadProgress() {
       record("getGameProgress");
@@ -225,7 +266,9 @@ export function createPlatform(): PlatformAdapter {
   const params = new URLSearchParams(window.location.search);
   if (params.get("platform") === "mock") return createMockPlatform();
   if (window.Platform && typeof window.Platform.init === "function") {
-    const apiBaseUrl = (import.meta.env.VITE_PLATFORM_API as string | undefined) || "/api/v1";
+    // SDK 1.5.0 chooses its API host. A CDN-hosted iframe must not force
+    // requests to a same-origin /api/v1 on the game's asset host.
+    const apiBaseUrl = import.meta.env.VITE_PLATFORM_API as string | undefined;
     return createGoLivePlatform(window.Platform, apiBaseUrl);
   }
   return createLocalPlatform();

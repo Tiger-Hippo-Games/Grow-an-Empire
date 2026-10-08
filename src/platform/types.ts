@@ -2,7 +2,7 @@
  * Types for the GoLive platform integration.
  *
  * `GoLiveSdk` describes `window.Platform` as documented in
- * common/SDK_REFERENCE.md and common/GAME_DEVELOPER_GUIDE.md §5. The docs
+ * common/GOLIVE_DEVELOPER_REFERENCE.md (SDK 1.5.0). The older docs
  * disagree on a few details (e.g. empty progress is `{}` in one and `null` in
  * another), so these types are deliberately loose where the docs are.
  *
@@ -23,6 +23,8 @@ export interface GoLiveSdk {
   login(): Promise<{ player: PlayerInfo; accessToken?: string } | null | undefined>;
   getGameProgress(gameId?: string): Promise<{ progress?: Record<string, unknown> | null; version?: number } | null | undefined>;
   saveGameProgress(progress: Record<string, unknown>, gameId?: string): Promise<unknown>;
+  /** Optional only so a stale SDK degrades safely; SDK 1.5.0 provides it. */
+  submitScore?(leaderboardSlug: string, score: number, metadata?: Record<string, unknown>): Promise<unknown>;
   startSession(): string | void;
   endSession(durationSeconds?: number): void;
   track(eventName: string, properties?: Record<string, unknown>): void;
@@ -30,7 +32,7 @@ export interface GoLiveSdk {
 
 declare global {
   interface Window {
-    /** Injected by the portal's `/api/v1/sdk/platform-sdk.js`; absent when running locally. */
+    /** Loaded from the official /sdk/platform-sdk.js URL. */
     Platform?: GoLiveSdk;
   }
 }
@@ -60,6 +62,8 @@ export interface PlatformAdapter {
    * a newer version first) or `"error"`. Never throws.
    */
   saveProgress(progress: Record<string, unknown>): Promise<"ok" | "conflict" | "error">;
+  /** Real portal leaderboard submission; failure never blocks gameplay. */
+  submitScore(score: number, metadata: Record<string, unknown>): Promise<"ok" | "error" | "unavailable">;
   startSession(): void;
   endSession(durationSeconds: number): void;
   /** Fire-and-forget analytics. Never throws. */

@@ -5,6 +5,7 @@ import { missingFor, SettlementSimulation, type SellswordHire, type SettlementSn
 import { isRegisteredPlayer, leaderboardEntry, type LeaderboardEntry } from "./game/leaderboard";
 import { AiRealmSource, campedAt, conquerorsByCampaign, newRealmState, realmStanding, readRealmState, recordBattle, standingFromStars, visitRealm, type RealmState } from "./game/realm";
 import { createPlatform } from "./platform/adapters";
+import { createScoreSubmission } from "./platform/scoreSubmission";
 import type { PlayerInfo } from "./platform/types";
 import { createProgressStore, DEFAULT_SETTINGS, mergeStars, newRunId, type SavedGame, type SavedSettings } from "./platform/progressStore";
 import { createSessionTracker, listenForPortalMessages, notifyPortalReady } from "./platform/session";
@@ -71,6 +72,8 @@ let constructionStartedAt = 0;
 let renderRequested = true;
 /** True between `webglcontextlost` and `webglcontextrestored`; nothing is drawn meanwhile. */
 let contextLost = false;
+/** The portal reveals the iframe only after our first successful draw. */
+let portalReadySent = false;
 
 /** Asks for one redraw on the next frame even if the game is paused. */
 function requestRender(): void {
@@ -94,6 +97,7 @@ const sound = createSound(false);
 let tutorialPending = false;
 /** The GoLive SDK when running on the portal; an offline stand-in otherwise. */
 const platform = createPlatform();
+const scoreSubmission = createScoreSubmission(platform);
 const progress = createProgressStore(platform, null);
 const session = createSessionTracker(platform);
 
@@ -443,6 +447,7 @@ function presentBattle(animate: boolean): void {
   }
   if (report.win && !completedCampaignIds.includes(id)) completedCampaignIds.push(id);
   if (report.stars > previousBest) reportLeaderboard("improved");
+  if (animate) scoreSubmission.submit(leaderboardEntry(campaignStars, leaderboard), player);
   const next = CAMPAIGNS[simulation.campaign.number];
   const view = {
     campaign: simulation.campaign,
@@ -514,7 +519,8 @@ function currentSave(): SavedGame {
 
 /**
  * Sends the player's standing to the portal (Docs/LEADERBOARD.md) as a
- * `leaderboard_score` event, against their player id. Sent for signed-in
+ * `leaderboard_score` diagnostic event, against their player id. Actual
+ * rankings use scoreSubmission at battle end. Sent for signed-in
  * players when the score goes up, and once per visit so a player who
  * registered after playing as a guest shows up. Guests' standing is still
  * kept in their own cloud save.
@@ -960,6 +966,7 @@ async function initialize(): Promise<void> {
   });
   platform.onLateSignIn((late) => {
     player = late;
+    refreshRealm();
     reportLeaderboard("visit");
   });
   const savedPromise = platform.connect().then((signedIn) => {
@@ -1017,6 +1024,9 @@ async function initialize(): Promise<void> {
   hud.setCivicLevel(simulation.state.civicLevel);
   hud.updateHud(stateSnapshot());
   if (progress.savingDisabledReason) hud.setStatus(progress.savingDisabledReason, 0);
+  // The map is the title screen. Its image (or the usable fallback) must be
+  // ready before the portal loading screen is dismissed.
+  await campaignMap.ready;
   stopProgress();
   resize();
   requestRender();
@@ -1031,7 +1041,6 @@ async function initialize(): Promise<void> {
   campaignMap.show(simulation.campaign.id, campaignStars, simulation.state.mode === "complete", simulation.state.move);
   track("game_start", { resumed, move: simulation.state.move, campaign_number: simulation.campaign.number, total_stars: totalStars(campaignStars) });
   reportLeaderboard("visit");
-  notifyPortalReady(__APP_VERSION__);
   startBackgroundLoads(offered);
   tutorialPending = !resumed;
 }
@@ -1126,6 +1135,10 @@ renderer.setAnimationLoop(() => {
     if ((playing && !loopFailed) || renderRequested) {
       renderRequested = false;
       renderer.render(scene, camera);
+      if (!portalReadySent) {
+        portalReadySent = true;
+        requestAnimationFrame(() => notifyPortalReady(__APP_VERSION__));
+      }
       perfOverlay?.sample();
     }
   } catch (error) {

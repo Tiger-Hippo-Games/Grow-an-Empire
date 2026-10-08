@@ -13,7 +13,7 @@ import { CAMPAIGNS } from "./campaigns";
  *   who got there first.
  *
  * Pure: no DOM, no platform. main.ts saves it in the cloud progress and
- * reports it with a `leaderboard_score` event.
+ * submits it to the SDK leaderboard at battle end. Analytics are diagnostic.
  */
 export const SCORE_PER_LEVEL = 100;
 export const LEADERBOARD_SCHEMA = 1;

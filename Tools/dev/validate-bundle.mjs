@@ -12,9 +12,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readZip } from "./zip.mjs";
 
-const MAX_BYTES = 50 * 1024 * 1024; // GAME_SUBMISSION_GUIDE §1
+const MAX_BYTES = 200 * 1024 * 1024; // GOLIVE_DEVELOPER_REFERENCE §1
 const INITIAL_TARGET_BYTES = 5 * 1024 * 1024; // GAME_DEVELOPER_GUIDE §3.5
-const SDK_PATH = "/api/v1/sdk/platform-sdk.js";
+const SDK_PATH = "https://golive-platform.netlify.app/sdk/platform-sdk.js";
+const ALLOWED_FORMATS = new Set(".png .jpg .jpeg .webp .svg .gif .ico .mp3 .ogg .wav .aac .webm .glb .gltf .bin .html .js .css .json .wasm .woff .woff2 .ttf .otf".split(" "));
 
 const results = [];
 const pass = (message) => results.push(["PASS", message]);
@@ -30,7 +31,7 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
     return results;
   }
   const bytes = fs.statSync(zipPath).size;
-  (bytes <= MAX_BYTES ? pass : fail)(`ZIP is ${(bytes / 1e6).toFixed(2)} MB (limit 50 MB)`);
+  (bytes <= MAX_BYTES ? pass : fail)(`ZIP is ${(bytes / 1e6).toFixed(2)} MB (limit 200 MB)`);
 
   let entries;
   try {
@@ -42,8 +43,10 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
   }
   (entries.length > 0 ? pass : fail)(`ZIP has ${entries.length} entries`);
 
-  const unsafe = entries.filter((entry) => entry.name.startsWith("/") || entry.name.split("/").includes("..") || /^[a-z]:/i.test(entry.name));
+  const unsafe = entries.filter((entry) => entry.name.startsWith("/") || entry.name.includes("\\") || entry.name.split("/").includes("..") || /^[a-z]:/i.test(entry.name));
   (unsafe.length === 0 ? pass : fail)(unsafe.length === 0 ? "No path traversal" : `Unsafe paths: ${unsafe.map((e) => e.name).join(", ")}`);
+  const prohibited = entries.filter((entry) => !entry.name.endsWith("/") && !ALLOWED_FORMATS.has(path.extname(entry.name).toLowerCase()));
+  (prohibited.length === 0 ? pass : fail)(prohibited.length === 0 ? "Only allowed static game file formats" : `Prohibited or unsupported files: ${prohibited.map((e) => e.name).join(", ")}`);
 
   const byName = new Map(entries.map((entry) => [entry.name, entry]));
   const index = byName.get("index.html");
@@ -61,11 +64,14 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
     return results;
   }
   (/^\s*<!doctype html>/i.test(html) ? pass : fail)("index.html starts with <!DOCTYPE html>");
-  (html.includes(SDK_PATH) ? pass : fail)(`GoLive Platform SDK script tag present (${SDK_PATH})`);
+  const sdkScripts = [...html.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi)].map((match) => match[1]);
+  (sdkScripts.includes(SDK_PATH) ? pass : fail)(`Official GoLive SDK script tag present (${SDK_PATH})`);
+  const viewport = html.match(/<meta\b[^>]*name=["']viewport["'][^>]*content=["']([^"']+)["']/i)?.[1] ?? "";
+  (/width=device-width/.test(viewport) && /maximum-scale=1(?:\.0)?(?:,|\s|$)/.test(viewport) && /user-scalable=no/.test(viewport) ? pass : fail)("Viewport prevents unwanted mobile zooming");
 
   const absolute = [...html.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)]
     .map((match) => match[1])
-    .filter((url) => (url.startsWith("/") && url !== SDK_PATH) || /^(https?:)?\/\//i.test(url));
+    .filter((url) => url !== SDK_PATH && (url.startsWith("/") || /^(https?:)?\/\//i.test(url)));
   (absolute.length === 0 ? pass : fail)(absolute.length === 0 ? "index.html uses only relative asset paths" : `Absolute URLs in index.html: ${absolute.join(", ")}`);
 
   // Every relative file index.html loads must be in the ZIP (a renamed bundle
@@ -81,6 +87,7 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
   const textEntries = entries.filter((entry) => /\.(html|js|css|json)$/i.test(entry.name));
   const localhostHits = [];
   const dialogHits = [];
+  const navigationHits = [];
   for (const entry of textEntries) {
     let text;
     try {
@@ -91,9 +98,11 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
     }
     if (/localhost|127\.0\.0\.1/.test(text)) localhostHits.push(entry.name);
     if (/(?:^|[^.\w$])(?:window\.)?(?:alert|confirm|prompt)\s*\(/.test(text)) dialogHits.push(entry.name);
+    if (/(?:window\.)?(?:top|parent)\.location\s*(?:=|\.(?:href\s*=|assign\s*\(|replace\s*\())/.test(text)) navigationHits.push(entry.name);
   }
   (localhostHits.length === 0 ? pass : fail)(localhostHits.length === 0 ? "No localhost URLs in built files" : `localhost found in: ${localhostHits.join(", ")}`);
   (dialogHits.length === 0 ? pass : fail)(dialogHits.length === 0 ? "No alert()/confirm()/prompt() calls" : `Blocked dialog API used in: ${dialogHits.join(", ")}`);
+  (navigationHits.length === 0 ? pass : fail)(navigationHits.length === 0 ? "No parent/top navigation" : `Iframe escape navigation in: ${navigationHits.join(", ")}`);
 
   for (const [label, pattern] of [["Thumbnail", /^assets\/thumbnail\.(png|jpe?g|webp)$/i], ["Banner", /^assets\/banner\.(png|jpe?g|webp)$/i]]) {
     const found = entries.find((entry) => pattern.test(entry.name));

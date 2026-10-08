@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { playMove } from "../../game/__tests__/play";
 import { SettlementSimulation } from "../../game/settlementSimulation";
-import { createGoLivePlatform, normalizeProgress } from "../adapters";
+import { createGoLivePlatform, LEADERBOARD_SLUG, normalizeProgress } from "../adapters";
 import { belongsToAnotherPlayer, chooseSave, createProgressStore, toSavedGame, type SavedGame } from "../progressStore";
-import { createSessionTracker } from "../session";
+import { createSessionTracker, notifyPortalReady } from "../session";
 import type { GoLiveSdk, PlatformAdapter } from "../types";
 
 /** A save of a run with `moves` completed buildings, saved at `minute` past the hour. */
@@ -110,6 +110,7 @@ function fakePlatform(overrides: Partial<PlatformAdapter> = {}) {
     connect: async () => ({ id: "p", displayName: "P" }),
     loadProgress: async () => cloud,
     saveProgress: async (progress) => { saves.push(progress); cloud = progress; return "ok"; },
+    submitScore: async () => "ok",
     startSession: vi.fn(),
     endSession: vi.fn(),
     track: vi.fn(),
@@ -211,7 +212,7 @@ describe("progress store", () => {
     progress.save(saveAfter(2, "r", 2));
     expect(store.get("grow-an-empire:save:v1")).toContain('"runId":"r"');
     expect(saves).toHaveLength(0);
-    await vi.advanceTimersByTimeAsync(2100);
+    await vi.advanceTimersByTimeAsync(5100);
     expect(saves).toHaveLength(1);
     expect((saves[0] as unknown as SavedGame).state.builtBuildingIds).toHaveLength(2);
   });
@@ -239,6 +240,7 @@ describe("progress store", () => {
   });
 
   it("resolves a save conflict by re-reading the cloud and retrying once", async () => {
+    vi.useFakeTimers();
     let first = true;
     const saved: Array<Record<string, unknown>> = [];
     const { platform } = fakePlatform({
@@ -252,6 +254,8 @@ describe("progress store", () => {
     const progress = createProgressStore(platform, campaignId);
     progress.save(saveAfter(3, "r", 5), { immediate: true });
     await progress.flush();
+    expect(saved).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(15_000);
     expect(saved).toHaveLength(1);
     expect((saved[0] as unknown as SavedGame).state.builtBuildingIds).toHaveLength(3);
   });
@@ -303,6 +307,7 @@ describe("progress store", () => {
   });
 
   it("puts a failed cloud write back in the queue", async () => {
+    vi.useFakeTimers();
     let fail = true;
     const { platform, saves } = fakePlatform();
     const save = platform.saveProgress;
@@ -312,8 +317,28 @@ describe("progress store", () => {
     await progress.flush();
     expect(saves).toHaveLength(0);
     fail = false;
-    await progress.flush(); // the retry timer would do this; flush runs it now
+    await vi.advanceTimersByTimeAsync(15_000);
     expect(saves).toHaveLength(1);
+  });
+
+  it("keeps cloud writes five seconds apart even at rapid checkpoints and page exit", async () => {
+    vi.useFakeTimers();
+    const { platform, saves } = fakePlatform();
+    const progress = createProgressStore(platform, campaignId);
+    await progress.load("p");
+    progress.save(saveAfter(1, "r", 1), { immediate: true });
+    await progress.flush();
+    expect(saves).toHaveLength(1);
+    progress.save(saveAfter(2, "r", 2), { immediate: true });
+    await progress.flush();
+    progress.save(saveAfter(3, "r", 3), { immediate: true });
+    await progress.flush();
+    expect(JSON.parse(store.get(BROWSER_SAVE_KEY)!).state.builtBuildingIds).toHaveLength(3);
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(saves).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(saves).toHaveLength(2);
+    expect((saves[1] as unknown as SavedGame).state.builtBuildingIds).toHaveLength(3);
   });
 
   it("keeps working offline: browser save only, no cloud calls", async () => {
@@ -436,6 +461,64 @@ describe("GoLive SDK wrapper", () => {
     expect(sdk.init).toHaveBeenCalledWith({ apiBaseUrl: "/api/v1", gameId: "grow-an-empire" });
   });
 
+  it("lets SDK 1.5.0 choose the API host by default and preserves the portal display name", async () => {
+    const sdk = fakeSdk({ login: async () => ({ player: { id: "p", displayName: "Ananya", authType: "EMAIL" } }) });
+    expect(await createGoLivePlatform(sdk).connect()).toMatchObject({ id: "p", displayName: "Ananya" });
+    expect(sdk.init).toHaveBeenCalledWith({ gameId: "grow-an-empire" });
+  });
+
+  it("uses a safe fallback for a malformed display name", async () => {
+    const sdk = fakeSdk({ login: async () => ({ player: { id: "p", displayName: 42 as unknown as string, username: "Raja" } }) });
+    expect(await createGoLivePlatform(sdk).connect()).toMatchObject({ displayName: "Raja" });
+  });
+
+  it("uses the real game's leaderboard slug and metadata", async () => {
+    const submitScore = vi.fn().mockResolvedValue({ rank: 1 });
+    const sdk = fakeSdk({ submitScore, login: async () => ({ player: { id: "p", displayName: "Ananya", authType: "EMAIL" } }) });
+    const adapter = createGoLivePlatform(sdk);
+    await adapter.connect();
+    expect(await adapter.submitScore(103, { level: 1 })).toBe("ok");
+    expect(submitScore).toHaveBeenCalledWith(LEADERBOARD_SLUG, 103, { level: 1 });
+  });
+
+  it("never submits guests and survives missing or rejecting leaderboard methods", async () => {
+    const submitScore = vi.fn().mockRejectedValue(new Error("Leaderboard deactivated"));
+    const guestSdk = fakeSdk({ submitScore, login: async () => ({ player: { id: "g", displayName: "Guest", authType: "GUEST" } }) });
+    const guest = createGoLivePlatform(guestSdk);
+    await guest.connect();
+    expect(await guest.submitScore(103, {})).toBe("unavailable");
+    expect(submitScore).not.toHaveBeenCalled();
+    const login = async () => ({ player: { id: "p", displayName: "Player", authType: "EMAIL" } });
+    const missing = createGoLivePlatform(fakeSdk({ login }));
+    await missing.connect();
+    expect(await missing.submitScore(103, {})).toBe("unavailable");
+    const rejecting = createGoLivePlatform(fakeSdk({ login, submitScore }));
+    await rejecting.connect();
+    expect(await rejecting.submitScore(103, {})).toBe("error");
+    expect(await rejecting.submitScore(103, {})).toBe("error");
+    expect(console.warn).toHaveBeenCalledTimes(2); // once for each adapter's failure
+  });
+
+  it("rejects invalid scores and oversized UTF-8 metadata before contacting the SDK", async () => {
+    const submitScore = vi.fn();
+    const sdk = fakeSdk({ submitScore, login: async () => ({ player: { id: "p", displayName: "Player", authType: "EMAIL" } }) });
+    const adapter = createGoLivePlatform(sdk);
+    await adapter.connect();
+    for (const score of [-1, NaN, Infinity]) expect(await adapter.submitScore(score, {})).toBe("error");
+    expect(await adapter.submitScore(103, { text: "अ".repeat(800) })).toBe("error");
+    expect(submitScore).not.toHaveBeenCalled();
+  });
+
+  it("allows play after trial-save denial and rejects saves over the UTF-8 byte cap", async () => {
+    const sdk = fakeSdk({ saveGameProgress: vi.fn().mockRejectedValue(new Error("Trial player cannot save")) });
+    const adapter = createGoLivePlatform(sdk);
+    expect(await adapter.connect()).not.toBeNull();
+    expect(await adapter.saveProgress({ schemaVersion: 6 })).toBe("error");
+    expect(await adapter.saveProgress({ text: "अ".repeat(23_000) })).toBe("error");
+    expect(sdk.saveGameProgress).toHaveBeenCalledTimes(1);
+    expect(console.warn).toHaveBeenCalledTimes(1);
+  });
+
   it("never throws: failed login means offline, and nothing is sent", async () => {
     const sdk = fakeSdk({ login: async () => { throw new Error("network"); } });
     const adapter = createGoLivePlatform(sdk, "/api/v1");
@@ -497,6 +580,12 @@ describe("GoLive SDK wrapper", () => {
 });
 
 describe("session tracker", () => {
+  it("sends the SDK 1.5.0 GAME_READY handshake to the embedding portal", () => {
+    const parent = { postMessage: vi.fn() };
+    vi.stubGlobal("window", { parent });
+    notifyPortalReady("0.7.0");
+    expect(parent.postMessage).toHaveBeenCalledWith({ type: "GAME_READY", gameVersion: "0.7.0" }, "*");
+  });
   it("reports played seconds once and only once", () => {
     const { platform } = fakePlatform();
     const session = createSessionTracker(platform);

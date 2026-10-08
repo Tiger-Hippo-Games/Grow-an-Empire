@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#13271b" />
     <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Plays in either orientation: 16:9 stage in large frames (designed for 1920×1080), a rearranged layout on phones and tablets. -->
     <meta name="orientation" content="any" />
@@ -113,7 +113,7 @@
       not from our bundle. On the portal it defines window.Platform; locally it
       is a harmless stub (see vite.config.ts) and the game plays offline.
     -->
-    <script src="/api/v1/sdk/platform-sdk.js"></script>
+    <script src="https://golive-platform.netlify.app/sdk/platform-sdk.js"></script>
   </head>
   <body>
     <main id="app">
