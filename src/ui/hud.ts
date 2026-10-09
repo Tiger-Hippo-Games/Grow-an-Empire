@@ -103,7 +103,9 @@ export function createHud(callbacks: HudCallbacks) {
   const levelPips = requireElement<HTMLElement>("#level-pips");
   const playToggle = requireElement<HTMLButtonElement>("#play-toggle");
   const restartButton = requireElement<HTMLButtonElement>("#restart");
-  const speedToggle = requireElement<HTMLButtonElement>("#speed-toggle");
+  const speedSlider = requireElement<HTMLInputElement>("#speed-slider");
+  const speedValue = requireElement<HTMLOutputElement>("#speed-value");
+  const speeds = [1, 2, 4, 8];
   const gridToggle = requireElement<HTMLButtonElement>("#grid-toggle");
   const helpToggle = requireElement<HTMLButtonElement>("#help-toggle");
   const musterToggle = requireElement<HTMLButtonElement>("#muster-toggle");
@@ -182,7 +184,6 @@ export function createHud(callbacks: HudCallbacks) {
   setButton(fullscreenToggle, "fullscreen", "Full screen");
   setButton(muteToggle, "sound", "Sound · On");
   setButton(playToggle, "pause", "Pause");
-  setButton(speedToggle, "speed", "Speed · 1×", "1×");
 
   // What the player did while choosing (moves 1-3 are reported, for testing).
   let choiceShownAt = 0;
@@ -200,7 +201,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   let milestoneUntil = 0;
   let campaignMoveLimit = TOTAL_MOVES;
-  let selectedSpeed = 1;
+  let selectedSpeed = 4;
   let gridVisible = false;
   let tutorialActive = false;
   let tutorialStartedAt = 0;
@@ -599,8 +600,8 @@ export function createHud(callbacks: HudCallbacks) {
       const gather = document.createElement("button");
       gather.type = "button";
       gather.className = "gather-button";
-      gather.innerHTML = `${icon("move")}<b>Gather</b> <span class="w">Build nothing this move; every building still works. (G)</span>`;
-      gather.setAttribute("aria-label", "Gather: build nothing this move; every building still works");
+      gather.innerHTML = `${icon("stockpile")}<b>Gather</b> <span class="w">Buildings work; spend 1 move. (G)</span>${icon("play")}`;
+      gather.setAttribute("aria-label", "Gather resources: advance one move without building; existing buildings produce and the army still eats. Press G");
       gather.addEventListener("click", callbacks.onGather);
       buildFoot.appendChild(gather);
     } else {
@@ -619,11 +620,12 @@ export function createHud(callbacks: HudCallbacks) {
       // The exhaustive offer test proves this can't happen with the current
       // catalog, but a future content change could starve the pool. Say so
       // instead of showing an empty panel with no way forward.
-      setStatus(`Move ${view.move}: no buildings are available. Press Restart to begin a new settlement.`, 0);
+      setStatus(view.canGather ? `Move ${view.move}: gather resources to continue`
+        : `Move ${view.move}: no buildings are available. Press Restart to begin a new settlement.`, 0);
       return;
     }
     const affordable = view.cards.filter((card) => card.affordable).length;
-    setStatus(view.canGather ? `Move ${view.move}: nothing is affordable, so gather this move`
+    setStatus(view.canGather ? `Move ${view.move}: gather resources${view.cards.some((card) => card.swap) ? " or swap at the Bazaar" : " to build next move"}`
       : affordable === 0 ? `Move ${view.move}: swap goods at the Bazaar to build`
       : `Move ${view.move} ready: choose one of ${affordable} affordable building${affordable === 1 ? "" : "s"}`, 0);
   }
@@ -722,7 +724,9 @@ export function createHud(callbacks: HudCallbacks) {
 
   function setSpeedLabel(speed: number): void {
     selectedSpeed = speed;
-    setButton(speedToggle, "speed", `Speed · ${speed}×`, `${speed}×`);
+    speedSlider.value = String(speeds.indexOf(speed));
+    speedSlider.setAttribute("aria-valuetext", `${speed} times speed`);
+    speedValue.value = `${speed}×`;
   }
 
   function setStockpileVisible(visible: boolean): void {
@@ -858,11 +862,7 @@ export function createHud(callbacks: HudCallbacks) {
     disarmRestart();
     callbacks.onRestart();
   });
-  speedToggle.addEventListener("click", () => {
-    const speeds = [1, 2, 4, 8];
-    const next = speeds[(speeds.indexOf(selectedSpeed) + 1) % speeds.length];
-    callbacks.onSpeedChange(next);
-  });
+  speedSlider.addEventListener("input", () => callbacks.onSpeedChange(speeds[Number(speedSlider.value)]));
   gridToggle.addEventListener("click", () => {
     gridVisible = !gridVisible;
     setButton(gridToggle, "grid", `Grid · ${gridVisible ? "On" : "Off"}`);
@@ -974,7 +974,7 @@ export function createHud(callbacks: HudCallbacks) {
       event.preventDefault();
       playToggle.click();
     } else if (key === "s") {
-      speedToggle.click();
+      callbacks.onSpeedChange(speeds[(speeds.indexOf(selectedSpeed) + 1) % speeds.length]);
     } else if (key === "m") {
       muteToggle.click();
     } else if (key === "f" && !fullscreenToggle.classList.contains("hidden")) {

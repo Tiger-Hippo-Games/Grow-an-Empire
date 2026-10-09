@@ -9,7 +9,7 @@ describe("functional city routes", () => {
     const anchors: Record<string, [number, number]> = {
       marketplace: [1124, 580], house: [788, 587],
       woodcutter: [1639, 292], sawmill: [1466, 454],
-      farm: [208, 294], bakery: [499, 476], granary: [398, 374],
+      farm: [208, 294], bakery: [499, 476], granary: [398, 335],
       "fruit-orchard": [221, 609], winery: [424, 657],
       "swine-farm": [206, 767], butchery: [441, 820],
       quarry: [1634, 611], blacksmith: [1433, 657],

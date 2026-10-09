@@ -18,6 +18,17 @@ function emptyAll(sim: SettlementSimulation): void {
 }
 
 describe("costs and construction", () => {
+  it("can build a Granary immediately after the opening Farm and keeps surplus grain", () => {
+    const sim = new SettlementSimulation();
+    build(sim, "farm");
+    expect(sim.state.availableBuildingIds).toContain("granary");
+    expect(sim.canAffordBuilding("granary")).toBe(true);
+    expect(sim.costOf("granary")).toEqual({ wood: 4, stone: 2 });
+    build(sim, "granary");
+    expect(sim.state.resources.grain).toBeGreaterThan(8);
+    expect(sim.state.lastSummary?.warnings.join(" ")).not.toMatch(/spoiled/);
+  });
+
   it("starts with the documented stockpile and pays the build cost up front", () => {
     const sim = new SettlementSimulation();
     for (const [name, amount] of Object.entries(STARTING_STOCKPILE)) expect(sim.state.resources[name as ResourceName]).toBe(amount);
@@ -120,6 +131,21 @@ describe("stuck moves", () => {
     expect(new SettlementSimulation().gather()).toEqual([]);
   });
 
+  it("can gather instead of a Bazaar swap, without spending or replacing the offered cards", () => {
+    const sim = new SettlementSimulation();
+    sim.state.builtBuildingIds.push("marketplace", "woodcutter");
+    emptyAll(sim);
+    sim.state.resources.stone = 20;
+    const cards = [...sim.state.availableBuildingIds];
+    expect(sim.swapPlanFor("farm")).not.toBeNull();
+    expect(sim.gather()[0].type).toBe("gathered");
+    expect(sim.state.resources.wood).toBeGreaterThan(0);
+    expect(sim.state.availableBuildingIds).toEqual(cards);
+    expect(sim.state.swaps).toBe(0);
+    expect(sim.state.move).toBe(2);
+    expect(sim.canGather()).toBe(false);
+  });
+
   it("swaps goods at twice the selling price when stuck with a Bazaar", () => {
     const sim = new SettlementSimulation();
     sim.state.builtBuildingIds.push("marketplace");
@@ -130,7 +156,7 @@ describe("stuck moves", () => {
     expect(plan!.buy).toEqual({ wood: 2 });
     expect(plan!.goldNeeded).toBe(4);
     expect(plan!.sell).toEqual({ stone: 8 });
-    expect(sim.canGather()).toBe(false);
+    expect(sim.canGather()).toBe(true);
     sim.swapAndBuild("woodcutter");
     expect(sim.state.mode).toBe("construction");
     expect(sim.state.resources.stone).toBe(12);

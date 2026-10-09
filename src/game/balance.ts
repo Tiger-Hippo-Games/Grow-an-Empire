@@ -63,11 +63,12 @@ export function searchEndings(): SearchResult {
         branch.update(1e9);
         next.push(branch.state);
       }
-      if (next.length === 0) {
+      if (sim.canGather()) {
         const branch = cloneInto(state);
         if (branch.gather().length === 0) { deadEnds += 1; continue; }
         next.push(branch.state);
       }
+      if (next.length === 0) deadEnds += 1;
     }
     stack.push(...next);
   }
@@ -93,4 +94,3 @@ export function winShare(endings: Ending[], enemy: EnemyArmy): number {
   for (const ending of endings) if (bestMargin(ending, enemy) > 0) wins += 1;
   return wins / endings.length;
 }
-

@@ -39,7 +39,7 @@ import "./styles.css";
 /** False while the game is paused (Pause button or tutorial modal). */
 let playing = true;
 /** Simulation speed multiplier (1, 2, 4, 8). */
-let speed = 1;
+let speed = 4;
 /** Visual clock in seconds (scaled by speed, stops while paused). Drives every animation. */
 let animationElapsed = 0;
 /** Whether to resume play when the tutorial modal closes (i.e. it was playing when it opened). */

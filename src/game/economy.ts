@@ -34,7 +34,7 @@ export const BUILDING_COSTS: Record<string, ResourceBag> = {
   butchery: { planks: 3, stone: 2 },
   bakery: { planks: 3, stone: 3 },
   house: { planks: 3, stone: 3 },
-  granary: { planks: 2, stone: 4 },
+  granary: { wood: 4, stone: 2 },
   winery: { planks: 3, stone: 2 },
   marketplace: { planks: 4, stone: 4 },
   "weapons-workshop": { planks: 4, stone: 3 },

@@ -83,7 +83,7 @@ export const BUILDINGS: Record<string, BuildingDefinition> = {
   winery: building({ id: "winery", name: "Soma Press", description: "Presses fruit into soma, prized in every bazaar.", unlocks: "Soma sells for 5 gold", artKey: "winery", offerMove: 4, offerPriority: 8, requiresAll: ["farm", "sawmill", "quarry"], resource: "wine" }),
   quarry: building({ id: "quarry", name: "Quarry", description: "Cuts stone for forts and temples.", unlocks: "With Carpenter's Yard, opens stone buildings", artKey: "quarry", offerMove: 1, offerPriority: 9, resource: "stone" }),
   house: building({ id: "house", name: "House", description: "A family home brings more people into the settlement.", unlocks: "More recruits and militia", artKey: "house", offerMove: 3, offerPriority: 13, requiresAll: ["sawmill", "quarry"] }),
-  granary: building({ id: "granary", name: "Granary", description: "A kothar stores the harvest safely between monsoons.", unlocks: "Secures the food economy", artKey: "granary", offerMove: 4, offerPriority: 14, requiresAll: ["farm", "sawmill", "quarry"], resource: "grain" }),
+  granary: building({ id: "granary", name: "Granary", description: "A timber kothar on a stone base stores the harvest safely between monsoons.", unlocks: "Secures the food economy", artKey: "granary", offerMove: 2, offerPriority: 14, requiresAny: ["farm", "fruit-orchard"], resource: "grain" }),
   marketplace: building({ id: "marketplace", name: "Bazaar", description: "A busy haat turns surplus goods into gold.", unlocks: "Hires sellswords before the battle", artKey: "marketplace", offerMove: 4, offerPriority: 12, requiresAll: ["farm", "butchery"], resource: "gold" }),
   blacksmith: building({ id: "blacksmith", name: "Lohar Forge", description: "The lohar's forge arms and trains swordsmen.", unlocks: "Swordsmen stop a cavalry charge", artKey: "blacksmith", offerMove: 3, offerPriority: 11, requiresAll: ["sawmill", "quarry"], resource: "planks" }),
   "weapons-workshop": building({ id: "weapons-workshop", name: "Bow Hall", description: "Bowyers string bows and train archers.", unlocks: "Archers counter a swordsman horde", artKey: "weapons-workshop", offerMove: 3, offerPriority: 10, requiresAll: ["sawmill", "quarry"], resource: "planks" }),
@@ -137,7 +137,8 @@ export function nextBuildingOffer(
       && (!allowed || allowed.has(candidate.id))
       && isBuildingEligible(candidate, builtIds, move))
     .sort((a, b) => {
-      const urgency = (id: string): number => id === "stable" || id === "barracks" && builtIds.some((built) => built === "blacksmith" || built === "weapons-workshop")
+      const urgency = (id: string): number => id === "granary" && (lastBuiltId === "farm" || lastBuiltId === "fruit-orchard") ? -1
+        : id === "stable" || id === "barracks" && builtIds.some((built) => built === "blacksmith" || built === "weapons-workshop")
         ? 0 : id === "blacksmith" || id === "weapons-workshop" ? 1 : 2;
       const priority = urgency(a.id) - urgency(b.id);
       if (priority) return priority;

@@ -54,6 +54,14 @@ describe("building catalog integrity", () => {
 });
 
 describe("isBuildingEligible", () => {
+  it("opens harvest storage after either food producer, without industry", () => {
+    expect(isBuildingEligible(BUILDINGS.granary, [], 2)).toBe(false);
+    for (const producer of ["farm", "fruit-orchard"]) {
+      expect(isBuildingEligible(BUILDINGS.granary, [producer], 2)).toBe(true);
+      expect(nextBuildingOffer([producer], ["woodcutter", "quarry"], 2, producer)).toBe("granary");
+    }
+  });
+
   it("applies the exact settlement building dependencies", () => {
     const required: Record<string, string[]> = {
       woodcutter: [], farm: [], quarry: [], sawmill: ["woodcutter"],
@@ -61,15 +69,15 @@ describe("isBuildingEligible", () => {
       house: ["sawmill", "quarry"], "weapons-workshop": ["sawmill", "quarry"],
       blacksmith: ["sawmill", "quarry"], barracks: ["sawmill", "quarry"],
       stable: ["blacksmith", "weapons-workshop"],
-      granary: ["farm", "sawmill", "quarry"], winery: ["farm", "sawmill", "quarry"],
+      granary: [], winery: ["farm", "sawmill", "quarry"],
       bakery: ["farm", "sawmill", "quarry"], butchery: ["swine-farm", "sawmill"],
       marketplace: ["farm", "butchery"],
     };
     expect(Object.keys(required).sort()).toEqual(Object.keys(BUILDINGS).sort());
     for (const [id, dependencies] of Object.entries(required)) {
       expect(BUILDINGS[id].requiresAll ?? [], id).toEqual(dependencies);
-      expect(BUILDINGS[id].requiresAny ?? [], id).toEqual([]);
-      expect(isBuildingEligible(BUILDINGS[id], dependencies, 12), id).toBe(true);
+      expect(BUILDINGS[id].requiresAny ?? [], id).toEqual(id === "granary" ? ["farm", "fruit-orchard"] : []);
+      expect(isBuildingEligible(BUILDINGS[id], id === "granary" ? ["farm"] : dependencies, 12), id).toBe(true);
       for (const missing of dependencies) {
         expect(isBuildingEligible(BUILDINGS[id], dependencies.filter((item) => item !== missing), 12), `${id} without ${missing}`).toBe(false);
       }
@@ -80,7 +88,7 @@ describe("isBuildingEligible", () => {
 describe("nextBuildingOffer", () => {
   it("offers dependent buildings when their final prerequisite is completed", () => {
     expect(nextBuildingOffer(["woodcutter"], ["farm", "quarry"], 2, "woodcutter")).toBe("sawmill");
-    expect(nextBuildingOffer(["farm"], ["woodcutter", "quarry"], 2, "farm")).toBe("swine-farm");
+    expect(nextBuildingOffer(["farm"], ["woodcutter", "quarry"], 2, "farm")).toBe("granary");
     expect(nextBuildingOffer(["woodcutter", "sawmill", "quarry"], ["farm", "swine-farm"], 4, "quarry")).toBe("weapons-workshop");
   });
 

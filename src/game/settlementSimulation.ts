@@ -430,16 +430,14 @@ export class SettlementSimulation {
     return [{ type: "swapped", buildingId, plan }, ...started];
   }
 
-  /** True when the only way forward this move is a Gather move. */
+  /** Gather is available when no card can be paid for directly, even if a Bazaar swap is possible. */
   canGather(): boolean {
-    if (!this.isStuck()) return false;
-    return !(this.hasMarketplace && this.state.availableBuildingIds.some((id) => this.swapPlanFor(id)));
+    return this.isStuck();
   }
 
   /**
    * Stuck move: build nothing, but every building still runs and the move counts.
-   * Only allowed when no offered card is affordable (and, with a Bazaar,
-   * when no swap can cover any of them).
+   * Only allowed when no offered card is affordable; a Bazaar swap is an alternative.
    */
   gather(): SimulationEvent[] {
     if (!this.canGather()) return [];
@@ -501,7 +499,7 @@ export class SettlementSimulation {
         if (nextOffer) this.state.availableBuildingIds.push(nextOffer);
       }
       this.state.mode = "awaiting-choice";
-      if (this.isStuck()) summary.warnings.unshift(this.canGather() ? "Nothing on offer is affordable: this move is a Gather move." : "Nothing on offer is affordable: swap goods at the Bazaar.");
+      if (this.isStuck()) summary.warnings.unshift("Nothing on offer is affordable: gather resources, or swap at the Bazaar if available.");
       summary.warnings = summary.warnings.slice(0, 2);
     }
     this.state.lastSummary = summary;

@@ -75,7 +75,8 @@ const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
   sawmill: planPoint(1466, 454),
   farm: planPoint(208, 294),
   bakery: planPoint(499, 476),
-  granary: planPoint(398, 374),
+  // On the approach from the farm district junction to the fields.
+  granary: planPoint(398, 335),
   "fruit-orchard": planPoint(221, 609),
   winery: planPoint(424, 657),
   "swine-farm": planPoint(206, 767),

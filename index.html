@@ -175,7 +175,6 @@
 
       <section id="city-chrome" class="controls" aria-label="Simulation controls">
         <button id="play-toggle" type="button">Pause</button>
-        <button id="speed-toggle" type="button" aria-label="Change simulation speed">Speed · 1×</button>
         <button id="muster-toggle" class="hidden" type="button">Battle report</button>
         <button id="map-toggle" type="button" aria-label="Campaign map"><span class="label-long">Campaign map</span><span class="label-short" aria-hidden="true">Map</span></button>
         <button id="controls-more" class="controls-more" type="button" aria-expanded="false" aria-controls="controls-secondary">More</button>
@@ -188,6 +187,12 @@
           <button id="restart" class="quiet-control" type="button">Restart</button>
           <button id="city-view-toggle" class="quiet-control" type="button">View city</button>
         </div>
+      </section>
+
+      <section class="speed-control" aria-label="Game speed">
+        <label for="speed-slider"><span class="w">Speed</span><output id="speed-value" for="speed-slider">4×</output></label>
+        <input id="speed-slider" type="range" min="0" max="3" step="1" value="2" aria-label="Game speed" aria-valuetext="4 times speed">
+        <div class="speed-stops" aria-hidden="true"><span>1×</span><span>2×</span><span>4×</span><span>8×</span></div>
       </section>
 
       <button id="city-ui-toggle" class="city-ui-toggle" type="button" aria-expanded="false" aria-controls="city-chrome">
