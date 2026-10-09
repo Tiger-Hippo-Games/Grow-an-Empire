@@ -1,5 +1,19 @@
 # QA results
 
+## v0.8.0 (2026-10-09): speed, early storage and Gather
+
+- Speed is a visible four-stop slider from the opening map through construction and choices: 1×, 2×, 4×, 8×, default 4×. The S shortcut still cycles the same speeds; the slider supports keyboard arrows, Home and End.
+- Farm or Mango Grove makes the Granary eligible from move 2, with the Granary offered immediately after either producer when not already built/offered. Cost: 4 wood and 2 stone, paid up front, with no Carpenter's Yard or Quarry prerequisite. Its existing painted completion and three construction stages are reused; no new runtime art is needed. It sits beside the approach to the Farm at plan position (398, 335), adds one grain per move and keeps surplus grain.
+- Gather is a prominent button whenever no card is directly affordable, including when a Bazaar swap is an alternative. It advances one move, preserves the offered cards and runs production, training and army upkeep. The button remains in reach in a scrolling build panel.
+- The stage clips overflow without becoming a scroll container, preventing card focus from shifting the entire stage and clipping the speed slider on compact screens.
+- Recalibrated all 25 campaign armies/star margins and matching Realm field probabilities using the exhaustive balance search, including Gather alternatives beside Bazaar swaps. Campaign ids and save schema are unchanged.
+
+Validation: TypeScript, ESLint and 200 tests pass, including three new early-storage/Gather regression cases and the exhaustive offer paths, campaign balance, art freshness and legacy-save tests. Browser checks verified the default speed and every slider stop, plus Farm → Granary at move 2 with the displayed 4 wood / 2 stone cost and retained grain above the spoil cap. Compact portrait and landscape checks use the isolated local test origin, preserving the manual-test server's save.
+
+Portal Sandbox Preview, real-device/Safari checks and the Developer Console configuration in `Docs/SUBMISSION_CHECKLIST.md` remain required. Existing ZIP releases remain untouched.
+
+Final local verification: clicked Gather with all three cards unaffordable; move 9 advanced to move 10 and the report showed production, training, upkeep and deserters. The highlighted 54-pixel button stayed within the landscape panel's visible bottom while its cards scrolled; the speed dock stayed at the top and the stage scroll offset stayed zero. No browser warnings/errors were captured. The v0.8.0 ZIP is 15.41 MB and passes all bundle-validator checks.
+
 ## v0.7.0 (2026-10-08): current GoLive developer reference
 
 Updated the SDK integration against `common/GOLIVE_DEVELOPER_REFERENCE.md`: official SDK URL and default API host, `GAME_READY` after the first screen is ready, portal display names, real signed-in leaderboard submissions, save/score rate limits, UTF-8 payload limits, and nonfatal cloud/leaderboard failures. Access remains the portal's responsibility before iframe launch; guests and trial players can continue playing when cloud saving is denied. AI Realm standings remain distinct from real portal scores.
