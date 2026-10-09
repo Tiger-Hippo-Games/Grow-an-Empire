@@ -22,7 +22,8 @@ html, body { background: #0b1a11; }
    #app is a size container, so the layouts at the end of this file respond
    to the stage's size, not the browser window's. */
 #app {
-  position: absolute; left: 50%; top: 50%; width: var(--stage-w, 1280px); height: var(--stage-h, 720px); margin: 0; overflow: hidden;
+  /* Clip without creating a scroll container: focusing a card must not shift the whole stage. */
+  position: absolute; left: 50%; top: 50%; width: var(--stage-w, 1280px); height: var(--stage-h, 720px); margin: 0; overflow: clip;
   background: #78945a; transform: translate(-50%, -50%) scale(var(--stage-scale, 1)); transform-origin: 50% 50%;
   container: app / size;
 }

@@ -640,6 +640,7 @@ export function createHud(callbacks: HudCallbacks) {
   function setBuildPanelBusy(busy: boolean): void {
     buildPanel.toggleAttribute("aria-busy", busy);
     buildOptions.querySelectorAll("button").forEach((button) => { button.disabled = busy; });
+    buildFoot.querySelectorAll("button").forEach((button) => { button.disabled = busy; });
   }
 
   const loadingLabel = loading.querySelector("span");

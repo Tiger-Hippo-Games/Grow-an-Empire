@@ -74,7 +74,7 @@ export function benefitText(id: string): string {
 
 export const BUILDINGS: Record<string, BuildingDefinition> = {
   woodcutter: building({ id: "woodcutter", name: "Woodcutter's Hut", description: "A forest camp that cuts sal and teak timber.", unlocks: "Unlocks the Carpenter's Yard", artKey: "woodcutter", offerMove: 1, offerPriority: 1, resource: "wood" }),
-  farm: building({ id: "farm", name: "Farm", description: "Paddy fields provide grain for the settlement.", unlocks: "Opens the Mango Grove and Goshala", artKey: "farm", offerMove: 1, offerPriority: 2, resource: "grain" }),
+  farm: building({ id: "farm", name: "Farm", description: "Paddy fields provide grain for the settlement.", unlocks: "Opens the Granary, Mango Grove and Goshala", artKey: "farm", offerMove: 1, offerPriority: 2, resource: "grain" }),
   "swine-farm": building({ id: "swine-farm", name: "Goshala", description: "A cattle shed; the herd gives milk for ghee.", unlocks: "Unlocks the Ghee House", artKey: "swine-farm", offerMove: 2, offerPriority: 3, requiresAll: ["farm"], resource: "livestock" }),
   bakery: building({ id: "bakery", name: "Royal Kitchen", description: "The royal kitchen turns grain into rotis for the army.", unlocks: "Rations feed the army: 1 per 4 soldiers", artKey: "bakery", offerMove: 4, offerPriority: 4, requiresAll: ["farm", "sawmill", "quarry"], resource: "rations" }),
   sawmill: building({ id: "sawmill", name: "Carpenter's Yard", description: "Carpenters cut timber into construction-ready planks.", unlocks: "Enables archers and industry", artKey: "sawmill", offerMove: 2, offerPriority: 5, requiresAll: ["woodcutter"], resource: "planks" }),
@@ -110,7 +110,7 @@ export function isBuildingEligible(definition: BuildingDefinition, builtIds: str
  * completes (the pool is "rolling": the chosen card leaves, one new card arrives).
  *
  * Ranking, in order:
- *   1. Akhara once a military workshop exists, then military workshops once
+ *   1. Granary immediately after a farm or orchard; Akhara once a military workshop exists, then military workshops once
  *      their stone and timber prerequisites are ready;
  *   2. buildings that directly depend on the one just built;
  *   3. earliest `offerMove`, then lowest `offerPriority`.

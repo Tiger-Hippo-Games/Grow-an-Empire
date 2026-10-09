@@ -2,7 +2,7 @@
  * Balance tools: plays every reachable 12-move game under the current rules
  * and reports how each one ends at the muster (trained army, militia, and the
  * gold the pre-battle market could raise). Stuck moves take every possible
- * swap, else a Gather move. Used by `__tests__/balance.test.ts` and
+ * swap and the alternative Gather move. Used by `__tests__/balance.test.ts` and
  * `Tools/balance/calibrate.ts`; not part of the game bundle (nothing imports it).
  */
 import { SettlementSimulation, type SettlementState } from "./settlementSimulation";
