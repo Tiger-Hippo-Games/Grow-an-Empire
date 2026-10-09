@@ -1,5 +1,6 @@
 import type { BattleRound } from "../game/battle";
 import { iconStyle, type IconKind } from "./combatScene";
+import { assetUrl } from "./assetCatalog";
 
 const ORDER: IconKind[] = ["swordsmen", "horsemen", "archers", "militia"];
 const MAX_ICONS = 6;
@@ -55,6 +56,7 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
   container.replaceChildren();
   const arena = document.createElement("div");
   arena.className = "popup-battlefield approaching";
+  arena.style.backgroundImage = `linear-gradient(#12152a66, #30211666), url("${assetUrl("village-empty-terrain-16x9-v2.png")}")`;
   arena.setAttribute("aria-label", "The two armies approach and fight round by round");
   const sides = [formation(player, false), formation(enemy, true)];
   sides.forEach(side => arena.appendChild(side.element));

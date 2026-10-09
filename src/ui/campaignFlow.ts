@@ -2,7 +2,8 @@ import { enemyStrength, playerStrength, resolveBattle, type EnemyArmy, type Play
 import { CAMPAIGNS, CHAPTERS, type CampaignDefinition } from "../game/campaigns";
 import { SELLSWORD_COST } from "../game/economy";
 import type { ArmyReport, SellswordHire } from "../game/settlementSimulation";
-import { iconStyle, playBattle, type IconKind } from "../render/combatScene";
+import { iconStyle, type IconKind } from "../render/combatScene";
+import { playBattle } from "../render/popupBattle";
 import { buildingFilename } from "../render/constructionView";
 import { assetUrl } from "../render/assetCatalog";
 import { BUILDINGS } from "../game/content";
@@ -180,6 +181,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     stopBattle?.();
     stopBattle = null;
     dialog.dataset.kind = kind;
+    root.classList.toggle("fighting", kind === "battle");
     dialog.classList.remove("show-extra");
     dialog.innerHTML = html;
     scrim.classList.remove("hidden");
@@ -198,6 +200,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     stopBattle?.();
     stopBattle = null;
     scrim.classList.add("hidden");
+    root.classList.remove("fighting");
     if (open) { open = false; callbacks.onModalChange(false); }
   }
 
@@ -293,23 +296,40 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     refresh();
   }
 
-  /** 3. The battle strip, then the result. */
+  /** 3. The muster popup becomes the battlefield, then shows the result. */
   function showBattle(result: ResultView): void {
     const { report, campaign } = result;
     lastResult = result;
     show("battle", `
-      <p class="flow-kicker">CAMPAIGN ${campaign.number} · THE BATTLE</p>
-      <h2 class="w">The armies meet</h2>
-      <div class="battle-strip" data-strip></div>
-      <div class="flow-actions"><button type="button" class="quiet" data-primary data-action="skip">Skip</button></div>`);
+      <p class="flow-kicker w">CAMPAIGN ${campaign.number} · THE BATTLE</p>
+      <h2>${escapeHtml(campaign.objective.enemyName)} attack</h2>
+      <div class="muster-armies battle-armies">
+        <div><span class="side-label">${icon("strength")}<span class="w">Your army</span></span><div class="army-chips" data-ours>${armyChips(report.units, false)}</div></div>
+        <div><span class="side-label">${escapeHtml(campaign.objective.kingdomName)}</span><div class="army-chips" data-enemy>${armyChips(report.enemy, true)}</div></div>
+      </div>
+      <div class="popup-balance" role="meter" aria-valuemin="0" aria-valuemax="100" data-balance><span></span></div>
+      <div class="popup-battle" data-strip></div>
+      <div class="flow-actions"><button type="button" class="quiet" data-primary data-action="skip" aria-label="Skip the battle">${icon("speed")}<span class="w">Skip</span></button></div>`);
     const strip = dialog.querySelector<HTMLElement>("[data-strip]")!;
     callbacks.onSound("conch");
     const finish = (): void => showResult(result);
+    const updateArmies = (ours: PlayerArmy, theirs: typeof report.enemy): void => {
+      dialog.querySelector("[data-ours]")!.innerHTML = armyChips(ours, false);
+      dialog.querySelector("[data-enemy]")!.innerHTML = armyChips(theirs, true);
+      const mine = playerStrength(ours, theirs);
+      const hostile = enemyStrength({ ...theirs, veterancy: campaign.objective.army.veterancy }, ours);
+      const share = mine + hostile > 0 ? mine / (mine + hostile) : 0.5;
+      const meter = dialog.querySelector<HTMLElement>("[data-balance]")!;
+      meter.setAttribute("aria-valuenow", String(Math.round(share * 100)));
+      meter.setAttribute("aria-label", `Your army strength ${mine.toFixed(1)}, enemy ${hostile.toFixed(1)}`);
+      meter.querySelector<HTMLElement>("span")!.style.width = `${share * 100}%`;
+    };
+    updateArmies(report.units, report.enemy);
     stopBattle = playBattle(strip,
       { title: "Your army", start: { archers: report.units.archers, swordsmen: report.units.swordsmen, horsemen: report.units.horsemen, militia: report.units.militia } },
       { title: campaign.objective.enemyName, start: { archers: report.enemy.archers, swordsmen: report.enemy.swordsmen, horsemen: report.enemy.horsemen, militia: 0 } },
       report.rounds,
-      { onRound: () => callbacks.onSound("hit"), onDone: finish });
+      { onRound: (_index, round) => { updateArmies(round.player, round.enemy); callbacks.onSound("hit"); }, onDone: finish });
     dialog.querySelector("[data-action=skip]")!.addEventListener("click", finish);
   }
 

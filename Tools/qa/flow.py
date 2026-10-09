@@ -60,14 +60,14 @@ def play_to_muster(page, on_move=None, timeout=40000):
 
 
 def fight(page, best=True):
-    """At the muster: optionally hire the best sellswords, fight (in the city, with the battle HUD bar), skip, and return the result text."""
+    """At the muster: optionally hire sellswords, fight in the popup, skip, and return the result text."""
     if best and page.is_visible(".flow-dialog [data-action=best]"):
         page.click(".flow-dialog [data-action=best]")
     page.click(".flow-dialog [data-action=fight]")
-    page.wait_for_selector(".battle-hud:not(.hidden), .flow-dialog[data-kind=result]", timeout=5000)
-    if page.is_visible(".battle-hud:not(.hidden) .bh-skip"):
+    page.wait_for_selector(".flow-dialog[data-kind=battle], .flow-dialog[data-kind=result]", timeout=5000)
+    if page.is_visible(".flow-dialog[data-kind=battle] [data-action=skip]"):
         try:
-            page.click(".battle-hud .bh-skip", timeout=2000)
+            page.click(".flow-dialog[data-kind=battle] [data-action=skip]", timeout=2000)
         except Exception:
             pass  # The fight ended on its own first.
     page.wait_for_selector(".flow-dialog[data-kind=result]", timeout=5000)

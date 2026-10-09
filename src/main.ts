@@ -21,8 +21,6 @@ import { createHud, type BuildPanelView, type HudStateSnapshot } from "./ui/hud"
 import { createCampaignMap } from "./ui/campaignMap";
 import { createCampaignFlow, type RealmView } from "./ui/campaignFlow";
 import { createRealmBoard } from "./ui/realmBoard";
-import { createBattleHud } from "./ui/battleHud";
-import { createBattleField } from "./render/battleField";
 import { createSound } from "./ui/sound";
 import "./styles.css";
 
@@ -258,7 +256,7 @@ const flow = createCampaignFlow(document.getElementById("app")!, {
     hud.setReportAvailable(true);
     hud.setStatus(simulation.state.armyReport?.win ? "Victory: the city stands. Open the campaign map to go on." : "The city fell. Replay from the campaign map.", 1);
   },
-  onSound: (name) => sound.play(name),
+  onSound: (name) => { sound.play(name); requestRender(); },
   onModalChange: (open) => setModalPause(open),
   onUxEvent: (name, properties) => {
     track(name, { ...properties, layout: (window as { __gaeLayout?: string }).__gaeLayout ?? "unknown" });
@@ -366,9 +364,6 @@ const characterAssets = createCharacterAssets(requestRender);
 const workerAnimation = createWorkerAnimation(scene, characterAssets);
 const constructionView = createConstructionView(scene, workerAnimation, cityLayout, hud.setStatus);
 const villagerField = createVillagerField(scene, characterAssets);
-/** The fight, shown in the city (render/battleField.ts) with its HUD bar at the top (ui/battleHud.ts). */
-const battleField = createBattleField(scene, characterAssets);
-const battleHud = createBattleHud(document.getElementById("app")!, () => battleField.skip());
 /** The muster: the last move is over and the enemy has arrived. */
 function openMuster(): void {
   if (simulation.state.mode !== "muster") return;
@@ -376,7 +371,6 @@ function openMuster(): void {
   workerAnimation.worker.visible = false;
   hud.setStatus(`${simulation.campaign.objective.enemyName} are at the gates`, 1);
   sound.play("warning");
-  void battleField.prepare();
   flow.showMuster({
     campaign: simulation.campaign,
     trained: { ...simulation.state.trainedUnits },
@@ -397,33 +391,14 @@ function fight(hire: SellswordHire): void {
 }
 
 /**
- * The fight in the city: the dialogs step aside, the armies meet on the
- * ground in front of the civic centre and the HUD bar at the top shows who
- * is winning, round by round; then the result opens.
+ * The muster dialog stays open and presents the fight before its result.
  */
 function startFight(view: Parameters<typeof flow.showResult>[0]): void {
-  const { report } = view;
-  const enemy = simulation.campaign.objective.army;
-  const app = document.getElementById("app")!;
-  flow.hide();
-  app.classList.add("fighting");
-  villagerField.setCombatActive(true);
-  sound.play("conch");
-  battleHud.show({ enemyName: simulation.campaign.objective.enemyName, player: { ...report.units }, enemy, rounds: report.rounds.length });
-  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-  battleField.play({ ...report.units }, { archers: report.enemy.archers, swordsmen: report.enemy.swordsmen, horsemen: report.enemy.horsemen }, report.rounds, {
-    onRound: (index, round) => { battleHud.round(index, round); sound.play("hit"); requestRender(); },
-    onDone: () => {
-      battleHud.hide();
-      app.classList.remove("fighting");
-      flow.showResult(view);
-      requestRender();
-    },
-  }, performance.now(), reduced);
+  flow.showBattle(view);
   requestRender();
 }
 
-/** Records the result's stars and shows the battle in the city, then the result. */
+/** Records stars and shows the popup battle, then its result. */
 function presentBattle(animate: boolean): void {
   const report = simulation.state.armyReport;
   if (!report) return;
@@ -730,8 +705,6 @@ function resetSettlement(): void {
   hud.setCivicLevel(0);
   hud.updateHud(stateSnapshot());
   villagerField.clearArmyMuster();
-  battleField.clear();
-  battleHud.hide();
   document.getElementById("app")?.classList.remove("fighting");
   villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
   villagerField.syncGarrison(simulation.state.trainedUnits);
@@ -758,8 +731,6 @@ function hydrateFromLoadedState(): void {
   hud.hideMilestone();
   hud.setReportAvailable(false);
   villagerField.clearArmyMuster();
-  battleField.clear();
-  battleHud.hide();
   document.getElementById("app")?.classList.remove("fighting");
 
   simulation.state.builtBuildingIds.forEach((buildingId, plotIndex) => {
@@ -1131,7 +1102,6 @@ renderer.setAnimationLoop(() => {
   // asked for a redraw (MOBILE_PERFORMANCE §48: stop work when paused).
   if (contextLost || !initialized || renderFailed) return;
   try {
-    if (!loopFailed && battleField.active) { battleField.update(performance.now()); renderRequested = true; }
     if ((playing && !loopFailed) || renderRequested) {
       renderRequested = false;
       renderer.render(scene, camera);
