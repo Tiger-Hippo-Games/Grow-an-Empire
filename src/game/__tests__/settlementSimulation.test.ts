@@ -127,8 +127,30 @@ describe("stuck moves", () => {
     expect(sim.state.builtBuildingIds).toEqual([]);
   });
 
-  it("refuses to gather while a card is affordable", () => {
-    expect(new SettlementSimulation().gather()).toEqual([]);
+  it("gathers strategically while cards are affordable and keeps the offers", () => {
+    const sim = new SettlementSimulation();
+    const cards = [...sim.state.availableBuildingIds];
+    const resources = { ...sim.state.resources };
+    expect(cards.some(id => sim.canAffordBuilding(id))).toBe(true);
+    expect(sim.gather()[0]).toEqual({ type: "gathered", move: 1 });
+    expect(sim.state.move).toBe(2);
+    expect(sim.state.availableBuildingIds).toEqual(cards);
+    expect(sim.state.resources).toEqual(resources);
+    expect(sim.state.builtBuildingIds).toEqual([]);
+    expect(sim.state.lastSummary?.buildingId).toBeNull();
+  });
+
+  it("rejects Gather during construction, muster and after battle", () => {
+    const sim = new SettlementSimulation();
+    sim.chooseBuilding("woodcutter");
+    expect(sim.canGather()).toBe(false);
+    expect(sim.gather()).toEqual([]);
+    sim.update(1e9);
+    while (sim.state.mode === "awaiting-choice") sim.gather();
+    expect(sim.state.mode).toBe("muster");
+    expect(sim.gather()).toEqual([]);
+    sim.muster();
+    expect(sim.gather()).toEqual([]);
   });
 
   it("can gather instead of a Bazaar swap, without spending or replacing the offered cards", () => {
@@ -143,7 +165,7 @@ describe("stuck moves", () => {
     expect(sim.state.availableBuildingIds).toEqual(cards);
     expect(sim.state.swaps).toBe(0);
     expect(sim.state.move).toBe(2);
-    expect(sim.canGather()).toBe(false);
+    expect(sim.canGather()).toBe(true);
   });
 
   it("swaps goods at twice the selling price when stuck with a Bazaar", () => {

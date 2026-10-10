@@ -144,6 +144,7 @@ const hud = createHud({
     }
     playing = !playing;
     pausedByPortal = false;
+    sound.setPaused(false);
     hud.setPlayingLabel(playing);
   },
   onRestart: () => {
@@ -170,7 +171,7 @@ const hud = createHud({
   },
   onTutorialStarted: () => track("tutorial_started", { replay: settings.tutorialComplete }),
   onUxEvent: (name, properties) => track(name, { ...properties, campaign_number: simulation.campaign.number, layout: (window as { __gaeLayout?: string }).__gaeLayout ?? "unknown" }),
-  onUiSound: () => sound.play("click"),
+  onUiSound: () => { sound.play("click"); requestRender(); },
   onTutorialFinished: ({ skipped, stepCount, seconds }) => {
     const firstTime = !settings.tutorialComplete;
     settings = { ...settings, tutorialComplete: true };
@@ -848,6 +849,8 @@ listenForPortalMessages((message) => {
     // GP_SESSION_END ended the analytics session; a resume means play goes on.
     if (initialized && simulation.state.mode !== "complete") session.start();
   } else if (message === "GP_SESSION_END") {
+    pausedByPortal = true;
+    sound.setPaused(true);
     // The portal is closing the game: stop, save everywhere, end the session.
     if (playing) {
       playing = false;

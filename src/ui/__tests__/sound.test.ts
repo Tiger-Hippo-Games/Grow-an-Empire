@@ -21,6 +21,8 @@ describe("optional audio failures", () => {
     } as unknown as typeof AudioContext;
     const sound = createSound(false);
     expect(() => sound.play("click")).not.toThrow();
+    const gesture = vi.mocked(window.addEventListener).mock.calls.find(call => call[0] === "pointerdown")![1] as () => void;
+    gesture();
     expect(() => sound.play("click")).not.toThrow();
     expect(close).toHaveBeenCalledTimes(2);
     expect(console.warn).toHaveBeenCalledTimes(1);
@@ -36,7 +38,8 @@ describe("optional audio failures", () => {
       suspend = suspend;
     } as unknown as typeof AudioContext;
     const sound = createSound(false);
-    sound.setMuted(false);
+    const gesture = vi.mocked(window.addEventListener).mock.calls.find(call => call[0] === "pointerdown")![1] as () => void;
+    gesture();
     sound.setMuted(true);
     sound.setMuted(false);
     sound.setMuted(true);
@@ -44,5 +47,51 @@ describe("optional audio failures", () => {
     expect(resume).toHaveBeenCalledTimes(2);
     expect(suspend).toHaveBeenCalledTimes(2);
     expect(console.warn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("audio interaction and cleanup", () => {
+  it("does not create audio before a player gesture, including restored unmute settings", () => {
+    const Context = vi.fn();
+    window.AudioContext = Context as unknown as typeof AudioContext;
+    const sound = createSound(false);
+    sound.play("complete");
+    sound.setMuted(false);
+    sound.setPaused(false);
+    expect(Context).not.toHaveBeenCalled();
+  });
+
+  it("coalesces rapid taps and stops voices on mute or portal pause", () => {
+    const gain = () => ({ gain: { value: 0, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: (target: unknown) => target, disconnect: vi.fn() });
+    const voices: Array<{ stop: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; onended?: () => void }> = [];
+    window.AudioContext = class {
+      state = "running";
+      currentTime = 0;
+      destination = {};
+      createGain = gain;
+      createOscillator() {
+        const voice = { stop: vi.fn(), start: vi.fn(), disconnect: vi.fn(), onended: undefined as (() => void) | undefined, frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: (target: unknown) => target };
+        voices.push(voice);
+        return voice;
+      }
+      suspend() { return Promise.resolve(); }
+      resume() { return Promise.resolve(); }
+    } as unknown as typeof AudioContext;
+    const sound = createSound(false);
+    const gesture = vi.mocked(window.addEventListener).mock.calls.find(call => call[0] === "pointerdown")![1] as () => void;
+    gesture();
+    sound.play("click"); sound.play("click");
+    expect(voices).toHaveLength(1);
+    sound.setMuted(true);
+    expect(voices[0].stop).toHaveBeenCalledTimes(2); // scheduled end, then immediate stop
+    voices[0].onended!();
+    expect(voices[0].disconnect).toHaveBeenCalledTimes(1);
+    sound.setMuted(false);
+    sound.play("gather");
+    expect(voices).toHaveLength(4);
+    sound.setPaused(true);
+    expect(voices.slice(1).every(voice => voice.stop.mock.calls.length === 2)).toBe(true);
+    sound.play("hit");
+    expect(voices).toHaveLength(4);
   });
 });

@@ -83,6 +83,17 @@ describe("popup battle playback", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it("holds rounds while the portal pauses an otherwise visible popup", () => {
+    let paused = true;
+    const onRound = vi.fn(), onDone = vi.fn();
+    playBattle(new Element() as unknown as HTMLElement, player, enemy, rounds, { onRound, onDone, isPaused: () => paused });
+    vi.advanceTimersByTime(10000);
+    expect(onRound).not.toHaveBeenCalled();
+    paused = false;
+    vi.advanceTimersByTime(7500);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
   it("logs once and shows the saved result after a playback error", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const onDone = vi.fn();

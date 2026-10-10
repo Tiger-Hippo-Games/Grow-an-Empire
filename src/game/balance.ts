@@ -1,12 +1,14 @@
 /**
- * Balance tools: plays every reachable 12-move game under the current rules
+ * Balance tools: plays every reachable game under a declared choice policy
  * and reports how each one ends at the muster (trained army, militia, and the
- * gold the pre-battle market could raise). Stuck moves take every possible
- * swap and the alternative Gather move. Used by `__tests__/balance.test.ts` and
+ * gold the pre-battle market could raise). Calibration keeps the reference
+ * build-first policy: Gather when stuck. The every-turn policy also explores
+ * strategic Gather choices. Used by `__tests__/balance.test.ts` and
  * `Tools/balance/calibrate.ts`; not part of the game bundle (nothing imports it).
  */
 import { SettlementSimulation, type SettlementState } from "./settlementSimulation";
 import { CAMPAIGN_1 } from "./campaigns";
+import type { CampaignDefinition } from "./campaigns";
 import { enemyHeadCount, enemyStrength, playerStrength, type EnemyArmy } from "./battle";
 import { SELLSWORD_COST } from "./economy";
 
@@ -17,8 +19,8 @@ export interface Ending {
 
 export interface SearchResult { endings: Ending[]; deadEnds: number }
 
-function cloneInto(state: SettlementState): SettlementSimulation {
-  const sim = new SettlementSimulation(CAMPAIGN_1);
+function cloneInto(state: SettlementState, campaign: CampaignDefinition): SettlementSimulation {
+  const sim = new SettlementSimulation(campaign);
   Object.assign(sim.state, structuredClone(state));
   return sim;
 }
@@ -28,17 +30,17 @@ function keyOf(state: SettlementState): string {
   return JSON.stringify(rest);
 }
 
-export function searchEndings(): SearchResult {
+export function searchEndings({ gatherPolicy = "when-stuck", campaign = CAMPAIGN_1 }: { gatherPolicy?: "when-stuck" | "every-turn"; campaign?: CampaignDefinition } = {}): SearchResult {
   const seen = new Set<string>();
   const endings: Ending[] = [];
   let deadEnds = 0;
-  const stack: SettlementState[] = [new SettlementSimulation(CAMPAIGN_1).state];
+  const stack: SettlementState[] = [new SettlementSimulation(campaign).state];
   while (stack.length) {
     const state = stack.pop()!;
     const key = keyOf(state);
     if (seen.has(key)) continue;
     seen.add(key);
-    const sim = cloneInto(state);
+    const sim = cloneInto(state, campaign);
     if (sim.state.mode === "muster") {
       endings.push({
         archers: sim.state.trainedUnits.archers, swordsmen: sim.state.trainedUnits.swordsmen, horsemen: sim.state.trainedUnits.horsemen,
@@ -50,7 +52,7 @@ export function searchEndings(): SearchResult {
     const options = sim.state.availableBuildingIds.filter((id) => sim.canAffordBuilding(id));
     const next: SettlementState[] = [];
     for (const id of options) {
-      const branch = cloneInto(state);
+      const branch = cloneInto(state, campaign);
       branch.chooseBuilding(id);
       branch.update(1e9);
       next.push(branch.state);
@@ -58,18 +60,17 @@ export function searchEndings(): SearchResult {
     if (options.length === 0) {
       for (const id of sim.state.availableBuildingIds) {
         if (!sim.swapPlanFor(id)) continue;
-        const branch = cloneInto(state);
+        const branch = cloneInto(state, campaign);
         branch.swapAndBuild(id);
         branch.update(1e9);
         next.push(branch.state);
       }
-      if (sim.canGather()) {
-        const branch = cloneInto(state);
-        if (branch.gather().length === 0) { deadEnds += 1; continue; }
-        next.push(branch.state);
-      }
-      if (next.length === 0) deadEnds += 1;
     }
+    if (sim.canGather() && (options.length === 0 || gatherPolicy === "every-turn")) {
+      const branch = cloneInto(state, campaign);
+      if (branch.gather().length > 0) next.push(branch.state);
+    }
+    if (next.length === 0) deadEnds += 1;
     stack.push(...next);
   }
   return { endings, deadEnds };

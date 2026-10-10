@@ -5,18 +5,28 @@ import { CAMPAIGN_FIELD } from "../realm";
 import { bestMargin } from "../balance";
 
 /**
- * Plays every reachable 12-move game under the real rules (about 21,000
+ * Plays every reachable 12-move game under the reference build-first policy
  * endings, a few seconds) and checks the difficulty plan: in every chapter
  * easy → medium ×3 → hard, each chapter harder than the last, Campaign 1
  * always winnable and Campaign 25 about 5%.
  * If this fails after a rules change, rerun Tools/balance/calibrate.ts.
  */
-describe("balance across every build order", () => {
+describe("balance across every reference build order", () => {
   const { endings, deadEnds } = searchEndings();
 
   it("never leaves a player with no legal move", () => {
     expect(deadEnds).toBe(0);
     expect(endings.length).toBeGreaterThan(5000);
+  });
+
+  it("explores strategic Gather on every turn of an eight-move campaign", () => {
+    const campaign = { ...CAMPAIGNS[0], moveLimit: 8 };
+    const strategic = searchEndings({ campaign, gatherPolicy: "every-turn" });
+    expect(strategic.deadEnds).toBe(0);
+    expect(strategic.endings.some(ending => ending.gathers === 8 && ending.built.length === 0)).toBe(true);
+    expect(strategic.endings.some(ending => ending.gathers === 7 && ending.built[0] === "woodcutter")).toBe(true);
+    expect(strategic.endings.some(ending => ending.gathers === 0)).toBe(true);
+    expect(strategic.endings.every(ending => ending.gathers + ending.built.length === 8)).toBe(true);
   });
 
   it("puts each campaign's win chance on the plan", () => {

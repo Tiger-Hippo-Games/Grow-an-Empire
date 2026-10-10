@@ -30,7 +30,7 @@ function formation(side: BattleSide, enemy: boolean) {
       actor.setAttribute("aria-hidden", "true");
       const sprite = document.createElement("i");
       sprite.className = `unit-icon unit-${kind}${enemy ? " enemy" : ""}`;
-      const art = iconStyle(kind, enemy);
+      const art = kind === "militia" ? `background-image:url("${assetUrl("militia-work8-master-v1.png")}")` : iconStyle(kind, enemy);
       if (art) sprite.setAttribute("style", art);
       actor.appendChild(sprite);
       row.appendChild(actor);

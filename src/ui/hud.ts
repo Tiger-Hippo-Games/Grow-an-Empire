@@ -480,7 +480,7 @@ export function createHud(callbacks: HudCallbacks) {
       reportReadFor = summary.move;
       ux("ux_report_read", { move: summary.move, seconds: Math.round((performance.now() - choiceShownAt) / 100) / 10 });
       renderBuildPanel(view);
-      (buildFoot.querySelector<HTMLButtonElement>(".gather-button") ?? buildOptions.querySelector<HTMLButtonElement>(".build-card.affordable, .build-card.swappable"))?.focus({ preventScroll: true });
+      (buildOptions.querySelector<HTMLButtonElement>(".build-card.affordable, .build-card.swappable") ?? buildFoot.querySelector<HTMLButtonElement>(".gather-button"))?.focus({ preventScroll: true });
     });
     buildFoot.appendChild(next);
     buildPanel.classList.add("reporting");
@@ -496,7 +496,7 @@ export function createHud(callbacks: HudCallbacks) {
    * Only acts while the simulation is awaiting a choice. Affordable cards call
    * `onSelectBuilding`; on a stuck move with a Bazaar, a card that a swap
    * can pay for calls `onSwapBuild`; otherwise it is disabled and says what it
-   * lacks. When nothing can be built, a Gather button appears.
+   * lacks. Gather is also available on every choice turn.
    */
   function renderBuildPanel(view: BuildPanelView): void {
     if (view.mode !== "awaiting-choice") return;
@@ -627,7 +627,8 @@ export function createHud(callbacks: HudCallbacks) {
       return;
     }
     const affordable = view.cards.filter((card) => card.affordable).length;
-    setStatus(view.canGather ? `Move ${view.move}: gather resources${view.cards.some((card) => card.swap) ? " or swap at the Bazaar" : " to build next move"}`
+    setStatus(affordable > 0 ? `Move ${view.move} ready: build or gather resources (spend 1 move)`
+      : view.canGather ? `Move ${view.move}: gather resources${view.cards.some((card) => card.swap) ? " or swap at the Bazaar" : " to build next move"}`
       : affordable === 0 ? `Move ${view.move}: swap goods at the Bazaar to build`
       : `Move ${view.move} ready: choose one of ${affordable} affordable building${affordable === 1 ? "" : "s"}`, 0);
   }

@@ -154,7 +154,7 @@ export interface SettlementState {
   trainedUnits: TrainedUnits;
   /** Soldiers who left for lack of rations, over the whole run. */
   deserted: number;
-  /** Moves spent gathering (nothing was affordable). */
+  /** Moves spent gathering instead of building. */
   gatherMoves: number;
   /** Stuck moves solved at the Bazaar. */
   swaps: number;
@@ -430,14 +430,14 @@ export class SettlementSimulation {
     return [{ type: "swapped", buildingId, plan }, ...started];
   }
 
-  /** Gather is available when no card can be paid for directly, even if a Bazaar swap is possible. */
+  /** Gather is a strategic alternative on every build-choice turn. */
   canGather(): boolean {
-    return this.isStuck();
+    return this.state.mode === "awaiting-choice";
   }
 
   /**
-   * Stuck move: build nothing, but every building still runs and the move counts.
-   * Only allowed when no offered card is affordable; a Bazaar swap is an alternative.
+   * Build nothing, but every building still runs and the move counts.
+   * Offered cards stay available for the next turn.
    */
   gather(): SimulationEvent[] {
     if (!this.canGather()) return [];

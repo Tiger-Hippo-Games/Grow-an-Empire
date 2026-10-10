@@ -1,5 +1,16 @@
 # QA results
 
+## v0.9.0 (2026-10-10): popup combat and UX/audio polish
+
+- Fight stays in the army dialog. Formations approach, animate attacks and show casualties for each resolved round; army chips and the strength meter update with exact survivors. Skip and Escape show the result. Militia use existing painted action sprites.
+- Playback pauses while hidden, during portal pause/session end, or during WebGL context loss. Reduced-motion playback avoids continuous animation. Animation failures log with context and fall back to the resolved result.
+- Dialogs reset scroll and focus the primary action; Choose focuses Gather when no building is affordable. Buttons have restrained press feedback and Skip stays in reach in a scrolling popup.
+- Softer build, training, coin and battle sounds; a new Gather cue; a layered conch cue. Audio stays gesture-gated, limits repeated cues, and cancels active voices on mute, backgrounding or portal pause. Optional audio failures remain nonfatal and log once.
+
+Validation: TypeScript, ESLint and 208 tests passed, including six popup playback cases and two audio gesture/voice lifecycle cases. Live isolated-origin testing verified muster to popup battle with army totals and animation, plus progression after automatic completion. The manual-test server's save was preserved.
+
+Physical-speaker balance, real mobile devices/Safari, the full Python browser QA suite and real GoLive Sandbox Preview remain unverified. Existing portal configuration and submission checks still apply.
+
 ## v0.8.0 (2026-10-09): speed, early storage and Gather
 
 - Speed is a visible four-stop slider from the opening map through construction and choices: 1×, 2×, 4×, 8×, default 4×. The S shortcut still cycles the same speeds; the slider supports keyboard arrows, Home and End.
@@ -272,3 +283,5 @@ Also check, from QA_CHECKLIST §6–8 and §29 and MOBILE_PERFORMANCE §54:
 - Live desktop preview: campaign map artwork, village markers, selected highlight, countdown, and transition into the settlement rendered correctly. Browser warning/error log was empty after reload and campaign launch.
 - Fixed during review: failed campaign-map art now logs and shows a usable fallback; shared texture loading rejects zero-size decodes; province buttons and highlight share placement data; map launch keeps keyboard focus; horsemen no longer count as villagers after battle; levels 13–14 reveal civic ground details; later-campaign text consistently describes the southern approach.
 - Remaining visual QA: verify small landscape and touch layouts on real devices, and inspect the full 14-move and final combat sequences visually. The painted Town Hall art reaches its final form at level 8; later levels add ground details rather than new hall sprites.
+
+Final local checks: compact 390×844 portrait and 844×390 landscape move reports kept Choose in reach and the speed dock visible. No browser warnings/errors were captured. The v0.9.0 ZIP is 15.41 MB and passes the portal bundle validator. Popup combat was inspected at desktop size; compact combat still needs manual visual testing.

@@ -1162,7 +1162,8 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .battle-actor { display: inline-flex; transition: opacity 400ms, filter 400ms, transform 400ms; }
 .battle-actor .unit-icon { width: 42px; height: 42px; border-radius: 0; background-color: transparent; filter: drop-shadow(0 3px 2px #0008); }
 .battle-actor .unit-icon.enemy { background-color: transparent; filter: sepia(.3) saturate(1.8) drop-shadow(0 3px 2px #7e1717); }
-.engaged .battle-actor:not(.fallen) .unit-icon:not(.unit-militia) { animation: popup-strike 880ms step-end infinite; animation-delay: var(--beat); }
+.battle-actor .unit-icon.unit-militia { background-size: 400% 200%; background-position: 0 0; }
+.engaged .battle-actor:not(.fallen) .unit-icon { animation: popup-strike 880ms step-end infinite; animation-delay: var(--beat); }
 .engaged .battle-actor:not(.fallen) { animation: popup-charge 660ms ease-in-out infinite alternate; animation-delay: var(--beat); }
 .battle-actor.fallen { opacity: .22; filter: grayscale(1); transform: rotate(65deg) scale(.7); }
 .battle-phase { min-height: 22px; margin: 8px 0 0; text-align: center; color: var(--gold); font-size: .86rem; font-weight: 850; }
@@ -1171,6 +1172,13 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .popup-battlefield .unit-more { padding: 2px 5px; border-radius: 6px; background: #15152bcc; }
 .reduced-motion .battle-rank { transition: none; }
 .reduced-motion .battle-actor, .reduced-motion .battle-actor .unit-icon, .reduced-motion .battle-clash i { animation: none !important; }
+.playback-paused .battle-actor, .playback-paused .battle-actor .unit-icon, .playback-paused .battle-clash i { animation-play-state: paused !important; }
+.flow-actions button:active, .gather-button:active, .report-continue:active, .controls button:active { translate: 0 1px; }
+.flow-dialog[data-kind="battle"] .flow-actions { position: sticky; bottom: 0; z-index: 3; padding-block: 6px; background: var(--panel); }
+@media (prefers-reduced-motion: reduce) {
+  .popup-balance > span { transition: none; }
+  .flow-actions button:active, .gather-button:active, .report-continue:active, .controls button:active { translate: none; }
+}
 @keyframes popup-strike {
   0% { background-position: 0 0; } 12.5% { background-position: 33.333% 0; }
   25% { background-position: 66.666% 0; } 37.5% { background-position: 100% 0; }
