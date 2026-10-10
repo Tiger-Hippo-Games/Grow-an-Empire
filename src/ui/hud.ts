@@ -377,7 +377,7 @@ export function createHud(callbacks: HudCallbacks) {
       `Move ${summary.move}: ${summary.buildingId ? `built the ${BUILDINGS[summary.buildingId]?.name ?? summary.buildingId}` : "gathered"}`,
       summary.produced && Object.keys(summary.produced).length ? `made ${formatBag(summary.produced)}` : "",
       summary.consumed && Object.keys(summary.consumed).length ? `used ${formatBag(summary.consumed)}` : "",
-      summary.upkeep ? `the army ate ${summary.upkeep} ration${summary.upkeep === 1 ? "" : "s"}` : "",
+      summary.upkeep ? `the army needs ${summary.upkeep} ration${summary.upkeep === 1 ? "" : "s"} per move` : "",
       summary.stalled.length ? `idle: ${summary.stalled.map((note) => `${BUILDINGS[note.buildingId]?.name ?? note.buildingId} (${note.reason})`).join("; ")}` : "",
     ].filter(Boolean).join(", ");
     const warnings = summary.warnings.map((text) => `<p class="summary-warning">${icon("warning")}<span>${withIcons(escapeHtml(text))}</span></p>`).join("");
@@ -418,6 +418,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   /** A building's picture (or the army, or spoilage) for a report line. */
   function ledgerSource(source: string): { art: string; name: string } {
+    if (source === "camp") return { art: icon("stockpile"), name: "Camp supplies" };
     if (source === "army") return { art: icon("strength"), name: "Army" };
     if (source === "spoilage") return { art: icon("warning"), name: "Spoiled" };
     const name = BUILDINGS[source]?.name ?? source;

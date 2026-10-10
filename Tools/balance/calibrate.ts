@@ -1,5 +1,6 @@
 /**
- * Sizes the 25 enemies to the difficulty plan in src/game/campaigns.ts
+ * Sizes the 25 enemies against the reference build-first policy (Gather
+ * when stuck), to the difficulty plan in src/game/campaigns.ts
  * (`targetWinShare`: within each five-campaign chapter easy → medium ×3 →
  * hard, each chapter harder than the last) and the enemy mix in `ENEMY_MIX`
  * (swordsmen S, archers A, horsemen H, in combinations). For each campaign it

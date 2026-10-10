@@ -23,6 +23,9 @@ export const RESOURCE_NAMES = Object.keys(RESOURCE_LABELS) as ResourceName[];
 /** What the founding camp starts with: enough for all three opening buildings (9 wood). */
 export const STARTING_STOCKPILE: ResourceBag = { wood: 14, stone: 8, grain: 4, rations: 6 };
 
+/** Camp supplies restore these reserves after each move; wood/stone cover a Granary. */
+export const MINIMUM_MOVE_STOCKPILE: ResourceBag = { wood: 4, stone: 2, grain: 2, rations: 1 };
+
 /** Build cost of every building, paid when construction starts. */
 export const BUILDING_COSTS: Record<string, ResourceBag> = {
   woodcutter: { wood: 2 },

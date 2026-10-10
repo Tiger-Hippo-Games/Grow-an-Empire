@@ -13,7 +13,7 @@ import {
 } from "./content";
 import {
   ageBonus, BARRACKS_TRAINING_BONUS, canAfford, emptyStockpile, formatBag, goldValue, GRAIN_SPOIL_CAP, GRANARY_GRAIN,
-  HOUSE_PEOPLE_PER_MOVE, MARKET_PLANK_RESERVE, MARKET_SALES_PER_MOVE, planSwap, PROCESSORS, RAW_OUTPUT, RESOURCE_NAMES,
+  HOUSE_PEOPLE_PER_MOVE, MARKET_PLANK_RESERVE, MARKET_SALES_PER_MOVE, MINIMUM_MOVE_STOCKPILE, planSwap, PROCESSORS, RAW_OUTPUT, RESOURCE_NAMES,
   SELL_PRICE, SELLSWORD_COST, SOLDIER_TYPES, SOLDIERS, SOLDIERS_PER_RATION, startingStockpile, TRAINING_BASE, UPKEEP_WEIGHT,
   type ResourceBag, type ResourceName, type SoldierType, type SwapPlan,
 } from "./economy";
@@ -538,8 +538,8 @@ export class SettlementSimulation {
    *   3. processors (Carpenter's Yard, Royal Kitchen, Ghee House, Soma Press) convert inputs, limited by capacity and stock;
    *   4. military buildings train soldiers from materials and free villagers;
    *   5. the Bazaar sells wine (and spare planks) for gold;
-   *   6. the army eats; unfed soldiers desert;
-   *   7. grain above the cap spoils without a Granary.
+   *   6. the army eats available rations; shortages slow training, never cause desertion;
+   *   7. grain above the cap spoils without a Granary; camp supplies restore basic reserves.
    */
   private resolveMoveEconomy(builtThisMove: string | null): MoveSummary {
     const built = new Set(this.state.builtBuildingIds);
@@ -558,7 +558,7 @@ export class SettlementSimulation {
       return entry;
     };
     for (const id of this.state.builtBuildingIds) this.state.buildingMaturity[id] = (this.state.buildingMaturity[id] ?? 0) + 1;
-    this.state.population = populationForLevel(this.state.civicLevel) + HOUSE_PEOPLE_PER_MOVE * (this.state.buildingMaturity.house ?? 0);
+    this.state.population = Math.max(this.state.population, populationForLevel(this.state.civicLevel) + HOUSE_PEOPLE_PER_MOVE * (this.state.buildingMaturity.house ?? 0));
 
     for (const [id, [name, base]] of Object.entries(RAW_OUTPUT)) {
       if (!built.has(id)) continue;
@@ -587,7 +587,11 @@ export class SettlementSimulation {
       if (!built.has(soldier.building)) continue;
       const capacity = this.trainingCapacity(soldier.building);
       let count = 0;
-      while (count < capacity && this.freeVillagers > 0 && canAfford(resources, soldier.cost)) {
+      const canFeedRecruit = (): boolean => {
+        const weight = SOLDIER_TYPES.reduce((sum, kind) => sum + this.state.trainedUnits[kind] * UPKEEP_WEIGHT[kind], 0) + UPKEEP_WEIGHT[type];
+        return resources.rations >= Math.ceil(weight / SOLDIERS_PER_RATION);
+      };
+      while (count < capacity && this.freeVillagers > 0 && canAfford(resources, soldier.cost) && canFeedRecruit()) {
         for (const [name, amount] of Object.entries(soldier.cost) as Array<[ResourceName, number]>) { resources[name] -= amount; addTo(consumed, name, amount); addTo(line(soldier.building).used, name, amount); }
         this.state.trainedUnits[type] += 1;
         trained[type] += 1;
@@ -595,7 +599,7 @@ export class SettlementSimulation {
       }
       if (count > 0) { const entry = line(soldier.building); entry.trained = { ...entry.trained, [type]: count }; }
       if (count === 0) {
-        const reason = this.freeVillagers === 0 ? "no free villagers" : `needs ${formatBag(soldier.cost)} per ${soldier.singular}`;
+        const reason = this.freeVillagers === 0 ? "no free villagers" : !canFeedRecruit() ? "needs rations for new recruits" : `needs ${formatBag(soldier.cost)} per ${soldier.singular}`;
         stalled.push({ buildingId: soldier.building, reason });
         line(soldier.building).idle = reason;
       }
@@ -611,24 +615,13 @@ export class SettlementSimulation {
     }
 
     const upkeep = this.upkeep;
-    let deserted = 0;
+    const deserted = 0; // Kept in summaries for compatibility with older saves.
     if (upkeep > 0) {
       const paid = Math.min(upkeep, resources.rations);
       resources.rations -= paid;
       addTo(consumed, "rations", paid);
       if (paid > 0) addTo(line("army").used, "rations", paid);
-      let unfed = (upkeep - paid) * SOLDIERS_PER_RATION;
-      // Unfed soldiers leave, the largest group first (a horseman counts for two).
-      while (unfed > 0 && this.soldierCount > 0) {
-        const type = [...SOLDIER_TYPES].filter((kind) => this.state.trainedUnits[kind] > 0)
-          .sort((a, b) => this.state.trainedUnits[b] - this.state.trainedUnits[a])[0];
-        this.state.trainedUnits[type] -= 1;
-        unfed -= UPKEEP_WEIGHT[type];
-        deserted += 1;
-      }
-      this.state.deserted += deserted;
-      if (deserted) line("army").deserted = deserted;
-      if (deserted) warnings.push(`${deserted} soldier${deserted === 1 ? "" : "s"} deserted: there weren't enough rations.`);
+      if (paid < upkeep) warnings.push("Food shortage: existing soldiers stay; new training needs more rations.");
     }
 
     if (!built.has("granary") && resources.grain > GRAIN_SPOIL_CAP) {
@@ -639,11 +632,19 @@ export class SettlementSimulation {
       warnings.push(`${spoiled} grain spoiled: a Granary would keep it.`);
     }
 
+    for (const [name, minimum] of Object.entries(MINIMUM_MOVE_STOCKPILE) as Array<[ResourceName, number]>) {
+      const supplied = Math.max(0, minimum - resources[name]);
+      if (supplied === 0) continue;
+      resources[name] += supplied;
+      addTo(produced, name, supplied);
+      addTo(line("camp").made, name, supplied);
+    }
+
     const nextUpkeep = this.upkeep;
-    if (nextUpkeep > 0 && !deserted) {
+    if (nextUpkeep > 0 && !warnings.some(warning => warning.startsWith("Food shortage"))) {
       const movesLeft = Math.floor(resources.rations / nextUpkeep);
       // Three moves' notice: enough to build a Royal Kitchen or Ghee House in time.
-      if (movesLeft <= 3) warnings.push(movesLeft === 0 ? "No rations left: soldiers will desert next move." : `Rations last ${movesLeft} more move${movesLeft === 1 ? "" : "s"} at this army size.`);
+      if (movesLeft <= 3) warnings.push(movesLeft === 0 ? "More rations needed for army growth; existing soldiers stay." : `Rations last ${movesLeft} more move${movesLeft === 1 ? "" : "s"} at this army size; shortages pause new training, not existing soldiers.`);
     }
 
     return {

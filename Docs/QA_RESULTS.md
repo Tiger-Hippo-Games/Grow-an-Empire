@@ -1,5 +1,13 @@
 # QA results
 
+## v0.9.1 (2026-10-10): strategic Gather on every turn
+
+Gather is available beside affordable cards on every build-choice turn, including move 1 and the final move. It spends one move, runs existing production/training/upkeep and retains the offered cards. Construction, muster and completed runs reject Gather. The G shortcut uses the same action. Panel headings, tutorial and report continuation now describe building or gathering; keyboard focus still prefers an affordable card, with Gather as the fallback.
+
+Difficulty calibration retains its declared build-first reference policy, so enemy strengths and the Realm field are unchanged. `searchEndings({ gatherPolicy: "every-turn", campaign })` explores optional strategic Gather paths. Tests exhaustively cover an eight-move campaign under that policy, including all-Gather, mixed and all-build endings with no dead ends. The full twelve-move strategic tree is not part of the regular suite.
+
+Validation: TypeScript, ESLint and 210 tests pass. Live isolated-origin checks clicked Gather on move 1 with all three cards affordable, confirmed move 2 with the same stockpile and offers, and used G to advance to move 3. Reload restored move 3 and its Gather report; no browser warnings/errors were captured. The manual-test save was preserved. No save schema or platform integration changes are required. The v0.9.1 ZIP is 15.41 MB and passes the portal bundle validator.
+
 ## v0.9.0 (2026-10-10): popup combat and UX/audio polish
 
 - Fight stays in the army dialog. Formations approach, animate attacks and show casualties for each resolved round; army chips and the strength meter update with exact survivors. Skip and Escape show the result. Militia use existing painted action sprites.

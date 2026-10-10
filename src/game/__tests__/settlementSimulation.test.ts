@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CAMPAIGN_1, CAMPAIGNS } from "../campaigns";
 import { BUILDINGS, CONSTRUCTION_DURATION_SECONDS, OPENING_BUILD_OPTIONS, TOTAL_MOVES } from "../content";
-import { SELLSWORD_COST, STARTING_STOCKPILE, type ResourceName } from "../economy";
+import { MINIMUM_MOVE_STOCKPILE, SELLSWORD_COST, STARTING_STOCKPILE, type ResourceName } from "../economy";
 import { isValidSnapshot, SAVE_SCHEMA_VERSION, SettlementSimulation, type SimulationEvent } from "../settlementSimulation";
 import { playMove, playToEnd, playToMuster } from "./play";
 
@@ -94,15 +94,40 @@ describe("move economy", () => {
     expect(trained.archers + trained.swordsmen).toBeGreaterThan(4);
   });
 
-  it("deserts unfed soldiers", () => {
+  it("retains unfed soldiers and pauses training instead of deserting", () => {
     const sim = new SettlementSimulation();
     for (const id of ["woodcutter", "quarry", "farm", "sawmill", "weapons-workshop"]) build(sim, id);
     sim.state.trainedUnits.archers = 12;
     sim.state.resources.rations = 0;
+    const population = sim.state.population;
     const events = build(sim, "barracks");
-    expect(events.some((event) => event.type === "soldiers-deserted")).toBe(true);
-    expect(sim.state.deserted).toBeGreaterThan(0);
-    expect(sim.state.lastSummary?.warnings.some((text) => /deserted/.test(text))).toBe(true);
+    expect(events.some((event) => event.type === "soldiers-deserted")).toBe(false);
+    expect(sim.state.deserted).toBe(0);
+    expect(sim.state.trainedUnits.archers).toBe(12);
+    expect(sim.state.population).toBeGreaterThanOrEqual(population);
+    expect(sim.state.lastSummary?.trained.archers).toBe(0);
+    expect(sim.state.lastSummary?.warnings.some((text) => /existing soldiers stay/.test(text))).toBe(true);
+  });
+
+  it("restores basic supplies after Gather with no producers and credits the ledger", () => {
+    const sim = new SettlementSimulation();
+    emptyAll(sim);
+    sim.gather();
+    for (const [name, minimum] of Object.entries(MINIMUM_MOVE_STOCKPILE)) expect(sim.state.resources[name as ResourceName]).toBe(minimum);
+    const camp = sim.state.lastSummary?.ledger?.find(entry => entry.source === "camp");
+    expect(camp?.made).toEqual(MINIMUM_MOVE_STOCKPILE);
+    expect(sim.state.lastSummary?.produced).toEqual(MINIMUM_MOVE_STOCKPILE);
+  });
+
+  it("can pay for the Granary after a processor-heavy move", () => {
+    const sim = new SettlementSimulation();
+    for (const id of ["woodcutter", "farm", "quarry", "sawmill"]) build(sim, id);
+    sim.state.resources.wood = 0;
+    sim.state.resources.stone = 0;
+    sim.gather();
+    expect(sim.canAffordBuilding("granary")).toBe(true);
+    expect(sim.state.availableBuildingIds).toContain("granary");
+    expect(sim.chooseBuilding("granary")[0]?.type).toBe("construction-started");
   });
 
   it("spoils grain above the cap without a Granary", () => {
