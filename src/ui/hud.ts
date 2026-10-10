@@ -429,7 +429,7 @@ export function createHud(callbacks: HudCallbacks) {
    * (what it took → what it made, soldiers trained, or why it stood idle),
    * the army's rations, spoilage, then each good from before to after. The
    * cards come after "Choose" (or a key 1–3 / Enter), so the player reads what
-   * the last move did before ordering the next building.
+   * the last move did before choosing the next move.
    */
   function renderReport(view: BuildPanelView, summary: MoveSummary): void {
     const ledger = summary.ledger ?? [];
@@ -473,8 +473,8 @@ export function createHud(callbacks: HudCallbacks) {
     next.type = "button";
     next.className = "report-continue";
     next.dataset.primary = "";
-    next.innerHTML = `${icon("build")}<b>Choose</b><span class="w"> the next building (Enter)</span>`;
-    next.setAttribute("aria-label", `Choose the building for move ${view.move}`);
+    next.innerHTML = `${icon("build")}<b>Choose</b><span class="w"> the next move (Enter)</span>`;
+    next.setAttribute("aria-label", `Choose an action for move ${view.move}`);
     next.addEventListener("click", () => {
       callbacks.onUiSound?.();
       reportReadFor = summary.move;
@@ -814,8 +814,8 @@ export function createHud(callbacks: HudCallbacks) {
     callbacks.onTutorialModalChange(false);
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 1);
     tutorialStep.textContent = "STEP 1 OF 2";
-    tutorialCoachTitle.textContent = "Pick a building";
-    tutorialCoachCopy.innerHTML = `Cost ${icon("wood")} is paid now. It makes ${icon("move")} every move after.`;
+    tutorialCoachTitle.textContent = "Build or gather";
+    tutorialCoachCopy.innerHTML = `Build: pay ${icon("wood")} now; works every move. Gather: existing buildings work; costs 1 move.`;
     tutorialNext.classList.add("hidden");
     tutorialCoach.dataset.step = "choice";
     tutorialCoach.classList.remove("hidden");
