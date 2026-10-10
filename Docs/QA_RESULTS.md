@@ -1,5 +1,11 @@
 # QA results
 
+## v0.10.1 (2026-10-10): release freeze and exception safety
+
+Gather, Fight, build-placement and uncaught runtime failures now pause the run and prevent subsequent actions/autosaves from replacing the last good save. Runtime logs include context and are deduplicated/bounded. Simulation/render failures stop sound and battle playback. Building-art failures remain retryable. Gameplay numbers, save schema and SDK contracts are unchanged.
+
+TypeScript, ESLint and 216 tests pass; the production ZIP passes the bundle validator. Production preview verified Gather, save restoration, muster, popup Fight/Skip/result and registered mock leaderboard score 103, with no captured warnings/errors. `RELEASE_FREEZE.md` records the exact checksum, review findings and remaining real-portal/device/art-rights gates. This is a local release candidate, not portal approval.
+
 ## v0.10.0 (2026-10-10): basic reserves and no economy desertion
 
 Every completed build or Gather move ends with at least 4 wood, 2 stone, 2 grain and 1 ration. Camp supplies top up only shortfalls after processing, training, trade, upkeep and spoilage, and appear in the report ledger. The wood/stone floor covers the Granary's cost once it is offered. These supplies are a reserve, not a fixed bonus added to an already stocked city.

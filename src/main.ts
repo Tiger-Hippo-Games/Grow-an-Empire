@@ -1,4 +1,5 @@
 import { Timer } from "three";
+import { createActionGuard } from "./game/actionGuard";
 import { BUILDINGS, OPENING_BUILD_OPTIONS } from "./game/content";
 import { CAMPAIGNS, campaignById, isCampaignUnlocked, totalStars, type CampaignDefinition } from "./game/campaigns";
 import { missingFor, SettlementSimulation, type SellswordHire, type SettlementSnapshot, type SimulationEvent } from "./game/settlementSimulation";
@@ -116,17 +117,29 @@ function reportRuntimeError(error: unknown, where: string): void {
   const key = `${where}:${message}`;
   if (reportedErrors.has(key) || reportedErrors.size >= 5) return;
   reportedErrors.add(key);
+  console.warn(`[Grow an Empire] ${where} failed`, error);
   track("runtime_error", { where, message });
 }
 
+/** State or view may be partially changed: pause and protect the last good save. */
+function failSimulation(error: unknown, where: string): void {
+  loopFailed = true;
+  playing = false;
+  sound.setPaused(true);
+  reportRuntimeError(error, where);
+  hud.setPlayingLabel(false);
+  hud.setStatus(LOOP_FAILED_MESSAGE, 0);
+}
+const guardAction = createActionGuard(() => initialized && !loopFailed && !renderFailed && !contextLost && !pausedByPortal, failSimulation);
+
 // Errors nobody caught (a bug in an event handler, a rejected promise with no
 // .catch). Before boot, index.html's watchdog shows them on the loading
-// screen; after boot the game keeps running, so they're logged and reported.
+// screen; after boot pause the run and protect its last successful save.
 window.addEventListener("error", (event) => {
-  if (initialized && event.error !== undefined) reportRuntimeError(event.error ?? event.message, "uncaught");
+  if (initialized && event.error !== undefined) failSimulation(event.error ?? event.message, "uncaught");
 });
 window.addEventListener("unhandledrejection", (event) => {
-  if (initialized) reportRuntimeError(event.reason, "unhandled_rejection");
+  if (initialized) failSimulation(event.reason, "unhandled_rejection");
 });
 
 const hud = createHud({
@@ -182,18 +195,15 @@ const hud = createHud({
     beginConstruction(buildingId).catch((error: unknown) => {
       // Not a load failure (those are handled inside): something broke while
       // placing the building. Say so rather than failing silently.
-      console.error("[Grow an Empire] Starting construction failed", error);
-      reportRuntimeError(error, "begin_construction");
-      hud.setStatus("Something went wrong starting that building. Press Restart, or reload to continue from your last save.", 0);
+      failSimulation(error, "begin_construction");
     });
   },
   onSwapBuild: (buildingId) => {
     beginConstruction(buildingId, { swap: true }).catch((error: unknown) => {
-      console.error("[Grow an Empire] Swap and build failed", error);
-      reportRuntimeError(error, "swap_build");
+      failSimulation(error, "swap_build");
     });
   },
-  onGather: () => {
+  onGather: () => guardAction("gather", () => {
     if (simulation.state.mode !== "awaiting-choice") return;
     const move = simulation.state.move;
     const events = simulation.gather();
@@ -201,7 +211,7 @@ const hud = createHud({
     hud.hideBuildPanel();
     track("move_gathered", { level: move, campaign_number: simulation.campaign.number });
     handleSimulationEvents(events);
-  },
+  }),
   onMuteToggle: () => {
     settings = { ...settings, muted: !settings.muted };
     sound.setMuted(settings.muted === true);
@@ -263,7 +273,7 @@ const flow = createCampaignFlow(document.getElementById("app")!, {
   },
   onSound: (name) => { sound.play(name); requestRender(); },
   onModalChange: (open) => setModalPause(open),
-  isPlaybackPaused: () => pausedByPortal || contextLost,
+  isPlaybackPaused: () => pausedByPortal || contextLost || loopFailed || renderFailed,
   onUxEvent: (name, properties) => {
     track(name, { ...properties, layout: (window as { __gaeLayout?: string }).__gaeLayout ?? "unknown" });
   },
@@ -391,9 +401,11 @@ function openMuster(): void {
 
 /** "Fight" at the muster: hires the sellswords and resolves the battle. */
 function fight(hire: SellswordHire): void {
-  const events = simulation.muster(hire);
-  if (events.length === 0) return;
-  handleSimulationEvents(events);
+  guardAction("fight", () => {
+    const events = simulation.muster(hire);
+    if (events.length === 0) return;
+    handleSimulationEvents(events);
+  });
 }
 
 /**
@@ -547,6 +559,7 @@ function autosave(options: { immediate?: boolean } = {}): void {
  * the player sees a message and can pick again.
  */
 async function beginConstruction(buildingId: string, options: { swap?: boolean } = {}): Promise<void> {
+  if (!initialized || loopFailed || renderFailed || contextLost || pausedByPortal) return;
   if (selectionPending || simulation.state.mode !== "awaiting-choice" || !simulation.state.availableBuildingIds.includes(buildingId)) return;
   const name = BUILDINGS[buildingId]?.name ?? buildingId;
   const startedInRun = runId;
@@ -558,7 +571,7 @@ async function beginConstruction(buildingId: string, options: { swap?: boolean }
     try {
       await constructionView.ensureBuildingAssetsLoaded(buildingId);
     } catch (error) {
-      console.error(error);
+      reportRuntimeError(error, "building_art");
       if (startedInRun === runId) hud.setStatus(`Couldn't load the ${name} artwork. Check your connection and choose again.`, 0);
       return;
     } finally {
@@ -566,7 +579,7 @@ async function beginConstruction(buildingId: string, options: { swap?: boolean }
       hud.setBuildPanelBusy(false);
     }
     // The player restarted, or the state changed, while we were loading.
-    if (startedInRun !== runId || simulation.state.mode !== "awaiting-choice") return;
+    if (startedInRun !== runId || loopFailed || renderFailed || contextLost || pausedByPortal || simulation.state.mode !== "awaiting-choice") return;
   }
 
   const events = options.swap ? simulation.swapAndBuild(buildingId) : simulation.chooseBuilding(buildingId);
@@ -697,6 +710,7 @@ function resetSettlement(): void {
   runId += 1;
   selectionPending = false;
   loopFailed = false;
+  sound.setPaused(pausedByPortal);
   simulation.reset();
   constructionView.clearPlots();
   cityLayout.hideAllRoads();
@@ -1102,12 +1116,7 @@ renderer.setAnimationLoop(() => {
   } catch (error) {
     // Pause instead of throwing again every frame. The last autosave (taken at
     // the last event) is intact, so Restart or a reload recovers.
-    loopFailed = true;
-    playing = false;
-    hud.setPlayingLabel(false);
-    hud.setStatus(LOOP_FAILED_MESSAGE, 0);
-    console.error(error);
-    reportRuntimeError(error, "frame");
+    failSimulation(error, "frame");
   }
   // Draw only while the scene can change: the game is playing, or something
   // asked for a redraw (MOBILE_PERFORMANCE §48: stop work when paused).
@@ -1127,7 +1136,7 @@ renderer.setAnimationLoop(() => {
     playing = false;
     hud.setPlayingLabel(false);
     hud.setStatus("The graphics failed to draw. Reload to continue from your last save.", 0);
-    console.warn("[Grow an Empire] Graphics or battle animation failed; rendering stopped.", error);
+    sound.setPaused(true);
     reportRuntimeError(error, "render");
   }
 });
@@ -1158,7 +1167,10 @@ function createPerfOverlay(): { sample(): void } | null {
 }
 
 initialize().catch((error: unknown) => {
-  console.error(error);
+  initialized = false;
+  playing = false;
+  sound.setPaused(true);
+  reportRuntimeError(error, "initialize");
   const message = error instanceof Error ? error.message : String(error);
   track("load_error", { message: message.slice(0, 200) });
   hud.showLoadError(message);

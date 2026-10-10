@@ -1,5 +1,7 @@
 # Submission checklist — SDK 1.5.0
 
+Frozen candidate: **v0.10.1**. Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
+
 Follow `common/GOLIVE_DEVELOPER_REFERENCE.md`. It supersedes conflicting integration details in the older portal documents. This checklist separates checks verified locally from the Developer Console steps still required. Game slug: `grow-an-empire`.
 
 ## Code and bundle

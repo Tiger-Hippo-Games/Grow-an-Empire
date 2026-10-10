@@ -22,7 +22,7 @@ Categories (ART_PIPELINE §41): Human-created · AI-generated · Licensed asset 
 ## Names and IP
 
 - "Grow an Empire", "The Ashfang Raiders" and the building names are original to this project. **TODO:** confirm neither name copies an existing game or brand (SUBMISSION_GUIDE §14, "Misleading content").
-- No third-party characters, logos or music are used. The game ships with no audio.
+- No third-party characters, logos or music are used. Sound effects are synthesized by the game's Web Audio code (`src/ui/sound.ts`); no recorded audio or music files are shipped.
 
 ## If the art is AI-generated
 
