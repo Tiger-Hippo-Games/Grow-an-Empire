@@ -38,6 +38,7 @@ export interface HudCallbacks {
   onTutorialFinished(result: { skipped: boolean; stepCount: number; seconds: number }): void;
   /** UX analytics for portal-user testing (Docs/PLAYTEST_PORTAL.md). */
   onUxEvent?(name: string, properties: Record<string, unknown>): void;
+  onUiSound?(): void;
 }
 
 /** One offered card, as the build panel shows it. */
@@ -475,10 +476,11 @@ export function createHud(callbacks: HudCallbacks) {
     next.innerHTML = `${icon("build")}<b>Choose</b><span class="w"> the next building (Enter)</span>`;
     next.setAttribute("aria-label", `Choose the building for move ${view.move}`);
     next.addEventListener("click", () => {
+      callbacks.onUiSound?.();
       reportReadFor = summary.move;
       ux("ux_report_read", { move: summary.move, seconds: Math.round((performance.now() - choiceShownAt) / 100) / 10 });
       renderBuildPanel(view);
-      buildOptions.querySelector<HTMLButtonElement>(".build-card.affordable, .build-card.swappable")?.focus({ preventScroll: true });
+      (buildFoot.querySelector<HTMLButtonElement>(".gather-button") ?? buildOptions.querySelector<HTMLButtonElement>(".build-card.affordable, .build-card.swappable"))?.focus({ preventScroll: true });
     });
     buildFoot.appendChild(next);
     buildPanel.classList.add("reporting");

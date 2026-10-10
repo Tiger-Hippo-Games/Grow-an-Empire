@@ -1,4 +1,4 @@
-import { enemyStrength, playerStrength, resolveBattle, type EnemyArmy, type PlayerArmy, type StarMargins } from "../game/battle";
+import { enemyStrength, playerStrength, resolveBattle, type ArmyCounts, type EnemyArmy, type PlayerArmy, type StarMargins } from "../game/battle";
 import { CAMPAIGNS, CHAPTERS, type CampaignDefinition } from "../game/campaigns";
 import { SELLSWORD_COST } from "../game/economy";
 import type { ArmyReport, SellswordHire } from "../game/settlementSimulation";
@@ -158,6 +158,8 @@ export interface FlowCallbacks {
   onViewCity(): void;
   onSound(name: "click" | "hit" | "victory" | "defeat" | "coins" | "conch"): void;
   onModalChange(open: boolean): void;
+  /** Portal pause and graphics loss must not advance unseen battle rounds. */
+  isPlaybackPaused?(): boolean;
   /** UX analytics (Docs/PLAYTEST_PORTAL.md): Details opened, the clarity vote. */
   onUxEvent?(name: string, properties: Record<string, unknown>): void;
 }
@@ -184,12 +186,14 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     root.classList.toggle("fighting", kind === "battle");
     dialog.classList.remove("show-extra");
     dialog.innerHTML = html;
+    dialog.scrollTop = 0;
     scrim.classList.remove("hidden");
     if (!open) { open = true; callbacks.onModalChange(true); }
-    dialog.querySelector<HTMLButtonElement>("[data-primary]")?.focus();
+    dialog.querySelector<HTMLButtonElement>("[data-primary]")?.focus({ preventScroll: true });
     dialog.querySelector<HTMLButtonElement>("[data-action=more]")?.addEventListener("click", (event) => {
       const button = event.currentTarget as HTMLButtonElement;
       const showing = dialog.classList.toggle("show-extra");
+      callbacks.onSound("click");
       if (showing) callbacks.onUxEvent?.("ux_details_opened", { dialog: kind });
       button.setAttribute("aria-expanded", String(showing));
       button.setAttribute("aria-label", showing ? "Less" : "Details");
@@ -313,7 +317,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     const strip = dialog.querySelector<HTMLElement>("[data-strip]")!;
     callbacks.onSound("conch");
     const finish = (): void => showResult(result);
-    const updateArmies = (ours: PlayerArmy, theirs: typeof report.enemy): void => {
+    const updateArmies = (ours: PlayerArmy, theirs: ArmyCounts): void => {
       dialog.querySelector("[data-ours]")!.innerHTML = armyChips(ours, false);
       dialog.querySelector("[data-enemy]")!.innerHTML = armyChips(theirs, true);
       const mine = playerStrength(ours, theirs);
@@ -329,8 +333,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       { title: "Your army", start: { archers: report.units.archers, swordsmen: report.units.swordsmen, horsemen: report.units.horsemen, militia: report.units.militia } },
       { title: campaign.objective.enemyName, start: { archers: report.enemy.archers, swordsmen: report.enemy.swordsmen, horsemen: report.enemy.horsemen, militia: 0 } },
       report.rounds,
-      { onRound: (_index, round) => { updateArmies(round.player, round.enemy); callbacks.onSound("hit"); }, onDone: finish });
-    dialog.querySelector("[data-action=skip]")!.addEventListener("click", finish);
+      { onRound: (_index, round) => { updateArmies(round.player, round.enemy); callbacks.onSound("hit"); }, onDone: finish, isPaused: callbacks.isPlaybackPaused });
+    dialog.querySelector("[data-action=skip]")!.addEventListener("click", () => { callbacks.onSound("click"); finish(); });
   }
 
   /** 4. The result popup. */

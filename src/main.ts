@@ -156,8 +156,11 @@ const hud = createHud({
     track("game_start", { resumed: false, restart: true });
   },
   onSpeedChange: (value) => {
+    if (![1, 2, 4, 8].includes(value) || value === speed) return;
     speed = value;
     hud.setSpeedLabel(value);
+    sound.play("click");
+    requestRender();
     track("settings_changed", { setting: "speed", value });
   },
   onGridToggle: (visible) => {
@@ -167,6 +170,7 @@ const hud = createHud({
   },
   onTutorialStarted: () => track("tutorial_started", { replay: settings.tutorialComplete }),
   onUxEvent: (name, properties) => track(name, { ...properties, campaign_number: simulation.campaign.number, layout: (window as { __gaeLayout?: string }).__gaeLayout ?? "unknown" }),
+  onUiSound: () => sound.play("click"),
   onTutorialFinished: ({ skipped, stepCount, seconds }) => {
     const firstTime = !settings.tutorialComplete;
     settings = { ...settings, tutorialComplete: true };
@@ -258,6 +262,7 @@ const flow = createCampaignFlow(document.getElementById("app")!, {
   },
   onSound: (name) => { sound.play(name); requestRender(); },
   onModalChange: (open) => setModalPause(open),
+  isPlaybackPaused: () => pausedByPortal || contextLost,
   onUxEvent: (name, properties) => {
     track(name, { ...properties, layout: (window as { __gaeLayout?: string }).__gaeLayout ?? "unknown" });
   },
@@ -611,6 +616,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       sound.play("complete");
       hud.showBuiltMilestone(event.buildingId, animationElapsed);
     } else if (event.type === "gathered") {
+      sound.play("gather");
       hud.showMilestone("Gathering", "Nothing built; every building worked.", animationElapsed);
     } else if (event.type === "civic-upgraded") {
       civicCenter.setLevel(event.level);
@@ -829,8 +835,10 @@ listenForPortalMessages((message) => {
     if (playing || modalCount > 0) pausedByPortal = true;
     playing = false;
     hud.setPlayingLabel(false);
+    sound.setPaused(true);
   } else if (message === "GP_RESUME" && pausedByPortal) {
     pausedByPortal = false;
+    sound.setPaused(false);
     // With a dialog or the map open, play resumes when the player closes it.
     if (modalCount > 0) resumeAfterTutorial = true;
     else if (!campaignMap.isOpen) {

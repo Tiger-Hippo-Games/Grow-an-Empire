@@ -52,7 +52,7 @@ function formation(side: BattleSide, enemy: boolean) {
  * game state. Hidden tabs pause playback; large armies use bounded sprites
  * while head counts and casualties remain exact.
  */
-export function playBattle(container: HTMLElement, player: BattleSide, enemy: BattleSide, rounds: BattleRound[], callbacks: { onRound?(index: number, round: BattleRound): void; onDone(): void }): () => void {
+export function playBattle(container: HTMLElement, player: BattleSide, enemy: BattleSide, rounds: BattleRound[], callbacks: { onRound?(index: number, round: BattleRound): void; onDone(): void; isPaused?(): boolean }): () => void {
   container.replaceChildren();
   const arena = document.createElement("div");
   arena.className = "popup-battlefield approaching";
@@ -84,8 +84,11 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
     if (stopped) return;
     const delta = Math.min(100, Math.max(0, now - previous));
     previous = now;
-    if (document.visibilityState !== "hidden") elapsed += delta;
+    let finished = false;
     try {
+      const paused = document.visibilityState === "hidden" || callbacks.isPaused?.() === true;
+      arena.classList.toggle("playback-paused", paused);
+      if (!paused) elapsed += delta;
       if (elapsed >= approach && !arena.classList.contains("engaged")) {
         arena.classList.remove("approaching");
         arena.classList.add("engaged");
@@ -111,9 +114,7 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
         shown++;
       }
       if (elapsed >= approach + step * rounds.length + (reduced ? 120 : 800)) {
-        stop();
-        callbacks.onDone();
-        return;
+        finished = true;
       }
     } catch (error) {
       stop();
@@ -121,6 +122,7 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
       callbacks.onDone();
       return;
     }
+    if (finished) { stop(); callbacks.onDone(); return; }
     frame = requestAnimationFrame(tick);
   }
   frame = requestAnimationFrame(tick);
