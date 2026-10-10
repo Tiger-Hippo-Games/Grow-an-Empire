@@ -30,13 +30,13 @@ describe("rules polish", () => {
     expect(report.gap).toMatch(/archer/);
   });
 
-  it("warns about rations three moves ahead", () => {
+  it("explains that low food slows army growth without threatening desertion", () => {
     const sim = new SettlementSimulation();
     Object.assign(sim.state, { move: 2, builtBuildingIds: ["woodcutter"], availableBuildingIds: ["farm"], trainedUnits: { archers: 4, swordsmen: 0, horsemen: 0 },
       resources: { ...sim.state.resources, wood: 20, rations: 4 } });
     sim.chooseBuilding("farm");
     sim.update(60);
     expect(sim.state.resources.rations).toBe(3);
-    expect(sim.state.lastSummary?.warnings.join(" ")).toMatch(/Rations last 3 more moves/);
+    expect(sim.state.lastSummary?.warnings.join(" ")).toMatch(/improves army growth.*Existing soldiers stay/);
   });
 });

@@ -6,7 +6,7 @@ import { bestMargin } from "../balance";
 
 /**
  * Plays every reachable 12-move game under the reference build-first policy
- * endings, a few seconds) and checks the difficulty plan: in every chapter
+ * and checks the difficulty plan: in every chapter
  * easy → medium ×3 → hard, each chapter harder than the last, Campaign 1
  * always winnable and Campaign 25 about 5%.
  * If this fails after a rules change, rerun Tools/balance/calibrate.ts.

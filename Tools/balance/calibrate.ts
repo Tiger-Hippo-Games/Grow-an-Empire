@@ -4,7 +4,7 @@
  * (`targetWinShare`: within each five-campaign chapter easy → medium ×3 →
  * hard, each chapter harder than the last) and the enemy mix in `ENEMY_MIX`
  * (swordsmen S, archers A, horsemen H, in combinations). For each campaign it
- * tries the mix in even and 2:1 proportions and veterancy 1.0–1.2, never
+ * tries the mix in even and 2:1 proportions and veterancy 1.0–1.2 in 0.02 steps, never
  * repeating an army, and keeps the one whose share of winning build orders
  * is closest to the target. Star margins come from how far the winners win
  * by (2 stars ≈ the better half of winners, 3 stars ≈ the top 15%, capped at
@@ -13,12 +13,28 @@
  *
  *   npx tsx Tools/balance/calibrate.ts
  */
-import { bestMargin, searchEndings, winShare } from "../../src/game/balance";
+import { bestMargin, searchEndings } from "../../src/game/balance";
+import { SELLSWORD_COST } from "../../src/game/economy";
 import type { EnemyArmy } from "../../src/game/battle";
 import { ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
 
 {
   const { endings } = searchEndings();
+  // Equivalent armies and hiring budgets have identical margins. Keep their
+  // original multiplicities, so grouping speeds the search without reweighting it.
+  const keyOf = (ending: (typeof endings)[number]): string => [ending.archers, ending.swordsmen, ending.horsemen, ending.militia, ending.market, ending.market ? Math.floor(ending.gold / SELLSWORD_COST) : 0].join("/");
+  const weighted = new Map<string, { ending: (typeof endings)[number]; count: number }>();
+  for (const ending of endings) {
+    const key = keyOf(ending);
+    const group = weighted.get(key);
+    if (group) group.count++;
+    else weighted.set(key, { ending, count: 1 });
+  }
+  const shareAgainst = (enemy: EnemyArmy): number => {
+    let wins = 0;
+    for (const { ending, count } of weighted.values()) if (bestMargin(ending, enemy) > 0) wins += count;
+    return wins / endings.length;
+  };
   const used = new Set<string>();
   ENEMY_MIX.forEach((mix, index) => {
     const number = index + 1;
@@ -27,7 +43,7 @@ import { ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
     const weights = [base, ...(["S", "A", "H"] as const).filter((k) => base[k] && mix.length > 1).map((k) => ({ ...base, [k]: 2 }))];
     let best: { d: number; enemy: EnemyArmy; share: number; key: string } | null = null;
     weights.forEach((w, uneven) => {
-      for (const veterancy of [1, 1.1, 1.2]) {
+      for (const veterancy of Array.from({ length: 11 }, (_, step) => +(1 + step * 0.02).toFixed(2))) {
         for (let n = 1; n <= (number === 1 ? 1 : 80); n += 1) {
           const total = w.S + w.A + w.H;
           let swordsmen = Math.round((n * w.S) / total);
@@ -37,7 +53,7 @@ import { ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
           if (archers < 0) continue;
           const enemy: EnemyArmy = { swordsmen, archers, horsemen, veterancy };
           const key = `${swordsmen}/${archers}/${horsemen}`;
-          const share = winShare(endings, enemy);
+          const share = shareAgainst(enemy);
           const d = Math.abs(share - target) + (veterancy - 1) * 0.02 + (uneven ? 0.004 : 0);
           if (!used.has(key) && (!best || d < best.d)) best = { d, enemy, share, key };
           if (share < target - 0.1) break;
@@ -46,7 +62,8 @@ import { ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
     });
     const { enemy, share, key } = best!;
     used.add(key);
-    const all = endings.map((e) => bestMargin(e, enemy));
+    const groupedMargins = new Map([...weighted].map(([key, { ending }]) => [key, bestMargin(ending, enemy)]));
+    const all = endings.map(ending => groupedMargins.get(keyOf(ending))!);
     const margins = all.filter((m) => m > 0).sort((a, b) => a - b);
     const quantile = (p: number) => margins[Math.min(margins.length - 1, Math.floor(p * margins.length))] ?? 0;
     const two = Math.min(0.5, Math.max(0.05, Math.floor((quantile(0.5) * 100) / 5) * 5 / 100));

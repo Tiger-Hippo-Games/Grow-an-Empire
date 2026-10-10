@@ -1,5 +1,15 @@
 # QA results
 
+## v0.10.0 (2026-10-10): basic reserves and no economy desertion
+
+Every completed build or Gather move ends with at least 4 wood, 2 stone, 2 grain and 1 ration. Camp supplies top up only shortfalls after processing, training, trade, upkeep and spoilage, and appear in the report ledger. The wood/stone floor covers the Granary's cost once it is offered. These supplies are a reserve, not a fixed bonus added to an already stocked city.
+
+Existing soldiers never desert for lack of food. Recruitment requires enough rations to feed the resulting army; insufficient food stalls training without spending its materials. Existing soldiers consume available rations and stay. Population never decreases during an economy move. Historical desertion fields remain readable for old saves; new moves record zero desertion. Battle casualties remain part of combat.
+
+Validation includes basic reserves and nondecreasing population/army on every move across all 25 campaigns, Granary affordability after a processor-heavy move, training pause/resume with food, ledger accounting and the unchanged v4 save fixture. Live testing resumed an isolated saved city: wood stayed at 4, rations at 1, the report credited Camp supplies, the Bow Hall paused for food, and all five existing archers reached the muster. No browser warnings/errors were captured. The user's manual-test save was preserved. Older depleted runs receive the reserve after their next completed move, including Gather.
+
+Final validation: TypeScript, ESLint and all 214 tests pass. Campaign armies, star margins and the Realm field are recalibrated against the declared build-first reference policy; finer veterancy steps keep every campaign within its target tolerance. The v0.10.0 ZIP is 15.41 MB and passes the portal bundle validator. Real portal Sandbox Preview, real phones/Safari and physical-speaker checks remain outstanding.
+
 ## v0.9.1 (2026-10-10): strategic Gather on every turn
 
 Gather is available beside affordable cards on every build-choice turn, including move 1 and the final move. It spends one move, runs existing production/training/upkeep and retains the offered cards. Construction, muster and completed runs reject Gather. The G shortcut uses the same action. Panel headings, tutorial and report continuation now describe building or gathering; keyboard focus still prefers an affordable card, with Gather as the fallback.

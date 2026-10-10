@@ -642,9 +642,7 @@ export class SettlementSimulation {
 
     const nextUpkeep = this.upkeep;
     if (nextUpkeep > 0 && !warnings.some(warning => warning.startsWith("Food shortage"))) {
-      const movesLeft = Math.floor(resources.rations / nextUpkeep);
-      // Three moves' notice: enough to build a Royal Kitchen or Ghee House in time.
-      if (movesLeft <= 3) warnings.push(movesLeft === 0 ? "More rations needed for army growth; existing soldiers stay." : `Rations last ${movesLeft} more move${movesLeft === 1 ? "" : "s"} at this army size; shortages pause new training, not existing soldiers.`);
+      if (resources.rations <= nextUpkeep * 3) warnings.push("Low food reserves: a Royal Kitchen or Ghee House improves army growth. Existing soldiers stay.");
     }
 
     return {
