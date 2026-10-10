@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { assetUrl } from "./assetCatalog";
+import { recordImageFailed, recordImageLoaded, recordImageRequested } from "../platform/assetHealth";
 
 /**
  * Texture loading and sprite helpers shared by every render module.
@@ -56,6 +57,7 @@ export function configureTexture(texture: THREE.Texture): THREE.Texture {
 export async function loadTexture(filename: string): Promise<THREE.Texture> {
   const url = assetUrl(filename);
   imagesRequested += 1;
+  recordImageRequested();
   notifyProgress();
   // A stalled request (flaky mobile data, a hung HTTP/2 stream) may never fire
   // `error`. Without a limit, whatever awaits it waits forever: a clicked card
@@ -77,10 +79,12 @@ export async function loadTexture(filename: string): Promise<THREE.Texture> {
       texture.dispose();
       throw new Error("image decoded with no size");
     }
+    recordImageLoaded();
     return configureTexture(texture);
   } catch (cause) {
     // If the image turns up after the timeout, nobody holds it: free it.
     loading.then((late) => late.dispose(), () => undefined);
+    recordImageFailed(filename, cause instanceof Error ? cause.message : "network or decode error");
     throw new Error(`Failed to load image "${filename}"`, { cause });
   } finally {
     clearTimeout(timer);

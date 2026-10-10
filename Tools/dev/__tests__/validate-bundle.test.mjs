@@ -38,6 +38,10 @@ describe("SDK 1.5.0 submission bundle rules", () => {
     expect(validate(validHtml, ["../escape.js"])).toContain("Unsafe paths: ../escape.js");
     expect(validate(validHtml, [], "window.top.location.href='https://example.com';")).toContain("Iframe escape navigation in: game.js");
   });
+  it("rejects code that loads art missing from the ZIP", () => {
+    expect(validate(validHtml, ["assets/farm-AbC123.webp"], 'new URL("assets/farm-AbC123.webp", import.meta.url)')).toEqual([]);
+    expect(validate(validHtml, [], 'new URL("assets/farm-AbC123.webp", import.meta.url)')).toContain("Assets referenced but missing from the ZIP: assets/farm-AbC123.webp");
+  });
   it("rejects a viewport that permits unwanted mobile zoom", () => {
     expect(validate(validHtml.replace(", maximum-scale=1.0, user-scalable=no", ""))).toContain("Viewport prevents unwanted mobile zooming");
   });

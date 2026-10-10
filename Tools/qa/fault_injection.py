@@ -11,7 +11,7 @@ Needs the production build served on http://127.0.0.1:4174 (`pnpm build`, then `
 import json, pathlib, sys, time
 from playwright.sync_api import sync_playwright
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from flow import enter, fight, play_to_muster  # noqa: E402
+from flow import enter, fight, play_to_muster, speed8  # noqa: E402
 
 URL = "http://127.0.0.1:4174/"
 SAVE_KEY = "grow-an-empire:save:v1"
@@ -100,7 +100,9 @@ def broken_card_art(browser):
             route.abort()
         else:
             route.continue_()
-    ctx, page, errors = open_game(browser, routes=[("**/assets/quarry-construction-*", maybe_abort)])
+    # The portal SDK is stubbed so the scenario doesn't depend on reaching the portal's host.
+    sdk_stub = ("**/sdk/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body="/* offline */"))
+    ctx, page, errors = open_game(browser, routes=[("**/assets/quarry-construction-*", maybe_abort), sdk_stub])
     booted(page)
     enter(page)
     page.wait_for_timeout(1500)
@@ -253,7 +255,7 @@ def other_players_save(browser):
     ctx, page, errors = open_game(browser, sdk_js=fake_sdk(player_id="alice"))
     booted(page)
     enter(page)
-    for _ in range(3): page.keyboard.press("s")  # the control bar hides while a choice is open; S is its shortcut
+    speed8(page)  # the control bar hides while a choice is open; S is its shortcut
     page.click("#build-options button:has-text('Farm')")
     page.wait_for_function("document.querySelector('#move').innerText.startsWith('2 /')", timeout=30000)
     page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
@@ -302,8 +304,7 @@ def combat_art_fails(browser):
     ctx, page, errors = open_game(browser, routes=[("**/assets/*-combat-*", lambda route: route.abort())])
     booted(page)
     enter(page)
-    for _ in range(3):
-        page.keyboard.press("s")
+    speed8(page)
     play_to_muster(page, timeout=60000)
     result = fight(page)
     ctx.close()

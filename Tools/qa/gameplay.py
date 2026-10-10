@@ -9,7 +9,7 @@ OUT.mkdir(exist_ok=True)
 sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
 import json, time
 from playwright.sync_api import sync_playwright
-from flow import enter, fight, past_report, play_move, play_to_muster  # noqa: E402
+from flow import enter, fight, past_report, play_move, play_to_muster, speed8  # noqa: E402
 
 URL = "http://127.0.0.1:4173/"
 KEY = "grow-an-empire:save:v1"
@@ -33,7 +33,7 @@ def saved(page):
     return json.loads(raw) if raw else None
 
 def set_speed8(page):
-    for _ in range(3): page.keyboard.press("s")  # the control bar hides while a choice is open; S is its shortcut
+    speed8(page)  # the control bar hides while a choice is open; S is its shortcut
 
 def wait_move(page, n, t=20000):
     page.wait_for_function(f"document.querySelector('#move').textContent.startsWith('{n} ')", timeout=t)
@@ -73,24 +73,24 @@ with sync_playwright() as p:
     # 3. Art failure on pick: choice not committed (and not paid for), message shown, retry works.
     ctx, page, errs, perrs = new(b)
     block = {"on": True}
-    page.route("**/*swine-farm*", lambda r: r.abort() if block["on"] and "import" not in r.request.url else r.continue_())
+    page.route("**/*granary*", lambda r: r.abort() if block["on"] and "import" not in r.request.url else r.continue_())
     page.goto(URL + "?reset"); loaded(page); enter(page)
     set_speed8(page)
     page.click(".build-card >> text=Farm"); wait_move(page, 2); time.sleep(0.3)
     page.wait_for_selector("#build-panel:not(.hidden) .build-card, #build-panel:not(.hidden) .report-continue", timeout=30000)
     past_report(page)
     wood_before = saved(page)["state"]["resources"]["wood"]
-    page.click(".build-card >> text=Goshala"); time.sleep(1.0)
+    page.click(".build-card >> text=Granary"); time.sleep(1.0)
     panel_hidden = page.evaluate("document.querySelector('#build-panel').classList.contains('hidden')")
     state1 = saved(page)["state"]
     block["on"] = False
-    page.click(".build-card >> text=Goshala"); time.sleep(1.0)
+    page.click(".build-card >> text=Granary"); time.sleep(1.0)
     state2 = saved(page)["state"]
     R["3_art_failure_retry"] = {"panel_hidden_after_fail": panel_hidden, "status_after_fail": page.inner_text("#phase"),
         "mode_after_fail": state1["mode"], "wood_kept": state1["resources"]["wood"] == wood_before,
         "selected_after_retry": state2["selectedBuildingId"], "pageerrors": perrs,
         "pass": (not panel_hidden) and state1["mode"] == "awaiting-choice" and state1["resources"]["wood"] == wood_before
-            and state2["selectedBuildingId"] == "swine-farm" and not perrs}
+            and state2["selectedBuildingId"] == "granary" and not perrs}
     ctx.close()
 
     # 4. A full campaign at 8x: tutorial on a fresh start, keyboard pick, reload mid-game and at the muster,

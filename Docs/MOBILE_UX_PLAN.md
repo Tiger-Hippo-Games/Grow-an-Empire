@@ -27,27 +27,30 @@ On a phone the game asked players to read rules instead of letting them see them
 |---|---|
 | Icon drawings (41, inline SVG), painted-icon slots, `icon()`, `amount()`, `iconWord()` | `src/ui/icons.ts` |
 | A building's effect as icons ("+5 [wood] /move") | `src/ui/cardEffect.ts` (same numbers as `benefitText()` in `content.ts`) |
-| Cards, stock strip, move summary, toasts, tutorial | `src/ui/hud.ts` |
-| Briefing, muster, result, Details fold | `src/ui/campaignFlow.ts` |
+| Cards, stock strip, move summary, move report (`renderReport`), Gather, speed slider, toasts, tutorial | `src/ui/hud.ts` |
+| Briefing, muster, popup battle screen, result, Details fold | `src/ui/campaignFlow.ts` |
+| The battle animation in the popup | `src/render/popupBattle.ts` |
 | Map card | `src/ui/campaignMap.ts` |
+| Realm board | `src/ui/realmBoard.ts` |
 | Styles | end of `src/styles.css` ("Icons (v0.3.0)") |
 
 ## Word budgets (phone, per screen)
 
 Enforced by `python Tools/qa/text_budget.py` in portrait and landscape. Words are letters-only tokens a player can see; while a dialog or the map is open, only its words count; folded text doesn't count until opened. The first map, briefing and tutorial are counted while learning; the rest after the tutorial is skipped (icons only).
 
-| Screen | v0.2.4 | v0.3.0 | v0.4.0 | Budget |
-|---|---|---|---|---|
-| Campaign map (first visit) | 51 | 28 | 28 | 30 |
-| Enemy briefing (first) | 54 | 14 | 14 | 24 |
-| Tutorial | 85 | 35 | 35 | 38 |
-| First choice | 64 | 17 | 7 | 14 |
-| Later choice (move 6) | 73 | 23 | 14 | 20 |
-| Muster | 44 | 26 | 9 | 14 |
-| Battle | 18 | 18 | 10 | 14 |
-| Result | 60 | 25 | 14 | 22 |
-| Campaign map (after) | — | — | 14 | 16 |
-| Enemy briefing (after) | — | — | 7 | 12 |
+| Screen | v0.2.4 | v0.3.0 | v0.4.0 | v0.10.2 | Budget |
+|---|---|---|---|---|---|
+| Campaign map (first visit) | 51 | 28 | 28 | 28 | 30 |
+| Enemy briefing (first) | 54 | 14 | 14 | 15 | 24 |
+| Tutorial | 85 | 35 | 35 | 36 | 38 |
+| First choice | 64 | 17 | 7 | 8 | 14 |
+| Move report (after the tutorial) | — | — | — | 1 | 12 |
+| Later choice (move 6) | 73 | 23 | 14 | 9 | 20 |
+| Muster | 44 | 26 | 9 | 7 | 14 |
+| Battle | 18 | 18 | 10 | 9 | 14 |
+| Result | 60 | 25 | 14 | 14 | 22 |
+| Campaign map (after) | — | — | 14 | 14 | 16 |
+| Enemy briefing (after) | — | — | 7 | 10 | 12 |
 
 Adding text to a screen? Check it against its budget, or put it behind "i" / "Details".
 

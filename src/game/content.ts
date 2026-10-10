@@ -14,9 +14,13 @@ import {
 
 export { RESOURCE_LABELS, type ResourceName } from "./economy";
 
-/** Number of building decisions in one campaign run. Every campaign uses the same 12 moves. */
+/** Moves in a campaign that doesn't set its own (`CampaignSeed.moves`). Read `campaign.moveLimit`, never assume 12. */
 export const TOTAL_MOVES = 12;
-/** Longest campaign; kept separate from TOTAL_MOVES so a longer one only needs this changed. */
+/**
+ * Longest campaign. Campaigns may set 8–12 moves; longer ones are clamped.
+ * Raising it needs more `CIVIC_LEVEL_NAMES` (one per level), civic-centre art
+ * for the new levels and an offer-path test at the new length.
+ */
 export const MAX_CAMPAIGN_MOVES = 12;
 /** One civic level per completed move, plus the founding campsite. */
 export const TOTAL_SETTLEMENT_LEVELS = MAX_CAMPAIGN_MOVES + 1;
@@ -156,7 +160,7 @@ export function isKnownBuildingId(id: unknown): id is string {
 /**
  * Base population at a civic level: 1, 2, 4, 7, 11, … for levels 0–12
  * (one founder plus the triangular number of the level). A House adds a bonus on top;
- * see `SettlementSimulation.update()`.
+ * see `resolveMoveEconomy` in settlementSimulation.ts.
  */
 export function populationForLevel(level: number): number {
   return 1 + (level * (level + 1)) / 2;

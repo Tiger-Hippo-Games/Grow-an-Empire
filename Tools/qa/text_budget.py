@@ -90,8 +90,7 @@ def run(width, height):
         check("tutorial")
         page.click("#tutorial-skip")
         check("first-choice")
-        for _ in range(3):
-            page.keyboard.press("s")
+        flow.speed8(page)
         for _ in range(5):
             flow.play_move(page)
             page.wait_for_selector(flow.CHOICE, timeout=60000)

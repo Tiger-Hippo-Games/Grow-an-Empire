@@ -15,6 +15,8 @@ All through `Platform.track` with `game_version`, `campaign_number` and `layout`
 | `ux_report_read` | The move report is closed with Choose | `move`, `seconds` it was open |
 | `ux_clarity_vote` | The one-time "Easy to follow?" on the first result | `vote` (`up` or `down`), `won`, `stars` |
 | `tutorial_completed` / `tutorial_skipped` | Already sent since v0.2 | `step_count`, `time_seconds` |
+| `asset_problem` | Once per problem per visit (0.10.2): an image failed (texture loader or an `<img>`), the display font fell back, or the sound engine is unavailable | `kind` (`image`, `font`, `audio`), `file` (images), `detail` |
+| `runtime_error` | An error the game caught (at most 5 per visit). `where` ending `_external` means it came from outside the game (the SDK, the browser) and play went on | `where`, `message` |
 
 What to look at, per release, phones (`layout = fluid`) against desktop:
 

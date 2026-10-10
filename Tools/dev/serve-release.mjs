@@ -4,8 +4,9 @@
 //   node Tools/dev/serve-release.mjs <unpacked-zip-folder> [--lan] [--port 4175] [--no-open]
 //
 // - The game is served at /api/v1/games/grow-an-empire/play/index.html (the portal path).
-// - /sdk/platform-sdk.js is a local stand-in SDK: guest login, and a "cloud"
-//   save kept in this browser's localStorage, so closing and reopening restores the run.
+// - /sdk/platform-sdk.js is a local stand-in SDK: guest login (as on the portal, a guest
+//   has no cloud save, so the run is restored from the browser save), and a "cloud"
+//   save kept in this browser's localStorage for signed-in testing.
 // - http://127.0.0.1:<port>/ is a test page that puts the game in an iframe of a chosen
 //   size (1920×1080 portal frame, laptop, phone portrait/landscape, or the whole window).
 // - --lan also listens on this computer's network address so a phone on the same Wi-Fi

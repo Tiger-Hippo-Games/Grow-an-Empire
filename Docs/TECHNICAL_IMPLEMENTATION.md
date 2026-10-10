@@ -2,6 +2,8 @@
 
 This document describes the current working HTML5/Three.js vertical slice as implemented in the repository. It is intended to be self-contained context for an external architecture or code review.
 
+> **Archived (2026-10-10).** Kept for history; it describes the September vertical slice. For the current game read `AGENTS.md` (rules and where things live), `Docs/GAME_ARCHITECTURE.md` (runtime boundaries), `Docs/UI_AND_ONBOARDING.md` and `CHANGELOG.md`.
+>
 > **Status (2026-09-23): partly out of date.** Most of this was written for the eight-move version. The game now has **12 moves**, **13 civic levels** (art for levels 0–8), save schema **v4**, and opening choices Woodcutter / Farm / Quarry (Farm opens the Orchard and Swine Farm; there is no Bakery follow-up). Where this document and the code disagree, the code wins:
 >
 > - rules and catalog: `src/game/content.ts`, `src/game/campaigns.ts`;

@@ -2,13 +2,13 @@
 
 `common/MOBILE_PERFORMANCE.md` §5: "Every game must have an explicit budget." This is Grow an Empire's. Re-measure after any change to art, boot order or the render loop. The **how to measure** notes are below.
 
-| Metric | Budget | Measured (2026-09-23) | Source of the target |
+| Metric | Budget | Measured (2026-10-10, v0.10.2; Chromium software renderer) | Source of the target |
 |---|---|---|---|
-| Upload ZIP | ≤ 50 MB (our performance target; portal limit 200 MB) | **7.4 MB** (historical) | GOLIVE_DEVELOPER_REFERENCE §1 |
-| Time to playable at 10 Mbps | ≤ 5 s (hard requirement) | **1.3 s** | DEVELOPER_GUIDE §8 |
-| Time to playable on Slow 4G (1.6 Mbps) | ≤ 10 s | **6.9 s** | QA_CHECKLIST §9 "startup works on slow networks" |
-| Download before playable | ≤ 3 MB | **1.24 MB**, 21 requests | DEVELOPER_GUIDE §3.5 ("initial bundle under 5 MB") |
-| JavaScript (gzip) | ≤ 250 KB | 156 KB | MOBILE_PERFORMANCE §34 |
+| Upload ZIP | ≤ 50 MB (our performance target; portal limit 200 MB) | **15.45 MB** | GOLIVE_DEVELOPER_REFERENCE §1 |
+| Time to playable at 10 Mbps | ≤ 5 s (hard requirement) | **1.7 s** | DEVELOPER_GUIDE §8 |
+| Time to playable on Slow 4G (1.6 Mbps) | ≤ 10 s | **9.1 s** (was 10.5 s before 0.10.2 stopped the opening cards' pictures loading during boot) | QA_CHECKLIST §9 "startup works on slow networks" |
+| Download before playable | ≤ 3 MB | **1.69 MB**, 11 requests (campaign map 605 KB, terrain 383 KB, builder sheet 327 KB, game.js 192 KB) | DEVELOPER_GUIDE §3.5 ("initial bundle under 5 MB") |
+| JavaScript (gzip) | ≤ 250 KB | 197 KB | MOBILE_PERFORMANCE §34 |
 | Frame rate | 60 fps target, 30 fps floor on a mid-range phone | Not yet measured on a device | MOBILE_PERFORMANCE §6 |
 | Draw calls | ≤ 250 | 22 at move 1 · 75 at move 6 · 190 at move 12 · 203 during the muster | MOBILE_PERFORMANCE §17 |
 | Live textures | ≤ 100 | 77 at the muster | MOBILE_PERFORMANCE §20 |
@@ -19,6 +19,7 @@
 
 ## What the game does to stay inside it
 
+- **Nothing hidden competes with the first screen** (0.10.2): the build panel isn't drawn until boot ends or while the map covers the stage, and its card pictures are `loading="lazy"`.
 - **WebP runtime art** (`Assets/Runtime/`, exported by `Tools/ArtPipeline/export_runtime_webp.py`): 48.6 MB of PNG becomes 7.2 MB, with no visible loss.
 - **Only the first screen blocks boot**: terrain, tree, the level-0 civic center and the villager walk sheets. The rest loads after the game is playable: the offered cards' construction stages, the woodcutter's animation, and each next civic level.
 - **Rendering stops** while paused, behind the tutorial, and when nothing has changed.

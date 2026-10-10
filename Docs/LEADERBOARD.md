@@ -12,13 +12,13 @@ For game slug `grow-an-empire`, create this board before sandbox testing:
 | Slug | `campaign-progress` |
 | Reset period | All-Time |
 | Metric | Highest Score Wins |
-| Max score | 2575 |
+| Max score | None (no cap; Ravi, 2026-10-10) |
 
 The slug must match `LEADERBOARD_SLUG` in `src/platform/adapters.ts`. It must be active and belong to this game. If a board already exists with a different slug, update that constant before packaging. Slugs cannot be renamed after creation. All-Time has no reset date; a future periodic board must show its period and reset time wherever it is displayed.
 
 ## Score and identity
 
-Score is `highest campaign won * 100 + total best stars`, from 0 to 2575. Campaigns range from 1 to 25 and total stars from 0 to 75. A replay never removes stars. The platform retains each player's best score; do not implement a separate server ranking or rely on a client-provided timestamp to decide platform ties.
+Score is `highest campaign won * 100 + total best stars`: 0 to 2575 with today's 25 campaigns. The board has no maximum, so more campaigns later need no board change. Campaigns range from 1 to 25 and total stars from 0 to 75. A replay never removes stars. The platform retains each player's best score; do not implement a separate server ranking or rely on a client-provided timestamp to decide platform ties.
 
 `Platform.init({ gameId: "grow-an-empire" })` precedes `Platform.login()`. The returned player id owns saves. The game uses the portal's `displayName` in the Realm board, escapes it as text, and falls back to username or Guest if it is malformed. Offline play uses You. Scores are submitted only for signed-in accounts; guests play normally without posting.
 
@@ -39,6 +39,6 @@ The in-game Realm ranks the player against 1,008 seeded AI rajas. It is a separa
 ## Verification
 
 - `?platform=mock&auth=email`: after a battle, the mock log records `submitScore`, `campaign-progress`, score and metadata.
-- `?platform=mock`: guests have progress and AI Realm standings but no score submission.
+- `?platform=mock`: guests have browser progress and AI Realm standings, but no cloud save and no score submission. `?platform=mock&auth=email` is a signed-in player (cloud save and scores).
 - Unit tests cover slug selection, guests, rejected calls, byte caps, 30-second spacing and coalescing.
 - Required live sandbox checks: registered player score appears under their portal name, guest posts are absent, a denied trial save does not stop play, and a replay cannot lower the platform best score.

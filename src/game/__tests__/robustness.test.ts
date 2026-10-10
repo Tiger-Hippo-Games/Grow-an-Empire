@@ -36,6 +36,26 @@ describe("snapshot validation beyond shape", () => {
     expect(describeSnapshotProblem(snapshot)).toMatch(/duplicate/);
   });
 
+  it("rejects an unknown selected building in any mode, so a bad save can't block every boot", () => {
+    const sim = new SettlementSimulation();
+    const snapshot = JSON.parse(JSON.stringify(sim.serialize())) as SettlementSnapshot;
+    snapshot.state.selectedBuildingId = "foo";
+    expect(describeSnapshotProblem(snapshot)).toMatch(/selectedBuildingId/);
+  });
+
+  it("drops a stale selection and a bad timer outside construction", () => {
+    const sim = new SettlementSimulation();
+    const snapshot = JSON.parse(JSON.stringify(sim.serialize())) as SettlementSnapshot;
+    snapshot.state.selectedBuildingId = "farm";
+    snapshot.state.activePlotIndex = 3;
+    (snapshot.state as unknown as Record<string, unknown>).constructionElapsed = "abc";
+    const loaded = new SettlementSimulation();
+    loaded.loadSnapshot(snapshot);
+    expect(loaded.state.selectedBuildingId).toBeNull();
+    expect(loaded.state.activePlotIndex).toBeNull();
+    expect(loaded.constructionProgress).toBe(0);
+  });
+
   it("rejects construction mode with nothing selected", () => {
     const snapshot = midConstructionSnapshot();
     snapshot.state.selectedBuildingId = null;

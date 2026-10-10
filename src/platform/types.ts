@@ -62,6 +62,12 @@ export interface PlatformAdapter {
    * a newer version first) or `"error"`. Never throws.
    */
   saveProgress(progress: Record<string, unknown>): Promise<"ok" | "conflict" | "error">;
+  /**
+   * False when this player can't have a cloud save: guests (the portal keeps
+   * none for them) and offline play. Their progress stays in the browser; a
+   * guest who signs in later starts saving to the cloud from then on.
+   */
+  cloudSaveAllowed(): boolean;
   /** Real portal leaderboard submission; failure never blocks gameplay. */
   submitScore(score: number, metadata: Record<string, unknown>): Promise<"ok" | "error" | "unavailable">;
   startSession(): void;

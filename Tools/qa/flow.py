@@ -72,3 +72,11 @@ def fight(page, best=True):
             pass  # The fight ended on its own first.
     page.wait_for_selector(".flow-dialog[data-kind=result]", timeout=5000)
     return page.inner_text(".flow-dialog")
+
+
+def speed8(page):
+    """Sets 8x with the S shortcut (the default is 4x since v0.8.0, so S cycles 4 -> 8 -> 1 -> 2)."""
+    for _ in range(4):
+        if "8" in (page.evaluate("document.getElementById('speed-value')?.textContent || ''") or ""):
+            return
+        page.keyboard.press("s")

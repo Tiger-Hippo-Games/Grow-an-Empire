@@ -61,9 +61,16 @@ export function listenForPortalMessages(handler: (message: PortalMessage) => voi
   return () => window.removeEventListener("message", onMessage);
 }
 
-/** SDK 1.5.0 ready handshake; call after the first screen has drawn. */
+/**
+ * SDK 1.5.0 ready handshake. Sent at most once per page: after the first
+ * screen has drawn, or, if start-up fails, when the error screen is shown,
+ * so the portal's loading overlay never hides the game's own message. The
+ * boot watchdog in index.html sets `__gaeReadySent` when it sends it first.
+ */
 export function notifyPortalReady(version: string): void {
-  if (window.parent === window) return;
+  const flags = window as unknown as { __gaeReadySent?: boolean };
+  if (window.parent === window || flags.__gaeReadySent) return;
+  flags.__gaeReadySent = true;
   try {
     window.parent.postMessage({ type: "GAME_READY", gameVersion: version }, "*");
   } catch (error) {

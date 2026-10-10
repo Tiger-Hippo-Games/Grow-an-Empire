@@ -6,7 +6,7 @@ OUT.mkdir(exist_ok=True)
 import json, sys, time
 from playwright.sync_api import sync_playwright
 sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
-from flow import enter, play_move  # noqa: E402
+from flow import enter, play_move, speed8 as flow_speed8  # noqa: E402
 BASE = "http://127.0.0.1:4173/"
 KEY = "grow-an-empire:save:v1"
 R = {}
@@ -18,7 +18,7 @@ def calls(page):
     return page.evaluate("(window.__goLiveMock && window.__goLiveMock.calls || []).map(c => c.method + (c.method==='track' ? ':' + c.args[0] : ''))")
 
 def speed8(page):
-    for _ in range(3): page.keyboard.press("s")  # the control bar hides while a choice is open; S is its shortcut
+    flow_speed8(page)  # the control bar hides while a choice is open; S is its shortcut
 
 def play_moves(page, n):
     for _ in range(n):
@@ -28,12 +28,12 @@ def play_moves(page, n):
 with sync_playwright() as p:
     b = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
 
-    # A. Mock SDK lifecycle + cloud restore.
+    # A. Mock SDK lifecycle + cloud restore (a signed-in player: guests keep no cloud save).
     ctx = b.new_context(viewport={"width": 1280, "height": 800})
     page = ctx.new_page(); errs = []
     page.on("pageerror", lambda e: errs.append(str(e)))
     page.on("console", lambda m: m.type == "error" and errs.append(m.text))
-    page.goto(BASE + "?platform=mock&reset"); booted(page)
+    page.goto(BASE + "?platform=mock&auth=email&reset"); booted(page)
     enter(page, skip_tutorial=False)
     tutorial = page.is_visible("#tutorial-scrim")
     page.click("#tutorial-skip")
@@ -45,7 +45,7 @@ with sync_playwright() as p:
     cloud = json.loads(page.evaluate("localStorage.getItem('grow-an-empire:mock-cloud')") or "null")
     # Wipe the browser save; keep the mock cloud -> the game must resume from the cloud.
     page.evaluate(f"localStorage.removeItem('{KEY}')")
-    page.goto(BASE + "?platform=mock"); booted(page)
+    page.goto(BASE + "?platform=mock&auth=email"); booted(page)
     resumed_move = page.inner_text("#move")
     enter(page, skip_tutorial=False)
     tutorial_again = page.is_visible("#tutorial-scrim")
@@ -101,6 +101,24 @@ with sync_playwright() as p:
     local = json.loads(page.evaluate(f"localStorage.getItem('{KEY}')"))
     R["C_offline"] = {"platform_line": [i for i in infos if "platform:" in i], "saved_locally": local["state"]["mode"], "errors": errs}
     R["C_offline"]["pass"] = any("platform: local" in i for i in infos) and local["state"]["mode"] == "construction" and not errs
+    ctx.close()
+
+    # D. Guest (signed out): plays normally; no cloud read or write.
+    ctx = b.new_context(); page = ctx.new_page(); errs = []
+    page.on("pageerror", lambda e: errs.append(str(e)))
+    page.goto(BASE + "?platform=mock&reset"); booted(page)
+    page.evaluate("localStorage.removeItem('grow-an-empire:mock-cloud')")
+    enter(page); speed8(page); play_moves(page, 2)
+    time.sleep(5.5)
+    guest_calls = calls(page)
+    R["D_guest_no_cloud"] = {
+        "cloud_calls": [c for c in guest_calls if c in ("getGameProgress", "saveGameProgress")],
+        "mock_cloud": page.evaluate("localStorage.getItem('grow-an-empire:mock-cloud')"),
+        "local_save": bool(page.evaluate(f"localStorage.getItem('{KEY}')")),
+        "errors": errs,
+    }
+    R["D_guest_no_cloud"]["pass"] = (not R["D_guest_no_cloud"]["cloud_calls"] and R["D_guest_no_cloud"]["mock_cloud"] is None
+        and R["D_guest_no_cloud"]["local_save"] and not errs)
     ctx.close()
     b.close()
 

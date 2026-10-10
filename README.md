@@ -1,21 +1,23 @@
 # Grow an Empire
 
-An HTML5/Three.js city defense game. The player makes one building choice per move while the settlement constructs, produces, upgrades, and populates itself, then defends it against an enemy army.
+A short HTML5/Three.js city-builder and defence game for the GoLive web portal, dressed as a mythic Bharatvarsha epic. Each move the player builds one building (or gathers); the city then works by itself (production, processing, training, upkeep) and, after the last move, defends itself against a named enemy army.
 
 The game includes:
 
-- 25 campaigns, each a named enemy army, all on the same rules: 12 moves and the same starting stockpile (14 wood, 8 stone, 4 grain, 6 rations);
-- an enemy briefing when a campaign starts, and again when the enemy arrives;
-- 16 buildings with build costs and production chains (wood → planks, grain/livestock → rations, fruit → wine), up to three prerequisite-valid cards per move;
-- soldiers trained from materials and free villagers: archers (Weapons Workshop), swordsmen (Blacksmith) and horsemen (Stable), who eat rations every move and desert when there are none;
-- a move summary before every choice: what was produced, used and trained, idle buildings, and warnings;
-- stuck moves: swap spare goods at the Marketplace at twice the price, or Gather (build nothing, everything still works);
-- a pre-battle market that sells goods for sellswords (15 gold each, up to half the enemy's army);
-- a battle shown as two strips of unit icons greying out over four rounds, then a result with 1–3 stars and what would have done better;
-- a campaign map with 25 stops; stars unlock the next campaign (win the previous one and hold 1.8 × campaigns-won stars); any campaign can be replayed;
-- thirteen civic states, population growth, and semantic city districts with roads;
-- sound effects (with a mute button), keyboard shortcuts (1-3 choose, G gather, Space pause, S speed, M mute, F full screen), and a full-screen button;
-- a 30-second construction cadence with pause, restart, 1–8× speed, and grid controls.
+- 25 campaigns in five chapters, each a named enemy army of swordsmen, archers and horsemen, rated easy, medium or hard; each campaign reads its own move count (`campaign.moveLimit`, 8–12; 12 today) and starts from the same stockpile;
+- an enemy briefing when a campaign starts, and the muster when the enemy arrives;
+- 16 buildings with build costs and production chains (wood → planks, grain/livestock → rations, fruit → Soma), up to three prerequisite-valid cards per move; the Granary is offered right after a Farm or Mango Grove;
+- soldiers trained from materials: archers (Weapons Workshop), swordsmen (Blacksmith) and horsemen (Stable); they eat rations every move, and a food shortage pauses recruitment (no one deserts);
+- a safe economy: every move ends with at least 4 wood, 2 stone, 2 grain and 1 ration (camp supplies top up only a shortfall);
+- Gather on every choice turn: build nothing this move, the city still works;
+- a move report before every choice: each building's line (used → made, trained, or why it stood idle), each good before → after, and warnings;
+- a Bazaar that swaps spare goods at twice the price on a stuck move and sells goods for sellswords at the muster (15 gold each, up to half the enemy's army);
+- the battle played out in the muster popup (formations, four rounds, exact survivors, Skip), then a result with 1–3 stars and what would have done better;
+- a scrolling campaign map with 25 stops; stars unlock the next campaign; any campaign can be replayed;
+- the Rival Realm: 1,008 AI rajas to climb past, kept separate from the portal's real leaderboard (`campaign-progress`, signed-in players only);
+- cloud saves for signed-in players (guests keep their progress in the browser);
+- synthesized sound effects (mute button), a speed slider (1×/2×/4×/8×, default 4×), keyboard shortcuts (1–3 choose, Enter leaves the report, G gather, Space or P pause, S speed, M mute, F full screen) and full screen;
+- words and icons while learning, icons only afterwards, on every screen size (fixed 1280×720 stage scaled to the portal frame, fluid layouts for phones and small windows).
 
 The design and the balance tables are in the "Grow an Empire: Economy & Army Design" doc (project docs); `src/game/economy.ts` holds the numbers.
 
@@ -60,14 +62,15 @@ and pnpm (the launcher falls back to `npx pnpm@11.19.0` if pnpm isn't installed)
 
 | Want to… | Do this |
 |---|---|
-| Start over as a first-time player (no save, tutorial shown) | Open `http://127.0.0.1:4173/?reset` (the flag clears itself, so later reloads resume normally) |
-| Get through the twelve moves quickly | Click **Speed** until it shows 8× |
+| Start over as a first-time player (no save, tutorial shown) | Open `http://127.0.0.1:4173/?reset` (the flag clears itself, so later reloads resume normally). The testing switches (`?reset`, `?platform=mock`, `?perf`) only work in development and on localhost, never on the portal |
+| Get through a campaign quickly | Drag the speed slider to 8× (or press S) |
 | Re-read the tutorial without losing your game | Click **How to play** |
 | Check the production build | `pnpm build` then `pnpm preview` (serves on port 4174, so it can run beside the dev server) |
 | Run type-checks, lint and tests | `pnpm check` (or `pnpm test:watch` while editing game logic) |
 | See FPS, draw calls and textures | Add `?perf` to the URL |
 | Try the low-quality tier | Add `?quality=low` |
-| Test cloud saves without the portal | Add `?platform=mock` (a fake portal SDK keeps its "cloud" in localStorage and logs every call to the console) |
+| Test cloud saves without the portal | Add `?platform=mock&auth=email` (a fake portal SDK, signed in, keeps its "cloud" in localStorage and logs every call to the console). Plain `?platform=mock` is a guest: no cloud save, as on the portal |
+| Check art, fonts and sound loaded | Type `__gaeAssetHealth` in the browser console, or run `python Tools/qa/assets_audio.py` |
 | Test inside a portal-like iframe | Open `http://127.0.0.1:4173/Tools/dev/iframe-test.html` (buttons send pause, resume and session end) |
 
 ### Troubleshooting
@@ -91,10 +94,11 @@ python Tools/ArtPipeline/validate_harvest_loop.py
 pnpm package               # build + release/grow-an-empire-<version>.zip + bundle validator
 ```
 
-The validator checks the portal's rules: size under 50 MB, `index.html` at the root, the SDK script tag, relative paths, no localhost URLs, no `alert()`, and the thumbnail and banner. It prints "Ready to upload" when the ZIP passes. Upload steps and the listing text are in `Docs/SUBMISSION_CHECKLIST.md` and `Docs/STORE_LISTING.md`. The portal's own rules are in `common/`.
+The validator checks the portal's rules: size (limit 200 MB, our target under 50 MB), `index.html` at the root, the SDK script tag, relative paths, every file the page, code and styles load present in the ZIP, no localhost URLs, no `alert()`, no top-level navigation, and the thumbnail and banner. It prints "Ready to upload" when the ZIP passes. Upload steps and the listing text are in `Docs/SUBMISSION_CHECKLIST.md` and `Docs/STORE_LISTING.md`. The portal's own rules are in `common/`.
 
 - **Runtime art** is WebP, generated from the PNGs with `pnpm art:export` (Python 3 + Pillow). A test fails if it's out of date.
-- **Store images** are made with `python Tools/ArtPipeline/make_store_art.py`.
+- **Store images** (key art: the finished city, its defenders and the raiders, title in Yatra One) are made with `python Tools/ArtPipeline/make_store_art.py` from `Assets/Art/Store/store-art-source-1920x1080-v2.png`.
+- **Changes per version**: `CHANGELOG.md`.
 - **Performance targets** and how to measure them: `Docs/PERFORMANCE_BUDGET.md`.
 - **Design decisions**: `Docs/adr/`.
 - **Notes for coding agents**: `AGENTS.md`.

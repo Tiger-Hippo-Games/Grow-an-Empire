@@ -16,6 +16,8 @@ a pass/fail test.
 """
 import json, sys, time, re, pathlib
 from playwright.sync_api import sync_playwright
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from flow import speed8  # noqa: E402
 
 O = pathlib.Path(__file__).resolve().parent / "out" / "journey"; O.mkdir(parents=True, exist_ok=True)
 URL = "http://127.0.0.1:4175/api/v1/games/grow-an-empire/play/index.html"
@@ -73,7 +75,7 @@ def play_campaign(pg, strategy, reload_at=None):
             after = (pg.inner_text("#move"), pg.inner_text("#stockpile-total"), pg.inner_text("#population"))
             note("  reload at move", move, "state", before, "->", after, "SAME" if before == after else "DIFFERENT")
             reload_at = None
-            pg.keyboard.press("s"); pg.keyboard.press("s"); pg.keyboard.press("s")
+            speed8(pg)
         moves.append(play_move(pg, strategy)); pg.wait_for_timeout(120)
     return moves
 
@@ -109,7 +111,7 @@ with sync_playwright() as p:
     pg.click("#tutorial-start"); pg.wait_for_timeout(500)
     note("coach step 1:", pg.is_visible("#tutorial-coach"), pg.inner_text("#tutorial-coach-title") if pg.is_visible("#tutorial-coach") else "")
     shot(pg, "c1_coach1")
-    for _ in range(3): pg.keyboard.press("s")  # 8x: the software renderer is slow
+    speed8(pg)  # 8x: the software renderer is slow
     note("move 1:", play_move(pg, "best"))
     pg.wait_for_selector("#tutorial-next:not(.hidden)", timeout=240000); shot(pg, "c1_coach2")
     note("coach step 2:", pg.inner_text("#tutorial-coach-title")); pg.click("#tutorial-next")
@@ -117,7 +119,7 @@ with sync_playwright() as p:
     wait_choice_or_muster(pg)
     note("app state while choosing:", pg.evaluate("document.getElementById('app').className"))
     shot(pg, "c1_move2_choice")
-    for _ in range(3): pg.keyboard.press("s")
+    speed8(pg)
     note("speed now:", pg.evaluate("document.getElementById('speed-value').textContent"))
     m = play_move(pg, "best"); pg.wait_for_timeout(600)
     cls = pg.evaluate("document.getElementById('app').className")
@@ -165,7 +167,7 @@ with sync_playwright() as p:
     shot(pg, "c2_briefing"); note("C2 briefing:", pg.inner_text(".flow-dialog h2") if pg.is_visible(".flow-dialog") else "NO BRIEFING")
     pg.click(".flow-dialog [data-action=begin]"); pg.wait_for_timeout(400)
     note("tutorial again on C2:", pg.is_visible("#tutorial-scrim"))
-    for _ in range(3): pg.keyboard.press("s")
+    speed8(pg)
     moves = play_campaign(pg, "best"); note("C2 moves:", moves)
     shot(pg, "c2_muster"); note("C2 muster:", pg.inner_text(".flow-dialog").replace("\n", " | ")[:500])
     if pg.is_visible(".flow-dialog [data-step='archers:1']"):
@@ -181,7 +183,7 @@ with sync_playwright() as p:
 
     # --- Campaign 3 played weakly -> expect a defeat; then Try again
     pg.click("#campaign-launch"); pg.wait_for_timeout(500); pg.click(".flow-dialog [data-action=begin]"); pg.wait_for_timeout(400)
-    for _ in range(3): pg.keyboard.press("s")
+    speed8(pg)
     moves = play_campaign(pg, "weak"); note("C3 weak moves:", moves)
     note("C3 muster:", pg.inner_text(".flow-dialog [data-forecast]") if pg.is_visible(".flow-dialog [data-forecast]") else "")
     pg.click(".flow-dialog [data-action=fight]"); pg.wait_for_selector(".flow-dialog[data-kind=battle], .flow-dialog[data-kind=result]"); pg.is_visible(".flow-dialog[data-kind=battle]") and pg.click(".flow-dialog[data-kind=battle] [data-action=skip]", timeout=3000)

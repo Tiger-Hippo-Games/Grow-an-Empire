@@ -1,3 +1,4 @@
+import { recordAudio, recordSoundPlayed } from "../platform/assetHealth";
 /**
  * Small synthesized sound effects (Web Audio, no audio files to download or
  * ship), tuned to the Bharatvarsha setting: a temple bell when a move ends,
@@ -57,7 +58,7 @@ export function createSound(initiallyMuted: boolean) {
   function ensureContext(): AudioContext | null {
     if (context) return context;
     const Context = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Context) return null;
+    if (!Context) { recordAudio("unavailable", "this browser has no Web Audio"); return null; }
     try {
       context = new Context();
       const gain = context.createGain();
@@ -79,6 +80,12 @@ export function createSound(initiallyMuted: boolean) {
       master = null;
       if (partial) void partial.close().catch((cause: unknown) => warnOnce("cleanup", cause));
       warnOnce("initialization", error);
+      recordAudio("unavailable", error instanceof Error ? error.message : String(error));
+    }
+    if (context) {
+      const audio = context;
+      recordAudio(audio.state === "running" ? "running" : "suspended");
+      audio.addEventListener?.("statechange", () => recordAudio(muted ? "muted" : audio.state === "running" ? "running" : "suspended"));
     }
     return context;
   }
@@ -132,6 +139,7 @@ export function createSound(initiallyMuted: boolean) {
         oscillator.start(now + note.at);
         oscillator.stop(now + note.at + note.length + 0.02);
       }
+      recordSoundPlayed();
     } catch (error) {
       // Audio is decoration: never let it break the game.
       warnOnce("playback", error);
@@ -149,6 +157,7 @@ export function createSound(initiallyMuted: boolean) {
     },
     setMuted(value: boolean) {
       muted = value;
+      if (context) recordAudio(muted ? "muted" : context.state === "running" ? "running" : "suspended");
       if (!context) { if (!muted && unlocked) unlock(); return; }
       if (muted) { stopVoices(); void context.suspend().catch((error: unknown) => warnOnce("suspend", error)); }
       else if (!paused && document.visibilityState !== "hidden") void context.resume().catch((error: unknown) => warnOnce("resume", error));

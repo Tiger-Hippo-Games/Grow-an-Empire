@@ -101,7 +101,7 @@ describe("move economy", () => {
     sim.state.resources.rations = 0;
     const population = sim.state.population;
     const events = build(sim, "barracks");
-    expect(events.some((event) => event.type === "soldiers-deserted")).toBe(false);
+    expect(events.some((event) => (event.type as string) === "soldiers-deserted")).toBe(false); // The event no longer exists.
     expect(sim.state.deserted).toBe(0);
     expect(sim.state.trainedUnits.archers).toBe(12);
     expect(sim.state.population).toBeGreaterThanOrEqual(population);

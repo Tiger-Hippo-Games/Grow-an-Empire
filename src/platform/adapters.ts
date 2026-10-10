@@ -1,6 +1,10 @@
 import type { GoLiveSdk, PlatformAdapter, PlayerInfo } from "./types";
 import { isRegisteredPlayer } from "../game/leaderboard";
 
+/** The portal's guest player (signed out): may play, can't save to the cloud or post scores. */
+const isGuest = (authType: string | undefined | null): boolean => typeof authType === "string" && authType.toUpperCase() === "GUEST";
+import { debugFlagsAllowed } from "./debugFlags";
+
 /**
  * The three platform backends.
  *
@@ -97,7 +101,7 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl?: string): Platf
         const player = await withTimeout(signIn, LOGIN_TIMEOUT_MS, "Platform.init()/login()");
         connected = true;
         activePlayer = player;
-        console.info("[GoLive] Player active", { id: player.id, displayName: player.displayName, authType: player.authType });
+        console.info("[GoLive] Player active", { authType: player.authType }); // No id or name in logs.
         return player;
       } catch (error) {
         warn("connect", "Could not sign in; playing offline with browser saves only.", error);
@@ -106,7 +110,7 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl?: string): Platf
           if (connected) return;
           connected = true;
           activePlayer = player;
-          console.info("[GoLive] Signed in late; cloud saves resume", { id: player.id, authType: player.authType });
+          console.info("[GoLive] Signed in late; cloud saves resume", { authType: player.authType });
           for (const listener of lateListeners) {
             try { listener(player); } catch (listenerError) { console.warn("[GoLive] Late sign-in handler failed", listenerError); }
           }
@@ -114,8 +118,10 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl?: string): Platf
         return null;
       }
     },
+    cloudSaveAllowed: () => connected && !isGuest(activePlayer?.authType),
     async loadProgress() {
-      if (!connected) return "unavailable";
+      // Guests have no cloud save: nothing to read (and nothing is written).
+      if (!connected || isGuest(activePlayer?.authType)) return "unavailable";
       try {
         return normalizeProgress(await withTimeout(sdk.getGameProgress(), REQUEST_TIMEOUT_MS, "Platform.getGameProgress()"));
       } catch (error) {
@@ -124,7 +130,7 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl?: string): Platf
       }
     },
     async saveProgress(progress) {
-      if (!connected) return "error";
+      if (!connected || isGuest(activePlayer?.authType)) return "error";
       try {
         if (new TextEncoder().encode(JSON.stringify(progress)).byteLength > MAX_CLOUD_SAVE_BYTES) {
           throw new Error("Cloud save exceeds the 64 KB limit");
@@ -182,6 +188,7 @@ export function createLocalPlatform(): PlatformAdapter {
     connect: async () => null,
     loadProgress: async () => "unavailable",
     saveProgress: async () => "error",
+    cloudSaveAllowed: () => false,
     submitScore: async () => "unavailable",
     startSession() {},
     endSession() {},
@@ -234,7 +241,10 @@ export function createMockPlatform(): PlatformAdapter {
       record("submitScore", LEADERBOARD_SLUG, score, metadata);
       return "ok";
     },
+    cloudSaveAllowed: () => registered,
     async loadProgress() {
+      // Like the portal: a guest has no cloud save (sign in with &auth=email to test cloud saves).
+      if (!registered) return "unavailable";
       record("getGameProgress");
       return readCloud();
     },
@@ -260,11 +270,12 @@ export function createMockPlatform(): PlatformAdapter {
 
 /**
  * Picks the backend: the real SDK when the portal injected it, the mock when
- * the URL has `?platform=mock`, otherwise offline.
+ * the URL has `?platform=mock` (development and localhost only), otherwise offline.
  */
 export function createPlatform(): PlatformAdapter {
   const params = new URLSearchParams(window.location.search);
-  if (params.get("platform") === "mock") return createMockPlatform();
+  // The mock is a testing switch: never on the portal (platform/debugFlags.ts).
+  if (debugFlagsAllowed() && params.get("platform") === "mock") return createMockPlatform();
   if (window.Platform && typeof window.Platform.init === "function") {
     // SDK 1.5.0 chooses its API host. A CDN-hosted iframe must not force
     // requests to a same-origin /api/v1 on the game's asset host.

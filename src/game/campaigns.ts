@@ -38,7 +38,7 @@ export interface CampaignDefinition {
   tier: CampaignTier;
   name: string;
   subtitle: string;
-  /** Build moves before the enemy arrives (8–16; read this, never assume a number). */
+  /** Build moves before the enemy arrives (8–12; read this, never assume a number). */
   moveLimit: number;
   availableBuildingIds: string[];
   objective: CampaignObjective;
@@ -99,7 +99,7 @@ export interface CampaignSeed {
   /** Part of the save id: never change it for an existing campaign. */
   slug: string; name: string; subtitle: string; enemyName: string; kingdomName: string; briefing: string;
   swordsmen: number; archers: number; horsemen?: number; veterancy?: number; two: number; three: number;
-  /** Build moves (8–16); 12 when left out. */
+  /** Build moves (8–12, clamped to MIN/MAX_CAMPAIGN_MOVES); 12 when left out. */
   moves?: number;
 }
 

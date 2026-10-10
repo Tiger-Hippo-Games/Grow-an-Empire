@@ -155,7 +155,7 @@ function pingPongProgress(elapsed: number, duration: number): { progress: number
 
 /**
  * Functional population renderer: citizens commute and deliver goods; trained soldiers
- * stand still in the garrison. (The battle itself is fought by render/battleField.ts.)
+ * stand still in the garrison. (The battle itself is shown in the muster popup: render/popupBattle.ts.)
  *
  * Citizens share each profession's directional atlas frames but own materials, so
  * their walking phases can differ without cloning a texture per villager.

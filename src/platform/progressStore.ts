@@ -370,7 +370,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
       ownerId = playerId ?? chosen?.playerId;
       // If the browser copy won (or the cloud had none), bring the cloud up to
       // date. Not when the cloud couldn't be read: the first write reads it first.
-      if (chosen && cloudAvailable && platform.kind !== "local" && (!cloud || chosen.runId !== cloud.runId || progressOf(chosen) !== progressOf(cloud))) {
+      if (chosen && cloudAvailable && platform.kind !== "local" && platform.cloudSaveAllowed() && (!cloud || chosen.runId !== cloud.runId || progressOf(chosen) !== progressOf(cloud))) {
         pending = withOwner(withKnown(chosen));
         flushInBackground();
       }
@@ -385,7 +385,8 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
       if (stored && !belongsToAnotherPlayer(stored, ownerId ?? null)) remember(stored);
       const owned = withOwner(withKnown(game));
       saveSnapshot(owned);
-      if (platform.kind === "local" || cloudAhead) return;
+      // Guests and offline play keep their progress in the browser only.
+      if (platform.kind === "local" || !platform.cloudSaveAllowed() || cloudAhead) return;
       pending = owned;
       if (options.immediate) {
         flushInBackground();

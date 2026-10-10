@@ -412,8 +412,10 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     const enemyIcons = (["swordsmen", "archers", "horsemen"] as const).filter((kind) => army[kind] > 0).map((kind) => amount(kind, army[kind])).join("");
     const conquered = realm?.conquerors[selectedIndex] ?? 0;
     const camped = realm?.camped[selectedIndex] ?? [];
-    const rivals = realm ? `<span class="map-rivals" aria-label="${conquered} rajas have conquered it${camped.length ? `; camped here: ${camped.map((raja) => `${raja.title} ${raja.name}`).join(", ")}` : ""}">${icon("rival")}<b>${formatCount(conquered)}</b>${camped.map((raja) => `<i class="banner-dot" style="--banner:${raja.colour}" title="${escapeHtml(`${raja.title} ${raja.name}`)}"></i>`).join("")}</span>` : "";
-    state.innerHTML = `${rivals}<span class="map-enemy" aria-label="${campaign.objective.strength} enemy ${campaign.objective.strength === 1 ? "soldier" : "soldiers"}">${enemyIcons}</span><span class="map-moves">${amount("move", movesUntilAttack)}</span><span class="map-progress">${open ? "" : icon("lock")}${escapeHtml(progress)}</span>`;
+    // Raja names and colours come from the realm source (AI today, real players later): escape them.
+    const safeColour = (colour: string): string => (/^#[0-9a-f]{3,8}$/i.test(colour) ? colour : "#c8a24a");
+    const rivals = realm ? `<span class="map-rivals" role="img" aria-label="${escapeHtml(`${conquered} rajas have conquered it${camped.length ? `; camped here: ${camped.map((raja) => `${raja.title} ${raja.name}`).join(", ")}` : ""}`)}">${icon("rival")}<b>${formatCount(conquered)}</b>${camped.map((raja) => `<i class="banner-dot" style="--banner:${safeColour(raja.colour)}" title="${escapeHtml(`${raja.title} ${raja.name}`)}"></i>`).join("")}</span>` : "";
+    state.innerHTML = `${rivals}<span class="map-enemy" role="img" aria-label="${campaign.objective.strength} enemy ${campaign.objective.strength === 1 ? "soldier" : "soldiers"}">${enemyIcons}</span><span class="map-moves">${amount("move", movesUntilAttack)}</span><span class="map-progress">${open ? "" : icon("lock")}${escapeHtml(progress)}</span>`;
     launch.disabled = !open;
     launch.textContent = !open ? "Locked" : isCurrent && !currentRunIsComplete ? "Continue settlement" : earned ? "Replay campaign" : "Begin campaign";
     updateScrollState();
@@ -459,6 +461,28 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     realmButton.title = "The realm";
   }
 
+  /**
+   * The map covers the whole stage: Tab must not walk into the city's panels
+   * behind it. Everything else in #app goes inert while it is open, except the
+   * speed slider (usable from the map) and the dialogs the map opens.
+   */
+  const madeInert = new Set<HTMLElement>();
+  function setBackgroundInert(on: boolean): void {
+    const app = map.parentElement;
+    if (!app) return;
+    if (!on) {
+      // Undo only what the map did: the HUD keeps its own folded panels inert.
+      for (const element of madeInert) element.inert = false;
+      madeInert.clear();
+      return;
+    }
+    for (const child of Array.from(app.children) as HTMLElement[]) {
+      if (child === map || child.inert || child.matches(".speed-control, .realm-scrim, .flow-scrim, .tutorial-scrim, .loading")) continue;
+      child.inert = true;
+      madeInert.add(child);
+    }
+  }
+
   return {
     /** First-screen artwork loaded, or its playable fallback is ready. */
     ready,
@@ -477,6 +501,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       const next = CAMPAIGNS.findIndex((_, index) => unlocked(index) && !won(index));
       selectedIndex = !runComplete ? activeIndex : next >= 0 ? next : activeIndex;
       map.classList.remove("hidden");
+      setBackgroundInert(true);
       layout(); // After un-hiding, so the scroller has a size.
       render();
       lastWidth = scroller.clientWidth;
@@ -492,6 +517,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
     hide() {
       const hadFocus = map.contains(document.activeElement);
       map.classList.add("hidden");
+      setBackgroundInert(false);
       // The launch button becomes hidden here. Return keyboard focus to the
       // visible map toggle instead of leaving it on the document body.
       if (hadFocus) focusFirst("#map-toggle", "#build-options button:not([disabled])", "#city-ui-toggle");

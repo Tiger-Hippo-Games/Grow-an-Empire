@@ -99,7 +99,9 @@ export function hasNewerLocalSave(): boolean {
   try {
     const raw = window.localStorage.getItem(SAVE_KEY);
     return raw !== null && isFromNewerVersion(JSON.parse(raw));
-  } catch {
+  } catch (error) {
+    // Storage blocked or the save isn't JSON: nothing newer to protect.
+    warnOnce("read", "Local storage can't be read", error);
     return false;
   }
 }

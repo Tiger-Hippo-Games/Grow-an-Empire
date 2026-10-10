@@ -313,11 +313,11 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .build-card.swappable { border-color: rgba(160,215,130,.45); }
 .build-card.swappable .build-action { color: #bfe3a8; }
 .build-foot { margin-top: 8px; }
-.gather-button { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid rgba(240,191,88,.55); border-radius: 12px; color: var(--cream); background: rgba(240,191,88,.14); cursor: pointer; text-align: left; font-size: .78rem; line-height: 1.3; }
-.gather-button b { margin-right: 8px; color: var(--gold); font-size: .9rem; }
-.gather-button:hover { background: rgba(240,191,88,.24); }
 .build-panel:has(.gather-button) .build-foot { position: sticky; bottom: 0; z-index: 2; padding: 8px 0 4px; background: var(--panel); }
-.gather-button { min-height: 54px; border: 2px solid var(--gold); background: linear-gradient(#9d351d, #702718); box-shadow: 0 3px 0 #45180e; }
+.gather-button { width: 100%; min-height: 54px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 2px solid var(--gold); border-radius: 12px; color: var(--cream); background: linear-gradient(#9d351d, #702718); box-shadow: 0 3px 0 #45180e; cursor: pointer; text-align: left; font-size: .78rem; line-height: 1.3; }
+/* #f3cf6b on the red: at least 4.7:1. */
+.gather-button b { margin-right: 0; color: #f3cf6b; font-size: .9rem; }
+.gather-button .gi { width: 22px; height: 22px; }
 .gather-button:hover { background: #a63b24; }
 .gather-button:focus-visible { outline: 3px solid var(--cream); outline-offset: 3px; }
 .gather-button .gi:last-child { margin-left: auto; }
@@ -332,6 +332,10 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 #app:has(.campaign-map:not(.hidden)) .speed-control { top: calc(88px + var(--safe-top)); }
 #app.ui-open .speed-control { top: calc(var(--settlement-bottom, 140px) + 12px); }
 #app.fighting .speed-control { visibility: hidden; }
+/* Dialogs, the tutorial and the Realm board sit above the city: the slider (z-index 25) must not float over them. */
+#app:has(.flow-scrim:not(.hidden)) .speed-control,
+#app:has(.tutorial-scrim:not(.hidden)) .speed-control,
+#app:has(.realm-scrim:not(.hidden)) .speed-control { visibility: hidden; }
 @container app (max-width: 760px) {
   :root[data-layout="fluid"] #app:has(.campaign-map:not(.hidden)) .speed-control { top: calc(58px + var(--safe-top)); }
   :root[data-layout="fluid"] .speed-control { width: 164px; padding: 5px 10px; }
@@ -399,10 +403,6 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .battle-side h3 { margin: 0 0 8px; font-size: 1rem; }
 .battle-side.enemy h3 { color: #ffb49c; }
 .battle-versus { align-self: center; color: var(--gold); font-family: Georgia, serif; font-size: 1.6rem; font-weight: 900; }
-.unit-row { margin-bottom: 8px; }
-.unit-row-label { display: block; margin-bottom: 3px; color: #c7d1c3; font-size: .78rem; font-weight: 800; }
-.unit-row-icons { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
-.unit-row-icons .unit-icon { width: 26px; height: 26px; border-radius: 6px; }
 .unit-more { margin-left: 4px; color: var(--gold); font-size: .82rem; }
 .battle-empty { color: #aebbae; font-size: .86rem; }
 
@@ -749,9 +749,6 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .move-summary .summary-warning { display: flex; align-items: center; gap: 6px; }
 .resource-grid span .gi { display: block; margin: 0 auto 2px; width: 22px; height: 22px; }
 .metrics span .gi { margin-right: 3px; }
-.gather-button { display: flex; align-items: center; gap: 8px; }
-.gather-button .gi { width: 22px; height: 22px; }
-.gather-button b { margin-right: 0; }
 .tutorial-coach .gi { width: 1.25em; height: 1.25em; }
 .tutorial-lead { margin: 0; color: #c7d1c3; font-size: .9rem; }
 .tutorial-rules { grid-template-columns: repeat(4, 1fr); }
@@ -782,7 +779,6 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 }
 
 /* Dialogs: pictures first, sentences under "Details" on phones. */
-.flow-more { display: none; }
 .flow-extra { display: block; }
 .flow-counter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 0 0; color: var(--cream); font-size: .9rem; }
 .flow-counter .gi, .counter .gi { width: 26px; height: 26px; }
@@ -798,7 +794,6 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 .result-order-text span { margin-right: 6px; color: var(--gold); font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .flow-note .gi, .market-heading .gi { width: 18px; height: 18px; }
 .flow-dialog .flow-more { min-height: 44px; min-width: 44px; margin: 8px 0 0; padding: 0 14px; border: 1px solid rgba(255,255,255,.18); border-radius: 10px; color: var(--cream); background: rgba(255,255,255,.06); cursor: pointer; font-weight: 800; }
-:root[data-layout="fluid"] .flow-more { display: inline-block; }
 :root[data-layout="fluid"] .flow-extra { display: none; }
 :root[data-layout="fluid"] .flow-dialog.show-extra .flow-extra { display: block; }
 :root[data-layout="fluid"] .result-order-text { display: none; }
@@ -834,14 +829,10 @@ button, .build-card, .build-card img, .hud, .settlement-hud, .controls { -webkit
 :root[data-layout="fluid"]:not(.words) .decision-hint { display: none; }
 /* Details folds in every layout; while learning its button says "Details". */
 .flow-more { display: inline-flex; align-items: center; gap: 6px; }
+.flow-more .gi { width: 20px; height: 20px; }
 .flow-extra { display: none; }
 .flow-dialog.show-extra .flow-extra { display: block; }
-:root[data-layout="fluid"] .flow-more { display: inline-flex; }
-:root[data-layout="fluid"] .flow-extra { display: none; }
-:root[data-layout="fluid"] .flow-dialog.show-extra .flow-extra { display: block; }
 .result-order-text { display: block; }
-:root[data-layout="fluid"] .result-order-text { display: block; }
-.flow-more .gi { width: 20px; height: 20px; }
 
 /* Icon buttons: the controls, More, map, sound… */
 .controls button:not(.hidden):not(.controls-more), #stockpile-close { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -979,10 +970,10 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 /* Difficulty chips. */
 .tier-chip {
   display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; vertical-align: 1px;
-  font-size: .72rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #fff4e0;
+  font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #fff4e0;
 }
 .tier-easy { background: var(--peacock); }
-.tier-medium { background: #a8741a; }
+.tier-medium { background: #8f6114; } /* #fff4e0 on it: 4.96:1 */
 .tier-hard { background: var(--sindoor); box-shadow: 0 0 0 1px var(--haldi-soft); }
 
 /* The campaign map: ivory parchment cards edged in sindoor. */
@@ -995,7 +986,7 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .stop-flag { background: radial-gradient(circle at 50% 35%, #d23a2e, var(--sindoor-deep)) !important; border-color: var(--haldi-soft) !important; font-family: var(--display) !important; font-weight: 400 !important; }
 .stop-rivals {
   position: absolute; left: 50%; top: calc(100% - 4px); transform: translateX(-50%); display: inline-flex; align-items: center; gap: 2px;
-  padding: 0 6px 0 3px; border-radius: 999px; background: #1d2150e6; color: #f6ecd6; font-size: 11.5px; font-weight: 800; white-space: nowrap; pointer-events: none;
+  padding: 0 6px 0 3px; border-radius: 999px; background: #1d2150e6; color: #f6ecd6; font-size: 12.5px; font-weight: 800; white-space: nowrap; pointer-events: none;
 }
 .stop-rivals .gi { width: 13px; height: 13px; }
 .map-rivals { display: inline-flex; align-items: center; gap: 3px; margin-right: 10px; }
@@ -1059,44 +1050,8 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 :root[data-layout="fluid"] .campaign-map-heading h2 { flex: 0 0 auto; }
 :root[data-layout="fluid"] .campaign-map-heading p { flex: 0 1 auto; min-width: 0; }
 
-/* The fight's HUD bar (ui/battleHud.ts): only while the armies fight in the city. */
-.battle-hud {
-  position: absolute; z-index: 21; top: calc(10px + var(--safe-top, 0px)); left: 50%; transform: translateX(-50%);
-  width: min(1040px, calc(100% - 24px)); display: grid; grid-template-columns: 1fr minmax(180px, 1.3fr) 1fr auto; align-items: center; gap: 14px;
-  padding: 10px 14px; border-radius: 16px; color: var(--ivory);
-  background: linear-gradient(160deg, rgba(31,35,82,.96), rgba(18,21,54,.97)); box-shadow: var(--rule), 0 14px 38px rgba(6,5,20,.5);
-}
-.battle-hud.hidden { display: none; }
-.bh-body { display: contents; }
-.bh-side { display: grid; gap: 4px; min-width: 0; }
-.bh-enemy { text-align: right; justify-items: end; }
-.bh-name { display: inline-flex; align-items: center; gap: 5px; font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--haldi-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.bh-enemy .bh-name { color: #ffab95; }
-.bh-name .gi { width: 18px; height: 18px; }
-.bh-units { display: flex; flex-wrap: wrap; gap: 4px 10px; }
-.bh-enemy .bh-units { justify-content: flex-end; }
-.bh-units .qty { display: inline-flex; align-items: center; gap: 3px; font-weight: 900; font-size: 1.05rem; }
-.bh-units .gi { width: 22px; height: 22px; }
-.bh-middle { display: grid; gap: 5px; }
-.bh-tug { position: relative; height: 14px; border-radius: 999px; overflow: hidden; background: linear-gradient(90deg, var(--sindoor-deep), var(--sindoor)); box-shadow: inset 0 0 0 1px rgba(243,207,107,.55); }
-.bh-ours { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #0b5656, #19a2a2); transition: width .5s ease; }
-.bh-mark { position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px; background: var(--haldi-soft); box-shadow: 0 0 8px var(--haldi); transition: left .5s ease; }
-.bh-numbers { display: flex; justify-content: space-between; align-items: center; font-family: var(--display); font-size: 1.15rem; }
-.bh-numbers .good { color: #9fe0c9; }
-.bh-numbers .bad { color: #ffab95; }
-.bh-pips { display: inline-flex; gap: 6px; }
-.bh-pips i { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--haldi-soft); }
-.bh-pips i.done { background: var(--haldi); }
-.bh-skip { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; gap: 5px; padding: 0 12px; border: 0; border-radius: 11px; color: var(--ivory); background: rgba(244,233,211,.12); cursor: pointer; font-weight: 850; }
-.bh-skip .gi { width: 20px; height: 20px; }
 /* While fighting, the battle has the screen: the city chrome steps aside. */
 #app.fighting .hud, #app.fighting .settlement-hud, #app.fighting .controls, #app.fighting .city-ui-toggle, #app.fighting .build-panel, #app.fighting .milestone { visibility: hidden; }
-@container app (max-width: 640px) {
-  .battle-hud { grid-template-columns: 1fr 1fr auto; grid-template-areas: "you enemy skip" "mid mid mid"; gap: 6px 10px; padding: 8px 10px; }
-  .bh-you { grid-area: you; } .bh-enemy { grid-area: enemy; } .bh-skip { grid-area: skip; } .bh-middle { grid-area: mid; }
-  .bh-units .gi { width: 18px; height: 18px; }
-  .bh-units .qty { font-size: .92rem; }
-}
 
 /* The move report (hud.ts renderReport): read before the next building is chosen. */
 .move-report { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(244,233,211,.06); box-shadow: inset 0 0 0 1px rgba(224,165,38,.3); }
@@ -1128,14 +1083,14 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .net-good s { opacity: .55; font-weight: 700; }
 .net-good s::after { content: " →"; text-decoration: none; display: inline-block; margin-left: 2px; }
 .net-good b { color: var(--ivory); font-size: 1.02rem; }
-.net-good small { font-size: .74rem; }
+.net-good small { font-size: .78rem; }
 .net-good.gain small { color: #9fe0c9; }
 .net-good.loss small { color: #f0ce80; }
 .report-empty { margin: 0; font-size: .8rem; opacity: .8; }
 .report-continue { width: 100%; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; cursor: pointer; font-size: 1.02rem;
   color: #fff4e0; background: linear-gradient(var(--sindoor), var(--sindoor-deep)); box-shadow: inset 0 0 0 1px rgba(243,207,107,.7), 0 4px 0 #4b0e0b; }
 .report-continue .gi { width: 22px; height: 22px; }
-.summary-reopen { margin-left: auto; min-width: 32px; min-height: 32px; display: inline-grid; place-items: center; border: 0; border-radius: 8px; background: rgba(244,233,211,.1); cursor: pointer; }
+.summary-reopen { margin-left: auto; min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; border: 0; border-radius: 8px; background: rgba(244,233,211,.1); cursor: pointer; }
 .summary-reopen .gi { width: 18px; height: 18px; }
 #build-panel.reporting .build-foot { margin-top: 8px; }
 .move-report .summary-move { display: inline-flex; align-items: center; gap: 3px; min-width: 22px; height: 24px; padding: 0 7px; border-radius: 7px; color: var(--lampblack); background: var(--haldi); font-size: .86rem; font-weight: 900; }
@@ -1155,8 +1110,8 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .popup-battlefield { position: relative; isolation: isolate; height: 220px; overflow: hidden; border: 1px solid #b68b45; border-radius: 12px; background-color: #796838; background-size: cover; background-position: center; box-shadow: inset 0 0 40px #15122588; }
 .popup-battlefield::before { content: ""; position: absolute; inset: 49% 8% auto; border-top: 1px dashed #f4d78d88; }
 .battle-formation { position: absolute; inset: 0; pointer-events: none; }
-.battle-rank { position: absolute; top: calc(36% - var(--rank) * 8%); left: 50%; display: flex; justify-content: center; align-items: center; gap: 6px; width: max-content; transform: translate(-50%,-50%) translateY(-20px); transition: transform 900ms ease; }
-.battle-formation.enemy .battle-rank { top: calc(64% + var(--rank) * 8%); transform: translate(-50%,-50%) translateY(20px); }
+.battle-rank { --step: 7%; position: absolute; top: calc(38% - var(--rank) * var(--step)); left: 50%; display: flex; justify-content: center; align-items: center; gap: 6px; width: max-content; transform: translate(-50%,-50%) translateY(-12px); transition: transform 900ms ease; }
+.battle-formation.enemy .battle-rank { top: calc(62% + var(--rank) * var(--step)); transform: translate(-50%,-50%) translateY(12px); }
 .engaged .battle-rank { transform: translate(-50%,-50%) translateY(14px); }
 .engaged .battle-formation.enemy .battle-rank { transform: translate(-50%,-50%) translateY(-14px); }
 .battle-actor { display: inline-flex; transition: opacity 400ms, filter 400ms, transform 400ms; }
@@ -1174,7 +1129,8 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .reduced-motion .battle-actor, .reduced-motion .battle-actor .unit-icon, .reduced-motion .battle-clash i { animation: none !important; }
 .playback-paused .battle-actor, .playback-paused .battle-actor .unit-icon, .playback-paused .battle-clash i { animation-play-state: paused !important; }
 .flow-actions button:active, .gather-button:active, .report-continue:active, .controls button:active { translate: 0 1px; }
-.flow-dialog[data-kind="battle"] .flow-actions { position: sticky; bottom: 0; z-index: 3; padding-block: 6px; background: var(--panel); }
+.flow-dialog[data-kind="battle"] .flow-actions { position: sticky; bottom: 0; z-index: 3; padding-block: 6px; background: linear-gradient(transparent, var(--panel) 45%); }
+:root[data-layout="fluid"] .flow-dialog[data-kind="battle"] .flow-actions { background: linear-gradient(transparent, #141738 45%); border-top-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .popup-balance > span { transition: none; }
   .flow-actions button:active, .gather-button:active, .report-continue:active, .controls button:active { translate: none; }
@@ -1194,6 +1150,8 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 }
 @container app (orientation: landscape) and (max-height: 540px) {
   :root[data-layout="fluid"] .popup-battlefield { height: 150px; }
+  :root[data-layout="fluid"] .battle-rank { --step: 6%; top: calc(40% - var(--rank) * var(--step)); }
+  :root[data-layout="fluid"] .battle-formation.enemy .battle-rank { top: calc(60% + var(--rank) * var(--step)); }
   :root[data-layout="fluid"] .battle-actor .unit-icon { width: 30px; height: 30px; }
   :root[data-layout="fluid"] .battle-phase { margin-top: 3px; }
 }
@@ -1206,3 +1164,24 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .realm-who small { line-height: 1.1; }
 /* The rank chip on the map: bottom right, above the campaign card, clear of the chapter titles and the stops. */
 :root[data-layout="fixed"] .campaign-realm { top: auto; right: 18px; bottom: 136px; }
+
+/* 0.10.2 polish ---------------------------------------------------------- */
+/* The report's one learner line (words mode only). */
+.report-coach { margin: 0; font-size: .82rem; color: var(--haldi-soft); }
+/* The move summary's icons are read from a hidden sentence; the wrapper doesn't change the row's layout. */
+.summary-icons { display: contents; }
+/* On broad stages the report panel is as tall as the report, not the whole column. */
+@container app (min-width: 900px) {
+  #app.ui-choice .build-panel.reporting { bottom: auto; max-height: calc(100% - 32px); overflow-y: auto; }
+}
+/* Before play starts, the briefing has the screen: no build panel showing through it on phones. */
+#app:has(.flow-scrim:not(.hidden) .flow-dialog[data-kind="briefing"]) .build-panel:not(.tutorial-focus) { visibility: hidden; }
+/* Milestone toasts wait while a dialog is open. */
+#app:has(.flow-scrim:not(.hidden)) .milestone { visibility: hidden; }
+/* Steppers at their limit look it. */
+.market-row button:disabled { opacity: .4; cursor: default; }
+.flow-dialog h2:focus { outline: none; }
+.flow-dialog h2:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+/* Until boot ends, and while the map (the title screen) covers the stage, the build panel waits
+   (not drawn), so its card pictures (loading="lazy") don't compete with the first screen's download. */
+#app:has(.campaign-map:not(.hidden)) .build-panel, :root:not([data-booted]) .build-panel { display: none; }

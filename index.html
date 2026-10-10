@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#13271b" />
-    <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Plays in either orientation: 16:9 stage in large frames (designed for 1920×1080), a rearranged layout on phones and tablets. -->
-    <meta name="orientation" content="any" />
-    <meta name="screen-orientation" content="any" />
+    <!-- Portal listing metadata (SUBMISSION_GUIDE §1: "declare in index.html metadata"). Listed as landscape: the game is laid out for the 16:9 1920×1080 portal frame. Smaller frames (phones, tablets, small windows) still get a rearranged layout. -->
+    <meta name="orientation" content="landscape" />
+    <meta name="screen-orientation" content="landscape" />
     <meta name="description" content="Build a kingdom in mythic Bharatvarsha one choice at a time, then defend it. Every building costs timber, stone or planks, and every soldier needs arms and food. Beat 25 enemy armies of swordsmen, archers and horsemen and climb past 1,008 rival rajas to rank 1. A short strategy game for your browser." />
     <title>Grow an Empire</title>
     <script>
@@ -67,12 +67,23 @@
           var loading = document.getElementById("loading");
           if (!loading || loading.querySelector("button")) return; // main.ts already showed its own error.
           shown = true;
+          // Tell the portal the game has answered, so its loading screen lifts
+          // and this message is seen (main.ts never sends it twice).
+          if (window.parent !== window && !window.__gaeReadySent) {
+            window.__gaeReadySent = true;
+            try { window.parent.postMessage({ type: "GAME_READY", gameVersion: "boot-error" }, "*"); } catch (e) { /* Cross-origin parent refused. */ }
+          }
+          // A machine-local host (single-label name or 127.x loopback); the portal is always a full domain.
+          var host = window.location.hostname;
+          var local = host.length > 0 && (host.indexOf(".") === -1 || /^127\./.test(host));
           var title = document.createElement("strong");
           title.textContent = "The game didn't start.";
           var body = document.createElement("span");
           body.textContent = window.location.protocol === "file:"
             ? "This page was opened straight from a folder, and browsers block a game's scripts and styles there. It runs on the portal, or locally with `pnpm preview`."
-            : detail + " If you're running the dev server, check its terminal window for errors, then reload.";
+            : local
+              ? detail + " If you're running the dev server, check its terminal window for errors, then reload."
+              : "Something stopped it loading. Check your connection, then press Reload.";
           var retry = document.createElement("button");
           retry.type = "button";
           retry.textContent = "Reload";
@@ -87,10 +98,14 @@
           }
           // A bug inside the portal's SDK doesn't stop the game (it falls back to offline play).
           else if ((event.filename || "").indexOf("platform-sdk.js") !== -1) return;
+          // Muted cross-origin errors (the SDK) and the browser's ResizeObserver notice aren't the game's.
+          else if (!(event.error instanceof Error) || /^(ResizeObserver loop|Script error)/i.test(event.message || "")) return;
           else if (event.message) show(event.message + ".");
         }, true);
         window.addEventListener("unhandledrejection", function (event) {
           var reason = event.reason;
+          // Only the game's own code stops the boot; a rejected SDK request doesn't.
+          if (!(reason instanceof Error) || !/\/game(-[\w-]+)?\.js|\/src\//.test(reason.stack || "") || /platform-sdk/.test(reason.stack || "")) return;
           show((reason && reason.message ? reason.message : String(reason)) + ".");
         });
         // Only complain if loading has *stalled*: a slow connection that is still

@@ -52,7 +52,7 @@ export function createRealmBoard(root: HTMLElement, onModalChange: (open: boolea
     const near = shown.slice(Math.max(0, at - 3), at + 4).filter((entry) => !top.includes(entry));
     dialog.innerHTML = `
       <button type="button" class="realm-close" data-primary data-action="close" aria-label="Close the realm board" title="Close">${icon("close")}</button>
-      <p class="flow-kicker">THE REALM · ${number(all.length)} <span class="w">RAJAS</span></p>
+      <p class="flow-kicker">THE REALM · ${number(all.length - 1)} <span class="ws">RIVAL RAJAS</span> + ${icon("people")}<span class="ws">YOU</span></p>
       <h2 class="realm-head">${icon("rank")}<b>${number(me.rank)}</b><small>/ ${number(all.length)}</small><span class="realm-title">${escapeHtml(me.title)}</span></h2>
       <label class="realm-filter"><span class="w">Janapada</span><select aria-label="Show rajas from one janapada"><option value="">All</option>${JANAPADAS.map((name) => `<option${name === filter ? " selected" : ""}>${name}</option>`).join("")}</select></label>
       <ol class="realm-list" aria-label="Top rajas">${top.map(row).join("")}</ol>

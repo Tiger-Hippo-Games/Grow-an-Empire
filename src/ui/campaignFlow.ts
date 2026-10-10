@@ -7,7 +7,7 @@ import { playBattle } from "../render/popupBattle";
 import { buildingFilename } from "../render/constructionView";
 import { assetUrl } from "../render/assetCatalog";
 import { BUILDINGS } from "../game/content";
-import { trapTab } from "./dom";
+import { escapeHtml, focusFirst, trapTab } from "./dom";
 import { amount, icon } from "./icons";
 
 /**
@@ -19,8 +19,6 @@ import { amount, icon } from "./icons";
  *   4. the result, with stars and what would have done better.
  * main.ts decides when each appears; this module only draws and reports clicks.
  */
-
-const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 
 function starText(stars: number): string {
   return `${"★".repeat(stars)}${"☆".repeat(3 - stars)}`;
@@ -110,7 +108,7 @@ export interface RealmView {
 /** "Easy", "Medium" or "Hard" as a small coloured chip. */
 export function tierChip(campaign: CampaignDefinition): string {
   const label = campaign.tier[0].toUpperCase() + campaign.tier.slice(1);
-  return `<span class="tier-chip tier-${campaign.tier}" aria-label="Difficulty: ${label}">${label}</span>`;
+  return `<span class="tier-chip tier-${campaign.tier}"><span class="sr">Difficulty: </span>${label}</span>`;
 }
 
 const number = (value: number): string => value.toLocaleString("en-IN");
@@ -118,7 +116,7 @@ const number = (value: number): string => value.toLocaleString("en-IN");
 /** The rank line on the result: "[chakra] 812 → 655 / 1,009 · +157 [banner] · Samanta". */
 function realmLine(realm: RealmView): string {
   const moved = realm.before !== realm.rank;
-  return `<div class="realm-standing" aria-label="Realm rank ${realm.rank} of ${realm.of}${realm.overtaken ? `, ${realm.overtaken} rajas overtaken` : ""}">
+  return `<div class="realm-standing" role="group" aria-label="Realm rank ${realm.rank} of ${realm.of}${realm.overtaken ? `, ${realm.overtaken} rajas overtaken` : ""}">
     <span class="realm-rank">${icon("rank")}${moved ? `<s>${number(realm.before)}</s><b aria-hidden="true">→</b>` : ""}<b class="realm-now" data-from="${realm.before}" data-to="${realm.rank}">${number(realm.rank)}</b><small>/ ${number(realm.of)}</small></span>
     ${realm.overtaken ? `<span class="realm-overtaken">${icon("rival")}<b>+${number(realm.overtaken)}</b></span>` : ""}
     <span class="realm-title">${escapeHtml(realm.title)}</span>
@@ -176,8 +174,21 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
   let stopBattle: (() => void) | null = null;
   let open = false;
   let lastResult: ResultView | null = null;
+  /** When the current screen appeared: a second click of a double click must not press the next screen's button. */
+  let shownAt = 0;
+  /** Where focus was before the first dialog opened, to give it back on close. */
+  let returnFocus: HTMLElement | null = null;
   // Modal: Tab and Shift+Tab stay inside the open dialog.
   document.addEventListener("keydown", (event) => { if (open) trapTab(event, dialog); });
+  // Each screen replaces the last in the same spot (Fight → Skip, Next → Prepare
+  // the defence), so the second click of a double click (event.detail 2+) must
+  // not press the new screen's button. Single clicks and keys always count.
+  dialog.addEventListener("click", (event) => {
+    if (event.detail < 2 || performance.now() - shownAt >= 600) return;
+    if (!(event.target as HTMLElement).closest("button")) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
 
   function show(kind: string, html: string): void {
     stopBattle?.();
@@ -187,9 +198,23 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     dialog.classList.remove("show-extra");
     dialog.innerHTML = html;
     dialog.scrollTop = 0;
+    shownAt = performance.now();
+    const heading = dialog.querySelector<HTMLElement>("h2");
+    if (heading) {
+      heading.id = "flow-title";
+      heading.tabIndex = -1;
+      dialog.setAttribute("aria-labelledby", "flow-title");
+    } else dialog.removeAttribute("aria-labelledby");
     scrim.classList.remove("hidden");
-    if (!open) { open = true; callbacks.onModalChange(true); }
-    dialog.querySelector<HTMLButtonElement>("[data-primary]")?.focus({ preventScroll: true });
+    if (!open) {
+      const active = document.activeElement;
+      returnFocus = active instanceof HTMLElement && active !== document.body ? active : null;
+      open = true;
+      callbacks.onModalChange(true);
+    }
+    // The battle's only button is Skip: start on the heading, so a stray Enter doesn't skip the fight.
+    if (kind === "battle") heading?.focus({ preventScroll: true });
+    else dialog.querySelector<HTMLButtonElement>("[data-primary]")?.focus({ preventScroll: true });
     dialog.querySelector<HTMLButtonElement>("[data-action=more]")?.addEventListener("click", (event) => {
       const button = event.currentTarget as HTMLButtonElement;
       const showing = dialog.classList.toggle("show-extra");
@@ -205,7 +230,15 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     stopBattle = null;
     scrim.classList.add("hidden");
     root.classList.remove("fighting");
-    if (open) { open = false; callbacks.onModalChange(false); }
+    if (open) {
+      open = false;
+      callbacks.onModalChange(false);
+      // Give focus back (to where it was, else the build panel or the controls), never to the page body.
+      if (!document.activeElement || document.activeElement === document.body || dialog.contains(document.activeElement)) {
+        focusFirst(returnFocus, "#build-panel:not(.hidden) button:not([disabled])", "#play-toggle", "#city-ui-toggle");
+      }
+      returnFocus = null;
+    }
   }
 
   function starRules(stars: StarMargins): string {
@@ -221,7 +254,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       <h2>${escapeHtml(objective.enemyName)}</h2>
       <div class="army-chips">${armyChips(objective.army, true)}</div>
       ${veteran}
-      <p class="flow-counter"><span class="tag w">Counter</span>${counterIcons(objective.army)}<span class="arrive" aria-label="Arrive after move ${campaign.moveLimit}">${icon("move")}<b>${campaign.moveLimit}</b><span class="w"> moves</span></span></p>
+      <p class="flow-counter"><span class="tag w">Counter</span>${counterIcons(objective.army)}<span class="arrive" role="img" aria-label="Arrive after move ${campaign.moveLimit}">${icon("move")}<b>${campaign.moveLimit}</b><span class="w"> moves</span></span></p>
       ${starRules(campaign.stars)}
       ${extra(`<p class="flow-sub">${["I", "II", "III", "IV", "V"][campaign.chapter] ?? ""} · ${escapeHtml(CHAPTERS[campaign.chapter]?.name ?? "")}: ${escapeHtml(CHAPTERS[campaign.chapter]?.lore ?? "")}</p>
       <p class="flow-sub">from ${escapeHtml(objective.kingdomName)}</p>
@@ -239,7 +272,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     const enemy: EnemyArmy = campaign.objective.army;
     let hire: SellswordHire = { archers: 0, swordsmen: 0 };
     const market = view.hasMarketplace && view.cap === 0
-      ? `<p class="flow-note market-missing" aria-label="Too few enemies to hire sellswords">${icon("market")}${icon("lock")}<span class="w"> Too few enemies to hire sellswords.</span></p>`
+      ? `<p class="flow-note market-missing"><span aria-hidden="true">${icon("market")}${icon("lock")}</span><span class="ws"> Too few enemies to hire sellswords.</span></p>`
       : view.hasMarketplace
       ? `<div class="market">
           <div class="market-heading"><strong>${icon("market")} Sellswords</strong><span>${amount("gold", SELLSWORD_COST)} each · max ${view.cap}</span></div>
@@ -250,7 +283,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
           </div>
           <div class="market-foot"><span data-spend></span><button type="button" class="quiet" data-action="best">Best mix</button></div>
         </div>`
-      : `<p class="flow-note market-missing" aria-label="No Bazaar: no sellswords">${icon("market")}${icon("lock")}<span class="w"> No Bazaar: no sellswords.</span></p>`;
+      : `<p class="flow-note market-missing"><span aria-hidden="true">${icon("market")}${icon("lock")}</span><span class="ws"> No Bazaar: no sellswords.</span></p>`;
     show("muster", `
       <p class="flow-kicker w">MOVE ${campaign.moveLimit} · THE ENEMY ARRIVES</p>
       <h2>${escapeHtml(campaign.objective.enemyName)} attack</h2>
@@ -258,8 +291,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
         <div><span class="side-label">${icon("strength")}<span class="w">Your army</span></span><div class="army-chips" data-ours></div></div>
         <div><span class="side-label">${escapeHtml(campaign.objective.kingdomName)}</span><div class="army-chips">${armyChips(enemy, true)}</div></div>
       </div>
-      ${view.deserted ? `<p class="flow-note deserted" aria-label="${view.deserted} soldiers deserted for lack of rations">${icon("warning")}${amount("people", view.deserted, { sign: "−", className: "loss" })}${icon("rations")}<span class="w"> deserted for lack of rations</span></p>` : ""}
-      <div class="forecast"><div class="forecast-bar"><i data-bar></i></div><p data-forecast></p></div>
+      ${view.deserted ? `<p class="flow-note deserted"><span aria-hidden="true">${icon("warning")}${amount("people", view.deserted, { sign: "−", className: "loss" })}${icon("rations")}</span><span class="ws"> ${view.deserted} soldiers deserted for lack of rations (an older save)</span></p>` : ""}
+      <div class="forecast"><div class="forecast-bar"><i data-bar></i></div><p data-forecast aria-live="polite"></p></div>
       ${market}
       <div class="flow-actions"><button type="button" data-primary data-action="fight">Fight</button></div>`);
     const ours = dialog.querySelector<HTMLElement>("[data-ours]")!;
@@ -276,14 +309,19 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       const theirs = enemyStrength(enemy, army);
       const outcome = resolveBattle(army, enemy, campaign.stars);
       bar.style.width = `${Math.round((mine / Math.max(1e-9, mine + theirs)) * 100)}%`;
-      forecast.innerHTML = `${strengthLine(mine, theirs)} ${outcome.win
+      forecast.innerHTML = `<span aria-hidden="true">${strengthLine(mine, theirs)} ${outcome.win
         ? `<span class="good">Win ${starText(outcome.stars)}</span>`
-        : `<span class="bad">Defeat</span>`}`;
-      forecast.setAttribute("aria-label", `Strength ${mine.toFixed(1)} against ${theirs.toFixed(1)}. Forecast: ${outcome.win ? `victory, ${winText(outcome.margin)}, ${outcome.stars} stars` : "defeat"}`);
+        : `<span class="bad">Defeat</span>`}</span><span class="sr">Strength ${mine.toFixed(1)} against ${theirs.toFixed(1)}. Forecast: ${outcome.win ? `victory, ${winText(outcome.margin)}, ${outcome.stars} stars` : "defeat"}</span>`;
       for (const kind of ["archers", "swordsmen"] as const) {
         const count = dialog.querySelector(`[data-count=${kind}]`);
         if (count) count.textContent = String(hire[kind]);
       }
+      // The steppers say when they can't go further.
+      const left = budget - hire.archers - hire.swordsmen;
+      dialog.querySelectorAll<HTMLButtonElement>("[data-step]").forEach((button) => {
+        const [kind, delta] = button.dataset.step!.split(":") as ["archers" | "swordsmen", string];
+        button.disabled = Number(delta) < 0 ? hire[kind] === 0 : left <= 0;
+      });
       const spend = dialog.querySelector("[data-spend]");
       if (spend) spend.innerHTML = `${amount("gold", (hire.archers + hire.swordsmen) * SELLSWORD_COST, { sign: "−" })} <span class="tag">${budget - hire.archers - hire.swordsmen} more</span>`;
     }
@@ -350,13 +388,13 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     show("result", `
       <p class="flow-kicker">CAMPAIGN ${campaign.number} · ${escapeHtml(campaign.name.toUpperCase())}</p>
       <h2 class="${report.win ? "good" : "bad"}">${report.win ? "Victory" : "The city has fallen"}</h2>
-      <p class="result-stars" aria-label="${report.stars} of 3 stars">${starText(report.stars)}</p>
+      <p class="result-stars" role="img" aria-label="${report.stars} of 3 stars">${starText(report.stars)}</p>
       ${result.newRecord && report.stars > 0 ? `<p class="flow-note good">New best!</p>` : result.bestStars > report.stars ? `<p class="flow-note">Best: ${starText(result.bestStars)}</p>` : ""}
       ${result.realm ? realmLine(result.realm) : ""}
-      <p class="flow-lead" aria-label="Your strength ${report.playerStrength.toFixed(1)} against ${report.enemyStrength.toFixed(1)}">${strengthLine(report.playerStrength, report.enemyStrength)}</p>
+      <p class="flow-lead"><span aria-hidden="true">${strengthLine(report.playerStrength, report.enemyStrength)}</span><span class="sr">Your strength ${report.playerStrength.toFixed(1)} against ${report.enemyStrength.toFixed(1)}</span></p>
       <div class="army-chips">${armyChips(report.units, false)}</div>
       ${report.gap ? `<p class="flow-hint">${escapeHtml(report.gap)}</p>` : ""}
-      <p class="result-order" aria-label="Build order: ${escapeHtml(result.buildOrder.join(", "))}">${result.buildOrderIds.map((id) => `<img src="${assetUrl(buildingFilename(id, "complete"))}" alt="" title="${escapeHtml(BUILDINGS[id]?.name ?? id)}" />`).join("")}</p>
+      <p class="result-order"><span class="sr">Build order: ${escapeHtml(result.buildOrder.join(", "))}</span>${result.buildOrderIds.map((id) => `<img src="${assetUrl(buildingFilename(id, "complete"))}" alt="" title="${escapeHtml(BUILDINGS[id]?.name ?? id)}" />`).join("")}</p>
       ${extra(`${report.win ? `<p class="flow-note">${escapeHtml(winText(report.margin))}</p>` : ""}<ul class="result-notes">${report.explanations.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
       <p class="result-order-text"><span>Build order</span> ${result.buildOrder.map(escapeHtml).join(" → ")}</p>${result.realm ? realmDetails(result.realm) : ""}`)}
       ${lockedNote}
@@ -366,8 +404,10 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     dialog.querySelectorAll<HTMLButtonElement>("[data-vote]").forEach((button) => button.addEventListener("click", () => {
       callbacks.onUxEvent?.("ux_clarity_vote", { vote: button.dataset.vote, campaign_number: campaign.number, won: report.win, stars: report.stars });
       const box = dialog.querySelector<HTMLElement>("[data-clarity]");
-      if (box) box.innerHTML = `<span>Thanks!</span>`;
+      if (box) box.innerHTML = `<span role="status">Thanks!</span>`;
       result.askClarity = false;
+      // The pressed button is gone: keep focus in the dialog, on its main action.
+      focusFirst(dialog.querySelector<HTMLElement>("[data-primary]"), dialog.querySelector<HTMLElement>(".flow-actions button"));
     }));
     dialog.querySelector("[data-action=next]")?.addEventListener("click", () => { hide(); callbacks.onNext(); });
     dialog.querySelector("[data-action=replay]")!.addEventListener("click", () => { hide(); callbacks.onReplay(); });

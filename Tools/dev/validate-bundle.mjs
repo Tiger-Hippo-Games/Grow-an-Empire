@@ -85,6 +85,18 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
   (missing.length === 0 ? pass : fail)(missing.length === 0 ? `Every file index.html loads is in the ZIP (${new Set(referenced).size})` : `index.html loads files missing from the ZIP: ${missing.join(", ")}`);
 
   const textEntries = entries.filter((entry) => /\.(html|js|css|json)$/i.test(entry.name));
+  // Every art, font and media file the code or styles name must be in the ZIP:
+  // a missing one only shows on the portal as an empty card or a fallback font.
+  const ASSET_REF = /\bassets\/[\w.@-]+\.(?:webp|png|jpe?g|gif|svg|woff2?|ttf|otf|mp3|ogg|wav|m4a|json)\b/gi;
+  const assetRefs = new Set();
+  for (const entry of textEntries) {
+    try { for (const match of entry.read().toString("utf8").matchAll(ASSET_REF)) assetRefs.add(match[0]); } catch { /* Reported below. */ }
+  }
+  const missingAssets = [...assetRefs].filter((name) => !byName.has(name));
+  (missingAssets.length === 0 ? pass : fail)(missingAssets.length === 0 ? `Every asset the code and styles load is in the ZIP (${assetRefs.size})` : `Assets referenced but missing from the ZIP: ${missingAssets.join(", ")}`);
+  const unused = entries.filter((entry) => entry.name.startsWith("assets/") && !entry.name.endsWith("/") && !assetRefs.has(entry.name)
+    && !/^assets\/(?:thumbnail|banner)\./i.test(entry.name));
+  if (unused.length) warn(`${unused.length} file(s) in assets/ are never referenced: ${unused.slice(0, 5).map((e) => e.name).join(", ")}${unused.length > 5 ? "…" : ""}`);
   const localhostHits = [];
   const dialogHits = [];
   const navigationHits = [];

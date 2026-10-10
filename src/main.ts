@@ -10,6 +10,9 @@ import { createScoreSubmission } from "./platform/scoreSubmission";
 import type { PlayerInfo } from "./platform/types";
 import { createProgressStore, DEFAULT_SETTINGS, mergeStars, newRunId, type SavedGame, type SavedSettings } from "./platform/progressStore";
 import { createSessionTracker, listenForPortalMessages, notifyPortalReady } from "./platform/session";
+import { isGameError, isGameRejection } from "./platform/errorFilter";
+import { hasDebugFlag } from "./platform/debugFlags";
+import { checkFont, onAssetProblem, recordImageFailed } from "./platform/assetHealth";
 import { createSceneSetup } from "./render/sceneSetup";
 import { civicGround, createCityLayout, getBuildingPosition, loadEmptyTerrain, loadForest, type TerrainHandle } from "./render/cityLayout";
 import { createCivicCenter } from "./render/civicCenter";
@@ -73,6 +76,8 @@ let renderRequested = true;
 let contextLost = false;
 /** The portal reveals the iframe only after our first successful draw. */
 let portalReadySent = false;
+/** Set once the player has entered a campaign this visit; a portal resume only restarts analytics after that. */
+let playStarted = false;
 
 /** Asks for one redraw on the next frame even if the game is paused. */
 function requestRender(): void {
@@ -121,6 +126,18 @@ function reportRuntimeError(error: unknown, where: string): void {
   track("runtime_error", { where, message });
 }
 
+// Art, font and sound that failed on this device: each problem is reported
+// once (platform/assetHealth.ts). The game itself already falls back.
+onAssetProblem((problem) => {
+  console.warn(`[Grow an Empire] Asset problem (${problem.kind})`, problem);
+  track("asset_problem", { kind: problem.kind, file: problem.kind === "image" ? problem.file : undefined, detail: problem.detail });
+});
+// Pictures in the panels and dialogs are plain <img> elements: catch theirs too.
+document.addEventListener("error", (event) => {
+  const target = event.target;
+  if (target instanceof HTMLImageElement && target.src) recordImageFailed(target.src, "an <img> failed to load");
+}, true);
+
 /** State or view may be partially changed: pause and protect the last good save. */
 function failSimulation(error: unknown, where: string): void {
   loopFailed = true;
@@ -135,12 +152,38 @@ const guardAction = createActionGuard(() => initialized && !loopFailed && !rende
 // Errors nobody caught (a bug in an event handler, a rejected promise with no
 // .catch). Before boot, index.html's watchdog shows them on the loading
 // screen; after boot pause the run and protect its last successful save.
+// Errors from outside the game (the portal SDK, the browser's ResizeObserver
+// notice) are logged and reported but never stop play (platform/errorFilter.ts).
 window.addEventListener("error", (event) => {
-  if (initialized && event.error !== undefined) failSimulation(event.error ?? event.message, "uncaught");
+  if (!initialized) return;
+  if (isGameError(event.message, event.error, event.filename)) failSimulation(event.error, "uncaught");
+  else reportRuntimeError(event.error ?? event.message, "uncaught_external");
 });
 window.addEventListener("unhandledrejection", (event) => {
-  if (initialized) failSimulation(event.reason, "unhandled_rejection");
+  if (!initialized) return;
+  if (isGameRejection(event.reason)) failSimulation(event.reason, "unhandled_rejection");
+  else reportRuntimeError(event.reason, "unhandled_rejection_external");
 });
+
+/**
+ * A deliberate click or key press means the player is back, even if the
+ * portal's resume message never arrived (GP_* messages are not part of the
+ * SDK 1.5.0 contract, so the game can't count on them). Undoes a portal pause
+ * exactly as GP_RESUME would.
+ */
+function resumeFromPortalPause(): void {
+  if (!pausedByPortal) return;
+  pausedByPortal = false;
+  sound.setPaused(false);
+  // With a dialog or the map open, play resumes when the player closes it.
+  if (modalCount > 0) resumeAfterTutorial = true;
+  else if (!campaignMap.isOpen) {
+    playing = true;
+    hud.setPlayingLabel(true);
+  }
+  // GP_SESSION_END ended the analytics session; play going on starts a new one.
+  if (initialized && playStarted && simulation.state.mode !== "complete") session.start();
+}
 
 const hud = createHud({
   onPlayToggle: () => {
@@ -192,6 +235,7 @@ const hud = createHud({
     if (firstTime) track(skipped ? "tutorial_skipped" : "tutorial_completed", { step_count: stepCount, time_seconds: seconds });
   },
   onSelectBuilding: (buildingId) => {
+    resumeFromPortalPause();
     beginConstruction(buildingId).catch((error: unknown) => {
       // Not a load failure (those are handled inside): something broke while
       // placing the building. Say so rather than failing silently.
@@ -199,19 +243,21 @@ const hud = createHud({
     });
   },
   onSwapBuild: (buildingId) => {
+    resumeFromPortalPause();
     beginConstruction(buildingId, { swap: true }).catch((error: unknown) => {
       failSimulation(error, "swap_build");
     });
   },
-  onGather: () => guardAction("gather", () => {
-    if (simulation.state.mode !== "awaiting-choice") return;
+  onGather: () => { resumeFromPortalPause(); guardAction("gather", () => {
+    // A card's art may still be loading for a choice already made.
+    if (selectionPending || simulation.state.mode !== "awaiting-choice") return;
     const move = simulation.state.move;
     const events = simulation.gather();
     if (events.length === 0) return;
     hud.hideBuildPanel();
     track("move_gathered", { level: move, campaign_number: simulation.campaign.number });
     handleSimulationEvents(events);
-  }),
+  }); },
   onMuteToggle: () => {
     settings = { ...settings, muted: !settings.muted };
     sound.setMuted(settings.muted === true);
@@ -320,6 +366,7 @@ function selectCampaign(campaign: CampaignDefinition, options: { fresh?: boolean
     hud.setPlayingLabel(true);
     if (tutorialPending && !settings.tutorialComplete) hud.maybeStartTutorial(true, false);
     tutorialPending = false;
+    playStarted = true;
     if (initialized && simulation.state.mode !== "complete") session.start();
     if (simulation.state.mode === "muster") openMuster();
   };
@@ -361,6 +408,7 @@ function createSceneOrExplain(): ReturnType<typeof createSceneSetup> {
   } catch (error) {
     console.error("[Grow an Empire] WebGL is unavailable", error);
     hud.showLoadError("This browser or device can't show the game's 3D graphics: WebGL is turned off or not supported. Try another browser, or turn on hardware acceleration in your browser settings.");
+    notifyPortalReady(__APP_VERSION__); // Let the portal lift its loading screen so this message is seen.
     // Stop here: nothing below can run without a renderer. The boot watchdog
     // leaves the message alone because it already has a button.
     throw error;
@@ -401,6 +449,7 @@ function openMuster(): void {
 
 /** "Fight" at the muster: hires the sellswords and resolves the battle. */
 function fight(hire: SellswordHire): void {
+  resumeFromPortalPause();
   guardAction("fight", () => {
     const events = simulation.muster(hire);
     if (events.length === 0) return;
@@ -648,8 +697,6 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       if (simulation.state.lastSummary?.warnings.length) sound.play("warning");
     } else if (event.type === "muster-ready") {
       openMuster();
-    } else if (event.type === "soldiers-deserted") {
-      villagerField.syncGarrison(event.units, animationElapsed, simulation.state.builtBuildingIds);
     } else if (event.type === "economy-resolved") {
       for (const buildingId of event.activeBuildingIds) constructionView.markProduced(buildingId, animationElapsed);
     } else if (event.type === "population-changed") {
@@ -852,16 +899,7 @@ listenForPortalMessages((message) => {
     hud.setPlayingLabel(false);
     sound.setPaused(true);
   } else if (message === "GP_RESUME" && pausedByPortal) {
-    pausedByPortal = false;
-    sound.setPaused(false);
-    // With a dialog or the map open, play resumes when the player closes it.
-    if (modalCount > 0) resumeAfterTutorial = true;
-    else if (!campaignMap.isOpen) {
-      playing = true;
-      hud.setPlayingLabel(true);
-    }
-    // GP_SESSION_END ended the analytics session; a resume means play goes on.
-    if (initialized && simulation.state.mode !== "complete") session.start();
+    resumeFromPortalPause();
   } else if (message === "GP_SESSION_END") {
     pausedByPortal = true;
     sound.setPaused(true);
@@ -880,7 +918,7 @@ function buildingsNeededFor(saved: SettlementSnapshot): string[] {
   return [...new Set([
     ...saved.state.builtBuildingIds,
     ...saved.state.availableBuildingIds,
-    ...(saved.state.selectedBuildingId ? [saved.state.selectedBuildingId] : []),
+    ...(saved.state.mode === "construction" && saved.state.selectedBuildingId ? [saved.state.selectedBuildingId] : []),
   ])];
 }
 
@@ -913,14 +951,15 @@ function legacyTutorialCompleted(): boolean {
 }
 
 /**
- * Testing convenience: open the game with `?reset` in the URL
+ * Testing convenience (development and localhost only; see platform/debugFlags.ts):
+ * open the game with `?reset` in the URL
  * (e.g. http://127.0.0.1:4173/?reset) to discard the autosave and show the
  * tutorial again, i.e. play exactly as a first-time player would. The flag is
  * removed from the address bar straight away, so a later reload resumes normally.
  */
 function applyTestingUrlFlags(): boolean {
+  if (!hasDebugFlag("reset")) return false;
   const url = new URL(window.location.href);
-  if (!url.searchParams.has("reset")) return false;
   progress.clear();
   completedCampaignIds = [];
   campaignStars = {};
@@ -1003,7 +1042,8 @@ async function initialize(): Promise<void> {
   // A resumed city needs its built (and under-construction) buildings on screen
   // straight away; offered cards only need their card picture, so the rest of
   // their art loads in the background, well before a card can be clicked.
-  const neededNow = saved ? [...saved.state.builtBuildingIds, ...(saved.state.selectedBuildingId ? [saved.state.selectedBuildingId] : [])] : [];
+  const underConstruction = saved?.state.mode === "construction" && saved.state.selectedBuildingId ? [saved.state.selectedBuildingId] : [];
+  const neededNow = saved ? [...saved.state.builtBuildingIds, ...underConstruction] : [];
   await Promise.all([
     constructionView.loadBuildingAssets(neededNow),
     saved ? civicCenter.load(saved.state.civicLevel) : Promise.resolve(),
@@ -1039,6 +1079,7 @@ async function initialize(): Promise<void> {
   reportLeaderboard("visit");
   startBackgroundLoads(offered);
   tutorialPending = !resumed;
+  void checkFont("Yatra One");
 }
 
 /**
@@ -1138,15 +1179,16 @@ renderer.setAnimationLoop(() => {
     hud.setStatus("The graphics failed to draw. Reload to continue from your last save.", 0);
     sound.setPaused(true);
     reportRuntimeError(error, "render");
+    notifyPortalReady(__APP_VERSION__); // The status line explains; don't leave the portal loader over it.
   }
 });
 
 /**
  * Development-only performance readout (`?perf`): FPS, frame time, draw calls
- * and GPU memory counts (THREEJS_STANDARDS §43). Not shown to players.
+ * and GPU memory counts (THREEJS_STANDARDS §43). Never shown on the portal.
  */
 function createPerfOverlay(): { sample(): void } | null {
-  if (!new URLSearchParams(window.location.search).has("perf")) return null;
+  if (!hasDebugFlag("perf")) return null;
   const panel = document.createElement("div");
   panel.className = "perf-overlay";
   document.body.appendChild(panel);
@@ -1174,4 +1216,5 @@ initialize().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   track("load_error", { message: message.slice(0, 200) });
   hud.showLoadError(message);
+  notifyPortalReady(__APP_VERSION__); // The error screen must not stay hidden behind the portal's loader.
 });

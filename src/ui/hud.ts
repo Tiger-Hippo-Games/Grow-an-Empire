@@ -25,7 +25,7 @@ export interface HudCallbacks {
   onSelectBuilding(buildingId: string): void;
   /** Stuck move with a Bazaar: sell goods to pay for this card, then build it. */
   onSwapBuild(buildingId: string): void;
-  /** Stuck move: build nothing this move. */
+  /** Gather (any choice turn): build nothing this move; the city still works. */
   onGather(): void;
   onMuteToggle(): void;
   onFullscreenToggle(): void;
@@ -157,6 +157,8 @@ export function createHud(callbacks: HudCallbacks) {
   // replayed from "How to play") labels and sentences show beside the icons
   // (`.w` elements, styles.css). After that the game speaks in icons only.
   let learning = true;
+  /** Set when the tutorial ends: words go off once the player has read the first move report. */
+  let wordsUntilFirstReport = false;
   function syncWords(): void {
     document.documentElement.classList.toggle("words", learning || tutorialActive);
   }
@@ -357,7 +359,7 @@ export function createHud(callbacks: HudCallbacks) {
    */
   function renderSummary(summary: MoveSummary | null): void {
     if (!summary) { moveSummary.classList.add("hidden"); return; }
-    const built = summary.buildingId ? buildingThumb(summary.buildingId) : `${icon("move")}<span class="tag">Gather</span>`;
+    const built = summary.buildingId ? buildingThumb(summary.buildingId) : `${icon("stockpile")}<span class="tag">Gather</span>`;
     const trained = (["archers", "swordsmen", "horsemen"] as const).filter((type) => summary.trained[type] > 0)
       .map((type) => amount(type, summary.trained[type], { sign: "+", className: "gain" })).join("");
     const deserted = summary.deserted ? amount("people", summary.deserted, { sign: "−", className: "loss" }) : "";
@@ -382,7 +384,7 @@ export function createHud(callbacks: HudCallbacks) {
     ].filter(Boolean).join(", ");
     const warnings = summary.warnings.map((text) => `<p class="summary-warning">${icon("warning")}<span>${withIcons(escapeHtml(text))}</span></p>`).join("");
     const reopen = summary.ledger ? `<button type="button" class="summary-reopen" aria-label="Show the move ${summary.move} report again" title="Move report">${icon("report")}</button>` : "";
-    moveSummary.innerHTML = `<p class="summary-row" aria-label="${escapeHtml(label)}">${row}${reopen}</p><p class="summary-text w">${escapeHtml(label)}.</p>${warnings}`;
+    moveSummary.innerHTML = `<p class="summary-row"><span class="sr">${escapeHtml(label)}.</span><span class="summary-icons" aria-hidden="true">${row}</span>${reopen}</p><p class="summary-text w">${escapeHtml(label)}.</p>${warnings}`;
     moveSummary.querySelector(".summary-reopen")?.addEventListener("click", () => {
       if (!lastPanelView) return;
       reportReadFor = -1;
@@ -418,7 +420,7 @@ export function createHud(callbacks: HudCallbacks) {
 
   /** A building's picture (or the army, or spoilage) for a report line. */
   function ledgerSource(source: string): { art: string; name: string } {
-    if (source === "camp") return { art: icon("stockpile"), name: "Camp supplies" };
+    if (source === "camp") return { art: icon("civic"), name: "Camp supplies" };
     if (source === "army") return { art: icon("strength"), name: "Army" };
     if (source === "spoilage") return { art: icon("warning"), name: "Spoiled" };
     const name = BUILDINGS[source]?.name ?? source;
@@ -459,14 +461,15 @@ export function createHud(callbacks: HudCallbacks) {
       const from = Math.floor(before[name] ?? 0);
       const to = Math.floor(view.resources[name] ?? 0);
       const delta = to - from;
-      return `<span class="net-good ${delta > 0 ? "gain" : "loss"}" aria-label="${iconWord(name, to)}: ${from} to ${to}">${icon(name)}<s>${from}</s><b>${to}</b><small>${delta > 0 ? "+" : "−"}${Math.abs(delta)}</small></span>`;
+      return `<span class="net-good ${delta > 0 ? "gain" : "loss"}" role="img" aria-label="${iconWord(name, to)}: ${from} to ${to}">${icon(name)}<s>${from}</s><b>${to}</b><small>${delta > 0 ? "+" : "−"}${Math.abs(delta)}</small></span>`;
     }).join("");
-    const built = summary.buildingId ? `<span class="report-built" title="${escapeHtml(BUILDINGS[summary.buildingId]?.name ?? "")}"><img src="${assetUrl(buildingFilename(summary.buildingId, "complete"))}" alt="" />${icon("build")}</span>` : `<span class="tag">Gather</span>`;
+    const built = summary.buildingId ? `<span class="report-built" title="${escapeHtml(BUILDINGS[summary.buildingId]?.name ?? "")}"><img src="${assetUrl(buildingFilename(summary.buildingId, "complete"))}" alt="" />${icon("build")}</span>` : `<span class="report-built">${icon("stockpile")}<span class="tag">Gather</span></span>`;
     const warnings = summary.warnings.map((text) => `<p class="summary-warning">${icon("warning")}<span>${withIcons(escapeHtml(text))}</span></p>`).join("");
-    buildOptions.innerHTML = `<section class="move-report" aria-label="Move ${summary.move} report">
-      <p class="report-head"><span class="summary-move" aria-label="Move ${summary.move}">${icon("move")}${summary.move}</span><span class="report-title">${icon("report")}<span class="w">Move report</span></span>${built}</p>
+    buildOptions.innerHTML = `<section class="move-report" aria-labelledby="report-title-${summary.move}">
+      <p class="report-head" id="report-title-${summary.move}"><span class="summary-move" aria-label="Move ${summary.move}">${icon("move")}${summary.move}</span><span class="report-title">${icon("report")}<span class="w">Move report</span></span>${built}</p>
+      <p class="report-coach w">What your city did last move. Read it, then Choose.</p>
       ${lines ? `<ul class="ledger">${lines}</ul>` : `<p class="report-empty w">Nothing worked yet: build producers first.</p>`}
-      ${net ? `<div class="report-net" aria-label="Stockpile after the move">${net}</div>` : ""}
+      ${net ? `<div class="report-net" role="group" aria-label="Stockpile after the move">${net}</div>` : ""}
       ${warnings}
     </section>`;
     buildFoot.replaceChildren();
@@ -479,6 +482,12 @@ export function createHud(callbacks: HudCallbacks) {
     next.addEventListener("click", () => {
       callbacks.onUiSound?.();
       reportReadFor = summary.move;
+      if (wordsUntilFirstReport) {
+        // The first report after the tutorial was read with words; icons only from now on.
+        wordsUntilFirstReport = false;
+        learning = false;
+        syncWords();
+      }
       ux("ux_report_read", { move: summary.move, seconds: Math.round((performance.now() - choiceShownAt) / 100) / 10 });
       renderBuildPanel(view);
       (buildOptions.querySelector<HTMLButtonElement>(".build-card.affordable, .build-card.swappable") ?? buildFoot.querySelector<HTMLButtonElement>(".gather-button"))?.focus({ preventScroll: true });
@@ -490,6 +499,10 @@ export function createHud(callbacks: HudCallbacks) {
     chromeOpen = false;
     syncPresentation();
     setStatus(`Move ${summary.move} report: read it, then choose`, 0);
+    // The cards the player was on are gone: put focus on Choose (screen readers
+    // then read its label), unless the player is busy somewhere else.
+    const active = document.activeElement;
+    if (!active || active === document.body || buildPanel.contains(active) || !(active as HTMLElement).offsetParent) next.focus({ preventScroll: true });
   }
 
   /**
@@ -536,7 +549,7 @@ export function createHud(callbacks: HudCallbacks) {
       const missing = state === "unaffordable" ? RESOURCE_NAMES.filter((name) => (card.missing[name] ?? 0) > 0).map((name) => amount(name, card.missing[name] as number, { className: "short" })).join("") : "";
       const swapLine = card.swap ? `<span class="build-swap">${icon("market")}${signedBag(card.swap.sell, "−")}<span class="arrow">→</span>${signedBag(card.swap.buy, "+")}${card.swap.change > 0 ? amount("gold", card.swap.change, { sign: "+", className: "gain" }) : ""}</span>` : "";
       button.setAttribute("aria-label", `${index + 1}: ${card.affordable ? "Build" : card.swap ? "Swap goods and build" : "Can't afford"} ${building.name}. Costs ${formatBag(building.cost)}. ${building.benefit}. ${building.unlocks}`);
-      button.innerHTML = `<span class="build-key" aria-hidden="true">${index + 1}</span><span class="build-art"><img src="${assetUrl(buildingFilename(card.id, "complete"))}" alt="" /></span><span class="build-name">${building.name}</span><span class="build-costs">${costChips(building.cost, view.resources)}</span><span class="build-effect">${effectHtml(card.id)}</span><span class="build-benefit w">${building.benefit}</span>${swapLine}<span class="build-unlock w">${icon("unlock")}${building.unlocks}</span><span class="build-action">${action}${missing ? `<span class="build-missing">${missing}</span>` : ""}</span>`;
+      button.innerHTML = `<span class="build-key" aria-hidden="true">${index + 1}</span><span class="build-art"><img src="${assetUrl(buildingFilename(card.id, "complete"))}" alt="" loading="lazy" decoding="async" /></span><span class="build-name">${escapeHtml(building.name)}</span><span class="build-costs">${costChips(building.cost, view.resources)}</span><span class="build-effect">${effectHtml(card.id)}</span><span class="build-benefit w">${escapeHtml(building.benefit)}</span>${swapLine}<span class="build-unlock w">${icon("unlock")}${escapeHtml(building.unlocks)}</span><span class="build-action">${action}${missing ? `<span class="build-missing">${missing}</span>` : ""}</span>`;
       if (state === "unaffordable") button.setAttribute("aria-disabled", "true");
       let longPressed = false;
       let pressTimer = 0;
@@ -547,11 +560,19 @@ export function createHud(callbacks: HudCallbacks) {
         longPressed = false;
         cancelPress();
         const startX = event.clientX, startY = event.clientY;
-        const move = (moveEvent: PointerEvent): void => { if (Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 10) cancelPress(); };
+        // Released anywhere (even off the card) ends the press and removes its listeners.
+        const end = (): void => {
+          cancelPress();
+          button.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", end);
+          window.removeEventListener("pointercancel", end);
+        };
+        const move = (moveEvent: PointerEvent): void => { if (Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 10) end(); };
         button.addEventListener("pointermove", move);
-        button.addEventListener("pointerup", () => { cancelPress(); button.removeEventListener("pointermove", move); }, { once: true });
-        button.addEventListener("pointercancel", () => { cancelPress(); button.removeEventListener("pointermove", move); }, { once: true });
+        window.addEventListener("pointerup", end, { once: true });
+        window.addEventListener("pointercancel", end, { once: true });
         pressTimer = window.setTimeout(() => {
+          button.removeEventListener("pointermove", move);
           longPressed = true;
           openInfo("long_press");
           navigator.vibrate?.(12);
@@ -603,8 +624,8 @@ export function createHud(callbacks: HudCallbacks) {
       const gather = document.createElement("button");
       gather.type = "button";
       gather.className = "gather-button";
-      gather.innerHTML = `${icon("stockpile")}<b>Gather</b> <span class="w">Buildings work; spend 1 move. (G)</span>${icon("play")}`;
-      gather.setAttribute("aria-label", "Gather resources: advance one move without building; existing buildings produce and the army still eats. Press G");
+      gather.innerHTML = `${icon("stockpile")}<b>Gather</b> <span class="w">Build nothing this move; the city still works. (G)</span>${icon("play")}`;
+      gather.setAttribute("aria-label", "Gather: build nothing this move; your buildings still work and the army still eats. Press G");
       gather.addEventListener("click", callbacks.onGather);
       buildFoot.appendChild(gather);
     } else {
@@ -628,10 +649,10 @@ export function createHud(callbacks: HudCallbacks) {
       return;
     }
     const affordable = view.cards.filter((card) => card.affordable).length;
-    setStatus(affordable > 0 ? `Move ${view.move} ready: build or gather resources (spend 1 move)`
-      : view.canGather ? `Move ${view.move}: gather resources${view.cards.some((card) => card.swap) ? " or swap at the Bazaar" : " to build next move"}`
-      : affordable === 0 ? `Move ${view.move}: swap goods at the Bazaar to build`
-      : `Move ${view.move} ready: choose one of ${affordable} affordable building${affordable === 1 ? "" : "s"}`, 0);
+    const swappable = view.cards.some((card) => card.swap);
+    setStatus(affordable > 0 ? `Move ${view.move} ready: build, or gather (build nothing; the city still works)`
+      : view.canGather ? `Move ${view.move}: gather${swappable ? " or swap at the Bazaar" : " now, build next move"}`
+      : `Move ${view.move}: swap goods at the Bazaar to build`, 0);
   }
 
   function hideBuildPanel(): void {
@@ -783,7 +804,10 @@ export function createHud(callbacks: HudCallbacks) {
   function finishTutorial(skipped: boolean): void {
     const wasActive = tutorialActive;
     tutorialActive = false;
-    learning = false;
+    // Words stay on until the first move report has been read: it is the first
+    // new screen after the tutorial, and icons alone don't explain it.
+    if (wasActive && learning && !skipped) wordsUntilFirstReport = true;
+    else learning = false;
     syncWords();
     tutorialScrim.classList.add("hidden");
     tutorialCoach.classList.add("hidden");
@@ -816,7 +840,7 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 1);
     tutorialStep.textContent = "STEP 1 OF 2";
     tutorialCoachTitle.textContent = "Build or gather";
-    tutorialCoachCopy.innerHTML = `Build: pay ${icon("wood")} now; works every move. Gather: existing buildings work; costs 1 move.`;
+    tutorialCoachCopy.innerHTML = `Build: pay ${icon("wood")} now; it works every move after. Gather: build nothing this move; the city still works.`;
     tutorialNext.classList.add("hidden");
     tutorialCoach.dataset.step = "choice";
     tutorialCoach.classList.remove("hidden");
@@ -957,18 +981,22 @@ export function createHud(callbacks: HudCallbacks) {
   muteToggle.addEventListener("click", callbacks.onMuteToggle);
   fullscreenToggle.addEventListener("click", callbacks.onFullscreenToggle);
 
-  // Keyboard shortcuts (not while typing, and not while a dialog is open):
-  // 1-3 choose a card, G gathers, Space or P pauses, S changes speed,
-  // M mutes, F toggles full screen.
+  // Keyboard shortcuts (not while typing, and not while a dialog, the map or
+  // the Realm board is open): Enter leaves the move report, 1-3 choose a card,
+  // G gathers, Space or P pauses, S changes speed, M mutes, F toggles full screen.
   document.addEventListener("keydown", (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
     const target = event.target as HTMLElement | null;
-    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-    if (document.querySelector(".flow-scrim:not(.hidden), .tutorial-scrim:not(.hidden), .campaign-map:not(.hidden)")) return;
+    if (target && isTextEntry(target)) return;
+    if (document.querySelector(".flow-scrim:not(.hidden), .tutorial-scrim:not(.hidden), .campaign-map:not(.hidden), .realm-scrim:not(.hidden)")) return;
     const key = event.key.toLowerCase();
-    if (["1", "2", "3", "enter"].includes(key) && buildPanel.classList.contains("reporting") && !buildPanel.classList.contains("hidden")) {
-      event.preventDefault();
-      buildFoot.querySelector<HTMLButtonElement>(".report-continue")?.click();
+    const reporting = buildPanel.classList.contains("reporting") && !buildPanel.classList.contains("hidden");
+    if (reporting && ["1", "2", "3", "enter"].includes(key)) {
+      // Only Enter leaves the report: a quick "1, 1" must not build a card the player hasn't seen.
+      if (key === "enter" && target?.tagName !== "BUTTON") {
+        event.preventDefault();
+        buildFoot.querySelector<HTMLButtonElement>(".report-continue")?.click();
+      }
     } else if (["1", "2", "3"].includes(key) && !buildPanel.classList.contains("hidden")) {
       const card = buildOptions.querySelector<HTMLButtonElement>(`button[data-key="${key}"]`);
       if (card && !card.disabled) { event.preventDefault(); card.click(); }
@@ -988,6 +1016,13 @@ export function createHud(callbacks: HudCallbacks) {
   });
 
   syncPresentation();
+
+  /** Fields where keys type text or pick an option; the speed slider (a range) is not one of them. */
+  function isTextEntry(element: HTMLElement): boolean {
+    if (element.isContentEditable || element.tagName === "TEXTAREA" || element.tagName === "SELECT") return true;
+    if (element.tagName !== "INPUT") return false;
+    return !["range", "checkbox", "radio", "button", "submit", "reset"].includes((element as HTMLInputElement).type);
+  }
 
   return {
     viewport,

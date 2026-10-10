@@ -30,8 +30,9 @@ import {
  *     -> building completes, civic level rises, the economy runs (production,
  *        processing, training, market, upkeep, spoilage), a move summary is emitted
  *     -> next card offered, or after the last move the muster begins.
- *   A stuck move (nothing affordable) is solved by swapAndBuild() with a
- *   Bazaar, or by gather(): no building, but the move still runs.
+ *   gather() is open on every choice turn: no building, but the move still
+ *   runs (production, training, upkeep). A stuck move (nothing affordable)
+ *   can also be solved by swapAndBuild() with a Bazaar.
  * The finale:
  *   muster --muster(hire)--> the battle is resolved, stars awarded --> complete.
  */
@@ -81,13 +82,15 @@ export interface StallNote { buildingId: string; reason: string }
 /**
  * One line of the move report: what one building (or the army, or spoilage)
  * took from the stockpile and put into it this move. `source` is a building
- * id, "army" (rations eaten, deserters) or "spoilage" (grain lost).
+ * id, "camp" (supplies topping the stockpile up to its floor), "army"
+ * (rations eaten) or "spoilage" (grain lost).
  */
 export interface LedgerLine {
   source: string;
   used: ResourceBag;
   made: ResourceBag;
   trained?: Partial<TrainedUnits>;
+  /** @deprecated Legacy (before v0.10.0): soldiers who left for lack of rations. New moves never set it. */
   deserted?: number;
   /** Why it did nothing this move (idle buildings). */
   idle?: string;
@@ -104,6 +107,7 @@ export interface MoveSummary {
   consumed: ResourceBag;
   trained: TrainedUnits;
   upkeep: number;
+  /** @deprecated Legacy (before v0.10.0); always 0 for new moves, kept so older saves load. */
   deserted: number;
   stalled: StallNote[];
   warnings: string[];
@@ -117,8 +121,8 @@ export interface MoveSummary {
 /**
  * Everything the render/UI layers need to react to. Events from one move are
  * always emitted in this order: construction-complete (not for Gather),
- * civic-upgraded, economy-resolved, unit-trained (if any), soldiers-deserted
- * (if any), population-changed (if it changed), move-summary, then either
+ * civic-upgraded, economy-resolved, unit-trained (if any), population-changed
+ * (if it changed), move-summary, then either
  * choices-ready or muster-ready. muster() emits army-mustered + game-complete.
  */
 export type SimulationEvent =
@@ -131,7 +135,6 @@ export type SimulationEvent =
   | { type: "economy-resolved"; activeBuildingIds: string[] }
   | { type: "population-changed"; total: number }
   | { type: "unit-trained"; units: TrainedUnits; newArchers: number; newSwordsmen: number; newHorsemen: number }
-  | { type: "soldiers-deserted"; units: TrainedUnits; deserted: number }
   | { type: "move-summary"; summary: MoveSummary }
   | { type: "muster-ready" }
   | { type: "army-mustered"; report: ArmyReport }
@@ -152,7 +155,11 @@ export interface SettlementState {
   activePlotIndex: number | null; constructionElapsed: number; buildingMaturity: Record<string, number>;
   armyReport: ArmyReport | null;
   trainedUnits: TrainedUnits;
-  /** Soldiers who left for lack of rations, over the whole run. */
+  /**
+   * @deprecated Legacy (before v0.10.0): soldiers who left for lack of rations
+   * over the run. The economy no longer causes desertion, so new runs keep 0;
+   * an older save's count is still explained at the muster and in the report.
+   */
   deserted: number;
   /** Moves spent gathering instead of building. */
   gatherMoves: number;
@@ -261,6 +268,9 @@ export function describeSnapshotProblem(value: unknown): string | null {
   }
   const units = state.trainedUnits;
   if (!isPlainObject(units) || !SOLDIER_TYPES.every((type) => Number.isInteger(units[type]) && (units[type] as number) >= 0)) return "invalid trainedUnits";
+  // Outside construction the selection is ignored (loadSnapshot clears it),
+  // but an unknown id would still be asked for art at boot and fail every visit.
+  if (state.selectedBuildingId !== null && state.selectedBuildingId !== undefined && !isKnownBuildingId(state.selectedBuildingId)) return "selectedBuildingId is not a known building";
   if (state.mode === "construction") {
     if (!isKnownBuildingId(state.selectedBuildingId)) return "construction without a known selected building";
     if (state.activePlotIndex !== state.builtBuildingIds.length) return "activePlotIndex does not match build order";
@@ -360,8 +370,12 @@ export class SettlementSimulation {
     }
     const armyReport = isValidReport(loaded.armyReport) ? loaded.armyReport : null;
     const lastSummary = isValidSummary(loaded.lastSummary) ? loaded.lastSummary : null;
-    const constructionElapsed = Math.min(CONSTRUCTION_DURATION_SECONDS, Math.max(0, loaded.constructionElapsed || 0));
-    Object.assign(this.state, createInitialState(), loaded, { resources, armyReport, lastSummary, constructionElapsed });
+    const building = loaded.mode === "construction";
+    const elapsed = Number.isFinite(loaded.constructionElapsed) ? loaded.constructionElapsed : 0;
+    const constructionElapsed = building ? Math.min(CONSTRUCTION_DURATION_SECONDS, Math.max(0, elapsed)) : 0;
+    // Only a city under construction has a selection; a stale one elsewhere is dropped.
+    const selection = building ? {} : { selectedBuildingId: null, activePlotIndex: null };
+    Object.assign(this.state, createInitialState(), loaded, { resources, armyReport, lastSummary, constructionElapsed }, selection);
     // A finished city whose report is missing is re-fought without sellswords.
     if (this.state.mode === "complete" && !this.state.armyReport) this.state.armyReport = this.resolveMuster({ archers: 0, swordsmen: 0 });
   }
@@ -485,7 +499,6 @@ export class SettlementSimulation {
     if (summary.trained.archers || summary.trained.swordsmen || summary.trained.horsemen) {
       events.push({ type: "unit-trained", units: { ...this.state.trainedUnits }, newArchers: summary.trained.archers, newSwordsmen: summary.trained.swordsmen, newHorsemen: summary.trained.horsemen });
     }
-    if (summary.deserted) events.push({ type: "soldiers-deserted", units: { ...this.state.trainedUnits }, deserted: summary.deserted });
     if (this.state.population !== previousPopulation) events.push({ type: "population-changed", total: this.state.population });
 
     const lastMove = completedMove >= this.campaign.moveLimit;
@@ -615,7 +628,7 @@ export class SettlementSimulation {
     }
 
     const upkeep = this.upkeep;
-    const deserted = 0; // Kept in summaries for compatibility with older saves.
+    const deserted = 0; // Legacy field: economy moves never cause desertion (v0.10.0).
     if (upkeep > 0) {
       const paid = Math.min(upkeep, resources.rations);
       resources.rations -= paid;
@@ -717,7 +730,7 @@ export class SettlementSimulation {
     const goldSpent = (hire.archers + hire.swordsmen) * SELLSWORD_COST;
     const explanations: string[] = [];
     const t = this.state.trainedUnits;
-    // trainedUnits is the army still standing: deserters have already left it.
+    // trainedUnits is the army still standing (an older save's deserters had already left it).
     explanations.push(`${this.state.deserted ? "Still in the ranks" : "Trained over the campaign"}: ${t.archers} archers, ${t.swordsmen} swordsmen, ${t.horsemen} horsemen.`);
     if (hire.archers || hire.swordsmen) explanations.push(`The Bazaar hired ${hire.archers + hire.swordsmen} sellswords for ${goldSpent} gold.`);
     if (army.militia) explanations.push(`${army.militia} villagers joined as militia.`);

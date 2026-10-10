@@ -110,6 +110,7 @@ function fakePlatform(overrides: Partial<PlatformAdapter> = {}) {
     connect: async () => ({ id: "p", displayName: "P" }),
     loadProgress: async () => cloud,
     saveProgress: async (progress) => { saves.push(progress); cloud = progress; return "ok"; },
+    cloudSaveAllowed: () => true,
     submitScore: async () => "ok",
     startSession: vi.fn(),
     endSession: vi.fn(),
@@ -606,5 +607,43 @@ describe("session tracker", () => {
     vi.stubGlobal("document", { visibilityState: "hidden" });
     session.addPlayTime(10);
     expect(session.playedSeconds).toBe(0);
+  });
+});
+
+describe("guests keep no cloud save (portal rule)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("the SDK adapter neither reads nor writes the cloud for a guest", async () => {
+    const getGameProgress = vi.fn(async () => ({ progress: {}, version: 0 }));
+    const saveGameProgress = vi.fn(async () => ({ version: 1 }));
+    const sdk = {
+      init: vi.fn(), startSession: vi.fn(), endSession: vi.fn(), track: vi.fn(),
+      login: async () => ({ player: { id: "g", displayName: "Guest_1", authType: "GUEST" } }),
+      getGameProgress, saveGameProgress,
+    } as unknown as GoLiveSdk;
+    const guest = createGoLivePlatform(sdk);
+    await guest.connect();
+    expect(guest.cloudSaveAllowed()).toBe(false);
+    expect(await guest.loadProgress()).toBe("unavailable");
+    expect(await guest.saveProgress({ schemaVersion: 6 })).toBe("error");
+    expect(getGameProgress).not.toHaveBeenCalled();
+    expect(saveGameProgress).not.toHaveBeenCalled();
+  });
+
+  it("the progress store saves a guest's run in the browser only", async () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", { localStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => { store.set(k, v); }, removeItem: (k: string) => { store.delete(k); } } });
+    vi.stubGlobal("document", { visibilityState: "visible" });
+    const saveProgress = vi.fn(async () => "ok" as const);
+    const platform: PlatformAdapter = {
+      kind: "golive", connect: async () => null, loadProgress: async () => "unavailable", saveProgress,
+      cloudSaveAllowed: () => false, submitScore: async () => "unavailable", startSession() {}, endSession() {}, track() {}, onLateSignIn() {},
+    };
+    const progress = createProgressStore(platform, null);
+    await progress.load(null);
+    progress.save(saveAfter(2, "guest-run", 2), { immediate: true });
+    await progress.flush();
+    expect(saveProgress).not.toHaveBeenCalled();
+    expect(store.size).toBeGreaterThan(0); // The browser copy was written.
   });
 });

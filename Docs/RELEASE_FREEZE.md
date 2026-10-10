@@ -1,42 +1,37 @@
-# Release freeze: v0.10.1
+# Release freeze: v0.10.2
 
-2026-10-10. Locally validated release candidate for Sandbox Preview; not yet submitted or approved for publication.
+2026-10-10. Locally validated release candidate for Sandbox Preview; not yet submitted or approved for publication. Supersedes the v0.10.1 freeze (that ZIP stays in `release/`, unchanged).
 
 ## Immutable artifact
 
-- `release/grow-an-empire-0.10.1.zip`: 15,407,663 bytes, 122 entries.
-- SHA-256: `3D998DA98C5A99F4CE89839E1E62DCFD8B9DC72449510222D7F7FA491E1F92FD`
-- Save schema 6 (v4/v5 migrations retained). Game slug `grow-an-empire`; leaderboard `campaign-progress`.
+- `release/grow-an-empire-0.10.2.zip`: 15,446,013 bytes, 122 entries.
+- SHA-256: `7D8F948E606B1AB96A0A2658799D1B5A89A49A0417D345718D363F3E2CA83B6E`
+- Save schema 6 (v4/v5 migrations retained). Game slug `grow-an-empire`; leaderboard `campaign-progress` (no maximum score).
 
-Keep this ZIP unchanged. Any necessary fix requires a new patch version, separate ZIP and fresh check/package evidence. The working checkout may change; this checksum identifies the exact frozen artifact.
+Keep this ZIP unchanged. Any further fix needs a new patch version, a separate ZIP and fresh check/package evidence.
 
-## Review and frozen scope
+## What 0.10.2 changes
 
-The simulation owns resources and moves; rendering/UI react to it. Portal adapters isolate SDK/cloud/leaderboard failures. Save ownership, migration, write throttling, context-loss recovery, asset retries and gesture-gated synthesized audio remain in place.
-
-The 25 campaigns, always-available Gather, default 4x speed slider (1/2/4/8), early Granary, positive move-end reserves, no economy desertion, popup combat, Realm, responsive layouts and tutorial are frozen. Economy numbers and campaign calibration are unchanged from v0.10.0.
-
-This patch fixes a save-safety gap: Gather, Fight, build-placement and uncaught runtime failures pause the run and stop further actions/autosaves from replacing the last good save. Contextual runtime logs are deduplicated and limited to five distinct reports per page. Frame/render failures stop audio and battle playback. Restart restores sound after simulation failure; graphics failures require Reload. Building-art failures remain retryable without committing the choice. Initialization failure disables subsequent saving. Save shape and SDK contracts are unchanged.
+The fixes from the pre-submission review (project doc "Grow an Empire 0.10.1: pre-submission review") and Ravi's decisions of 2026-10-10. Details in `CHANGELOG.md` and `Docs/QA_RESULTS.md`. In short: errors from outside the game no longer pause it; `GAME_READY` is sent on every error screen; testing switches are inert on the portal; a bad save can't block boot; guests keep no cloud save; art, font and sound health checks; UX, accessibility and dead-code cleanup; first screen 1.4 s faster on Slow 4G; landscape listing; new key art. Gameplay numbers, campaign calibration, save shape and the SDK contract are unchanged from v0.10.1.
 
 ## Verified locally
 
-- `pnpm --config.verify-deps-before-run=false check`: TypeScript, ESLint and 216 tests in 22 files pass, including action failure guards, reference build-order balance, all-campaign resource/non-desertion invariants, old save fixtures, platform failure/retry cases, art, combat and audio.
-- `pnpm --config.verify-deps-before-run=false package`: production build and all portal bundle-validator checks pass (root index, relative assets, official SDK, static formats, size, prohibited dialogs/navigation).
-- Production HTTP preview on isolated port 4177, registered mock player: default 4x speed, campaign entry, Gather with affordable cards, move-2 save restoration, remaining Gather turns, muster, popup Fight, Skip and victory. Mock leaderboard received `campaign-progress: 103`. No captured browser warnings/errors. The manual-test save on 4173 was preserved.
+- `pnpm check`: TypeScript, ESLint and 235 tests in 24 files.
+- `pnpm package`: production build; all 15 bundle-validator checks pass, including the new check that every asset the code and styles name is in the ZIP.
+- Full Python Playwright suite against the production build, all pass: gameplay, platform_sdk (signed-in cloud restore, iframe pause/resume/session end, offline, guest without cloud), viewports (14 sizes), campaign_map, text_budget, context_loss, fault_injection --quick (16 scenarios), assets_audio (119 bundled files decode; images, font and sound load at 1280×720 and 390×844), journey on the release build at the portal path (no errors or warnings).
+- Time to playable: 1.7 s at 10 Mbps, 9.1 s on Slow 4G (1.69 MB).
 
-This focused smoke test does not replace actual portal, real-phone/Safari or physical-audio testing. The Python Playwright device matrix was not rerun in this environment. Mock success does not prove real access permissions or leaderboard configuration.
+Not covered locally: the real portal, real phones and Safari, physical speakers.
 
 ## Before publication
 
-Complete the unchecked steps in `Docs/SUBMISSION_CHECKLIST.md`, following read-only `common/GOLIVE_DEVELOPER_REFERENCE.md`:
-
-1. Configure the exact game slug and activate `campaign-progress`: All-Time, Highest Score Wins, maximum 2575.
-2. Upload this exact ZIP to Sandbox Preview. Verify GAME_READY, actual player display name, registered scores, guest play, trial/cloud-denied play, cloud restoration and multi-device behavior.
-3. Verify the portal prevents iframe launch for players without game access; the game relies on that portal gate.
-4. Verify portal pause/resume/session end, phones in both orientations, Safari and sound/mute on physical speakers.
-5. Complete owner confirmations marked TODO in `Assets/Art/PROVENANCE.md` (source/tool and commercial-use rights); upload store artwork.
-6. Submit for review after those checks pass.
+1. Create and activate `campaign-progress` in the Developer Console: Campaign Progress, All-Time, Highest Score Wins, no maximum score. Confirm the listing slug and orientation **Landscape**.
+2. Upload this exact ZIP to Sandbox Preview. Verify GAME_READY, the portal display name, registered scores, guest play (no cloud save), trial/cloud-denied play and cloud restoration.
+3. Verify the portal prevents iframe launch for players without game access.
+4. Verify portal pause/resume/session end, Safari, a device showing the full 1920×1080 frame, and sound/mute on real speakers.
+5. Complete owner confirmations in `Assets/Art/PROVENANCE.md`; upload the v2 thumbnail and banner from `Assets/Art/Store/upload/`.
+6. Submit for review (Ravi, later).
 
 ## Later improvements
 
-Explore strategic Gather paths beyond the exhaustive eight-move test; review campaign-1 generosity (the all-Gather smoke path earns three stars); remove unused legacy city-battle rendering after checking consumers. Use portal playtest analytics to guide tutorial/mobile text changes. None of these follow-ups changes this frozen artifact.
+Review campaign-1 generosity (an all-Gather path earns three stars); explore strategic Gather beyond eight moves; use portal playtest analytics (`ux_*`, `asset_problem`) to guide tutorial and mobile text.
