@@ -17,7 +17,7 @@ import { assetUrl, bundledAssetNames } from "../render/assetCatalog";
 
 export type IconName =
   | ResourceName
-  | "people" | "archers" | "swordsmen" | "horsemen" | "militia"
+  | "people" | "archers" | "swordsmen" | "horsemen" | "militia" | "elephants" | "tower"
   | "move" | "strength" | "unlock" | "lock" | "warning" | "idle" | "market" | "star" | "civic" | "stockpile" | "build"
   | "play" | "pause" | "speed" | "map" | "more" | "sound" | "mute" | "grid" | "help" | "fullscreen" | "restart" | "eye" | "report" | "close"
   | "thumbup" | "thumbdown"
@@ -26,7 +26,7 @@ export type IconName =
 /** The icons the commissioned painted set replaces (game things, not controls). */
 export const PAINTED_ICON_NAMES: readonly IconName[] = [
   "wood", "stone", "grain", "livestock", "fruit", "planks", "rations", "wine", "gold",
-  "people", "archers", "swordsmen", "horsemen", "militia",
+  "people", "archers", "swordsmen", "horsemen", "militia", "elephants", "tower",
   "move", "strength", "civic", "stockpile", "build", "market", "unlock", "lock", "warning", "idle", "star", "rank", "rival",
 ];
 
@@ -42,6 +42,8 @@ const DRAWINGS: Record<IconName, string> = {
   rations: `<path d="M3 15c0-5 4-8.5 9-8.5s9 3.5 9 8.5c0 2-1 3.5-3 3.5H6c-2 0-3-1.5-3-3.5z" fill="#c98a3d"/><path d="M5 15c0-4 3.2-6.5 7-6.5s7 2.5 7 6.5" fill="#e0a85a"/><path d="M8 10.5l1.5 3M12 9.5v3.5M16 10.5l-1.5 3" stroke="#9b6326" stroke-width="1.3" stroke-linecap="round"/>`,
   wine: `<path d="M6 9.5h12c0 6-2.7 10-6 10s-6-4-6-10z" fill="#d9a03a"/><path d="M6.3 11h11.4" stroke="#8a5a17" stroke-width="1"/><path d="M8 9.5c0-2 1.8-3 4-3s4 1 4 3" fill="#f0c24b"/><ellipse cx="12" cy="9.5" rx="6" ry="1.4" fill="#7b2c5c"/><path d="M9.5 21h5" stroke="#d9a03a" stroke-width="1.8" stroke-linecap="round"/><path d="M12 6.5c-.6-1.5.3-3 1.6-3.8M12 6.5c.8-1 2.2-1.2 3.2-.6" stroke="#4f9a45" stroke-width="1.2" fill="none" stroke-linecap="round"/><path d="M8.5 13.5c.3 2 1.2 3.6 2.4 4.3" stroke="#ffe0a3" stroke-width="1" fill="none" stroke-linecap="round"/>`,
   gold: `<circle cx="12" cy="12" r="9" fill="#e9b93a"/><circle cx="12" cy="12" r="6.5" fill="#f6d36b" stroke="#c4911c" stroke-width="1"/><path d="M8.6 10.2A4 4 0 0 1 12 8" stroke="#fff3c4" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M12 9.6l.8 1.6 1.8.3-1.3 1.2.3 1.8-1.6-.9-1.6.9.3-1.8-1.3-1.2 1.8-.3z" fill="#c4911c"/>`,
+  elephants: `<path d="M6 19.5v-4.2M9.2 19.5v-3.6M15 19.5v-3.6M18.2 19.5v-4.6" stroke="#6f6b69" stroke-width="2.4" stroke-linecap="round"/><ellipse cx="12.6" cy="12.2" rx="7.2" ry="5" fill="#8e8a88"/><circle cx="6.2" cy="9.8" r="3.9" fill="#8e8a88"/><path d="M3.4 11.2c-1 2.4-1.2 5 .1 7.6" stroke="#8e8a88" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M5.2 12.6 2.6 14" stroke="#f3ead6" stroke-width="1.2" stroke-linecap="round"/><path d="M7.2 7.2c1.8.2 3 1.6 3 3.6-1.6.4-3-.4-3.6-1.6z" fill="#a19c99"/><circle cx="5.4" cy="9.2" r=".8" fill="#2b2420"/><path d="M10.5 7.4h6.6l.8 3.4h-8.2z" fill="#c9452f"/><path d="M9.7 10.6h8.2" stroke="#f0c24b" stroke-width="1"/>`,
+  tower: `<path d="M7 21.5V8.5h10v13z" fill="#b5624a"/><path d="M12 8.5h5v13h-5z" fill="#934a37"/><path d="M6 8.5V5.5h2v1.4h2V5.5h2v1.4h2V5.5h2v1.4h2V5.5h0V8.5z" fill="#c6745a"/><path d="M11 12h2v3h-2z" fill="#2b2420"/><path d="M12 5.5V1.8" stroke="#6b4423" stroke-width="1"/><path d="M12 1.8l4 1.3-4 1.2z" fill="#e88828"/><path d="M4 21.5h16" stroke="#6d5a46" stroke-width="1.2"/>`,
   people: `<circle cx="9" cy="7.5" r="3.3" fill="#e8d7b4"/><path d="M2.5 20c0-4 2.9-7 6.5-7s6.5 3 6.5 7z" fill="#e8d7b4"/><circle cx="16.5" cy="8.5" r="2.7" fill="#bfae8c"/><path d="M14.5 13.4c.6-.2 1.3-.3 2-.3 3 0 5 2.6 5 6.4h-4.7" fill="#bfae8c"/>`,
   archers: `<path d="M6 3c7 3 7 15 0 18" stroke="#d6a868" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M6 3v18" stroke="#efe6d2" stroke-width="0.9"/><path d="M4 12h16" stroke="#efe6d2" stroke-width="1.5" stroke-linecap="round"/><path d="M20.5 12l-3-2.2v4.4z" fill="#c3c8cc"/><path d="M4 12l-1.5-1.8M4 12l-1.5 1.8" stroke="#d9483b" stroke-width="1.3" stroke-linecap="round"/>`,
   swordsmen: `<path d="M17.5 3.5 20.5 3.5 20.5 6.5 9.5 17.5 6.5 14.5z" fill="#d3d6d8"/><path d="M20.5 3.5 9.5 14.5" stroke="#8c9194" stroke-width="0.8"/><path d="M4.5 13.5l6 6M6 16.5 3 19.5l1.5 1.5 3-3" stroke="#c4911c" stroke-width="2" stroke-linecap="round"/>`,
@@ -82,6 +84,7 @@ const WORDS: Partial<Record<IconName, [string, string]>> = {
   wood: ["wood", "wood"], stone: ["stone", "stone"], grain: ["grain", "grain"], livestock: ["cattle", "cattle"],
   fruit: ["mango", "mangoes"], planks: ["plank", "planks"], rations: ["ration", "rations"], wine: ["soma", "soma"], gold: ["gold", "gold"],
   people: ["person", "people"], archers: ["archer", "archers"], swordsmen: ["swordsman", "swordsmen"], horsemen: ["horseman", "horsemen"], militia: ["militia", "militia"],
+  elephants: ["war elephant", "war elephants"], tower: ["watchtower", "watchtowers"],
 };
 
 /** The painted version's URL, once the commissioned art is bundled. */

@@ -57,11 +57,12 @@ function extra(html: string, label = "Details"): string {
   return `<button type="button" class="flow-more" data-action="more" aria-expanded="false" aria-label="${label}" title="${label}">${icon("more")}<span class="w">${label}</span></button><div class="flow-extra">${html}</div>`;
 }
 
-function armyChips(army: { archers: number; swordsmen: number; horsemen: number; militia?: number }, enemy: boolean): string {
-  const kinds: IconKind[] = ["swordsmen", "archers", "horsemen", "militia"];
-  const labels: Record<IconKind, [string, string]> = { swordsmen: ["Swordsman", "Swordsmen"], archers: ["Archer", "Archers"], horsemen: ["Horseman", "Horsemen"], militia: ["Militia", "Militia"] };
-  return kinds.filter((kind) => (army[kind] ?? 0) > 0)
-    .map((kind) => `<span class="army-chip" title="${labels[kind][army[kind] === 1 ? 0 : 1]}"><i class="unit-icon unit-${kind}${enemy ? " enemy" : ""}" style='${iconStyle(kind, enemy)}'></i><b>${army[kind]}</b><span class="ws"> ${labels[kind][army[kind] === 1 ? 0 : 1]}</span></span>`)
+function armyChips(army: { archers: number; swordsmen: number; horsemen: number; militia?: number; elephants?: number }, enemy: boolean): string {
+  const kinds: IconKind[] = ["elephants", "swordsmen", "archers", "horsemen", "militia"];
+  const labels: Record<IconKind, [string, string]> = { elephants: ["War elephant", "War elephants"], swordsmen: ["Swordsman", "Swordsmen"], archers: ["Archer", "Archers"], horsemen: ["Horseman", "Horsemen"], militia: ["Militia", "Militia"] };
+  const count = (kind: IconKind): number => army[kind] ?? 0;
+  return kinds.filter((kind) => count(kind) > 0)
+    .map((kind) => `<span class="army-chip" title="${labels[kind][count(kind) === 1 ? 0 : 1]}"><i class="unit-icon unit-${kind}${enemy ? " enemy" : ""}" style='${iconStyle(kind, enemy)}'></i><b>${count(kind)}</b><span class="ws"> ${labels[kind][count(kind) === 1 ? 0 : 1]}</span></span>`)
     .join("") || `<span class="army-chip empty">No soldiers</span>`;
 }
 
@@ -75,6 +76,14 @@ export interface MusterView {
   bestHire: SellswordHire;
   /** Soldiers who left for lack of rations during the run. */
   deserted?: number;
+  /** War elephants from the Gajashala. */
+  elephants?: number;
+  /** The enemy that reaches the field (after the Prakara's volley); the campaign's army when absent. */
+  fieldEnemy?: EnemyArmy;
+  /** What the Prakara felled, when it stands. */
+  felled?: ArmyCounts | null;
+  /** The Dharma Stambha's strength share (0.2), when it stands. */
+  bonus?: number;
 }
 
 export interface ResultView {
@@ -269,7 +278,9 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
   /** 2. The muster: the enemy has arrived. With a Bazaar, sellswords can be hired. */
   function showMuster(view: MusterView): void {
     const { campaign } = view;
-    const enemy: EnemyArmy = campaign.objective.army;
+    const enemy: EnemyArmy = view.fieldEnemy ?? campaign.objective.army;
+    const bonus = view.bonus ?? 0;
+    const felledCount = view.felled ? view.felled.archers + view.felled.swordsmen + view.felled.horsemen : 0;
     let hire: SellswordHire = { archers: 0, swordsmen: 0 };
     const market = view.hasMarketplace && view.cap === 0
       ? `<p class="flow-note market-missing"><span aria-hidden="true">${icon("market")}${icon("lock")}</span><span class="ws"> Too few enemies to hire sellswords.</span></p>`
@@ -291,6 +302,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
         <div><span class="side-label">${icon("strength")}<span class="w">Your army</span></span><div class="army-chips" data-ours></div></div>
         <div><span class="side-label">${escapeHtml(campaign.objective.kingdomName)}</span><div class="army-chips">${armyChips(enemy, true)}</div></div>
       </div>
+      ${felledCount ? `<p class="flow-note defences"><span aria-hidden="true">${icon("tower")}${amount("people", felledCount, { sign: "−", className: "loss" })}</span><span class="ws"> The Prakara's archers felled ${felledCount} of the enemy before the lines met</span></p>` : ""}
+      ${bonus ? `<p class="flow-note defences"><span aria-hidden="true">${amount("strength", `${Math.round(bonus * 100)}%`, { sign: "+" })}</span><span class="ws"> The Dharma Stambha: the army fights ${Math.round(bonus * 100)}% stronger</span></p>` : ""}
       ${view.deserted ? `<p class="flow-note deserted"><span aria-hidden="true">${icon("warning")}${amount("people", view.deserted, { sign: "−", className: "loss" })}${icon("rations")}</span><span class="ws"> ${view.deserted} soldiers deserted for lack of rations (an older save)</span></p>` : ""}
       <div class="forecast"><div class="forecast-bar"><i data-bar></i></div><p data-forecast aria-live="polite"></p></div>
       ${market}
@@ -302,12 +315,12 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     function refresh(): void {
       const army: PlayerArmy = {
         archers: view.trained.archers + hire.archers, swordsmen: view.trained.swordsmen + hire.swordsmen,
-        horsemen: view.trained.horsemen, militia: view.militia,
+        horsemen: view.trained.horsemen, militia: view.militia, elephants: view.elephants ?? 0,
       };
       ours.innerHTML = armyChips(army, false);
-      const mine = playerStrength(army, enemy);
+      const mine = playerStrength(army, enemy, bonus);
       const theirs = enemyStrength(enemy, army);
-      const outcome = resolveBattle(army, enemy, campaign.stars);
+      const outcome = resolveBattle(army, enemy, campaign.stars, bonus);
       bar.style.width = `${Math.round((mine / Math.max(1e-9, mine + theirs)) * 100)}%`;
       forecast.innerHTML = `<span aria-hidden="true">${strengthLine(mine, theirs)} ${outcome.win
         ? `<span class="good">Win ${starText(outcome.stars)}</span>`
@@ -358,7 +371,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     const updateArmies = (ours: PlayerArmy, theirs: ArmyCounts): void => {
       dialog.querySelector("[data-ours]")!.innerHTML = armyChips(ours, false);
       dialog.querySelector("[data-enemy]")!.innerHTML = armyChips(theirs, true);
-      const mine = playerStrength(ours, theirs);
+      const mine = playerStrength(ours, theirs, report.strengthBonus ?? 0);
       const hostile = enemyStrength({ ...theirs, veterancy: campaign.objective.army.veterancy }, ours);
       const share = mine + hostile > 0 ? mine / (mine + hostile) : 0.5;
       const meter = dialog.querySelector<HTMLElement>("[data-balance]")!;
@@ -368,8 +381,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     };
     updateArmies(report.units, report.enemy);
     stopBattle = playBattle(strip,
-      { title: "Your army", start: { archers: report.units.archers, swordsmen: report.units.swordsmen, horsemen: report.units.horsemen, militia: report.units.militia } },
-      { title: campaign.objective.enemyName, start: { archers: report.enemy.archers, swordsmen: report.enemy.swordsmen, horsemen: report.enemy.horsemen, militia: 0 } },
+      { title: "Your army", start: { archers: report.units.archers, swordsmen: report.units.swordsmen, horsemen: report.units.horsemen, militia: report.units.militia, elephants: report.units.elephants ?? 0 } },
+      { title: campaign.objective.enemyName, start: { archers: report.enemy.archers, swordsmen: report.enemy.swordsmen, horsemen: report.enemy.horsemen, militia: 0, elephants: 0 } },
       report.rounds,
       { onRound: (_index, round) => { updateArmies(round.player, round.enemy); callbacks.onSound("hit"); }, onDone: finish, isPaused: callbacks.isPlaybackPaused });
     dialog.querySelector("[data-action=skip]")!.addEventListener("click", () => { callbacks.onSound("click"); finish(); });

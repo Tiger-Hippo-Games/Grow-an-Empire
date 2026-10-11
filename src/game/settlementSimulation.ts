@@ -1,5 +1,5 @@
 import { CAMPAIGN_1, type CampaignDefinition } from "./campaigns";
-import { enemyHeadCount, gapToTarget, MILITIA_CAP, resolveBattle, type BattleRound, type EnemyArmy } from "./battle";
+import { enemyHeadCount, gapToTarget, MILITIA_CAP, resolveBattle, watchtowerVolley, type ArmyCounts, type BattleRound, type EnemyArmy } from "./battle";
 import {
   CONSTRUCTION_DURATION_SECONDS,
   BUILDINGS,
@@ -12,7 +12,7 @@ import {
   TOTAL_SETTLEMENT_LEVELS,
 } from "./content";
 import {
-  ageBonus, BARRACKS_TRAINING_BONUS, canAfford, emptyStockpile, formatBag, goldValue, GRAIN_SPOIL_CAP, GRANARY_GRAIN,
+  ageBonus, BAOLI_FED, baoliBonus, BARRACKS_TRAINING_BONUS, canAfford, DHARMA_STAMBHA_BONUS, ELEPHANT_INTERVAL, ELEPHANT_UPKEEP_WEIGHT, PRAKARA_REDUCTION, emptyStockpile, formatBag, goldValue, GRAIN_SPOIL_CAP, GRANARY_GRAIN,
   HOUSE_PEOPLE_PER_MOVE, MARKET_PLANK_RESERVE, MARKET_SALES_PER_MOVE, MINIMUM_MOVE_STOCKPILE, planSwap, PROCESSORS, RAW_OUTPUT, RESOURCE_NAMES,
   SELL_PRICE, SELLSWORD_COST, SOLDIER_TYPES, SOLDIERS, SOLDIERS_PER_RATION, startingStockpile, TRAINING_BASE, UPKEEP_WEIGHT,
   type ResourceBag, type ResourceName, type SoldierType, type SwapPlan,
@@ -48,7 +48,7 @@ export const SAVE_SCHEMA_VERSION = 6 as const;
 export interface TrainedUnits { archers: number; swordsmen: number; horsemen: number; }
 
 /** The defending army, by role (roles match the character art in render/characterAssets.ts). */
-export interface ArmyUnits { militia: number; spearmen: number; archers: number; swordsmen: number; horsemen: number; mercenaries: number; }
+export interface ArmyUnits { militia: number; spearmen: number; archers: number; swordsmen: number; horsemen: number; mercenaries: number; elephants?: number }
 
 export interface SellswordHire { archers: number; swordsmen: number }
 
@@ -73,6 +73,10 @@ export interface ArmyReport {
   explanations: string[];
   /** On a defeat: what would have won. On a win short of 3 stars: what would reach the next star. */
   gap: string | null;
+  /** Enemy soldiers the Prakara felled before the battle (`enemy` is what reached the field). Absent before 0.10.4. */
+  felled?: ArmyCounts;
+  /** The Dharma Stambha's strength share (0.2), when it stood. Absent before 0.10.4. */
+  strengthBonus?: number;
 }
 export interface BuildOrderEntry { move: number; buildingId: string; }
 
@@ -90,6 +94,8 @@ export interface LedgerLine {
   used: ResourceBag;
   made: ResourceBag;
   trained?: Partial<TrainedUnits>;
+  /** War elephants that arrived from the Gajashala this move. */
+  elephants?: number;
   /** @deprecated Legacy (before v0.10.0): soldiers who left for lack of rations. New moves never set it. */
   deserted?: number;
   /** Why it did nothing this move (idle buildings). */
@@ -106,6 +112,8 @@ export interface MoveSummary {
   produced: ResourceBag;
   consumed: ResourceBag;
   trained: TrainedUnits;
+  /** War elephants that arrived this move (absent when none, and in older saves). */
+  elephants?: number;
   upkeep: number;
   /** @deprecated Legacy (before v0.10.0); always 0 for new moves, kept so older saves load. */
   deserted: number;
@@ -134,7 +142,7 @@ export type SimulationEvent =
   | { type: "choices-ready"; move: number; options: string[] }
   | { type: "economy-resolved"; activeBuildingIds: string[] }
   | { type: "population-changed"; total: number }
-  | { type: "unit-trained"; units: TrainedUnits; newArchers: number; newSwordsmen: number; newHorsemen: number }
+  | { type: "unit-trained"; units: TrainedUnits; newArchers: number; newSwordsmen: number; newHorsemen: number; newElephants?: number }
   | { type: "move-summary"; summary: MoveSummary }
   | { type: "muster-ready" }
   | { type: "army-mustered"; report: ArmyReport }
@@ -155,6 +163,8 @@ export interface SettlementState {
   activePlotIndex: number | null; constructionElapsed: number; buildingMaturity: Record<string, number>;
   armyReport: ArmyReport | null;
   trainedUnits: TrainedUnits;
+  /** War elephants from the Gajashala (optional: saves before 0.10.4 load with 0). */
+  elephants?: number;
   /**
    * @deprecated Legacy (before v0.10.0): soldiers who left for lack of rations
    * over the run. The economy no longer causes desertion, so new runs keep 0;
@@ -181,7 +191,7 @@ const createInitialState = (): SettlementState => ({
   mode: "awaiting-choice", move: 1, civicLevel: 0, population: 1, resources: startingStockpile(),
   builtBuildingIds: [], availableBuildingIds: [...OPENING_BUILD_OPTIONS], selectedBuildingId: null,
   activePlotIndex: null, constructionElapsed: 0, buildingMaturity: {}, armyReport: null,
-  trainedUnits: { archers: 0, swordsmen: 0, horsemen: 0 },
+  trainedUnits: { archers: 0, swordsmen: 0, horsemen: 0 }, elephants: 0,
   deserted: 0, gatherMoves: 0, swaps: 0, lastSummary: null,
 });
 
@@ -263,7 +273,7 @@ export function describeSnapshotProblem(value: unknown): string | null {
   if ((state.builtBuildingIds as string[]).some((id) => (state.availableBuildingIds as string[]).includes(id))) return "a building is both built and on offer";
   if (!isPlainObject(state.resources) || !Object.values(state.resources).every(isAmount)) return "invalid resources";
   if (!isPlainObject(state.buildingMaturity) || !Object.values(state.buildingMaturity).every(isAmount)) return "invalid buildingMaturity";
-  for (const key of ["deserted", "gatherMoves", "swaps"] as const) {
+  for (const key of ["deserted", "gatherMoves", "swaps", "elephants"] as const) {
     if (state[key] !== undefined && !isCount(state[key])) return `invalid ${key}`;
   }
   const units = state.trainedUnits;
@@ -496,8 +506,8 @@ export class SettlementSimulation {
     const previousPopulation = this.state.population;
     const summary = this.resolveMoveEconomy(buildingId);
     events.push({ type: "economy-resolved", activeBuildingIds: [...this.state.builtBuildingIds] });
-    if (summary.trained.archers || summary.trained.swordsmen || summary.trained.horsemen) {
-      events.push({ type: "unit-trained", units: { ...this.state.trainedUnits }, newArchers: summary.trained.archers, newSwordsmen: summary.trained.swordsmen, newHorsemen: summary.trained.horsemen });
+    if (summary.trained.archers || summary.trained.swordsmen || summary.trained.horsemen || summary.elephants) {
+      events.push({ type: "unit-trained", units: { ...this.state.trainedUnits }, newArchers: summary.trained.archers, newSwordsmen: summary.trained.swordsmen, newHorsemen: summary.trained.horsemen, ...(summary.elephants ? { newElephants: summary.elephants } : {}) });
     }
     if (this.state.population !== previousPopulation) events.push({ type: "population-changed", total: this.state.population });
 
@@ -538,18 +548,25 @@ export class SettlementSimulation {
   /** Villagers not working a building and not already soldiers. */
   get freeVillagers(): number { return Math.max(0, this.state.population - this.state.builtBuildingIds.length - this.soldierCount); }
 
+  /** War elephants standing (they need no villager: the Gajashala's mahouts ride them). */
+  get elephants(): number { return this.state.elephants ?? 0; }
+
+  /** What the army eats, in soldier-weights (a ration feeds `SOLDIERS_PER_RATION`). */
+  private get upkeepWeight(): number {
+    return SOLDIER_TYPES.reduce((sum, type) => sum + this.state.trainedUnits[type] * UPKEEP_WEIGHT[type], 0) + this.elephants * ELEPHANT_UPKEEP_WEIGHT;
+  }
+
   /** Rations the army eats per move. */
   get upkeep(): number {
-    const weight = SOLDIER_TYPES.reduce((sum, type) => sum + this.state.trainedUnits[type] * UPKEEP_WEIGHT[type], 0);
-    return Math.ceil(weight / SOLDIERS_PER_RATION);
+    return Math.ceil(this.upkeepWeight / SOLDIERS_PER_RATION);
   }
 
   /**
    * Runs every completed building once, at the end of each move, in a fixed order:
    *   1. every building ages by one move; population grows with the civic level and Houses;
-   *   2. raw producers add resources (output +1 every 3 moves standing);
+   *   2. raw producers add resources (output +1 every 3 moves standing); a Baoli adds to each food producer;
    *   3. processors (Carpenter's Yard, Royal Kitchen, Ghee House, Soma Press) convert inputs, limited by capacity and stock;
-   *   4. military buildings train soldiers from materials and free villagers;
+   *   4. military buildings train soldiers from materials and free villagers; the Gajashala sends an elephant every 6 moves;
    *   5. the Bazaar sells wine (and spare planks) for gold;
    *   6. the army eats available rations; shortages slow training, never cause desertion;
    *   7. grain above the cap spoils without a Granary; camp supplies restore basic reserves.
@@ -580,6 +597,17 @@ export class SettlementSimulation {
       addTo(produced, name, amount);
       addTo(line(id).made, name, amount);
     }
+    if (built.has("baoli")) {
+      const bonus = baoliBonus(age("baoli"));
+      for (const id of BAOLI_FED) {
+        if (!built.has(id)) continue;
+        const name = RAW_OUTPUT[id][0];
+        resources[name] += bonus;
+        addTo(produced, name, bonus);
+        addTo(line("baoli").made, name, bonus);
+      }
+      if (!BAOLI_FED.some((id) => built.has(id))) line("baoli").idle = "no fields, grove or herd to water";
+    }
     if (built.has("granary")) { resources.grain += GRANARY_GRAIN; addTo(produced, "grain", GRANARY_GRAIN); addTo(line("granary").made, "grain", GRANARY_GRAIN); }
 
     for (const processor of PROCESSORS) {
@@ -600,10 +628,7 @@ export class SettlementSimulation {
       if (!built.has(soldier.building)) continue;
       const capacity = this.trainingCapacity(soldier.building);
       let count = 0;
-      const canFeedRecruit = (): boolean => {
-        const weight = SOLDIER_TYPES.reduce((sum, kind) => sum + this.state.trainedUnits[kind] * UPKEEP_WEIGHT[kind], 0) + UPKEEP_WEIGHT[type];
-        return resources.rations >= Math.ceil(weight / SOLDIERS_PER_RATION);
-      };
+      const canFeedRecruit = (): boolean => resources.rations >= Math.ceil((this.upkeepWeight + UPKEEP_WEIGHT[type]) / SOLDIERS_PER_RATION);
       while (count < capacity && this.freeVillagers > 0 && canAfford(resources, soldier.cost) && canFeedRecruit()) {
         for (const [name, amount] of Object.entries(soldier.cost) as Array<[ResourceName, number]>) { resources[name] -= amount; addTo(consumed, name, amount); addTo(line(soldier.building).used, name, amount); }
         this.state.trainedUnits[type] += 1;
@@ -616,6 +641,13 @@ export class SettlementSimulation {
         stalled.push({ buildingId: soldier.building, reason });
         line(soldier.building).idle = reason;
       }
+    }
+
+    let elephants = 0;
+    if (built.has("gajashala") && (age("gajashala") - 1) % ELEPHANT_INTERVAL === 0) {
+      elephants = 1;
+      this.state.elephants = this.elephants + 1;
+      line("gajashala").elephants = 1;
     }
 
     let sold = 0;
@@ -660,7 +692,7 @@ export class SettlementSimulation {
 
     return {
       move: this.state.civicLevel, buildingId: builtThisMove, civicLevel: this.state.civicLevel, population: this.state.population,
-      produced, consumed, trained, upkeep, deserted, stalled, warnings: warnings.slice(0, 2), sold, ledger, before,
+      produced, consumed, trained, ...(elephants ? { elephants } : {}), upkeep, deserted, stalled, warnings: warnings.slice(0, 2), sold, ledger, before,
     };
   }
 
@@ -683,13 +715,26 @@ export class SettlementSimulation {
   }
 
   /** The player's army at the battle with `hire` added. */
-  armyWith(hire: SellswordHire): { archers: number; swordsmen: number; horsemen: number; militia: number } {
+  armyWith(hire: SellswordHire): { archers: number; swordsmen: number; horsemen: number; militia: number; elephants: number } {
     return {
       archers: this.state.trainedUnits.archers + hire.archers,
       swordsmen: this.state.trainedUnits.swordsmen + hire.swordsmen,
       horsemen: this.state.trainedUnits.horsemen,
       militia: this.militia,
+      elephants: this.elephants,
     };
+  }
+
+  /**
+   * The battle's conditions: the enemy that reaches the field (after the
+   * Prakara's volley, if it stands), what the volley felled, and the Dharma
+   * Stambha's strength bonus (0 without one).
+   */
+  battleSetup(): { enemy: EnemyArmy; felled: ArmyCounts | null; bonus: number } {
+    const built = this.state.builtBuildingIds;
+    const army = this.campaign.objective.army;
+    const volley = built.includes("prakara") ? watchtowerVolley(army, PRAKARA_REDUCTION) : null;
+    return { enemy: volley ? volley.remaining : army, felled: volley ? volley.felled : null, bonus: built.includes("dharma-stambha") ? DHARMA_STAMBHA_BONUS : 0 };
   }
 
   /** The hire with the best margin (for tests, the balance search, and the market's "Best mix" button). */
@@ -697,9 +742,10 @@ export class SettlementSimulation {
     let best: SellswordHire = { archers: 0, swordsmen: 0 };
     let bestMargin = -Infinity;
     const budget = Math.min(this.sellswordCap, Math.floor(this.musterGold / SELLSWORD_COST));
+    const { enemy, bonus } = this.battleSetup();
     for (let archers = 0; archers <= budget; archers += 1) {
       const hire = { archers, swordsmen: budget - archers };
-      const outcome = resolveBattle(this.armyWith(hire), this.campaign.objective.army, this.campaign.stars);
+      const outcome = resolveBattle(this.armyWith(hire), enemy, this.campaign.stars, bonus);
       if (outcome.margin > bestMargin + 1e-12) { bestMargin = outcome.margin; best = hire; }
     }
     return best;
@@ -718,22 +764,28 @@ export class SettlementSimulation {
   }
 
   private resolveMuster(hire: SellswordHire): ArmyReport {
-    const enemy = this.campaign.objective.army;
+    const { enemy, felled, bonus } = this.battleSetup();
     const army = this.armyWith(hire);
-    const outcome = resolveBattle(army, enemy, this.campaign.stars);
+    const outcome = resolveBattle(army, enemy, this.campaign.stars, bonus);
     const units: ArmyUnits = {
       militia: army.militia, spearmen: 0,
       archers: army.archers, swordsmen: army.swordsmen, horsemen: army.horsemen,
-      mercenaries: 0,
+      mercenaries: 0, ...(army.elephants ? { elephants: army.elephants } : {}),
     };
-    const totalUnits = army.archers + army.swordsmen + army.horsemen + army.militia;
+    const totalUnits = army.archers + army.swordsmen + army.horsemen + army.militia + army.elephants;
     const goldSpent = (hire.archers + hire.swordsmen) * SELLSWORD_COST;
     const explanations: string[] = [];
     const t = this.state.trainedUnits;
     // trainedUnits is the army still standing (an older save's deserters had already left it).
     explanations.push(`${this.state.deserted ? "Still in the ranks" : "Trained over the campaign"}: ${t.archers} archers, ${t.swordsmen} swordsmen, ${t.horsemen} horsemen.`);
     if (hire.archers || hire.swordsmen) explanations.push(`The Bazaar hired ${hire.archers + hire.swordsmen} sellswords for ${goldSpent} gold.`);
+    if (army.elephants) explanations.push(`The Gajashala sent ${army.elephants} war ${army.elephants === 1 ? "elephant" : "elephants"}, each fighting like 4 swordsmen.`);
     if (army.militia) explanations.push(`${army.militia} villagers joined as militia.`);
+    if (felled) {
+      const count = felled.archers + felled.swordsmen + felled.horsemen;
+      explanations.push(`The Prakara's archers felled ${count} of the enemy before the lines met.`);
+    }
+    if (bonus) explanations.push(`The Dharma Stambha made the army ${Math.round(bonus * 100)}% stronger.`);
     if (this.state.deserted) explanations.push(`${this.state.deserted} ${this.state.deserted === 1 ? "soldier" : "soldiers"} deserted for lack of rations: a Royal Kitchen or Ghee House feeds the army.`);
     if (this.state.gatherMoves) explanations.push(`${this.state.gatherMoves} move${this.state.gatherMoves === 1 ? " was" : "s were"} spent gathering.`);
     let gap: string | null = null;
@@ -745,7 +797,7 @@ export class SettlementSimulation {
       const allowed = this.campaign.availableBuildingIds;
       const trainable = SOLDIER_TYPES.filter((type) => built.includes(SOLDIERS[type].building));
       const offered = SOLDIER_TYPES.filter((type) => !allowed || allowed.includes(SOLDIERS[type].building));
-      const needed = gapToTarget(army, enemy, nextTarget, trainable.length ? trainable : offered);
+      const needed = gapToTarget(army, enemy, nextTarget, trainable.length ? trainable : offered, bonus);
       if (needed) {
         const label = needed.count === 1 ? SOLDIERS[needed.type].singular : SOLDIERS[needed.type].label;
         const building = SOLDIERS[needed.type].building;
@@ -758,6 +810,7 @@ export class SettlementSimulation {
       win: outcome.win, stars: outcome.stars, playerStrength: outcome.playerStrength, enemyStrength: outcome.enemyStrength, margin: outcome.margin,
       units, totalUnits, sellswords: { ...hire }, enemy: { ...enemy }, enemyCount: enemyHeadCount(enemy),
       rounds: outcome.rounds, goldAvailable: this.musterGold, goldSpent, explanations, gap,
+      ...(felled ? { felled } : {}), ...(bonus ? { strengthBonus: bonus } : {}),
     };
   }
 }

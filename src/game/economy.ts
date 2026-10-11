@@ -44,6 +44,10 @@ export const BUILDING_COSTS: Record<string, ResourceBag> = {
   blacksmith: { planks: 3, stone: 4 },
   barracks: { planks: 4, stone: 5 },
   stable: { planks: 5, stone: 5, grain: 3 },
+  baoli: { wood: 3, stone: 3 },
+  prakara: { wood: 4, stone: 6 },
+  gajashala: { planks: 5, stone: 4, grain: 3 },
+  "dharma-stambha": { planks: 4, stone: 6 },
 };
 
 /** Raw producers: resource and base output per move. Output grows by 1 every 3 moves standing. */
@@ -66,6 +70,26 @@ export const PROCESSORS: Array<{ id: string; cycles: number; input: ResourceBag;
 /** The Granary adds this much grain per move; without one, grain above the cap spoils. */
 export const GRANARY_GRAIN = 1;
 export const GRAIN_SPOIL_CAP = 8;
+/** The Baoli (stepwell) waters every food producer: farms, the Mango Grove and the Goshala. */
+export const BAOLI_FED = ["farm", "fruit-orchard", "swine-farm"] as const;
+/** Extra output per watered producer: +1, growing by 1 every 3 moves the Baoli stands. */
+export function baoliBonus(baoliAge: number): number {
+  return 1 + ageBonus(baoliAge);
+}
+
+/** The Prakara (watchtower) fells this share of the enemy before the armies meet. */
+export const PRAKARA_REDUCTION = 0.25;
+/** The Gajashala sends one war elephant on completion, then one every this many moves. */
+export const ELEPHANT_INTERVAL = 6;
+/** A war elephant fights like this many swordsmen. */
+export const ELEPHANT_SWORDSMEN = 4;
+/** Upkeep weight of an elephant: 8 = two rations a move (a ration feeds 4 weight). */
+export const ELEPHANT_UPKEEP_WEIGHT = 8;
+/** The Dharma Stambha raises the army's battle strength by this share. */
+export const DHARMA_STAMBHA_BONUS = 0.2;
+/** Every war building must stand before the Dharma Stambha can be raised. */
+export const WAR_BUILDINGS = ["blacksmith", "weapons-workshop", "barracks", "stable", "gajashala"] as const;
+
 /** People a House adds for every move it has stood. */
 export const HOUSE_PEOPLE_PER_MOVE = 2;
 

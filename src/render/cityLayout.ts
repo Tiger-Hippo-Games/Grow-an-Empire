@@ -86,6 +86,12 @@ const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
   "weapons-workshop": planPoint(1447, 797),
   barracks: planPoint(1693, 820),
   stable: planPoint(1240, 900),
+  // 0.10.4: the stepwell north of the fields, the watchtower on the south-west approach (clear of the garrison),
+  // the elephant stables beside the forge yard, the pillar on the open ground toward the forest road.
+  baoli: planPoint(650, 270),
+  prakara: planPoint(700, 880),
+  gajashala: planPoint(1170, 765),
+  "dharma-stambha": planPoint(1180, 330),
 };
 
 export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry";
@@ -96,6 +102,7 @@ const BUILDING_DISTRICTS: Record<string, CityDistrict> = {
   farm: "farms", bakery: "farms", granary: "farms",
   "fruit-orchard": "provisions", winery: "provisions", "swine-farm": "provisions", butchery: "provisions",
   quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry", barracks: "industry", stable: "industry",
+  baoli: "farms", prakara: "civic", gajashala: "industry", "dharma-stambha": "civic",
 };
 
 /** Ground position of a building (falls back to the civic center for unknown ids). Read-only. */
@@ -377,6 +384,7 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     ["fruit-orchard", "winery"], ["swine-farm", "butchery"],
     ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["blacksmith", "barracks"], ["weapons-workshop", "barracks"],
     ["blacksmith", "stable"], ["weapons-workshop", "stable"],
+    ["baoli", "farm"], ["stable", "gajashala"], ["quarry", "prakara"],
     ["marketplace", "house"],
   ];
   for (const [fromId, toId] of workflowLinks) {

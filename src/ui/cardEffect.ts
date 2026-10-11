@@ -1,4 +1,7 @@
-import { GRANARY_GRAIN, HOUSE_PEOPLE_PER_MOVE, PROCESSORS, RAW_OUTPUT, RESOURCE_NAMES, SOLDIERS, TRAINING_BASE, type ResourceBag } from "../game/economy";
+import {
+  BAOLI_FED, DHARMA_STAMBHA_BONUS, ELEPHANT_INTERVAL, GRANARY_GRAIN, HOUSE_PEOPLE_PER_MOVE, PRAKARA_REDUCTION, PROCESSORS, RAW_OUTPUT, RESOURCE_NAMES,
+  SOLDIERS, TRAINING_BASE, type ResourceBag,
+} from "../game/economy";
 import { amount, icon } from "./icons";
 
 /**
@@ -32,6 +35,10 @@ export function effectHtml(id: string): string {
     case "granary": return `${amount("grain", GRANARY_GRAIN, { sign: "+" })}${PER_MOVE}<span class="tag w">no spoiling</span>`;
     case "marketplace": return `${icon("wine")}<span class="arrow" aria-label="sells for">→</span>${icon("gold")}<span class="tag">${icon("market")}${icon("swordsmen")}<span class="w"> sellswords</span></span>`;
     case "barracks": return `${amount("strength", 1, { sign: "+" })}<span class="tag w">training</span>${PER_MOVE}`;
+    case "baoli": return `${BAOLI_FED.map((id) => amount(RAW_OUTPUT[id][0], 1, { sign: "+" })).join("")}${PER_MOVE}<span class="tag w">grows</span>`;
+    case "prakara": return `${icon("tower")}<span class="qty"><b>−${Math.round(PRAKARA_REDUCTION * 100)}%</b><span class="sr"> of the enemy</span></span><span class="tag w">enemy, before battle</span>`;
+    case "gajashala": return `${amount("elephants", 1, { sign: "+" })}<small class="per-move" title="every ${ELEPHANT_INTERVAL} moves">${icon("move")}${ELEPHANT_INTERVAL}<span class="sr">every ${ELEPHANT_INTERVAL} moves</span></small>`;
+    case "dharma-stambha": return `${amount("strength", `${Math.round(DHARMA_STAMBHA_BONUS * 100)}%`, { sign: "+" })}<span class="tag w">in battle</span>`;
     default: return "";
   }
 }

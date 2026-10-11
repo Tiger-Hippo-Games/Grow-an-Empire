@@ -69,9 +69,11 @@ describe("isBuildingEligible", () => {
       house: ["sawmill", "quarry"], "weapons-workshop": ["sawmill", "quarry"],
       blacksmith: ["sawmill", "quarry"], barracks: ["sawmill", "quarry"],
       stable: ["blacksmith", "weapons-workshop"],
-      granary: [], winery: ["farm", "sawmill", "quarry"],
+      granary: [], winery: ["fruit-orchard", "sawmill"],
       bakery: ["farm", "sawmill", "quarry"], butchery: ["swine-farm", "sawmill"],
       marketplace: ["farm", "butchery"],
+      baoli: ["farm"], prakara: ["granary", "quarry"], gajashala: ["barracks"],
+      "dharma-stambha": ["blacksmith", "weapons-workshop", "barracks", "stable", "gajashala"],
     };
     expect(Object.keys(required).sort()).toEqual(Object.keys(BUILDINGS).sort());
     for (const [id, dependencies] of Object.entries(required)) {

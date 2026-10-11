@@ -440,6 +440,7 @@ function openMuster(): void {
   workerAnimation.worker.visible = false;
   hud.setStatus(`${simulation.campaign.objective.enemyName} are at the gates`, 1);
   sound.play("warning");
+  const setup = simulation.battleSetup();
   flow.showMuster({
     campaign: simulation.campaign,
     trained: { ...simulation.state.trainedUnits },
@@ -449,6 +450,10 @@ function openMuster(): void {
     cap: simulation.sellswordCap,
     bestHire: simulation.bestHire(),
     deserted: simulation.state.deserted,
+    elephants: simulation.elephants,
+    fieldEnemy: setup.enemy,
+    felled: setup.felled,
+    bonus: setup.bonus,
   });
 }
 
@@ -714,7 +719,8 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
         event.newArchers && `${event.newArchers} archer${event.newArchers === 1 ? "" : "s"}`,
         event.newHorsemen && `${event.newHorsemen} horsem${event.newHorsemen === 1 ? "a" : "e"}n`,
       ].filter(Boolean);
-      hud.setStatus(`${trained.join(", ")} trained · ${event.units.swordsmen + event.units.archers + event.units.horsemen} soldiers`, 1);
+      const elephantNews = event.newElephants ? `A war elephant arrives from the Gajashala${trained.length ? " · " : ""}` : "";
+      hud.setStatus(`${elephantNews}${trained.length ? `${trained.join(", ")} trained · ` : " · "}${event.units.swordsmen + event.units.archers + event.units.horsemen} soldiers${simulation.elephants ? `, ${simulation.elephants} elephant${simulation.elephants === 1 ? "" : "s"}` : ""}`, 1);
     } else if (event.type === "army-mustered") {
       presentBattle(true);
     } else if (event.type === "game-complete") {

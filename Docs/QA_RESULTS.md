@@ -1,5 +1,17 @@
 # QA results
 
+## v0.10.4 (2026-10-11): Baoli, Prakara, Gajashala, Dharma Stambha
+
+Ravi's choices of 2026-10-11 (project doc "Grow an Empire: new buildings proposal", updated): Baoli helps all food producers a little more as moves pass; Prakara watchtower removes 25% of the attacking army before it reaches ours; no temple; Gajashala sends one elephant warrior every 6 moves (fights like 4 soldiers, the first on completion); Dharma Stambha +20% army power, only after every war building including the Gajashala (trainers only, not the Prakara). Stand-in art now, painted art from `Docs/BUILDING_ART_BRIEF.md` later.
+
+- **Rules:** Baoli +1/+2/+3 grain, mangoes and cattle per producer (moves 1–3/4–6/7+); Prakara fells round(25%) of the enemy head count, spread by largest remainder; elephants fight as 4 swordsmen for strength and for the enemy's counters, fall last before militia, eat 2 rations; Stambha ×1.2 player strength. Muster forecast, battle, report, explanations and "what would have won" all use the same `battleSetup()`.
+- **Offers:** with 20 buildings and about 14 cards a run, the rules were retuned so every building is offered on at least 5% of build-order paths (share of paths offering it, uniform choices): Prakara 61%, Gajashala 52%, Butchery 50%, Baoli 26%, Bazaar 25%, House 22%, Soma Press 21%, Dharma Stambha 17%, Royal Kitchen 5% (0.10.3: House 46%, Bazaar 47%, Royal Kitchen 13%, Soma Press 1.5%).
+- **Balance:** 124,419 reference endings (was 89,954), no dead ends; all 25 campaigns re-sized and every win share within 5 points of the plan; Realm field (`CAMPAIGN_FIELD`) regenerated; campaign 1 still 100%.
+- **City:** plots for all four (Baoli north of the fields, Prakara on the south-west approach clear of the garrison, Gajashala by the forge yard, Stambha toward the forest road), roads and supply routes (Baoli → Farm, Ashvashala → Gajashala, Quarry → Prakara), worker roles. Checked in a 20-building city at the muster: all four visible, none covered by the garrison or the Town Hall.
+- **Saves:** schema 6 unchanged; `elephants` is optional, so 0.10.3 saves load with none (test).
+
+Validation: TypeScript and ESLint clean; **249 tests** in 26 files (new: `newBuildings.test.ts`, 10 rule tests; 20-building balance and layout checks). Full browser suite on the 0.10.4 build, all pass: gameplay, platform_sdk, viewports, campaign_map, text_budget, context_loss, fault_injection --quick, assets_audio (135 bundled files decode), journey on the release build (no errors or warnings); journey, gameplay and load time rerun after the last plot move. Time to playable 1.6 s at 10 Mbps, 9.1 s on Slow 4G (1.69 MB). The ZIP is 15.98 MB, 138 entries, and passes all 15 validator checks.
+
 ## v0.10.3 (2026-10-11): smoother, less crowded city; wider roads
 
 Ravi: smoother worker animations, less clutter around the Town Hall, roads 5% wider each move (compounding, capped), new buildings as a proposal first (project doc "Grow an Empire: new buildings proposal").

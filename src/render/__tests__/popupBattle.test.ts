@@ -22,8 +22,8 @@ class Element {
   all(): Element[] { return [this, ...this.children.flatMap(child => child.all())]; }
 }
 
-const player: BattleSide = { title: "Your army", start: { swordsmen: 40, archers: 40, horsemen: 40, militia: 40 } };
-const enemy: BattleSide = { title: "Enemy", start: { swordsmen: 40, archers: 40, horsemen: 40, militia: 0 } };
+const player: BattleSide = { title: "Your army", start: { swordsmen: 40, archers: 40, horsemen: 40, militia: 40, elephants: 0 } };
+const enemy: BattleSide = { title: "Enemy", start: { swordsmen: 40, archers: 40, horsemen: 40, militia: 0, elephants: 0 } };
 const rounds = resolveBattle(player.start, { ...enemy.start, veterancy: 1 }, { two: .2, three: .5 }).rounds;
 let doc: { visibilityState: string; createElement: () => Element };
 beforeEach(() => {

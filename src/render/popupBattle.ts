@@ -2,7 +2,7 @@ import type { BattleRound } from "../game/battle";
 import { iconStyle, type IconKind } from "./combatScene";
 import { assetUrl } from "./assetCatalog";
 
-const ORDER: IconKind[] = ["swordsmen", "horsemen", "archers", "militia"];
+const ORDER: IconKind[] = ["elephants", "swordsmen", "horsemen", "archers", "militia"];
 const MAX_ICONS = 6;
 const APPROACH_MS = 1000;
 const ROUND_MS = 1350;
@@ -16,7 +16,7 @@ function formation(side: BattleSide, enemy: boolean) {
   element.setAttribute("aria-label", side.title);
   const rows = new Map<IconKind, { icons: HTMLElement[]; more: HTMLElement; row: HTMLElement }>();
   for (const kind of ORDER) {
-    const count = side.start[kind];
+    const count = side.start[kind] ?? 0;
     if (!count) continue;
     const row = document.createElement("div");
     row.className = "battle-rank";
@@ -97,7 +97,7 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
       const due = Math.min(rounds.length, Math.floor(Math.max(0, elapsed - approach) / step));
       while (shown < due) {
         const round = rounds[shown];
-        const counts: Counts[] = [{ ...round.player }, { ...round.enemy, militia: 0 }];
+        const counts: Counts[] = [{ ...round.player, elephants: round.player.elephants ?? 0 }, { ...round.enemy, militia: 0, elephants: 0 }];
         sides.forEach((side, sideIndex) => {
           for (const [kind, row] of side.rows) {
             const left = counts[sideIndex][kind];

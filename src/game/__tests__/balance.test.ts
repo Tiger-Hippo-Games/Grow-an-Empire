@@ -78,7 +78,8 @@ describe("balance across every reference build order", () => {
 
   it("makes every building and soldier type part of some ending", () => {
     const built = new Set(endings.flatMap((ending) => ending.built));
-    expect(built.size).toBe(16);
+    expect(built.size).toBe(20);
+    expect(endings.some((ending) => ending.elephants > 0 && ending.prakara && ending.stambha)).toBe(true);
     expect(endings.some((ending) => ending.horsemen > 0)).toBe(true);
     expect(endings.some((ending) => ending.swaps > 0)).toBe(true);
     expect(endings.some((ending) => ending.gathers > 0)).toBe(true);

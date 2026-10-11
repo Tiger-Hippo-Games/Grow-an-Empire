@@ -9,11 +9,13 @@
 import { SettlementSimulation, type SettlementState } from "./settlementSimulation";
 import { CAMPAIGN_1 } from "./campaigns";
 import type { CampaignDefinition } from "./campaigns";
-import { enemyHeadCount, enemyStrength, playerStrength, type EnemyArmy } from "./battle";
-import { SELLSWORD_COST } from "./economy";
+import { enemyHeadCount, enemyStrength, playerStrength, watchtowerVolley, type EnemyArmy } from "./battle";
+import { DHARMA_STAMBHA_BONUS, PRAKARA_REDUCTION, SELLSWORD_COST } from "./economy";
 
 export interface Ending {
   archers: number; swordsmen: number; horsemen: number; militia: number; gold: number; market: boolean;
+  /** War elephants, and whether the Prakara and the Dharma Stambha stand. */
+  elephants: number; prakara: boolean; stambha: boolean;
   gathers: number; swaps: number; deserted: number; built: string[];
 }
 
@@ -45,6 +47,7 @@ export function searchEndings({ gatherPolicy = "when-stuck", campaign = CAMPAIGN
       endings.push({
         archers: sim.state.trainedUnits.archers, swordsmen: sim.state.trainedUnits.swordsmen, horsemen: sim.state.trainedUnits.horsemen,
         militia: sim.militia, gold: sim.musterGold, market: sim.hasMarketplace,
+        elephants: sim.elephants, prakara: sim.state.builtBuildingIds.includes("prakara"), stambha: sim.state.builtBuildingIds.includes("dharma-stambha"),
         gathers: sim.state.gatherMoves, swaps: sim.state.swaps, deserted: sim.state.deserted, built: [...sim.state.builtBuildingIds],
       });
       continue;
@@ -76,14 +79,19 @@ export function searchEndings({ gatherPolicy = "when-stuck", campaign = CAMPAIGN
   return { endings, deadEnds };
 }
 
-/** Best margin an ending can reach against `enemy`, with the best sellsword mix. */
-export function bestMargin(ending: Ending, enemy: EnemyArmy): number {
-  const cap = ending.market ? Math.floor(enemyHeadCount(enemy) / 2) : 0;
+/**
+ * Best margin an ending can reach against `enemy`, with the best sellsword mix,
+ * under the same battle conditions as `SettlementSimulation.battleSetup()`.
+ */
+export function bestMargin(ending: Ending, campaignEnemy: EnemyArmy): number {
+  const cap = ending.market ? Math.floor(enemyHeadCount(campaignEnemy) / 2) : 0;
   const budget = Math.min(cap, Math.floor(ending.gold / SELLSWORD_COST));
+  const enemy = ending.prakara ? watchtowerVolley(campaignEnemy, PRAKARA_REDUCTION).remaining : campaignEnemy;
+  const bonus = ending.stambha ? DHARMA_STAMBHA_BONUS : 0;
   let best = -Infinity;
   for (let archers = 0; archers <= budget; archers += 1) {
-    const army = { archers: ending.archers + archers, swordsmen: ending.swordsmen + budget - archers, horsemen: ending.horsemen, militia: ending.militia };
-    const ours = playerStrength(army, enemy);
+    const army = { archers: ending.archers + archers, swordsmen: ending.swordsmen + budget - archers, horsemen: ending.horsemen, militia: ending.militia, elephants: ending.elephants };
+    const ours = playerStrength(army, enemy, bonus);
     const theirs = enemyStrength(enemy, army);
     best = Math.max(best, theirs > 0 ? ours / theirs - 1 : 1);
   }

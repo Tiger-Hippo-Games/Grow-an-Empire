@@ -57,6 +57,7 @@ const BUILDING_ROLES: Record<string, CharacterRole> = {
   "swine-farm": "farmer", butchery: "baker", "fruit-orchard": "farmer", winery: "merchant",
   quarry: "quarry", granary: "farmer", marketplace: "merchant", blacksmith: "blacksmith",
   "weapons-workshop": "blacksmith", barracks: "spearman", stable: "horseman",
+  baoli: "farmer", prakara: "archer", gajashala: "horseman", "dharma-stambha": "quarry",
 };
 
 export function roleForBuilding(buildingId: string): CharacterRole { return BUILDING_ROLES[buildingId] ?? "builder"; }

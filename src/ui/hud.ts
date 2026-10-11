@@ -361,7 +361,8 @@ export function createHud(callbacks: HudCallbacks) {
     if (!summary) { moveSummary.classList.add("hidden"); return; }
     const built = summary.buildingId ? buildingThumb(summary.buildingId) : `${icon("stockpile")}<span class="tag">Gather</span>`;
     const trained = (["archers", "swordsmen", "horsemen"] as const).filter((type) => summary.trained[type] > 0)
-      .map((type) => amount(type, summary.trained[type], { sign: "+", className: "gain" })).join("");
+      .map((type) => amount(type, summary.trained[type], { sign: "+", className: "gain" })).join("")
+      + (summary.elephants ? amount("elephants", summary.elephants, { sign: "+", className: "gain" }) : "");
     const deserted = summary.deserted ? amount("people", summary.deserted, { sign: "−", className: "loss" }) : "";
     const idle = summary.stalled.length
       ? `<span class="idle" title="Idle: ${escapeHtml(summary.stalled.map((note) => `${BUILDINGS[note.buildingId]?.name ?? note.buildingId} (${note.reason})`).join("; "))}">${icon("idle")}${summary.stalled.map((note) => buildingThumb(note.buildingId)).join("")}</span>`
@@ -379,6 +380,7 @@ export function createHud(callbacks: HudCallbacks) {
       `Move ${summary.move}: ${summary.buildingId ? `built the ${BUILDINGS[summary.buildingId]?.name ?? summary.buildingId}` : "gathered"}`,
       summary.produced && Object.keys(summary.produced).length ? `made ${formatBag(summary.produced)}` : "",
       summary.consumed && Object.keys(summary.consumed).length ? `used ${formatBag(summary.consumed)}` : "",
+      summary.elephants ? "a war elephant arrived" : "",
       summary.upkeep ? `the army needs ${summary.upkeep} ration${summary.upkeep === 1 ? "" : "s"} per move` : "",
       summary.stalled.length ? `idle: ${summary.stalled.map((note) => `${BUILDINGS[note.buildingId]?.name ?? note.buildingId} (${note.reason})`).join("; ")}` : "",
     ].filter(Boolean).join(", ");
@@ -443,7 +445,8 @@ export function createHud(callbacks: HudCallbacks) {
       const trained = (["archers", "swordsmen", "horsemen"] as const).filter((type) => (entry.trained?.[type] ?? 0) > 0)
         .map((type) => amount(type, entry.trained![type] as number, { sign: "+", className: "gain" })).join("");
       const deserted = entry.deserted ? amount("people", entry.deserted, { sign: "−", className: "loss" }) : "";
-      const output = `${made}${trained}${deserted}`;
+      const elephants = entry.elephants ? amount("elephants", entry.elephants, { sign: "+", className: "gain" }) : "";
+      const output = `${made}${trained}${elephants}${deserted}`;
       const body = entry.idle
         ? `<span class="ledger-idle">${icon("idle")}<span class="w">${escapeHtml(entry.idle)}</span></span>`
         : `${used ? `<span class="ledger-used">${used}</span>` : ""}${used && output ? `<span class="ledger-arrow" aria-hidden="true">→</span>` : ""}<span class="ledger-made">${output}</span>`;
@@ -451,6 +454,7 @@ export function createHud(callbacks: HudCallbacks) {
         Object.keys(entry.used).length ? `used ${formatBag(entry.used)}` : "",
         Object.keys(entry.made).length ? `made ${formatBag(entry.made)}` : "",
         trained ? `trained ${(["archers", "swordsmen", "horsemen"] as const).filter((type) => (entry.trained?.[type] ?? 0) > 0).map((type) => `${entry.trained![type]} ${type}`).join(", ")}` : "",
+        entry.elephants ? `${entry.elephants} war elephant${entry.elephants === 1 ? "" : "s"} arrived` : "",
         entry.deserted ? `${entry.deserted} deserted` : "",
       ].filter(Boolean).join("; ");
       return `<li class="ledger-line${entry.idle ? " idle" : ""}${entry.source === "army" || entry.source === "spoilage" ? " upkeep" : ""}" aria-label="${escapeHtml(`${name}: ${spoken}`)}" title="${escapeHtml(name)}"><span class="ledger-art" aria-hidden="true">${art}</span><span class="ledger-name w">${escapeHtml(name)}</span><span class="ledger-flow" aria-hidden="true">${body}</span></li>`;

@@ -62,6 +62,34 @@
     "sourceBytes": 638321,
     "bytes": 79442
   },
+  "baoli-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Baoli/Runtime2x/baoli-construction-01-foundation-2x-v1.png",
+    "sha256": "2cd8030528e94b00204cae136609491fb986eb37822da26adc0cb00089e1c5e3",
+    "exportRevision": 2,
+    "sourceBytes": 491395,
+    "bytes": 37610
+  },
+  "baoli-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Baoli/Runtime2x/baoli-construction-02-frame-2x-v1.png",
+    "sha256": "4e7b11e9e3b23bac92cf69fb8f3638470bfd00412629b158e3d46d90969bfe2b",
+    "exportRevision": 2,
+    "sourceBytes": 545615,
+    "bytes": 46990
+  },
+  "baoli-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Baoli/Runtime2x/baoli-construction-03-late-2x-v1.png",
+    "sha256": "1278a454f713d5d7250fe1c9524597574e53dd54a4ef14cbf67710de50f7ce1b",
+    "exportRevision": 2,
+    "sourceBytes": 572722,
+    "bytes": 44898
+  },
+  "baoli-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Baoli/Runtime2x/baoli-level-1-2x-v1.png",
+    "sha256": "1425b4b60125c08b588c5d4033015fc7127f33daaef656da83bb59c02cdc4a4e",
+    "exportRevision": 2,
+    "sourceBytes": 571425,
+    "bytes": 44648
+  },
   "barracks-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Barracks/Runtime2x/barracks-construction-01-foundation-2x-v1.png",
     "sha256": "baeec2e1b7bdb84150393e1e715bd4ca27f814cb98b80f650c677f765f5244b3",
@@ -181,6 +209,34 @@
     "sourceBytes": 256289,
     "bytes": 46486
   },
+  "dharma-stambha-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/DharmaStambha/Runtime2x/dharma-stambha-construction-01-foundation-2x-v1.png",
+    "sha256": "40e4452348652636a2b45c696947d779b2e19f6a49e54b9590cc5ecb2922eec1",
+    "exportRevision": 2,
+    "sourceBytes": 208114,
+    "bytes": 20868
+  },
+  "dharma-stambha-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/DharmaStambha/Runtime2x/dharma-stambha-construction-02-frame-2x-v1.png",
+    "sha256": "b59cc0b8618d4586151fc99d7238abe3a538f9a7ac0112c2c5c16a69e8efdc90",
+    "exportRevision": 2,
+    "sourceBytes": 227604,
+    "bytes": 24850
+  },
+  "dharma-stambha-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/DharmaStambha/Runtime2x/dharma-stambha-construction-03-late-2x-v1.png",
+    "sha256": "6671045af1b23efa0d1477dcd4d0e659b401195f02c40ebabd515e4f00c306fa",
+    "exportRevision": 2,
+    "sourceBytes": 270055,
+    "bytes": 28562
+  },
+  "dharma-stambha-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/DharmaStambha/Runtime2x/dharma-stambha-level-1-2x-v1.png",
+    "sha256": "0cfe6c74dc8343dad32cad1f8966b4add551a5b92ab4aa718e9f00dc1d7afbce",
+    "exportRevision": 2,
+    "sourceBytes": 288333,
+    "bytes": 40420
+  },
   "enemy-combat-north8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/CombatLoops/enemy-combat-north8-master-v1.png",
     "sha256": "3164b8ec528eeaa1075e9b56b4538f141365913c38caaed903e63423f5603e2f",
@@ -271,6 +327,34 @@
     "exportRevision": 2,
     "sourceBytes": 747005,
     "bytes": 121134
+  },
+  "gajashala-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Gajashala/Runtime2x/gajashala-construction-01-foundation-2x-v1.png",
+    "sha256": "5392729e9847cb0c47c47c54aa8315142539a73929537423b6d1d2f12b402f31",
+    "exportRevision": 2,
+    "sourceBytes": 458144,
+    "bytes": 28976
+  },
+  "gajashala-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Gajashala/Runtime2x/gajashala-construction-02-frame-2x-v1.png",
+    "sha256": "f60ab245a3f7c10c2facb774c8ba07fab759c9c3614de7c8fa1b36845d3ea0d3",
+    "exportRevision": 2,
+    "sourceBytes": 622594,
+    "bytes": 40012
+  },
+  "gajashala-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Gajashala/Runtime2x/gajashala-construction-03-late-2x-v1.png",
+    "sha256": "230921dfcdc3cf9871c5e9e5d0f0ae588d75792b2abe1b3524e2fbb6398b6a7c",
+    "exportRevision": 2,
+    "sourceBytes": 687333,
+    "bytes": 42126
+  },
+  "gajashala-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Gajashala/Runtime2x/gajashala-level-1-2x-v1.png",
+    "sha256": "723461ef62d0554ee0baf5213854933e6bd579466ad34283bbcb76e8ce6fb7f6",
+    "exportRevision": 2,
+    "sourceBytes": 691973,
+    "bytes": 40046
   },
   "granary-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Granary/Runtime2x/granary-construction-01-foundation-2x-v1.png",
@@ -418,6 +502,34 @@
     "exportRevision": 2,
     "sourceBytes": 1328333,
     "bytes": 153336
+  },
+  "prakara-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Prakara/Runtime2x/prakara-construction-01-foundation-2x-v1.png",
+    "sha256": "2130b894e4e46f1546600738e46270f68e6a5ca6e1d2e982eefb5a3c49b5e39b",
+    "exportRevision": 2,
+    "sourceBytes": 323161,
+    "bytes": 25130
+  },
+  "prakara-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Prakara/Runtime2x/prakara-construction-02-frame-2x-v1.png",
+    "sha256": "96362f6d5566cee43090274f2a7799a2b0c59a77c6cdcf3e2887d0b8845a17ef",
+    "exportRevision": 2,
+    "sourceBytes": 372041,
+    "bytes": 29556
+  },
+  "prakara-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Prakara/Runtime2x/prakara-construction-03-late-2x-v1.png",
+    "sha256": "48e2464d26707fe13fffd1c7f4d7b82e636d9cab41357d3c88d5c782bb061a06",
+    "exportRevision": 2,
+    "sourceBytes": 463113,
+    "bytes": 35904
+  },
+  "prakara-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Prakara/Runtime2x/prakara-level-1-2x-v1.png",
+    "sha256": "8d3baac2d66740fc30fdecc88e64243d758594d599eba7a7fdad89b7e37a1e63",
+    "exportRevision": 2,
+    "sourceBytes": 485815,
+    "bytes": 35416
   },
   "quarry-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Quarry/Runtime2x/quarry-construction-01-foundation-2x-v1.png",
