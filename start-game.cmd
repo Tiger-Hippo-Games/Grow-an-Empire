@@ -29,13 +29,16 @@ rem confirm-modules-purge=false: if node_modules was installed by another tool w
 rem different package store, rebuild it automatically instead of stopping to ask.
 call %PNPM% install --config.confirm-modules-purge=false
 if errorlevel 1 goto :install_failed
+node Tools\dev\preflight.mjs --record
 
 :start
 echo.
 echo Starting Grow an Empire at http://127.0.0.1:4173/
 echo Keep this window open while you play. Close it to stop the server.
 echo.
-call %PNPM% run start
+rem verify-deps-before-run=false: pnpm would otherwise refuse to start after a
+rem package.json version bump; preflight above already decided whether to install.
+call %PNPM% --config.verify-deps-before-run=false run start
 if errorlevel 1 goto :failed
 goto :eof
 

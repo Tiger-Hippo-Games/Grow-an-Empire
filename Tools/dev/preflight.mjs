@@ -5,11 +5,13 @@
 //
 // Exit codes (start-game.cmd branches on these):
 //   0  ready: dependencies are installed and up to date, start the dev server
-//   10 dependencies need installing (node_modules missing, or package.json /
-//      pnpm-lock.yaml changed since the last install)
+//   10 dependencies need installing (node_modules missing, or the dependencies
+//      in package.json, pnpm-lock.yaml or pnpm-workspace.yaml changed since the
+//      last install; a version bump alone doesn't count)
 //   20 a dev server is already answering on the port, so just open the browser
 //   1  can't continue (message printed)
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -32,16 +34,45 @@ function mtime(file) {
   }
 }
 
-/** True when node_modules is missing or older than the files that define it. */
+const DEPS_STAMP = "node_modules/.gae-deps-stamp";
+
+/**
+ * What node_modules depends on: the dependency fields of package.json (not its
+ * version, which changes with every build), the lockfile and the workspace file.
+ */
+function dependencyKey() {
+  const read = (file) => { try { return fs.readFileSync(path.join(root, file), "utf8"); } catch { return ""; } };
+  let pkg = {};
+  try { pkg = JSON.parse(read("package.json")); } catch { /* A broken package.json changes the key. */ }
+  const fields = { dependencies: pkg.dependencies, devDependencies: pkg.devDependencies, engines: pkg.engines, packageManager: pkg.packageManager, pnpm: pkg.pnpm };
+  return crypto.createHash("sha256").update(JSON.stringify(fields)).update(read("pnpm-lock.yaml")).update(read("pnpm-workspace.yaml")).digest("hex");
+}
+
+function recordInstall() {
+  try { fs.writeFileSync(path.join(root, DEPS_STAMP), dependencyKey()); } catch { /* Next start just checks again. */ }
+}
+
+/** True when node_modules is missing or the dependencies changed since the last install. */
 function needsInstall() {
   if (mtime("node_modules/.modules.yaml") === null) return true;
-  // pnpm rewrites the workspace-state file on every install, even a no-op one,
-  // so its time is "last successful install" and this can't loop.
+  let stamp = null;
+  try { stamp = fs.readFileSync(path.join(root, DEPS_STAMP), "utf8").trim(); } catch { /* Not written yet. */ }
+  if (stamp) return stamp !== dependencyKey();
+  // No stamp yet (installed before the stamp existed): only the lockfile and the
+  // workspace file count. A package.json version bump alone needs no install.
   const installedAt = Math.max(mtime("node_modules/.modules.yaml"), mtime("node_modules/.pnpm-workspace-state-v1.json") ?? 0);
-  return ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"].some((file) => {
+  const stale = ["pnpm-lock.yaml", "pnpm-workspace.yaml"].some((file) => {
     const changedAt = mtime(file);
     return changedAt !== null && changedAt > installedAt;
   });
+  if (!stale) recordInstall();
+  return stale;
+}
+
+// `node Tools/dev/preflight.mjs --record`: start-game.cmd calls this after a successful install.
+if (process.argv.includes("--record")) {
+  recordInstall();
+  process.exit(0);
 }
 
 /** Calls back with true if something already serves HTTP on the dev port. */
