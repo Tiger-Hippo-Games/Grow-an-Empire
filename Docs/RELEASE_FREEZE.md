@@ -1,17 +1,18 @@
-# Release freeze: v0.10.5
+# Release freeze: v0.10.6
 
-2026-10-11. Locally validated release candidate for Sandbox Preview; not yet submitted or approved for publication. Supersedes the v0.10.4 freeze (0.10.5 completes the eight new buildings with the Burj, Sarai, Koshagar and Dharmashala; earlier ZIPs stay in `release/`, unchanged).
+2026-10-12. Locally validated release candidate for Sandbox Preview; not yet submitted or approved for publication. Supersedes the v0.10.5 freeze with painted art for all eight new buildings and the elephant combat atlas. Earlier ZIPs stay in `release/`, unchanged.
 
 ## Immutable artifact
 
-- `release/grow-an-empire-0.10.5.zip`: 16,488,976 bytes, 154 entries.
-- SHA-256: `C108EE8467A05E90EB8980191252786F6CB571A60C36D787915F802019D7475E`
+- `release/grow-an-empire-0.10.6.zip`: 24,036,318 bytes, 155 entries.
+- SHA-256: `8E9B8C49C1CA93638ED1FF65786AAA367B6D3EF6B4E4D8C3BB7DD9454EFB9EFA`
+- Superseded 0.10.5: 16,488,976 bytes; SHA-256 `C108EE8467A05E90EB8980191252786F6CB571A60C36D787915F802019D7475E`.
 - (Superseded: `grow-an-empire-0.10.4.zip`, SHA-256 `4FC57AE0…0529`; `grow-an-empire-0.10.3.zip`, SHA-256 `B2D1C052…E004`; `grow-an-empire-0.10.2.zip`, SHA-256 `7D8F948E…3B6E`.)
 - Save schema 6 (v4/v5 migrations retained). Game slug `grow-an-empire`; leaderboard `campaign-progress` (no maximum score).
 
 Keep this ZIP unchanged. Any further fix needs a new patch version, a separate ZIP and fresh check/package evidence.
 
-## What 0.10.2 to 0.10.5 change
+## What 0.10.2 to 0.10.6 change
 
 The fixes from the pre-submission review (project doc "Grow an Empire 0.10.1: pre-submission review") and Ravi's decisions of 2026-10-10. Details in `CHANGELOG.md` and `Docs/QA_RESULTS.md`. In short: errors from outside the game no longer pause it; `GAME_READY` is sent on every error screen; testing switches are inert on the portal; a bad save can't block boot; guests keep no cloud save; art, font and sound health checks; UX, accessibility and dead-code cleanup; first screen 1.4 s faster on Slow 4G; landscape listing; new key art. Gameplay numbers, campaign calibration, save shape and the SDK contract are unchanged from v0.10.1.
 
@@ -21,7 +22,16 @@ The fixes from the pre-submission review (project doc "Grow an Empire 0.10.1: pr
 
 0.10.5 adds the Burj, Sarai, Koshagar and Dharmashala (stand-in art), strengthens the Baoli, changes the offer refill to rotate between land, town and war families, and recalibrates again. Save schema 6 and the SDK contract are unchanged.
 
-## Verified locally
+0.10.6 replaces the eight buildings' procedural art with 32 painted construction/completion sprites, and the battle elephant SVG with an eight-pose painted atlas. Original stand-ins are archived, generation records retained, and a dev-only art review shows the real city layout without touching saves. Gameplay, save shape, plot positions and the SDK contract are unchanged from 0.10.5.
+
+## Verified locally in 0.10.6
+
+- `pnpm check`: TypeScript, ESLint and 256 tests in 27 files.
+- `pnpm package`: all 15 bundle-validator checks pass; ZIP 24.04 MB.
+- Browser art review: all construction stages and existing city coordinates, eight-building and all-24-plot views, no console warnings/errors. Production build boots to the campaign map.
+- Full Python browser suite and throttled startup were not rerun for this art pass.
+
+## Historical 0.10.5 validation
 
 - `pnpm check`: TypeScript, ESLint and 255 tests in 26 files (0.10.5).
 - `pnpm package`: production build; all 15 bundle-validator checks pass, including the new check that every asset the code and styles name is in the ZIP.
@@ -36,7 +46,7 @@ Not covered locally: the real portal, real phones and Safari, physical speakers.
 2. Upload this exact ZIP to Sandbox Preview. Verify GAME_READY, the portal display name, registered scores, guest play (no cloud save), trial/cloud-denied play and cloud restoration.
 3. Verify the portal prevents iframe launch for players without game access.
 4. Verify portal pause/resume/session end, Safari, a device showing the full 1920×1080 frame, and sound/mute on real speakers.
-5. Complete owner confirmations in `Assets/Art/PROVENANCE.md`; upload the v2 thumbnail and banner from `Assets/Art/Store/upload/`. Decide whether to submit with the stand-in art for the eight new buildings or wait for the painted set (`Docs/BUILDING_ART_BRIEF.md`).
+5. Complete owner confirmations in `Assets/Art/PROVENANCE.md`; upload the v2 thumbnail and banner from `Assets/Art/Store/upload/`. The painted building set is now included.
 6. Submit for review (Ravi, later).
 
 ## Later improvements

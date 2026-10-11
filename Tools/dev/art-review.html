@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Building art review · Grow an Empire</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#19261c;color:#f2e7cd;font:16px/1.5 system-ui}header{padding:16px 24px;border-bottom:1px solid #65744c}h1{font-size:24px;margin:0}p{margin:6px 0}main{padding:16px 24px}#viewport{width:100%;aspect-ratio:16/9;background:#78945a;max-height:760px}#viewport canvas{display:block;width:100%;height:100%}nav{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}button,select{font:inherit;min-height:44px;padding:8px 14px;border:1px solid #aaa071;border-radius:8px;background:#304534;color:inherit;cursor:pointer}button[aria-pressed=true]{background:#997437;color:#fff}#stages{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}figure{margin:0;padding:12px;background:#536841;border-radius:8px}figure img{display:block;width:100%;height:auto}figcaption{text-align:center}#atlas{max-width:900px;width:100%;background:#536841}.note{color:#c6d4b4}#status{min-height:24px}
+</style></head>
+<body><header><h1>Painted building review</h1><p class="note">Actual city renderer and existing plot coordinates. This tool does not read or write a game save.</p><p id="status" role="status">Loading runtime art…</p></header>
+<main><nav aria-label="City view"><button id="all" aria-pressed="true">All plots · spacing check</button><button id="new" aria-pressed="false">Eight new buildings</button><label>Stage <select id="stage"><option value="complete">Finished</option><option value="foundation">Foundation</option><option value="frame">Frame</option><option value="late">Nearly finished</option></select></label></nav>
+<div id="viewport" aria-label="City art preview"></div><button id="export">Save city preview PNG</button><a id="export-link" hidden>Download rendered city</a><img id="export-preview" alt="Exported city art preview" hidden style="width:100%">
+<h2>Inspect each building</h2><nav id="building-list" aria-label="Building artwork"></nav><div id="stages"></div>
+<h2>War elephant · eight combat poses</h2><img id="atlas" alt="War elephant combat atlas with eight poses in four columns and two rows">
+</main><script type="module" src="./art-review.ts"></script></body></html>

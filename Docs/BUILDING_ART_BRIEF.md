@@ -1,5 +1,7 @@
 # Art brief: eight new buildings and the war elephant (0.10.4–0.10.5)
 
+**Delivery status, 0.10.6:** the 32 painted building masters and eight-pose elephant combat atlas now replace the procedural runtime art. Generation records are in `Assets/Art/Production/Buildings/PAINTED_BUILDINGS_GENERATION.md`; original stand-ins are archived under `Assets/Art/Archives/BuildingStandins-0.10.5/`. Review all stages on the dev server at `/Tools/dev/art-review.html`. The following is the original commission specification.
+
 Ravi, 2026-10-11: add the Baoli, the Prakara watchtower, the Gajashala and the Dharma Stambha ("stand-ins now + briefs"), then the Burj, Sarai, Koshagar and Dharmashala ("I will finish their art later - for now just have placeholders"). 0.10.4 and 0.10.5 ship with procedural stand-ins drawn by `Tools/ArtPipeline/make_standin_buildings.py`. **Painted art replaces them with no code change:** same filenames, same canvas.
 
 ## Every building: four images

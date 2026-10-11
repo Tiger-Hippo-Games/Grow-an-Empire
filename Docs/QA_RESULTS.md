@@ -1,5 +1,13 @@
 # QA results
 
+## v0.10.6 (2026-10-12): painted buildings and elephant
+
+- Delivered 32 transparent 1536×1024 building masters for all eight new buildings, plus an eight-pose elephant combat atlas. Original procedural masters archived. Prompts and provenance recorded; WebP exports replace the existing runtime filenames.
+- Browser art review uses the real scene, sprite sizes and plot coordinates. Inspected all four construction stages, the eight-building view and an all-24-plot spacing stress view with the level-8 civic centre. New art fits the assigned plots; no positions or gameplay numbers changed. Gajashala stage images and the elephant atlas decode in the browser; no art-review warnings or errors. Production build opens the campaign map.
+- `pnpm check`: TypeScript and ESLint clean; **256 tests in 27 files pass**, including current balance, save compatibility, runtime asset presence and source freshness. The asset audit now includes the elephant sheet.
+- `pnpm package`: **24,036,318 bytes**, 155 ZIP entries, all **15 bundle checks pass**; under the project's 50 MB target. Runtime art totals about 23.6 MB and remains loaded on demand.
+- This art pass did not rerun the full Python browser suite or measure startup on throttled networks; previous 0.10.5 results below remain historical evidence. Portal/Safari/device checks and owner provenance confirmations remain publication tasks.
+
 ## v0.10.5 (2026-10-11): all eight new buildings, and a strategy check
 
 Ravi: "build all the 8 buildings and the respective logic and lets see if they excite players with enough strategic options… for now just have placeholders." The eight are the proposal's set with the Dharma Stambha in place of the Mandir; 0.10.4 added four, this adds the Burj, Sarai, Koshagar and Dharmashala.
