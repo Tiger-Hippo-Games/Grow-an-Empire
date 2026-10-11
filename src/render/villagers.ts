@@ -46,6 +46,7 @@ const SUPPLY_LINKS: Array<[string, string]> = [
   ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["blacksmith", "barracks"], ["weapons-workshop", "barracks"],
   ["blacksmith", "stable"], ["weapons-workshop", "stable"],
   ["baoli", "farm"], ["stable", "gajashala"], ["quarry", "prakara"],
+  ["sawmill", "burj"], ["marketplace", "sarai"], ["marketplace", "koshagar"], ["house", "dharmashala"],
 ];
 
 /**

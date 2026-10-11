@@ -1,5 +1,17 @@
 # QA results
 
+## v0.10.5 (2026-10-11): all eight new buildings, and a strategy check
+
+Ravi: "build all the 8 buildings and the respective logic and lets see if they excite players with enough strategic options… for now just have placeholders." The eight are the proposal's set with the Dharma Stambha in place of the Mandir; 0.10.4 added four, this adds the Burj, Sarai, Koshagar and Dharmashala.
+
+- **Rules:** Burj (militia at full strength, cap 14); Sarai (swaps at 1.5×, +1 Bazaar sale); Koshagar (+1 gold per 5 stored, at most 6 a move; +2 sellswords); Dharmashala (+6 people, +2 a move, +4 militia, every 4th soldier needs no villager). Baoli raised to +2/+3/+4 with one more food-processor cycle, because at +1 it changed no ending at all.
+- **Offers:** with 24 buildings the old ranking starved several (Koshagar 0.6%, Sarai 0.6%, Royal Kitchen 1.1% of paths). New refill order: must-haves (Granary after a Farm, Lohar Forge, Bow Hall, Ashvashala, Dharma Stambha) → direct follow-ups of the building just finished → the land/town/war family whose turn it is → offer move → priority. The Bazaar now opens from any food or soma processor. Every building is offered on at least 5% of paths (lowest: Koshagar 5.5%, Dharma Stambha 6.5%, Bakery 9.1%); the Lohar Forge and Bow Hall stay at 99%, the Ashvashala 82%.
+- **Balance:** 188,430 reference endings, no dead ends; all 25 campaigns re-sized, every win share within 5 points of the plan; Realm field regenerated.
+- **Strategy check** (all endings, all campaigns): about 6 army styles reach three stars per campaign (4–8; fewer in the hard ones). Share of 3-star builds containing each new building: Prakara 61%, Burj 57%, Sarai 10%, Koshagar 9%, Gajashala 7%, Dharmashala 4%, Baoli 1%, Dharma Stambha under 1%. Sellswords are in 75% of 3-star builds and the Ghee House in 90%. Economy-only buildings (Baoli, Dharmashala, Mango Grove, Soma Press, House) rarely change a battle because trainers, the militia cap and the sellsword cap bound the army. Follow-up options are in the proposal doc.
+- **City:** plots for the Burj (north approach), Sarai (between fields and grove), Koshagar (between Bazaar and forge) and Dharmashala (south of the square, below the garrison), with roads, supply routes and worker roles; checked in a 24-building city at the muster.
+
+Validation: TypeScript and ESLint clean; **255 tests** in 26 files (new: rules for the four, offer families). Full browser suite on the 0.10.5 build, all pass: gameplay, platform_sdk, viewports, campaign_map, text_budget, context_loss, fault_injection --quick, assets_audio (151 bundled files decode), journey on the release build (no errors or warnings), load time 1.7 s at 10 Mbps and 9.1 s on Slow 4G. The ZIP is 16.49 MB, 154 entries, and passes all 15 validator checks.
+
 ## v0.10.4 (2026-10-11): Baoli, Prakara, Gajashala, Dharma Stambha
 
 Ravi's choices of 2026-10-11 (project doc "Grow an Empire: new buildings proposal", updated): Baoli helps all food producers a little more as moves pass; Prakara watchtower removes 25% of the attacking army before it reaches ours; no temple; Gajashala sends one elephant warrior every 6 moves (fights like 4 soldiers, the first on completion); Dharma Stambha +20% army power, only after every war building including the Gajashala (trainers only, not the Prakara). Stand-in art now, painted art from `Docs/BUILDING_ART_BRIEF.md` later.

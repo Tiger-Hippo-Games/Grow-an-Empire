@@ -100,6 +100,8 @@ describe("move economy", () => {
     sim.state.trainedUnits.archers = 12;
     sim.state.resources.rations = 0;
     const population = sim.state.population;
+    // The Akhara's card depends on the offer order; this test is about upkeep, so put it on offer.
+    if (!sim.state.availableBuildingIds.includes("barracks")) sim.state.availableBuildingIds.push("barracks");
     const events = build(sim, "barracks");
     expect(events.some((event) => (event.type as string) === "soldiers-deserted")).toBe(false); // The event no longer exists.
     expect(sim.state.deserted).toBe(0);

@@ -1,6 +1,6 @@
-# Art brief: four new buildings and the war elephant (0.10.4)
+# Art brief: eight new buildings and the war elephant (0.10.4–0.10.5)
 
-Ravi, 2026-10-11: add the Baoli, the Prakara watchtower, the Gajashala and the Dharma Stambha ("stand-ins now + briefs"). 0.10.4 ships with procedural stand-ins drawn by `Tools/ArtPipeline/make_standin_buildings.py`. **Painted art replaces them with no code change:** same filenames, same canvas.
+Ravi, 2026-10-11: add the Baoli, the Prakara watchtower, the Gajashala and the Dharma Stambha ("stand-ins now + briefs"), then the Burj, Sarai, Koshagar and Dharmashala ("I will finish their art later - for now just have placeholders"). 0.10.4 and 0.10.5 ship with procedural stand-ins drawn by `Tools/ArtPipeline/make_standin_buildings.py`. **Painted art replaces them with no code change:** same filenames, same canvas.
 
 ## Every building: four images
 
@@ -15,7 +15,7 @@ Ravi, 2026-10-11: add the Baoli, the Prakara watchtower, the Gajashala and the D
 
 **Style:** the painted Bharatvarsha look of the existing buildings (`Assets/Art/ART_DIRECTION.md`): warm sandstone and red stone, timber, terracotta tiles, grass-edged plots with a dirt yard.
 
-## The four buildings
+## The eight buildings
 
 | Id / folder | Name | What it must read as at 120 px wide | Notes |
 |---|---|---|---|
@@ -23,6 +23,11 @@ Ravi, 2026-10-11: add the Baoli, the Prakara watchtower, the Gajashala and the D
 | `prakara` / `Prakara/` | Prakara (watchtower) | A tall stone tower on a short stretch of city wall | Red stone, crenellations, arrow slits, a small canopy and a plain saffron pennant on top; an archer silhouette at the top is welcome. No religious symbols. |
 | `gajashala` / `Gajashala/` | Gajashala (elephant stables) | A long hall with tall arched bays sized for elephants, one elephant in the yard | Stone plinth, sandstone walls, terracotta roof; fodder bales; the elephant only on the finished image (with a red and gold saddle cloth). |
 | `dharma-stambha` / `DharmaStambha/` | Dharma Stambha | A tall polished sandstone pillar on a stepped plinth, crowned with a wheel | Inspired by the Mauryan pillars: smooth tapering shaft, an inverted-lotus bell capital, then a **24-spoke wheel**. **Do not use the four-lion capital** (the national emblem of India is protected) and no inscriptions. Marigold garlands at the foot when complete. |
+
+| `burj` / `Burj/` | Burj (bastion) | A round stone bastion with a crenellated top and a drill yard | Spear rack, a training post with a straw dummy, round shields; villagers drilling is welcome. |
+| `sarai` / `Sarai/` | Sarai (caravanserai) | A walled courtyard with rooms round it and a big arched gate | Bales and sacks in the yard, a resting camel, a plain pennant over the gate. |
+| `koshagar` / `Koshagar/` | Koshagar (treasury) | A squat stone strongroom with an iron-banded door and a small gilded dome | Chests of coin by the door, a guard's spear; heavy, secure, not a palace. |
+| `dharmashala` / `Dharmashala/` | Dharmashala (rest house) | A two-storey rest house with a pillared veranda and a tiled roof | A charpai (rope cot) and water pots outside; travellers resting on the veranda. No religious symbols. |
 
 ## War elephant (battle and dialogs)
 
@@ -40,4 +45,4 @@ Today the elephant is an inline SVG (`ELEPHANT_SVG` in `src/render/combatScene.t
 
 ## Budget
 
-The painted buildings of the same size are about 250–300 KB each as WebP (the stand-ins are 20–50 KB). Sixteen images add about 4 MB to the ZIP (0.10.4 is 16.0 MB, portal limit 50 MB). They load only when a building is built, so the first screen is unaffected.
+The painted buildings of the same size are about 250–300 KB each as WebP (the stand-ins are 20–50 KB). Thirty-two images add about 8 MB to the ZIP (0.10.5 is 16.5 MB, portal limit 50 MB). They load only when a building is built, so the first screen is unaffected.

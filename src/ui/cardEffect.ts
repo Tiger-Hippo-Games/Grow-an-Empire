@@ -1,5 +1,5 @@
 import {
-  BAOLI_FED, DHARMA_STAMBHA_BONUS, ELEPHANT_INTERVAL, GRANARY_GRAIN, HOUSE_PEOPLE_PER_MOVE, PRAKARA_REDUCTION, PROCESSORS, RAW_OUTPUT, RESOURCE_NAMES,
+  BAOLI_BASE_BONUS, BAOLI_FED, BURJ_MILITIA_CAP, DHARMASHALA_MILITIA_CAP, DHARMASHALA_OPENING_PEOPLE, DHARMASHALA_PEOPLE_PER_MOVE, DHARMA_STAMBHA_BONUS, KOSHAGAR_GOLD_STEP, KOSHAGAR_SELLSWORD_CAP, SARAI_BUY_MULTIPLIER, ELEPHANT_INTERVAL, GRANARY_GRAIN, HOUSE_PEOPLE_PER_MOVE, PRAKARA_REDUCTION, PROCESSORS, RAW_OUTPUT, RESOURCE_NAMES,
   SOLDIERS, TRAINING_BASE, type ResourceBag,
 } from "../game/economy";
 import { amount, icon } from "./icons";
@@ -35,9 +35,13 @@ export function effectHtml(id: string): string {
     case "granary": return `${amount("grain", GRANARY_GRAIN, { sign: "+" })}${PER_MOVE}<span class="tag w">no spoiling</span>`;
     case "marketplace": return `${icon("wine")}<span class="arrow" aria-label="sells for">→</span>${icon("gold")}<span class="tag">${icon("market")}${icon("swordsmen")}<span class="w"> sellswords</span></span>`;
     case "barracks": return `${amount("strength", 1, { sign: "+" })}<span class="tag w">training</span>${PER_MOVE}`;
-    case "baoli": return `${BAOLI_FED.map((id) => amount(RAW_OUTPUT[id][0], 1, { sign: "+" })).join("")}${PER_MOVE}<span class="tag w">grows</span>`;
+    case "baoli": return `${BAOLI_FED.map((id) => amount(RAW_OUTPUT[id][0], BAOLI_BASE_BONUS, { sign: "+" })).join("")}${PER_MOVE}<span class="tag w">grows</span>`;
     case "prakara": return `${icon("tower")}<span class="qty"><b>−${Math.round(PRAKARA_REDUCTION * 100)}%</b><span class="sr"> of the enemy</span></span><span class="tag w">enemy, before battle</span>`;
     case "gajashala": return `${amount("elephants", 1, { sign: "+" })}<small class="per-move" title="every ${ELEPHANT_INTERVAL} moves">${icon("move")}${ELEPHANT_INTERVAL}<span class="sr">every ${ELEPHANT_INTERVAL} moves</span></small>`;
+    case "burj": return `${amount("militia", BURJ_MILITIA_CAP)}${amount("strength", "×2")}<span class="tag w">militia</span>`;
+    case "sarai": return `${icon("market")}<span class="qty"><b>${SARAI_BUY_MULTIPLIER}×</b><span class="sr"> swap price</span></span>${amount("wine", 1, { sign: "+" })}${PER_MOVE}<span class="tag w">cheaper swaps</span>`;
+    case "koshagar": return `${amount("gold", `1/${KOSHAGAR_GOLD_STEP}`, { sign: "+" })}${PER_MOVE}<span class="tag">${icon("market")}${amount("swordsmen", KOSHAGAR_SELLSWORD_CAP, { sign: "+" })}</span>`;
+    case "dharmashala": return `${amount("people", DHARMASHALA_OPENING_PEOPLE, { sign: "+" })}${amount("people", DHARMASHALA_PEOPLE_PER_MOVE, { sign: "+" })}${PER_MOVE}${amount("militia", DHARMASHALA_MILITIA_CAP, { sign: "+" })}`;
     case "dharma-stambha": return `${amount("strength", `${Math.round(DHARMA_STAMBHA_BONUS * 100)}%`, { sign: "+" })}<span class="tag w">in battle</span>`;
     default: return "";
   }

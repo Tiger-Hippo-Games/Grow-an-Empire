@@ -8,7 +8,7 @@
  */
 
 import {
-  BAOLI_FED, BUILDING_COSTS, DHARMA_STAMBHA_BONUS, ELEPHANT_INTERVAL, ELEPHANT_SWORDSMEN, formatBag, PRAKARA_REDUCTION, WAR_BUILDINGS, HOUSE_PEOPLE_PER_MOVE, PROCESSORS, RAW_OUTPUT, SOLDIERS, TRAINING_BASE,
+  BAOLI_BASE_BONUS, BAOLI_FED, BUILDING_COSTS, BURJ_MILITIA_CAP, DHARMASHALA_MILITIA_CAP, DHARMASHALA_OPENING_PEOPLE, DHARMASHALA_PEOPLE_PER_MOVE, DHARMASHALA_SOLDIERS_PER_SAVED_VILLAGER, KOSHAGAR_GOLD_STEP, KOSHAGAR_SELLSWORD_CAP, SARAI_BUY_MULTIPLIER, DHARMA_STAMBHA_BONUS, ELEPHANT_INTERVAL, ELEPHANT_SWORDSMEN, formatBag, PRAKARA_REDUCTION, WAR_BUILDINGS, HOUSE_PEOPLE_PER_MOVE, PROCESSORS, RAW_OUTPUT, SOLDIERS, TRAINING_BASE,
   type ResourceBag, type ResourceName,
 } from "./economy";
 
@@ -72,10 +72,14 @@ export function benefitText(id: string): string {
     case "granary": return "+1 grain a move; stops grain spoiling";
     case "marketplace": return "Sells soma for gold; swaps goods when you're stuck";
     case "barracks": return "+1 soldier a move at every military building";
-    case "baoli": return `+1 at each ${BAOLI_FED.map((id) => id === "farm" ? "Farm" : id === "fruit-orchard" ? "Mango Grove" : "Goshala").join(", ")} every move, growing with age`;
+    case "baoli": return `+${BAOLI_BASE_BONUS} at each ${BAOLI_FED.map((id) => id === "farm" ? "Farm" : id === "fruit-orchard" ? "Mango Grove" : "Goshala").join(", ")} every move, growing with age; food processors run 1 more cycle`;
     case "prakara": return `Fells ${Math.round(PRAKARA_REDUCTION * 100)}% of the enemy before the battle`;
     case "gajashala": return `A war elephant now, then one every ${ELEPHANT_INTERVAL} moves (fights like ${ELEPHANT_SWORDSMEN} swordsmen)`;
     case "dharma-stambha": return `+${Math.round(DHARMA_STAMBHA_BONUS * 100)}% army strength in the battle`;
+    case "burj": return `Militia fight at full strength; up to ${BURJ_MILITIA_CAP} militia`;
+    case "sarai": return `Bazaar swaps cost ${SARAI_BUY_MULTIPLIER}× instead of 2×; the Bazaar sells 1 more good a move`;
+    case "koshagar": return `+1 gold a move per ${KOSHAGAR_GOLD_STEP} gold stored; +${KOSHAGAR_SELLSWORD_CAP} sellswords at the muster`;
+    case "dharmashala": return `+${DHARMASHALA_OPENING_PEOPLE} people now, +${DHARMASHALA_PEOPLE_PER_MOVE} every move; +${DHARMASHALA_MILITIA_CAP} militia; every ${DHARMASHALA_SOLDIERS_PER_SAVED_VILLAGER}th soldier needs no villager`;
     default: return "";
   }
 }
@@ -92,14 +96,18 @@ export const BUILDINGS: Record<string, BuildingDefinition> = {
   quarry: building({ id: "quarry", name: "Quarry", description: "Cuts stone for forts and temples.", unlocks: "With Carpenter's Yard, opens stone buildings", artKey: "quarry", offerMove: 1, offerPriority: 9, resource: "stone" }),
   house: building({ id: "house", name: "House", description: "A family home brings more people into the settlement.", unlocks: "More recruits and militia", artKey: "house", offerMove: 3, offerPriority: 3.5, requiresAll: ["sawmill", "quarry"] }),
   granary: building({ id: "granary", name: "Granary", description: "A timber kothar on a stone base stores the harvest safely between monsoons.", unlocks: "Secures the food economy", artKey: "granary", offerMove: 2, offerPriority: 14, requiresAny: ["farm", "fruit-orchard"], resource: "grain" }),
-  marketplace: building({ id: "marketplace", name: "Bazaar", description: "A busy haat turns surplus goods into gold.", unlocks: "Hires sellswords before the battle", artKey: "marketplace", offerMove: 4, offerPriority: 12, requiresAll: ["farm", "butchery"], resource: "gold" }),
+  marketplace: building({ id: "marketplace", name: "Bazaar", description: "A busy haat turns surplus goods into gold.", unlocks: "Hires sellswords before the battle", artKey: "marketplace", offerMove: 4, offerPriority: 12, requiresAny: ["butchery", "bakery", "winery"], resource: "gold" }),
   blacksmith: building({ id: "blacksmith", name: "Lohar Forge", description: "The lohar's forge arms and trains swordsmen.", unlocks: "Swordsmen stop a cavalry charge", artKey: "blacksmith", offerMove: 3, offerPriority: 11, requiresAll: ["sawmill", "quarry"], resource: "planks" }),
   "weapons-workshop": building({ id: "weapons-workshop", name: "Bow Hall", description: "Bowyers string bows and train archers.", unlocks: "Archers counter a swordsman horde", artKey: "weapons-workshop", offerMove: 3, offerPriority: 10, requiresAll: ["sawmill", "quarry"], resource: "planks" }),
-  barracks: building({ id: "barracks", name: "Akhara", description: "The akhara drills every kind of soldier faster.", unlocks: "Stations the city's defenders", artKey: "barracks", offerMove: 3, offerPriority: 15, requiresAll: ["sawmill", "quarry"], resource: "rations" }),
+  barracks: building({ id: "barracks", name: "Akhara", description: "The akhara drills every kind of soldier faster.", unlocks: "Stations the city's defenders", artKey: "barracks", offerMove: 3, offerPriority: 7.5, requiresAll: ["sawmill", "quarry"], resource: "rations" }),
   stable: building({ id: "stable", name: "Ashvashala", description: "Warhorses and riders train for a cavalry charge.", unlocks: "Horsemen ride down archers", artKey: "stable", offerMove: 5, offerPriority: 16, requiresAll: ["blacksmith", "weapons-workshop"], resource: "rations" }),
   baoli: building({ id: "baoli", name: "Baoli", description: "A stone stepwell keeps fields, groves and herds watered through the dry months.", unlocks: "More grain, mangoes and cattle every move", artKey: "baoli", offerMove: 3, offerPriority: 17, requiresAll: ["farm"], resource: "grain" }),
   prakara: building({ id: "prakara", name: "Prakara", description: "A watchtower on the city wall; its archers strike the enemy as they approach.", unlocks: "A quarter of the enemy falls before the lines meet", artKey: "prakara", offerMove: 3, offerPriority: 18, requiresAll: ["granary", "quarry"] }),
   gajashala: building({ id: "gajashala", name: "Gajashala", description: "Elephant stables where mahouts raise war elephants.", unlocks: "War elephants: each fights like four swordsmen", artKey: "gajashala", offerMove: 4, offerPriority: 19, requiresAll: ["barracks"] }),
+  burj: building({ id: "burj", name: "Burj", description: "A stone bastion where villagers drill with spear and shield.", unlocks: "A citizen army: militia fight like soldiers", artKey: "burj", offerMove: 3, offerPriority: 21, requiresAll: ["sawmill"] }),
+  sarai: building({ id: "sarai", name: "Sarai", description: "A caravanserai where traders rest their camels and strike deals.", unlocks: "A trading city that buys what it lacks", artKey: "sarai", offerMove: 4, offerPriority: 23, requiresAll: ["marketplace"], resource: "gold" }),
+  koshagar: building({ id: "koshagar", name: "Koshagar", description: "The royal treasury, where stored gold earns more gold.", unlocks: "Save gold for a late sellsword surge", artKey: "koshagar", offerMove: 4, offerPriority: 22, requiresAll: ["marketplace"], resource: "gold" }),
+  dharmashala: building({ id: "dharmashala", name: "Dharmashala", description: "A rest house for travellers; many stay and settle.", unlocks: "More hands for militia and training", artKey: "dharmashala", offerMove: 4, offerPriority: 24, requiresAll: ["house"] }),
   "dharma-stambha": building({ id: "dharma-stambha", name: "Dharma Stambha", description: "A polished sandstone pillar crowned with the wheel of dharma, raised once the army is complete.", unlocks: "The whole army fights 20% stronger", artKey: "dharma-stambha", offerMove: 6, offerPriority: 20, requiresAll: [...WAR_BUILDINGS] }),
 };
 
@@ -118,14 +126,36 @@ export function isBuildingEligible(definition: BuildingDefinition, builtIds: str
 }
 
 /**
+ * Offer families: the refill takes turns between the land (food and timber),
+ * the town (stone, people and trade) and war, so every few moves a card of
+ * each kind arrives and no family crowds out the others.
+ */
+export type OfferFamily = "land" | "town" | "war";
+export const OFFER_FAMILY: Record<string, OfferFamily> = {
+  woodcutter: "land", farm: "land", "swine-farm": "land", "fruit-orchard": "land", granary: "land", baoli: "land", bakery: "land", butchery: "land", winery: "land", sarai: "land",
+  quarry: "town", sawmill: "town", house: "town", dharmashala: "town", marketplace: "town", koshagar: "town", burj: "town",
+  blacksmith: "war", "weapons-workshop": "war", barracks: "war", stable: "war", gajashala: "war", "dharma-stambha": "war", prakara: "war",
+};
+const FAMILY_TURNS: OfferFamily[] = ["war", "land", "town"];
+
+/** 0 for the family whose turn it is on `move`, then 1 and 2 for the next ones. */
+function familyRank(id: string, move: number): number {
+  const turn = FAMILY_TURNS.indexOf(OFFER_FAMILY[id] ?? "town");
+  return (turn - (move % FAMILY_TURNS.length) + FAMILY_TURNS.length) % FAMILY_TURNS.length;
+}
+
+/**
  * Picks the single building that refills the offer pool after a construction
  * completes (the pool is "rolling": the chosen card leaves, one new card arrives).
  *
  * Ranking, in order:
- *   1. the Dharma Stambha as soon as every war building stands; Granary immediately after a farm or orchard; Akhara once a military workshop exists, then military workshops once
- *      their stone and timber prerequisites are ready;
- *   2. buildings that directly depend on the one just built;
- *   3. earliest `offerMove`, then lowest `offerPriority`.
+ *   1. the Dharma Stambha as soon as every war building stands, and the Granary right after a farm or orchard;
+ *      then the Ashvashala once both trainers stand, then the Lohar Forge and Bow Hall once eligible
+ *      (so every city can raise a countering army);
+ *   2. buildings that directly depend on the one just built (what you build decides what comes next);
+ *   3. the offer family whose turn it is (`OFFER_FAMILY`: war, land, town in rotation by move),
+ *      so no family crowds out the others;
+ *   4. earliest `offerMove`, then lowest `offerPriority`.
  *
  * @param builtIds       buildings already constructed this run
  * @param currentOptions cards still on offer (never duplicated)
@@ -149,14 +179,13 @@ export function nextBuildingOffer(
       && (!allowed || allowed.has(candidate.id))
       && isBuildingEligible(candidate, builtIds, move))
     .sort((a, b) => {
-      const urgency = (id: string): number => id === "dharma-stambha" ? -1 : id === "granary" && (lastBuiltId === "farm" || lastBuiltId === "fruit-orchard") ? -1
-        : id === "stable" || id === "barracks" && builtIds.some((built) => built === "blacksmith" || built === "weapons-workshop")
-        ? 0 : id === "blacksmith" || id === "weapons-workshop" ? 1 : 2;
+      const urgency = (id: string): number => id === "dharma-stambha" || id === "granary" && (lastBuiltId === "farm" || lastBuiltId === "fruit-orchard") ? -1
+        : id === "stable" ? 0 : id === "blacksmith" || id === "weapons-workshop" ? 1 : 2;
       const priority = urgency(a.id) - urgency(b.id);
       if (priority) return priority;
       const aDirect = [...(a.requiresAll ?? []), ...(a.requiresAny ?? [])].includes(lastBuiltId) ? 0 : 1;
       const bDirect = [...(b.requiresAll ?? []), ...(b.requiresAny ?? [])].includes(lastBuiltId) ? 0 : 1;
-      return aDirect - bDirect || a.offerMove - b.offerMove || a.offerPriority - b.offerPriority;
+      return aDirect - bDirect || familyRank(a.id, move) - familyRank(b.id, move) || a.offerMove - b.offerMove || a.offerPriority - b.offerPriority;
     })[0]?.id;
 }
 

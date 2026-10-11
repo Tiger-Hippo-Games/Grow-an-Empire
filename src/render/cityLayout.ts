@@ -92,6 +92,12 @@ const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
   prakara: planPoint(700, 880),
   gajashala: planPoint(1170, 765),
   "dharma-stambha": planPoint(1180, 330),
+  // 0.10.5: the bastion on the north approach, the caravanserai between the fields and the grove,
+  // the treasury between the Bazaar and the forge, the rest house south of the square (below the garrison).
+  burj: planPoint(820, 200),
+  sarai: planPoint(300, 450),
+  koshagar: planPoint(1290, 520),
+  dharmashala: planPoint(1010, 900),
 };
 
 export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry";
@@ -103,6 +109,7 @@ const BUILDING_DISTRICTS: Record<string, CityDistrict> = {
   "fruit-orchard": "provisions", winery: "provisions", "swine-farm": "provisions", butchery: "provisions",
   quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry", barracks: "industry", stable: "industry",
   baoli: "farms", prakara: "civic", gajashala: "industry", "dharma-stambha": "civic",
+  burj: "civic", sarai: "farms", koshagar: "civic", dharmashala: "civic",
 };
 
 /** Ground position of a building (falls back to the civic center for unknown ids). Read-only. */
@@ -385,6 +392,7 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["blacksmith", "barracks"], ["weapons-workshop", "barracks"],
     ["blacksmith", "stable"], ["weapons-workshop", "stable"],
     ["baoli", "farm"], ["stable", "gajashala"], ["quarry", "prakara"],
+    ["sawmill", "burj"], ["marketplace", "sarai"], ["marketplace", "koshagar"], ["house", "dharmashala"],
     ["marketplace", "house"],
   ];
   for (const [fromId, toId] of workflowLinks) {

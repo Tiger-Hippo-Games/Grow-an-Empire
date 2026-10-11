@@ -1,5 +1,5 @@
 import { CAMPAIGN_1, type CampaignDefinition } from "./campaigns";
-import { enemyHeadCount, gapToTarget, MILITIA_CAP, resolveBattle, watchtowerVolley, type ArmyCounts, type BattleRound, type EnemyArmy } from "./battle";
+import { enemyHeadCount, gapToTarget, MILITIA_CAP, resolveBattle, watchtowerVolley, type ArmyCounts, type BattleModifiers, type BattleRound, type EnemyArmy } from "./battle";
 import {
   CONSTRUCTION_DURATION_SECONDS,
   BUILDINGS,
@@ -12,7 +12,8 @@ import {
   TOTAL_SETTLEMENT_LEVELS,
 } from "./content";
 import {
-  ageBonus, BAOLI_FED, baoliBonus, BARRACKS_TRAINING_BONUS, canAfford, DHARMA_STAMBHA_BONUS, ELEPHANT_INTERVAL, ELEPHANT_UPKEEP_WEIGHT, PRAKARA_REDUCTION, emptyStockpile, formatBag, goldValue, GRAIN_SPOIL_CAP, GRANARY_GRAIN,
+  ageBonus, BAOLI_FED, baoliBonus, BARRACKS_TRAINING_BONUS, BURJ_MILITIA_CAP, BURJ_MILITIA_STRENGTH, canAfford, dharmashalaPeople,
+  DHARMASHALA_MILITIA_CAP, DHARMASHALA_SOLDIERS_PER_SAVED_VILLAGER, KOSHAGAR_GOLD_STEP, BAOLI_PROCESSOR_CYCLES, BAOLI_PROCESSORS, KOSHAGAR_MAX_INTEREST, KOSHAGAR_SELLSWORD_CAP, SARAI_BUY_MULTIPLIER, SARAI_EXTRA_SALES, DHARMA_STAMBHA_BONUS, ELEPHANT_INTERVAL, ELEPHANT_UPKEEP_WEIGHT, PRAKARA_REDUCTION, emptyStockpile, formatBag, goldValue, GRAIN_SPOIL_CAP, GRANARY_GRAIN,
   HOUSE_PEOPLE_PER_MOVE, MARKET_PLANK_RESERVE, MARKET_SALES_PER_MOVE, MINIMUM_MOVE_STOCKPILE, planSwap, PROCESSORS, RAW_OUTPUT, RESOURCE_NAMES,
   SELL_PRICE, SELLSWORD_COST, SOLDIER_TYPES, SOLDIERS, SOLDIERS_PER_RATION, startingStockpile, TRAINING_BASE, UPKEEP_WEIGHT,
   type ResourceBag, type ResourceName, type SoldierType, type SwapPlan,
@@ -77,6 +78,8 @@ export interface ArmyReport {
   felled?: ArmyCounts;
   /** The Dharma Stambha's strength share (0.2), when it stood. Absent before 0.10.4. */
   strengthBonus?: number;
+  /** Militia strength when a Burj stood (1 instead of 0.5). Absent before 0.10.5. */
+  militiaStrength?: number;
 }
 export interface BuildOrderEntry { move: number; buildingId: string; }
 
@@ -405,10 +408,13 @@ export class SettlementSimulation {
 
   get hasMarketplace(): boolean { return this.state.builtBuildingIds.includes("marketplace"); }
 
+  /** Whether `buildingId` stands in the city. */
+  has(buildingId: string): boolean { return this.state.builtBuildingIds.includes(buildingId); }
+
   /** On a stuck move with a Bazaar: the swap that would pay for `buildingId`, or null. */
   swapPlanFor(buildingId: string): SwapPlan | null {
     if (!this.isStuck() || !this.hasMarketplace || !this.state.availableBuildingIds.includes(buildingId)) return null;
-    return planSwap(this.state.resources, this.costOf(buildingId));
+    return planSwap(this.state.resources, this.costOf(buildingId), this.has("sarai") ? SARAI_BUY_MULTIPLIER : undefined);
   }
 
   /**
@@ -545,8 +551,14 @@ export class SettlementSimulation {
 
   get soldierCount(): number { return this.state.trainedUnits.archers + this.state.trainedUnits.swordsmen + this.state.trainedUnits.horsemen; }
 
+  /** Villagers soldiers take from the workforce: all of them, or (with a Dharmashala) all but every 4th. */
+  private get soldierVillagers(): number {
+    const soldiers = this.soldierCount;
+    return this.has("dharmashala") ? soldiers - Math.floor(soldiers / DHARMASHALA_SOLDIERS_PER_SAVED_VILLAGER) : soldiers;
+  }
+
   /** Villagers not working a building and not already soldiers. */
-  get freeVillagers(): number { return Math.max(0, this.state.population - this.state.builtBuildingIds.length - this.soldierCount); }
+  get freeVillagers(): number { return Math.max(0, this.state.population - this.state.builtBuildingIds.length - this.soldierVillagers); }
 
   /** War elephants standing (they need no villager: the Gajashala's mahouts ride them). */
   get elephants(): number { return this.state.elephants ?? 0; }
@@ -588,7 +600,8 @@ export class SettlementSimulation {
       return entry;
     };
     for (const id of this.state.builtBuildingIds) this.state.buildingMaturity[id] = (this.state.buildingMaturity[id] ?? 0) + 1;
-    this.state.population = Math.max(this.state.population, populationForLevel(this.state.civicLevel) + HOUSE_PEOPLE_PER_MOVE * (this.state.buildingMaturity.house ?? 0));
+    const dharmashala = dharmashalaPeople(this.state.buildingMaturity.dharmashala ?? 0);
+    this.state.population = Math.max(this.state.population, populationForLevel(this.state.civicLevel) + HOUSE_PEOPLE_PER_MOVE * (this.state.buildingMaturity.house ?? 0) + dharmashala);
 
     for (const [id, [name, base]] of Object.entries(RAW_OUTPUT)) {
       if (!built.has(id)) continue;
@@ -612,7 +625,8 @@ export class SettlementSimulation {
 
     for (const processor of PROCESSORS) {
       if (!built.has(processor.id)) continue;
-      const capacity = processor.cycles + ageBonus(age(processor.id));
+      const watered = built.has("baoli") && (BAOLI_PROCESSORS as readonly string[]).includes(processor.id) ? BAOLI_PROCESSOR_CYCLES : 0;
+      const capacity = processor.cycles + ageBonus(age(processor.id)) + watered;
       let cycles = 0;
       while (cycles < capacity && canAfford(resources, processor.input)) {
         for (const [name, amount] of Object.entries(processor.input) as Array<[ResourceName, number]>) { resources[name] -= amount; addTo(consumed, name, amount); addTo(line(processor.id).used, name, amount); }
@@ -652,11 +666,19 @@ export class SettlementSimulation {
 
     let sold = 0;
     if (built.has("marketplace")) {
-      const sales = MARKET_SALES_PER_MOVE + ageBonus(age("marketplace"));
+      const sales = MARKET_SALES_PER_MOVE + ageBonus(age("marketplace")) + (built.has("sarai") ? SARAI_EXTRA_SALES : 0);
       const market = line("marketplace");
       while (sold < sales && resources.wine > 0) { resources.wine -= 1; resources.gold += SELL_PRICE.wine; addTo(consumed, "wine", 1); addTo(produced, "gold", SELL_PRICE.wine); addTo(market.used, "wine", 1); addTo(market.made, "gold", SELL_PRICE.wine); sold += 1; }
       while (sold < sales && resources.planks > MARKET_PLANK_RESERVE) { resources.planks -= 1; resources.gold += SELL_PRICE.planks; addTo(consumed, "planks", 1); addTo(produced, "gold", SELL_PRICE.planks); addTo(market.used, "planks", 1); addTo(market.made, "gold", SELL_PRICE.planks); sold += 1; }
       if (sold === 0) market.idle = "nothing to sell";
+    }
+    if (built.has("koshagar")) {
+      const interest = Math.min(KOSHAGAR_MAX_INTEREST, Math.floor(resources.gold / KOSHAGAR_GOLD_STEP));
+      if (interest > 0) {
+        resources.gold += interest;
+        addTo(produced, "gold", interest);
+        addTo(line("koshagar").made, "gold", interest);
+      } else line("koshagar").idle = `needs ${KOSHAGAR_GOLD_STEP} gold stored`;
     }
 
     const upkeep = this.upkeep;
@@ -701,11 +723,17 @@ export class SettlementSimulation {
   /** Gold the pre-battle market can raise by selling everything (0 without a Bazaar). */
   get musterGold(): number { return this.hasMarketplace ? goldValue(this.state.resources) : 0; }
 
-  /** At most half the enemy's head count can be hired. */
-  get sellswordCap(): number { return this.hasMarketplace ? Math.floor(enemyHeadCount(this.campaign.objective.army) / 2) : 0; }
+  /** At most half the enemy's head count can be hired (+2 with a Koshagar). */
+  get sellswordCap(): number {
+    if (!this.hasMarketplace) return 0;
+    return Math.floor(enemyHeadCount(this.campaign.objective.army) / 2) + (this.has("koshagar") ? KOSHAGAR_SELLSWORD_CAP : 0);
+  }
 
-  /** Militia: free villagers who pick up tools, up to the cap. */
-  get militia(): number { return Math.min(MILITIA_CAP, this.freeVillagers); }
+  /** Militia: free villagers who pick up tools, up to the cap (higher with a Burj). */
+  get militia(): number { return Math.min(this.militiaCap, this.freeVillagers); }
+
+  /** 10 militia at most; 14 with a Burj; 4 more with a Dharmashala. */
+  get militiaCap(): number { return (this.has("burj") ? BURJ_MILITIA_CAP : MILITIA_CAP) + (this.has("dharmashala") ? DHARMASHALA_MILITIA_CAP : 0); }
 
   /** Whether `hire` is allowed: within the cap and affordable. */
   canHire(hire: SellswordHire): boolean {
@@ -728,13 +756,15 @@ export class SettlementSimulation {
   /**
    * The battle's conditions: the enemy that reaches the field (after the
    * Prakara's volley, if it stands), what the volley felled, and the Dharma
-   * Stambha's strength bonus (0 without one).
+   * Stambha's strength bonus and the Burj's militia strength (`mods`).
    */
-  battleSetup(): { enemy: EnemyArmy; felled: ArmyCounts | null; bonus: number } {
-    const built = this.state.builtBuildingIds;
+  battleSetup(): { enemy: EnemyArmy; felled: ArmyCounts | null; mods: BattleModifiers } {
     const army = this.campaign.objective.army;
-    const volley = built.includes("prakara") ? watchtowerVolley(army, PRAKARA_REDUCTION) : null;
-    return { enemy: volley ? volley.remaining : army, felled: volley ? volley.felled : null, bonus: built.includes("dharma-stambha") ? DHARMA_STAMBHA_BONUS : 0 };
+    const volley = this.has("prakara") ? watchtowerVolley(army, PRAKARA_REDUCTION) : null;
+    const mods: BattleModifiers = {};
+    if (this.has("dharma-stambha")) mods.bonus = DHARMA_STAMBHA_BONUS;
+    if (this.has("burj")) mods.militiaStrength = BURJ_MILITIA_STRENGTH;
+    return { enemy: volley ? volley.remaining : army, felled: volley ? volley.felled : null, mods };
   }
 
   /** The hire with the best margin (for tests, the balance search, and the market's "Best mix" button). */
@@ -742,10 +772,10 @@ export class SettlementSimulation {
     let best: SellswordHire = { archers: 0, swordsmen: 0 };
     let bestMargin = -Infinity;
     const budget = Math.min(this.sellswordCap, Math.floor(this.musterGold / SELLSWORD_COST));
-    const { enemy, bonus } = this.battleSetup();
+    const { enemy, mods } = this.battleSetup();
     for (let archers = 0; archers <= budget; archers += 1) {
       const hire = { archers, swordsmen: budget - archers };
-      const outcome = resolveBattle(this.armyWith(hire), enemy, this.campaign.stars, bonus);
+      const outcome = resolveBattle(this.armyWith(hire), enemy, this.campaign.stars, mods);
       if (outcome.margin > bestMargin + 1e-12) { bestMargin = outcome.margin; best = hire; }
     }
     return best;
@@ -764,9 +794,10 @@ export class SettlementSimulation {
   }
 
   private resolveMuster(hire: SellswordHire): ArmyReport {
-    const { enemy, felled, bonus } = this.battleSetup();
+    const { enemy, felled, mods } = this.battleSetup();
+    const bonus = mods.bonus ?? 0;
     const army = this.armyWith(hire);
-    const outcome = resolveBattle(army, enemy, this.campaign.stars, bonus);
+    const outcome = resolveBattle(army, enemy, this.campaign.stars, mods);
     const units: ArmyUnits = {
       militia: army.militia, spearmen: 0,
       archers: army.archers, swordsmen: army.swordsmen, horsemen: army.horsemen,
@@ -786,6 +817,7 @@ export class SettlementSimulation {
       explanations.push(`The Prakara's archers felled ${count} of the enemy before the lines met.`);
     }
     if (bonus) explanations.push(`The Dharma Stambha made the army ${Math.round(bonus * 100)}% stronger.`);
+    if (mods.militiaStrength && army.militia) explanations.push(`The Burj drilled the militia to fight at full strength.`);
     if (this.state.deserted) explanations.push(`${this.state.deserted} ${this.state.deserted === 1 ? "soldier" : "soldiers"} deserted for lack of rations: a Royal Kitchen or Ghee House feeds the army.`);
     if (this.state.gatherMoves) explanations.push(`${this.state.gatherMoves} move${this.state.gatherMoves === 1 ? " was" : "s were"} spent gathering.`);
     let gap: string | null = null;
@@ -797,7 +829,7 @@ export class SettlementSimulation {
       const allowed = this.campaign.availableBuildingIds;
       const trainable = SOLDIER_TYPES.filter((type) => built.includes(SOLDIERS[type].building));
       const offered = SOLDIER_TYPES.filter((type) => !allowed || allowed.includes(SOLDIERS[type].building));
-      const needed = gapToTarget(army, enemy, nextTarget, trainable.length ? trainable : offered, bonus);
+      const needed = gapToTarget(army, enemy, nextTarget, trainable.length ? trainable : offered, mods);
       if (needed) {
         const label = needed.count === 1 ? SOLDIERS[needed.type].singular : SOLDIERS[needed.type].label;
         const building = SOLDIERS[needed.type].building;
@@ -811,6 +843,7 @@ export class SettlementSimulation {
       units, totalUnits, sellswords: { ...hire }, enemy: { ...enemy }, enemyCount: enemyHeadCount(enemy),
       rounds: outcome.rounds, goldAvailable: this.musterGold, goldSpent, explanations, gap,
       ...(felled ? { felled } : {}), ...(bonus ? { strengthBonus: bonus } : {}),
+      ...(mods.militiaStrength ? { militiaStrength: mods.militiaStrength } : {}),
     };
   }
 }

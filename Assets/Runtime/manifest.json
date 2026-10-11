@@ -174,6 +174,34 @@
     "sourceBytes": 1326388,
     "bytes": 143302
   },
+  "burj-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Burj/Runtime2x/burj-construction-01-foundation-2x-v1.png",
+    "sha256": "6afd41d011bc59108dab6cde68f419124e70024da889457de3643f7cbd89a1e1",
+    "exportRevision": 2,
+    "sourceBytes": 360416,
+    "bytes": 26728
+  },
+  "burj-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Burj/Runtime2x/burj-construction-02-frame-2x-v1.png",
+    "sha256": "0c2a07cfb92a73d70e35162a8c59c154cd9c60e585ef241924c56665033c2d05",
+    "exportRevision": 2,
+    "sourceBytes": 373839,
+    "bytes": 29030
+  },
+  "burj-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Burj/Runtime2x/burj-construction-03-late-2x-v1.png",
+    "sha256": "7316aeb1dd28e8dd50e1d8a60fce5360c74b427dfa236903ccb3282718288dfd",
+    "exportRevision": 2,
+    "sourceBytes": 439652,
+    "bytes": 33540
+  },
+  "burj-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Burj/Runtime2x/burj-level-1-2x-v1.png",
+    "sha256": "ce2cb9b87ca19317edff3325c90a81b2af016f78b776189c8638ba01473874e6",
+    "exportRevision": 2,
+    "sourceBytes": 439499,
+    "bytes": 29944
+  },
   "butchery-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Butchery/Runtime2x/butchery-construction-01-foundation-2x-v1.png",
     "sha256": "19db989390818b27c163507f2b2fdd3d75b0da8c215315dec3742072b989b31f",
@@ -236,6 +264,34 @@
     "exportRevision": 2,
     "sourceBytes": 288333,
     "bytes": 40420
+  },
+  "dharmashala-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Dharmashala/Runtime2x/dharmashala-construction-01-foundation-2x-v1.png",
+    "sha256": "7546cf015bc69eec7545ed0405251d13b346c9d04a032bc946c0dda7c58304b4",
+    "exportRevision": 2,
+    "sourceBytes": 460085,
+    "bytes": 28922
+  },
+  "dharmashala-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Dharmashala/Runtime2x/dharmashala-construction-02-frame-2x-v1.png",
+    "sha256": "a2796fabdf58a6fcd5df0e11e140ee985390d070128205d14aa5db3d768dd9a1",
+    "exportRevision": 2,
+    "sourceBytes": 566699,
+    "bytes": 40892
+  },
+  "dharmashala-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Dharmashala/Runtime2x/dharmashala-construction-03-late-2x-v1.png",
+    "sha256": "25e0d3bfb3611bcf4fd32a0bdcad23dbddf22f4e0e8d2ff1dd8aa96b58303cae",
+    "exportRevision": 2,
+    "sourceBytes": 634651,
+    "bytes": 40456
+  },
+  "dharmashala-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Dharmashala/Runtime2x/dharmashala-level-1-2x-v1.png",
+    "sha256": "01ffc673652ff792b9530e373015d856976810b92ad1f3f1afc5e5dca1973639",
+    "exportRevision": 2,
+    "sourceBytes": 629226,
+    "bytes": 36420
   },
   "enemy-combat-north8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/CombatLoops/enemy-combat-north8-master-v1.png",
@@ -433,6 +489,34 @@
     "sourceBytes": 685133,
     "bytes": 103064
   },
+  "koshagar-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Koshagar/Runtime2x/koshagar-construction-01-foundation-2x-v1.png",
+    "sha256": "b875c888a7f919e13ddb7e4245292722d3a65483a92dfb426f0cd12b351db3b4",
+    "exportRevision": 2,
+    "sourceBytes": 346891,
+    "bytes": 26176
+  },
+  "koshagar-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Koshagar/Runtime2x/koshagar-construction-02-frame-2x-v1.png",
+    "sha256": "96aaa82600f6e190ddd97a39551eee92da15d3671eb5882da1bf35c9652e8a97",
+    "exportRevision": 2,
+    "sourceBytes": 379137,
+    "bytes": 30984
+  },
+  "koshagar-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Koshagar/Runtime2x/koshagar-construction-03-late-2x-v1.png",
+    "sha256": "9d65233ab38d2b2cb60ea84e636635fb8344172a24104f24c38bf43afdf9a4c0",
+    "exportRevision": 2,
+    "sourceBytes": 455959,
+    "bytes": 36104
+  },
+  "koshagar-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Koshagar/Runtime2x/koshagar-level-1-2x-v1.png",
+    "sha256": "78c65cb1d5569b948ef80cee0e1334e4bce24d3cfdca3a7189a2d17a3d646f8e",
+    "exportRevision": 2,
+    "sourceBytes": 435307,
+    "bytes": 30016
+  },
   "marketplace-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Marketplace/Runtime2x/marketplace-construction-01-foundation-2x-v1.png",
     "sha256": "dcfda14dcb6035ae6a812fe32602bacbc0b4165a7b6fe77e00247af9d394eff7",
@@ -572,6 +656,34 @@
     "exportRevision": 2,
     "sourceBytes": 1350522,
     "bytes": 149746
+  },
+  "sarai-construction-01-foundation-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Sarai/Runtime2x/sarai-construction-01-foundation-2x-v1.png",
+    "sha256": "d13f46307bb32d1c0e236ba758c76ed5e8c68f8f194ebae0a01b460a24109588",
+    "exportRevision": 2,
+    "sourceBytes": 458680,
+    "bytes": 30090
+  },
+  "sarai-construction-02-frame-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Sarai/Runtime2x/sarai-construction-02-frame-2x-v1.png",
+    "sha256": "64caf44a4e7ab0402aa3f3d7ee93abdab86532352b7a7c1e39b8a31055a700d5",
+    "exportRevision": 2,
+    "sourceBytes": 592683,
+    "bytes": 44034
+  },
+  "sarai-construction-03-late-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Sarai/Runtime2x/sarai-construction-03-late-2x-v1.png",
+    "sha256": "b0f2c0cdfb60ca7c543875ee87f2aab515f8f69be220f25a29560445f9dfec01",
+    "exportRevision": 2,
+    "sourceBytes": 641787,
+    "bytes": 44358
+  },
+  "sarai-level-1-2x-v1.webp": {
+    "source": "Assets/Art/Production/Buildings/Sarai/Runtime2x/sarai-level-1-2x-v1.png",
+    "sha256": "745a8aae89fb192e0197c21c69a95fa4346bdad0f902d9b8e9fa8cd8b4da47cb",
+    "exportRevision": 2,
+    "sourceBytes": 629919,
+    "bytes": 42776
   },
   "sawmill-construction-01-foundation-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/Sawmill/Runtime2x/sawmill-construction-01-foundation-2x-v1.png",

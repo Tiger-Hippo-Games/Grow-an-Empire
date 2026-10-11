@@ -45,11 +45,18 @@ export function unitStrengths(opponent: ArmyCounts): Record<keyof ArmyCounts, nu
   };
 }
 
-/** `bonus`: the Dharma Stambha's share (0.2 = 20% stronger). */
-export function playerStrength(army: PlayerArmy, enemy: ArmyCounts, bonus = 0): number {
+/**
+ * What the city's buildings change in the battle: `bonus` is the Dharma
+ * Stambha's strength share (0.2 = 20% stronger); `militiaStrength` replaces
+ * `MILITIA_STRENGTH` (a Burj drills the militia to full strength).
+ */
+export interface BattleModifiers { bonus?: number; militiaStrength?: number }
+
+export function playerStrength(army: PlayerArmy, enemy: ArmyCounts, mods: BattleModifiers = {}): number {
   const each = unitStrengths(enemy);
   const counts = effectiveCounts(army);
-  return (1 + bonus) * (counts.archers * each.archers + counts.swordsmen * each.swordsmen + counts.horsemen * each.horsemen + army.militia * MILITIA_STRENGTH);
+  const militia = mods.militiaStrength ?? MILITIA_STRENGTH;
+  return (1 + (mods.bonus ?? 0)) * (counts.archers * each.archers + counts.swordsmen * each.swordsmen + counts.horsemen * each.horsemen + army.militia * militia);
 }
 
 export function enemyStrength(enemy: EnemyArmy, army: ArmyCounts & { elephants?: number }): number {
@@ -127,10 +134,10 @@ function applyLosses<T extends ArmyCounts & { militia?: number; elephants?: numb
 
 /**
  * Fights the battle. `enemy` is the army that reaches the field (after any
- * Prakara volley); `bonus` is the Dharma Stambha's strength share.
+ * Prakara volley); `mods` are the city's battle modifiers.
  */
-export function resolveBattle(army: PlayerArmy, enemy: EnemyArmy, margins: StarMargins, bonus = 0): BattleOutcome {
-  const ours = playerStrength(army, enemy, bonus);
+export function resolveBattle(army: PlayerArmy, enemy: EnemyArmy, margins: StarMargins, mods: BattleModifiers = {}): BattleOutcome {
+  const ours = playerStrength(army, enemy, mods);
   const theirs = enemyStrength(enemy, army);
   const win = ours > theirs;
   const margin = theirs > 0 ? ours / theirs - 1 : (ours > 0 ? 1 : 0);
@@ -157,12 +164,12 @@ export function resolveBattle(army: PlayerArmy, enemy: EnemyArmy, margins: StarM
  * The cheapest single addition that would have won (or reached the next star):
  * how many more of one soldier type. Used for "4 more archers would have won."
  */
-export function gapToTarget(army: PlayerArmy, enemy: EnemyArmy, targetMargin: number, types: ReadonlyArray<keyof ArmyCounts> = ["archers", "swordsmen", "horsemen"], bonus = 0): { type: keyof ArmyCounts; count: number } | null {
+export function gapToTarget(army: PlayerArmy, enemy: EnemyArmy, targetMargin: number, types: ReadonlyArray<keyof ArmyCounts> = ["archers", "swordsmen", "horsemen"], mods: BattleModifiers = {}): { type: keyof ArmyCounts; count: number } | null {
   let best: { type: keyof ArmyCounts; count: number } | null = null;
   for (const type of types) {
     for (let count = 1; count <= 60; count += 1) {
       const trial = { ...army, [type]: army[type] + count };
-      const ours = playerStrength(trial, enemy, bonus);
+      const ours = playerStrength(trial, enemy, mods);
       const theirs = enemyStrength(enemy, trial);
       if (ours > theirs && ours / theirs - 1 >= targetMargin - 1e-9) {
         if (!best || count < best.count) best = { type, count };

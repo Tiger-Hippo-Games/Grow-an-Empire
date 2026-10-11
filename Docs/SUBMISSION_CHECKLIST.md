@@ -2,7 +2,7 @@
 
 Follow `common/GOLIVE_DEVELOPER_REFERENCE.md`. It supersedes conflicting integration details in the older portal documents. This checklist separates checks verified locally from the Developer Console steps still required. Game slug: `grow-an-empire`.
 
-Frozen candidate: **v0.10.4** (supersedes v0.10.3). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
+Frozen candidate: **v0.10.5** (supersedes v0.10.4). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
 
 ## Code and bundle
 

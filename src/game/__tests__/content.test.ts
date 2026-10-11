@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILDINGS,
+  OFFER_FAMILY,
   isBuildingEligible,
   nextBuildingOffer,
   OPENING_BUILD_OPTIONS,
@@ -71,19 +72,27 @@ describe("isBuildingEligible", () => {
       stable: ["blacksmith", "weapons-workshop"],
       granary: [], winery: ["fruit-orchard", "sawmill"],
       bakery: ["farm", "sawmill", "quarry"], butchery: ["swine-farm", "sawmill"],
-      marketplace: ["farm", "butchery"],
+      marketplace: [],
       baoli: ["farm"], prakara: ["granary", "quarry"], gajashala: ["barracks"],
       "dharma-stambha": ["blacksmith", "weapons-workshop", "barracks", "stable", "gajashala"],
+      burj: ["sawmill"], sarai: ["marketplace"], koshagar: ["marketplace"], dharmashala: ["house"],
     };
+    const anyOf: Record<string, string[]> = { granary: ["farm", "fruit-orchard"], marketplace: ["butchery", "bakery", "winery"] };
     expect(Object.keys(required).sort()).toEqual(Object.keys(BUILDINGS).sort());
     for (const [id, dependencies] of Object.entries(required)) {
       expect(BUILDINGS[id].requiresAll ?? [], id).toEqual(dependencies);
-      expect(BUILDINGS[id].requiresAny ?? [], id).toEqual(id === "granary" ? ["farm", "fruit-orchard"] : []);
-      expect(isBuildingEligible(BUILDINGS[id], id === "granary" ? ["farm"] : dependencies, 12), id).toBe(true);
+      expect(BUILDINGS[id].requiresAny ?? [], id).toEqual(anyOf[id] ?? []);
+      expect(isBuildingEligible(BUILDINGS[id], anyOf[id] ? [anyOf[id][0]] : dependencies, 12), id).toBe(true);
       for (const missing of dependencies) {
         expect(isBuildingEligible(BUILDINGS[id], dependencies.filter((item) => item !== missing), 12), `${id} without ${missing}`).toBe(false);
       }
     }
+  });
+});
+
+describe("offer families", () => {
+  it("puts every building in one of the three offer families", () => {
+    for (const id of Object.keys(BUILDINGS)) expect(["land", "town", "war"], id).toContain(OFFER_FAMILY[id]);
   });
 });
 

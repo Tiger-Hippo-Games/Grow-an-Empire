@@ -16,6 +16,7 @@ describe("functional city routes", () => {
       "weapons-workshop": [1447, 797], barracks: [1693, 820],
       stable: [1240, 900],
       baoli: [650, 270], prakara: [700, 880], gajashala: [1170, 765], "dharma-stambha": [1180, 330],
+      burj: [820, 200], sarai: [300, 450], koshagar: [1290, 520], dharmashala: [1010, 900],
     };
     const distinct = new Set<string>();
     expect(Object.keys(anchors).sort()).toEqual(Object.keys(BUILDINGS).sort());

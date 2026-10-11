@@ -453,7 +453,7 @@ function openMuster(): void {
     elephants: simulation.elephants,
     fieldEnemy: setup.enemy,
     felled: setup.felled,
-    bonus: setup.bonus,
+    mods: setup.mods,
   });
 }
 

@@ -1,4 +1,4 @@
-import { enemyStrength, playerStrength, resolveBattle, type ArmyCounts, type EnemyArmy, type PlayerArmy, type StarMargins } from "../game/battle";
+import { enemyStrength, playerStrength, resolveBattle, type ArmyCounts, type BattleModifiers, type EnemyArmy, type PlayerArmy, type StarMargins } from "../game/battle";
 import { CAMPAIGNS, CHAPTERS, type CampaignDefinition } from "../game/campaigns";
 import { SELLSWORD_COST } from "../game/economy";
 import type { ArmyReport, SellswordHire } from "../game/settlementSimulation";
@@ -82,8 +82,8 @@ export interface MusterView {
   fieldEnemy?: EnemyArmy;
   /** What the Prakara felled, when it stands. */
   felled?: ArmyCounts | null;
-  /** The Dharma Stambha's strength share (0.2), when it stands. */
-  bonus?: number;
+  /** The city's battle modifiers (Dharma Stambha bonus, Burj militia strength). */
+  mods?: BattleModifiers;
 }
 
 export interface ResultView {
@@ -279,7 +279,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
   function showMuster(view: MusterView): void {
     const { campaign } = view;
     const enemy: EnemyArmy = view.fieldEnemy ?? campaign.objective.army;
-    const bonus = view.bonus ?? 0;
+    const mods = view.mods ?? {};
+    const bonus = mods.bonus ?? 0;
     const felledCount = view.felled ? view.felled.archers + view.felled.swordsmen + view.felled.horsemen : 0;
     let hire: SellswordHire = { archers: 0, swordsmen: 0 };
     const market = view.hasMarketplace && view.cap === 0
@@ -303,6 +304,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
         <div><span class="side-label">${escapeHtml(campaign.objective.kingdomName)}</span><div class="army-chips">${armyChips(enemy, true)}</div></div>
       </div>
       ${felledCount ? `<p class="flow-note defences"><span aria-hidden="true">${icon("tower")}${amount("people", felledCount, { sign: "−", className: "loss" })}</span><span class="ws"> The Prakara's archers felled ${felledCount} of the enemy before the lines met</span></p>` : ""}
+      ${mods.militiaStrength && view.militia ? `<p class="flow-note defences"><span aria-hidden="true">${amount("militia", view.militia)}${amount("strength", "×2", {})}</span><span class="ws"> The Burj: militia fight at full strength</span></p>` : ""}
       ${bonus ? `<p class="flow-note defences"><span aria-hidden="true">${amount("strength", `${Math.round(bonus * 100)}%`, { sign: "+" })}</span><span class="ws"> The Dharma Stambha: the army fights ${Math.round(bonus * 100)}% stronger</span></p>` : ""}
       ${view.deserted ? `<p class="flow-note deserted"><span aria-hidden="true">${icon("warning")}${amount("people", view.deserted, { sign: "−", className: "loss" })}${icon("rations")}</span><span class="ws"> ${view.deserted} soldiers deserted for lack of rations (an older save)</span></p>` : ""}
       <div class="forecast"><div class="forecast-bar"><i data-bar></i></div><p data-forecast aria-live="polite"></p></div>
@@ -318,9 +320,9 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
         horsemen: view.trained.horsemen, militia: view.militia, elephants: view.elephants ?? 0,
       };
       ours.innerHTML = armyChips(army, false);
-      const mine = playerStrength(army, enemy, bonus);
+      const mine = playerStrength(army, enemy, mods);
       const theirs = enemyStrength(enemy, army);
-      const outcome = resolveBattle(army, enemy, campaign.stars, bonus);
+      const outcome = resolveBattle(army, enemy, campaign.stars, mods);
       bar.style.width = `${Math.round((mine / Math.max(1e-9, mine + theirs)) * 100)}%`;
       forecast.innerHTML = `<span aria-hidden="true">${strengthLine(mine, theirs)} ${outcome.win
         ? `<span class="good">Win ${starText(outcome.stars)}</span>`
@@ -371,7 +373,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     const updateArmies = (ours: PlayerArmy, theirs: ArmyCounts): void => {
       dialog.querySelector("[data-ours]")!.innerHTML = armyChips(ours, false);
       dialog.querySelector("[data-enemy]")!.innerHTML = armyChips(theirs, true);
-      const mine = playerStrength(ours, theirs, report.strengthBonus ?? 0);
+      const mine = playerStrength(ours, theirs, { bonus: report.strengthBonus ?? 0, ...(report.militiaStrength ? { militiaStrength: report.militiaStrength } : {}) });
       const hostile = enemyStrength({ ...theirs, veterancy: campaign.objective.army.veterancy }, ours);
       const share = mine + hostile > 0 ? mine / (mine + hostile) : 0.5;
       const meter = dialog.querySelector<HTMLElement>("[data-balance]")!;

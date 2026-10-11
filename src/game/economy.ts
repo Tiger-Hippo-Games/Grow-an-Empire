@@ -48,6 +48,10 @@ export const BUILDING_COSTS: Record<string, ResourceBag> = {
   prakara: { wood: 4, stone: 6 },
   gajashala: { planks: 5, stone: 4, grain: 3 },
   "dharma-stambha": { planks: 4, stone: 6 },
+  burj: { planks: 3, stone: 2 },
+  sarai: { planks: 4, stone: 2 },
+  koshagar: { stone: 4, planks: 2 },
+  dharmashala: { planks: 3, grain: 2 },
 };
 
 /** Raw producers: resource and base output per move. Output grows by 1 every 3 moves standing. */
@@ -72,9 +76,13 @@ export const GRANARY_GRAIN = 1;
 export const GRAIN_SPOIL_CAP = 8;
 /** The Baoli (stepwell) waters every food producer: farms, the Mango Grove and the Goshala. */
 export const BAOLI_FED = ["farm", "fruit-orchard", "swine-farm"] as const;
-/** Extra output per watered producer: +1, growing by 1 every 3 moves the Baoli stands. */
+/** Extra output per watered producer when the Baoli opens; it grows by 1 every 3 moves the Baoli stands. */
+export const BAOLI_BASE_BONUS = 2;
+/** With water to spare, the food processors (Royal Kitchen, Ghee House, Soma Press) each run this many more cycles a move. */
+export const BAOLI_PROCESSOR_CYCLES = 1;
+export const BAOLI_PROCESSORS = ["bakery", "butchery", "winery"] as const;
 export function baoliBonus(baoliAge: number): number {
-  return 1 + ageBonus(baoliAge);
+  return BAOLI_BASE_BONUS + ageBonus(baoliAge);
 }
 
 /** The Prakara (watchtower) fells this share of the enemy before the armies meet. */
@@ -89,6 +97,26 @@ export const ELEPHANT_UPKEEP_WEIGHT = 8;
 export const DHARMA_STAMBHA_BONUS = 0.2;
 /** Every war building must stand before the Dharma Stambha can be raised. */
 export const WAR_BUILDINGS = ["blacksmith", "weapons-workshop", "barracks", "stable", "gajashala"] as const;
+
+/** The Burj (bastion): villagers drill there, so militia fight at full strength and more can stand. */
+export const BURJ_MILITIA_STRENGTH = 1;
+export const BURJ_MILITIA_CAP = 14;
+/** The Sarai (caravanserai): Bazaar swaps buy at this multiple of the selling price instead of `BUY_MULTIPLIER`, and the Bazaar sells this many more goods a move. */
+export const SARAI_BUY_MULTIPLIER = 1.5;
+export const SARAI_EXTRA_SALES = 1;
+/** The Koshagar (treasury): +1 gold a move for every `KOSHAGAR_GOLD_STEP` gold stored (at most `KOSHAGAR_MAX_INTEREST`), and more sellswords can be hired. */
+export const KOSHAGAR_GOLD_STEP = 5;
+export const KOSHAGAR_MAX_INTEREST = 6;
+export const KOSHAGAR_SELLSWORD_CAP = 2;
+/** The Dharmashala (rest house): people when it opens, more for every move after; every 4th soldier needs no villager of his own. */
+export const DHARMASHALA_OPENING_PEOPLE = 6;
+export const DHARMASHALA_PEOPLE_PER_MOVE = 2;
+export function dharmashalaPeople(age: number): number {
+  return age > 0 ? DHARMASHALA_OPENING_PEOPLE + DHARMASHALA_PEOPLE_PER_MOVE * (age - 1) : 0;
+}
+export const DHARMASHALA_SOLDIERS_PER_SAVED_VILLAGER = 4;
+/** Settlers who stay add to the militia: the militia cap rises by this much. */
+export const DHARMASHALA_MILITIA_CAP = 4;
 
 /** People a House adds for every move it has stood. */
 export const HOUSE_PEOPLE_PER_MOVE = 2;
@@ -171,9 +199,9 @@ export function formatBag(bag: ResourceBag): string {
  */
 /** A Marketplace swap. `change`: whole gold left over after buying (goods sell in whole units), kept by the player. */
 export interface SwapPlan { buy: ResourceBag; sell: ResourceBag; goldNeeded: number; goldRaised: number; change: number }
-export function planSwap(stock: Record<ResourceName, number>, cost: ResourceBag): SwapPlan | null {
+export function planSwap(stock: Record<ResourceName, number>, cost: ResourceBag, buyMultiplier = BUY_MULTIPLIER): SwapPlan | null {
   const buy = shortfall(stock, cost);
-  const goldNeeded = (Object.entries(buy) as Array<[ResourceName, number]>).reduce((sum, [name, amount]) => sum + amount * SELL_PRICE[name] * BUY_MULTIPLIER, 0);
+  const goldNeeded = (Object.entries(buy) as Array<[ResourceName, number]>).reduce((sum, [name, amount]) => sum + amount * SELL_PRICE[name] * buyMultiplier, 0);
   if (goldNeeded <= 0) return null;
   const sell: ResourceBag = {};
   let goldRaised = 0;

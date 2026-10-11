@@ -1,4 +1,5 @@
-"""Procedural stand-in art for the 0.10.4 buildings (Baoli, Prakara, Gajashala, Dharma Stambha).
+"""Procedural stand-in art for the eight new buildings (0.10.4: Baoli, Prakara, Gajashala,
+Dharma Stambha; 0.10.5: Burj, Sarai, Koshagar, Dharmashala).
 
 Why: Ravi chose "stand-ins now + briefs" (2026-10-11). The rules ship with these
 drawings; painted art from Docs/BUILDING_ART_BRIEF.md replaces them later with no
@@ -24,6 +25,7 @@ from __future__ import annotations
 
 import math
 import random
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
@@ -35,7 +37,8 @@ K = 300 * S  # pixels per ground unit along an iso axis (set per building in mai
 CX, BASE_Y = W * S // 2, int(675 * S)  # screen point of ground (0, 0, 0)
 FRONT_Y = 968  # the plot's front corner sits here, like the painted buildings (sprite anchor = image bottom)
 # Per building: (pixels per unit, plot half-size). Tall buildings use a smaller scale so they fit the canvas.
-SCALES = {"baoli": (300, 1.05), "prakara": (240, 1.05), "gajashala": (300, 1.05), "dharma-stambha": (220, 0.85)}
+SCALES = {"baoli": (300, 1.05), "prakara": (240, 1.05), "gajashala": (300, 1.05), "dharma-stambha": (220, 0.85),
+          "burj": (270, 1.0), "sarai": (300, 1.05), "koshagar": (280, 0.95), "dharmashala": (300, 1.05)}
 
 STAGES = ["foundation", "frame", "late", "complete"]
 FILES = {
@@ -44,7 +47,8 @@ FILES = {
     "late": "{id}-construction-03-late-2x-v1.png",
     "complete": "{id}-level-1-2x-v1.png",
 }
-DIRS = {"baoli": "Baoli", "prakara": "Prakara", "gajashala": "Gajashala", "dharma-stambha": "DharmaStambha"}
+DIRS = {"baoli": "Baoli", "prakara": "Prakara", "gajashala": "Gajashala", "dharma-stambha": "DharmaStambha",
+        "burj": "Burj", "sarai": "Sarai", "koshagar": "Koshagar", "dharmashala": "Dharmashala"}
 
 SANDSTONE = (196, 146, 98)
 RED_STONE = (168, 92, 64)
@@ -360,12 +364,169 @@ def dharma_stambha(c: Canvas, stage: str):
         c.ellipse_at(math.cos(a) * 0.22, math.sin(a) * 0.22, 0.17, 0.025, 0.025, (236, 150, 30))
 
 
-BUILDERS = {"baoli": baoli, "prakara": prakara, "gajashala": gajashala, "dharma-stambha": dharma_stambha}
+def burj(c: Canvas, stage: str):
+    """A round stone bastion with a crenellated top, a drill yard with a spear rack and a training post."""
+    c.plot(half=1.0, dirt=0.82)
+    c.box(-0.55, -0.55, 0, 0.9, 0.9, 0.08, GREY_STONE)
+    height = {"foundation": 0.12, "frame": 0.5, "late": 0.95, "complete": 1.0}[stage]
+    c.cylinder(-0.1, -0.1, 0.08, 0.4, height, SANDSTONE)
+    if stage == "foundation":
+        c.stones(0.35, 0.4)
+        c.stones(-0.85, 0.45, 3)
+        return
+    top = 0.08 + height
+    door = iso(-0.1, 0.3, 0.08)
+    c.draw.rectangle((door[0] - 0.06 * K, door[1] - 0.28 * K, door[0] + 0.06 * K, door[1] - 0.02 * K), fill=(46, 32, 24, 255))
+    c.draw.ellipse((door[0] - 0.06 * K, door[1] - 0.34 * K, door[0] + 0.06 * K, door[1] - 0.22 * K), fill=(46, 32, 24, 255))
+    if stage == "frame":
+        c.scaffold(-0.55, -0.55, 0.35, 0.35, 0.7)
+        return
+    ring = [(-0.1 + math.cos(2 * math.pi * i / 12) * 0.34, -0.1 + math.sin(2 * math.pi * i / 12) * 0.34) for i in range(12)]
+    for gx, gy in sorted(ring, key=lambda p: p[0] + p[1]):  # merlons all round the top, back to front
+        c.box(gx - 0.045, gy - 0.045, top, 0.09, 0.09, 0.1, SANDSTONE)
+    if stage == "late":
+        c.scaffold(0.0, -0.6, 0.4, 0.4, 1.1)
+        return
+    # Drill yard: a spear rack and a training post with a straw dummy.
+    for i in range(4):
+        c.pole((0.45 + i * 0.08, 0.55, 0), (0.45 + i * 0.08, 0.55, 0.55), color=TIMBER, width=4)
+        tip = iso(0.45 + i * 0.08, 0.55, 0.55)
+        c.draw.polygon([(tip[0], tip[1] - 0.06 * K), (tip[0] - 0.015 * K, tip[1]), (tip[0] + 0.015 * K, tip[1])], fill=(200, 200, 205, 255))
+    c.pole((0.4, 0.5, 0.25), (0.75, 0.5, 0.25), color=TIMBER, width=5)
+    c.pole((-0.6, 0.55, 0), (-0.6, 0.55, 0.5), color=TIMBER, width=5)
+    c.pole((-0.72, 0.55, 0.38), (-0.48, 0.55, 0.38), color=TIMBER, width=4)
+    c.ellipse_at(-0.6, 0.55, 0.48, 0.07, 0.09, (210, 180, 100))
+    c.ellipse_at(-0.25, 0.62, 0.0, 0.11, 0.06, (176, 46, 40))  # a round shield on the ground
+
+
+def sarai(c: Canvas, stage: str):
+    """A caravanserai: a walled courtyard with rooms along the back, an arched gate, bales and a camel."""
+    c.plot()
+    wall = {"foundation": 0.05, "frame": 0.25, "late": 0.35, "complete": 0.35}[stage]
+    rooms = {"foundation": 0.0, "frame": 0.3, "late": 0.45, "complete": 0.45}[stage]
+    if rooms:
+        c.box(-0.85, -0.85, 0, 1.6, 0.35, rooms, SANDSTONE, courses=0.09)
+        c.box(-0.85, -0.5, 0, 0.35, 1.15, rooms, SANDSTONE, courses=0.09)
+        for i in range(4):  # room doors along the back
+            d = iso(-0.42 + i * 0.32, -0.5, 0)
+            c.draw.rectangle((d[0] - 0.04 * K, d[1] - 0.22 * K, d[0] + 0.04 * K, d[1]), fill=(52, 36, 26, 255))
+    c.box(-0.85, 0.7, 0, 0.6, 0.1, wall, SANDSTONE, courses=0.08)
+    c.box(0.25, 0.7, 0, 0.5, 0.1, wall, SANDSTONE, courses=0.08)
+    c.box(0.75, -0.85, 0, 0.1, 1.65, wall, SANDSTONE, courses=0.08)
+    if stage == "foundation":
+        c.stones(-0.2, 0.0)
+        c.stones(0.3, 0.3, 3, TIMBER)
+        return
+    # Gatehouse with a pointed arch.
+    gate_h = wall + (0.35 if stage != "frame" else 0.1)
+    c.box(-0.25, 0.66, 0, 0.5, 0.18, gate_h, RED_STONE, courses=0.1)
+    g = iso(0.0, 0.84, 0)
+    c.draw.polygon([(g[0] - 0.1 * K, g[1]), (g[0] - 0.1 * K, g[1] - 0.25 * K), (g[0], g[1] - 0.36 * K), (g[0] + 0.1 * K, g[1] - 0.25 * K), (g[0] + 0.1 * K, g[1])], fill=(46, 32, 24, 255))
+    if stage == "frame":
+        c.scaffold(-0.9, -0.9, 0.8, -0.45, 0.6)
+        return
+    for x, y in [(0.2, -0.2), (0.35, -0.05), (0.1, 0.05)]:
+        c.box(x, y, 0, 0.14, 0.1, 0.1, (200, 170, 100))  # bales of goods
+    if stage == "late":
+        c.scaffold(-0.25, 0.6, 0.3, 0.9, 0.9)
+        return
+    # A resting camel in the yard.
+    px, py = iso(-0.15, 0.25)
+    u = 0.07 * K
+    tan, dark = (196, 150, 92, 255), (140, 100, 60, 255)
+    c.draw.ellipse((px - 1.6 * u, py - 1.6 * u, px + 1.6 * u, py), fill=tan, outline=dark, width=S)
+    c.draw.ellipse((px - 0.6 * u, py - 2.4 * u, px + 0.6 * u, py - 1.2 * u), fill=tan)
+    c.draw.line([(px - 1.4 * u, py - 1.0 * u), (px - 2.2 * u, py - 2.6 * u)], fill=tan, width=int(0.5 * u))
+    c.draw.ellipse((px - 2.7 * u, py - 3.0 * u, px - 1.9 * u, py - 2.4 * u), fill=tan, outline=dark, width=S)
+    flag = iso(0.0, 0.75, gate_h)
+    c.draw.line([flag, (flag[0], flag[1] - 0.3 * K)], fill=(90, 60, 40, 255), width=3 * S)
+    c.draw.polygon([(flag[0], flag[1] - 0.3 * K), (flag[0] + 0.2 * K, flag[1] - 0.25 * K), (flag[0], flag[1] - 0.2 * K)], fill=(40, 110, 160, 255))
+
+
+def koshagar(c: Canvas, stage: str):
+    """The treasury: a squat stone strongroom with an iron door, a gilded dome and chests by the door."""
+    c.plot(half=0.95, dirt=0.78)
+    c.box(-0.55, -0.55, 0, 1.0, 1.0, 0.08, GREY_STONE)
+    height = {"foundation": 0.1, "frame": 0.4, "late": 0.7, "complete": 0.7}[stage]
+    c.box(-0.45, -0.45, 0.08, 0.8, 0.8, height, GREY_STONE, courses=0.1)
+    if stage == "foundation":
+        c.stones(0.45, 0.35, 6, GREY_STONE)
+        return
+    d = iso(-0.05, 0.35, 0.08)
+    c.draw.rectangle((d[0] - 0.08 * K, d[1] - 0.32 * K, d[0] + 0.08 * K, d[1]), fill=(58, 58, 64, 255), outline=(30, 30, 34, 255), width=S)
+    for r in range(3):
+        c.draw.line([(d[0] - 0.08 * K, d[1] - (0.08 + r * 0.1) * K), (d[0] + 0.08 * K, d[1] - (0.08 + r * 0.1) * K)], fill=(30, 30, 34, 255), width=2 * S)
+    if stage == "frame":
+        c.scaffold(-0.5, -0.5, 0.4, 0.4, 0.6)
+        return
+    top = 0.08 + height
+    c.box(-0.5, -0.5, top, 0.9, 0.9, 0.05, shade(GREY_STONE, 1.08))
+    px, py = iso(-0.05, -0.05, top + 0.05)
+    r = 0.3 * K
+    gold = (222, 176, 64)
+    if stage == "complete":
+        c.draw.pieslice((px - r, py - r * 1.1, px + r, py + r * 0.9), 180, 360, fill=gold + (255,), outline=(130, 96, 30, 255), width=S)
+        c.draw.ellipse((px - 0.1 * r, py - 1.25 * r, px + 0.1 * r, py - 1.05 * r), fill=gold + (255,))
+        for x, y in [(0.45, 0.45), (0.6, 0.3)]:
+            c.box(x, y, 0, 0.16, 0.11, 0.1, (150, 92, 44), top=(200, 150, 70))
+            c.box(x, y, 0.1, 0.16, 0.11, 0.02, gold)
+    else:
+        c.scaffold(-0.55, -0.55, 0.45, 0.45, 1.0)
+
+
+def dharmashala(c: Canvas, stage: str):
+    """A two-storey rest house with a pillared veranda, a tiled roof, a charpai and water pots outside."""
+    c.plot()
+    lower = {"foundation": 0.0, "frame": 0.35, "late": 0.4, "complete": 0.4}[stage]
+    c.box(-0.9, -0.8, 0, 1.6, 0.75, 0.08, GREY_STONE)
+    if stage == "foundation":
+        for i in range(5):
+            c.box(-0.85 + i * 0.36, -0.1, 0.08, 0.06, 0.06, 0.12, TIMBER)
+        c.stones(0.25, 0.35)
+        c.box(-0.7, 0.4, 0, 0.5, 0.12, 0.08, TIMBER)
+        return
+    c.box(-0.9, -0.8, 0.08, 1.6, 0.55, lower, (226, 206, 170), courses=None)
+    for i in range(6):  # veranda pillars
+        c.box(-0.88 + i * 0.3, -0.18, 0.08, 0.05, 0.05, lower, (232, 220, 196))
+    c.box(-0.92, -0.25, 0.08 + lower, 1.64, 0.18, 0.03, TIMBER)
+    if stage == "frame":
+        c.scaffold(-0.95, -0.85, 0.75, -0.05, 0.9)
+        return
+    upper = 0.08 + lower + 0.03
+    c.box(-0.8, -0.75, upper, 1.4, 0.45, 0.32, (226, 206, 170))
+    for i in range(5):
+        w = iso(-0.65 + i * 0.28, -0.3, upper + 0.12)
+        c.draw.rectangle((w[0] - 0.035 * K, w[1] - 0.12 * K, w[0] + 0.035 * K, w[1]), fill=(70, 50, 36, 255))
+    top = upper + 0.32
+    ridge = top + 0.28
+    roof_done = stage == "complete"
+    c.poly([(-0.85, -0.27, top), (0.65, -0.27, top), (0.65, -0.52, ridge), (-0.85, -0.52, ridge)], ROOF if roof_done else TIMBER, outline=shade(ROOF, 0.45), width=S)
+    c.poly([(0.65, -0.27, top), (0.65, -0.78, top), (0.65, -0.52, ridge)], shade((226, 206, 170), 0.7), outline=shade(SANDSTONE, 0.4), width=S)
+    if not roof_done:
+        c.scaffold(0.1, -0.85, 0.75, -0.1, 1.2)
+        return
+    for i in range(1, 8):
+        gx = -0.85 + i * 0.19
+        c.pole((gx, -0.27, top), (gx, -0.52, ridge), color=shade(ROOF, 0.7), width=2)
+    # A charpai (rope cot) and water pots in the yard.
+    c.box(-0.4, 0.35, 0.1, 0.45, 0.22, 0.03, (214, 190, 140))
+    for gx, gy in [(-0.38, 0.37), (0.02, 0.37), (-0.38, 0.55), (0.02, 0.55)]:
+        c.box(gx, gy, 0, 0.03, 0.03, 0.1, TIMBER)
+    for gx in (0.35, 0.47):
+        c.ellipse_at(gx, 0.45, 0.06, 0.06, 0.06, (176, 96, 60))
+
+
+BUILDERS = {"baoli": baoli, "prakara": prakara, "gajashala": gajashala, "dharma-stambha": dharma_stambha,
+            "burj": burj, "sarai": sarai, "koshagar": koshagar, "dharmashala": dharmashala}
 
 
 def main() -> None:
+    """Draws every stand-in, or only the ids given on the command line (e.g. `burj sarai`)."""
     global K, BASE_Y
+    only = set(sys.argv[1:])
     for building_id, draw in BUILDERS.items():
+        if only and building_id not in only:
+            continue
         scale, half = SCALES[building_id]
         K = scale * S
         BASE_Y = int((FRONT_Y - half * scale) * S)

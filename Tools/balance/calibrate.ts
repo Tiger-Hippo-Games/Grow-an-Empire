@@ -22,7 +22,7 @@ import { ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
   const { endings } = searchEndings();
   // Equivalent armies and hiring budgets have identical margins. Keep their
   // original multiplicities, so grouping speeds the search without reweighting it.
-  const keyOf = (ending: (typeof endings)[number]): string => [ending.archers, ending.swordsmen, ending.horsemen, ending.militia, ending.elephants, ending.prakara, ending.stambha, ending.market, ending.market ? Math.floor(ending.gold / SELLSWORD_COST) : 0].join("/");
+  const keyOf = (ending: (typeof endings)[number]): string => [ending.archers, ending.swordsmen, ending.horsemen, ending.militia, ending.elephants, ending.prakara, ending.stambha, ending.burj, ending.koshagar, ending.market, ending.market ? Math.floor(ending.gold / SELLSWORD_COST) : 0].join("/");
   const weighted = new Map<string, { ending: (typeof endings)[number]; count: number }>();
   for (const ending of endings) {
     const key = keyOf(ending);

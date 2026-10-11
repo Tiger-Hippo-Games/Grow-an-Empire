@@ -636,7 +636,7 @@ export function createHud(callbacks: HudCallbacks) {
       const hint = document.createElement("p");
       hint.className = "decision-hint w";
       hint.textContent = view.cards.some((card) => card.swap)
-        ? "Swap spare goods at the Bazaar (twice the price)."
+        ? "Swap spare goods at the Bazaar (at twice the price, or 1.5× with a Sarai)."
         : "Paid now. Built earlier, it works for more moves. Keys 1-3.";
       buildFoot.appendChild(hint);
     }

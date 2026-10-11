@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { effectiveCounts, playerStrength, resolveBattle, watchtowerVolley } from "../battle";
 import { CAMPAIGNS } from "../campaigns";
 import { BUILDINGS, nextBuildingOffer } from "../content";
-import { baoliBonus, DHARMA_STAMBHA_BONUS, ELEPHANT_INTERVAL, PRAKARA_REDUCTION, WAR_BUILDINGS } from "../economy";
+import {
+  baoliBonus, BURJ_MILITIA_STRENGTH, DHARMA_STAMBHA_BONUS, ELEPHANT_INTERVAL, KOSHAGAR_MAX_INTEREST, KOSHAGAR_SELLSWORD_CAP, PRAKARA_REDUCTION,
+  SARAI_BUY_MULTIPLIER, SARAI_EXTRA_SALES, WAR_BUILDINGS,
+} from "../economy";
 import { SettlementSimulation, type SettlementSnapshot } from "../settlementSimulation";
 
 /** Puts a city on a given move with given buildings (each standing `age` moves), awaiting a choice. */
@@ -17,19 +20,29 @@ function cityWith(buildings: Record<string, number>, move = 5, campaign = CAMPAI
 }
 
 describe("Baoli (stepwell)", () => {
-  it("adds +1, then +2, then +3 to every food producer as it ages", () => {
-    expect([1, 3, 4, 6, 7].map(baoliBonus)).toEqual([1, 1, 2, 2, 3]);
+  it("adds +2, then +3, then +4 to every food producer as it ages", () => {
+    expect([1, 3, 4, 6, 7].map(baoliBonus)).toEqual([2, 2, 3, 3, 4]);
     const sim = cityWith({ farm: 5, "fruit-orchard": 5, "swine-farm": 5, baoli: 3 });
     sim.gather();
     const line = sim.state.lastSummary?.ledger?.find((entry) => entry.source === "baoli");
-    // The Baoli is 4 moves old after this move's ageing: +2 each.
-    expect(line?.made).toEqual({ grain: 2, fruit: 2, livestock: 2 });
+    // The Baoli is 4 moves old after this move's ageing: +3 each.
+    expect(line?.made).toEqual({ grain: 3, fruit: 3, livestock: 3 });
   });
 
   it("waters only the producers that stand", () => {
     const sim = cityWith({ farm: 2, baoli: 0 });
     sim.gather();
-    expect(sim.state.lastSummary?.ledger?.find((entry) => entry.source === "baoli")?.made).toEqual({ grain: 1 });
+    expect(sim.state.lastSummary?.ledger?.find((entry) => entry.source === "baoli")?.made).toEqual({ grain: 2 });
+  });
+
+  it("lets the Royal Kitchen run one more cycle a move", () => {
+    const run = (baoli: boolean) => {
+      const sim = cityWith(baoli ? { bakery: 1, baoli: 1 } : { bakery: 1 });
+      sim.state.resources.grain = 20;
+      sim.gather();
+      return sim.state.lastSummary?.ledger?.find((entry) => entry.source === "bakery")?.made.rations ?? 0;
+    };
+    expect(run(true)).toBe(run(false) + 3);
   });
 });
 
@@ -117,7 +130,7 @@ describe("Dharma Stambha", () => {
   it("makes the army 20% stronger in the battle", () => {
     const enemy = { archers: 5, swordsmen: 5, horsemen: 5, veterancy: 1 };
     const army = { archers: 5, swordsmen: 5, horsemen: 2, militia: 3 };
-    expect(playerStrength(army, enemy, DHARMA_STAMBHA_BONUS)).toBeCloseTo(1.2 * playerStrength(army, enemy));
+    expect(playerStrength(army, enemy, { bonus: DHARMA_STAMBHA_BONUS })).toBeCloseTo(1.2 * playerStrength(army, enemy));
     const campaign = CAMPAIGNS[0];
     const sim = cityWith(Object.fromEntries([...WAR_BUILDINGS, "dharma-stambha"].map((id) => [id, 3])), campaign.moveLimit, campaign);
     sim.state.trainedUnits = { archers: 2, swordsmen: 2, horsemen: 0 };
@@ -125,5 +138,77 @@ describe("Dharma Stambha", () => {
     sim.muster();
     expect(sim.state.armyReport?.strengthBonus).toBe(DHARMA_STAMBHA_BONUS);
     expect(sim.state.armyReport?.explanations.join(" ")).toMatch(/Dharma Stambha made the army 20% stronger/);
+  });
+});
+
+describe("Burj (bastion)", () => {
+  it("drills the militia to full strength and raises the cap to 14", () => {
+    const campaign = CAMPAIGNS[0];
+    const plain = cityWith({ house: 6 }, campaign.moveLimit, campaign);
+    const drilled = cityWith({ house: 6, burj: 3 }, campaign.moveLimit, campaign);
+    expect(plain.militia).toBe(10);
+    expect(drilled.militia).toBe(14);
+    expect(drilled.battleSetup().mods.militiaStrength).toBe(BURJ_MILITIA_STRENGTH);
+    const enemy = { archers: 2, swordsmen: 2, horsemen: 2, veterancy: 1 };
+    const militia = { archers: 0, swordsmen: 0, horsemen: 0, militia: 10 };
+    expect(playerStrength(militia, enemy, { militiaStrength: BURJ_MILITIA_STRENGTH })).toBeCloseTo(2 * playerStrength(militia, enemy));
+    drilled.state.mode = "muster";
+    drilled.muster();
+    expect(drilled.state.armyReport?.militiaStrength).toBe(1);
+    expect(drilled.state.armyReport?.explanations.join(" ")).toMatch(/Burj drilled the militia/);
+  });
+});
+
+describe("Sarai (caravanserai)", () => {
+  it("makes Bazaar swaps cheaper and sells one more good a move", () => {
+    const setup = (sarai: boolean) => {
+      const sim = cityWith(sarai ? { marketplace: 3, sarai: 1 } : { marketplace: 3 }, 6);
+      for (const name of Object.keys(sim.state.resources) as Array<keyof typeof sim.state.resources>) sim.state.resources[name] = 0;
+      Object.assign(sim.state.resources, { planks: 1, wood: 12, grain: 6 });
+      sim.state.availableBuildingIds = ["winery"]; // 3 planks, 2 stone: unaffordable, so the move is stuck
+      return sim;
+    };
+    const dear = setup(false).swapPlanFor("winery")!;
+    const cheap = setup(true).swapPlanFor("winery")!;
+    expect(dear.goldNeeded).toBe(2 * 2 * 2 + 2 * 0.5 * 2); // 2 planks + 2 stone at 2×
+    expect(cheap.goldNeeded).toBeCloseTo(dear.goldNeeded * SARAI_BUY_MULTIPLIER / 2);
+    const market = cityWith({ marketplace: 1, sarai: 1 }, 6);
+    market.state.resources.wine = 5;
+    market.gather();
+    expect(market.state.lastSummary?.ledger?.find((entry) => entry.source === "marketplace")?.used.wine).toBe(1 + SARAI_EXTRA_SALES);
+  });
+});
+
+describe("Koshagar (treasury)", () => {
+  it("pays +1 gold per 5 stored (at most 6) and allows 2 more sellswords", () => {
+    const sim = cityWith({ marketplace: 1, koshagar: 1 }, 6);
+    sim.state.resources.gold = 23;
+    sim.gather();
+    expect(sim.state.lastSummary?.ledger?.find((entry) => entry.source === "koshagar")?.made.gold).toBe(4);
+    const rich = cityWith({ marketplace: 1, koshagar: 1 }, 6);
+    rich.state.resources.gold = 100;
+    rich.gather();
+    expect(rich.state.lastSummary?.ledger?.find((entry) => entry.source === "koshagar")?.made.gold).toBe(KOSHAGAR_MAX_INTEREST);
+    const campaign = CAMPAIGNS[6];
+    const half = Math.floor((campaign.objective.army.swordsmen + campaign.objective.army.archers + campaign.objective.army.horsemen) / 2);
+    expect(cityWith({ marketplace: 1 }, 12, campaign).sellswordCap).toBe(half);
+    expect(cityWith({ marketplace: 1, koshagar: 1 }, 12, campaign).sellswordCap).toBe(half + KOSHAGAR_SELLSWORD_CAP);
+  });
+});
+
+describe("Dharmashala (rest house)", () => {
+  it("adds 6 people on opening and 2 a move, 4 more militia, and every 4th soldier needs no villager", () => {
+    const sim = new SettlementSimulation();
+    Object.assign(sim.state, { move: 6, civicLevel: 5, population: 0, builtBuildingIds: ["house", "dharmashala"], availableBuildingIds: [], buildingMaturity: { house: 1, dharmashala: 0 } });
+    sim.gather(); // civic level 6: 22 base, +4 for the House (2 moves), +6 for the Dharmashala (1 move)
+    expect(sim.state.population).toBe(22 + 4 + 6);
+    sim.gather();
+    expect(sim.state.population).toBe(29 + 6 + 8);
+    expect(sim.militiaCap).toBe(14);
+    expect(cityWith({ burj: 1, dharmashala: 1 }).militiaCap).toBe(18);
+    const city = cityWith({ house: 3, dharmashala: 2 });
+    city.state.population = 20;
+    city.state.trainedUnits = { archers: 8, swordsmen: 0, horsemen: 0 };
+    expect(city.freeVillagers).toBe(20 - 2 - 6);
   });
 });
