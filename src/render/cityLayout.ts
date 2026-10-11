@@ -191,9 +191,11 @@ function createRoadSegment(from: THREE.Vector2, to: THREE.Vector2, width: number
   return road;
 }
 
-function addRoadPath(group: THREE.Group, points: THREE.Vector2[], width: number, color: number, order: number): void {
+function addRoadPath(group: THREE.Group, points: THREE.Vector2[], width: number, color: number, order: number, collect?: THREE.Mesh[]): void {
   for (let index = 0; index < points.length - 1; index += 1) {
-    group.add(createRoadSegment(points[index], points[index + 1], width, color, order));
+    const segment = createRoadSegment(points[index], points[index + 1], width, color, order);
+    collect?.push(segment);
+    group.add(segment);
   }
 }
 
@@ -224,6 +226,17 @@ export async function loadForest(scene: THREE.Scene): Promise<void> {
   });
 }
 
+/**
+ * Roads widen as the city grows (0.10.3): ×1.05 per completed move,
+ * compounding, capped at ROAD_GROWTH_CAP so they never spill onto building
+ * plots (1.05^10 ≈ 1.63, so the cap is reached around move 10).
+ */
+export const ROAD_GROWTH_PER_MOVE = 1.05;
+export const ROAD_GROWTH_CAP = 1.6;
+export function roadScaleForLevel(level: number): number {
+  return Math.min(ROAD_GROWTH_CAP, ROAD_GROWTH_PER_MOVE ** Math.max(0, Math.floor(level)));
+}
+
 export interface CityLayout {
   grid: THREE.Group;
   placementPad: THREE.Mesh;
@@ -234,8 +247,16 @@ export interface CityLayout {
   hideAllRoads(): void;
   /** Reconciles every supply-chain connector with the buildings currently present. */
   syncBuiltBuildings(buildingIds: string[]): void;
-  /** Reveals cumulative civic infrastructure through the longest campaign. */
-  setCivicLevel(level: number): void;
+  /**
+   * Reveals cumulative civic infrastructure through the longest campaign, and
+   * sets the road width for that level (`animate`: grow to it over about half a
+   * second via `update`; otherwise snap, e.g. on load or restart).
+   */
+  setCivicLevel(level: number, animate?: boolean): void;
+  /** Eases the road width toward its target. Returns true while it is still changing (so the caller redraws). */
+  update(realDelta: number): boolean;
+  /** The road width multiplier drawn now. */
+  readonly roadScale: number;
 }
 
 /** Builds the static ground, forest, fields, roads, and placement indicator, and adds them all to `scene`. */
@@ -248,6 +269,11 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
   const districtRoads = new Map<string, THREE.Group>();
   const buildingRoads = new Map<string, THREE.Group>();
   const workflowRoads = new Map<string, THREE.Group>();
+  /** Every road segment that widens with the city (not fences or banner poles). */
+  const roadMeshes: THREE.Mesh[] = [];
+  let roadScale = 1;
+  let roadTarget = 1;
+  const applyRoadScale = (): void => { for (const mesh of roadMeshes) mesh.scale.y = roadScale; };
   // Every campaign move must reveal something, even after the hall art reaches
   // its final painted level. Keep stage count tied to the simulation maximum.
   const environmentStages = Array.from({ length: TOTAL_SETTLEMENT_LEVELS }, () => new THREE.Group());
@@ -329,8 +355,8 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
 
   for (const [district, points] of Object.entries(DISTRICT_PATHS)) {
     const roadGroup = new THREE.Group();
-    addRoadPath(roadGroup, points, 0.78, 0xb28f5c, -6);
-    addRoadPath(roadGroup, points, 0.22, 0xe1c78d, -5);
+    addRoadPath(roadGroup, points, 0.78, 0xb28f5c, -6, roadMeshes);
+    addRoadPath(roadGroup, points, 0.22, 0xe1c78d, -5, roadMeshes);
     roadGroup.visible = false;
     districtRoads.set(district, roadGroup);
     background.add(roadGroup);
@@ -338,7 +364,9 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
 
   for (const [buildingId, position] of Object.entries(BUILDING_POSITIONS)) {
     const connector = new THREE.Group();
-    connector.add(createRoadSegment(DISTRICT_JUNCTIONS[BUILDING_DISTRICTS[buildingId]], position, 0.28, 0xd2b57c, -4));
+    const spur = createRoadSegment(DISTRICT_JUNCTIONS[BUILDING_DISTRICTS[buildingId]], position, 0.28, 0xd2b57c, -4);
+    roadMeshes.push(spur);
+    connector.add(spur);
     connector.visible = false;
     buildingRoads.set(buildingId, connector);
     background.add(connector);
@@ -353,7 +381,7 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
   ];
   for (const [fromId, toId] of workflowLinks) {
     const group = new THREE.Group();
-    addRoadPath(group, getRoadRoute(fromId, toId), 0.16, 0xe0ca99, -3);
+    addRoadPath(group, getRoadRoute(fromId, toId), 0.16, 0xe0ca99, -3, roadMeshes);
     group.visible = false;
     workflowRoads.set(`${fromId}:${toId}`, group);
     background.add(group);
@@ -393,8 +421,23 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
         road.visible = built.has(fromId) && built.has(toId);
       });
     },
-    setCivicLevel(level: number): void {
+    setCivicLevel(level: number, animate = false): void {
       environmentStages.forEach((stage, index) => { stage.visible = index <= level; });
+      roadTarget = roadScaleForLevel(level);
+      if (!animate) {
+        roadScale = roadTarget;
+        applyRoadScale();
+      }
     },
+    update(realDelta: number): boolean {
+      if (roadScale === roadTarget) return false;
+      // Ease out over about half a second of real time.
+      const step = 1 - Math.pow(0.004, Math.max(0, Math.min(0.1, realDelta)));
+      roadScale += (roadTarget - roadScale) * step;
+      if (Math.abs(roadTarget - roadScale) < 0.002) roadScale = roadTarget;
+      applyRoadScale();
+      return true;
+    },
+    get roadScale() { return roadScale; },
   };
 }

@@ -48,6 +48,10 @@ SOURCES = [
     "Assets/Art/Production/Environment/Terrain/village-empty-terrain-16x9-v2.png",
     "Assets/Art/Production/Characters/DirectionalWalk/*-walk32-master-v1.png",
     "Assets/Art/Production/Characters/WorkLoops/*-work8-master-v1.png",
+    # Smoother replacements (Docs/ANIMATION_COMMISSION_BRIEF.md): the game uses a
+    # walk64 / work16 sheet instead of walk32 / work8 as soon as it is exported.
+    "Assets/Art/Production/Characters/DirectionalWalk/*-walk64-master-v1.png",
+    "Assets/Art/Production/Characters/WorkLoops/*-work16-master-v1.png",
     "Assets/Art/Production/Characters/CombatLoops/*-combat-*8-master-v1.png",
     "Assets/Art/Production/Campaign/southern-road-map-v6.png",  # made by make_campaign_road_map.py
     # Commissioned painted icons (Docs/ICON_COMMISSION_BRIEF.md). src/ui/icons.ts
@@ -86,6 +90,12 @@ def export(source: Path, target: Path) -> None:
     # few screen pixels, so smaller atlases save decoded GPU memory and bandwidth.
     if source.name.endswith("-walk32-master-v1.png"):
         image = image.resize((1024, 680), Image.Resampling.LANCZOS)
+    elif source.name.endswith("-walk64-master-v1.png"):
+        # 8 directions × 8 poses, same cell size as walk32 (128 × 170).
+        image = image.resize((1024, 1360), Image.Resampling.LANCZOS)
+    elif source.name.endswith("-work16-master-v1.png"):
+        # 4 × 4 frames, same cell size as work8 (256 × 292).
+        image = image.resize((1024, 1168), Image.Resampling.LANCZOS)
     elif "-combat-" in source.name:
         image = image.resize((1024, 512), Image.Resampling.LANCZOS)
     elif source.name.endswith("-work8-master-v1.png"):

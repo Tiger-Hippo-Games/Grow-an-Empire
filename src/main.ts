@@ -44,6 +44,11 @@ let playing = true;
 let speed = 4;
 /** Visual clock in seconds (scaled by speed, stops while paused). Drives every animation. */
 let animationElapsed = 0;
+/**
+ * The commuters' clock: advances with game speed, but gently (√speed), so the
+ * crowd still hurries at 8× without turning frantic. Purely visual.
+ */
+let crowdElapsed = 0;
 /** Whether to resume play when the tutorial modal closes (i.e. it was playing when it opened). */
 let resumeAfterTutorial = false;
 /**
@@ -683,7 +688,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       hud.showMilestone("Gathering", "Nothing built; every building worked.", animationElapsed);
     } else if (event.type === "civic-upgraded") {
       civicCenter.setLevel(event.level);
-      cityLayout.setCivicLevel(event.level);
+      cityLayout.setCivicLevel(event.level, true); // Roads widen with the city (eased in update()).
       hud.setCivicLevel(event.level);
     } else if (event.type === "choices-ready") {
       // Kick off loading for the newly-offered building(s) as soon as they can
@@ -762,6 +767,7 @@ function resetSettlement(): void {
   constructionView.clearPlots();
   cityLayout.hideAllRoads();
   cityLayout.setCivicLevel(0);
+  villagerField.setRoadScale(cityLayout.roadScale);
   animationElapsed = 0;
   playing = true;
   hud.setPlayingLabel(true);
@@ -810,6 +816,7 @@ function hydrateFromLoadedState(): void {
 
   civicCenter.setLevel(simulation.state.civicLevel);
   cityLayout.setCivicLevel(simulation.state.civicLevel);
+  villagerField.setRoadScale(cityLayout.roadScale);
   hud.setCivicLevel(simulation.state.civicLevel);
   hud.updateHud(stateSnapshot());
   villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
@@ -1109,6 +1116,8 @@ function frame(): void {
   probeFrameTime(realDelta);
   session.addPlayTime(realDelta);
   animationElapsed += delta;
+  crowdElapsed += realDelta * Math.sqrt(speed);
+  if (cityLayout.update(realDelta)) villagerField.setRoadScale(cityLayout.roadScale);
   handleSimulationEvents(simulation.update(delta));
   const { mode, selectedBuildingId, activePlotIndex } = simulation.state;
   if (mode === "construction" && selectedBuildingId !== null && activePlotIndex !== null) {
@@ -1122,7 +1131,7 @@ function frame(): void {
   } else if (mode !== "complete") {
     constructionView.renderWoodcutterActivity(animationElapsed, simulation.state.builtBuildingIds);
   }
-  villagerField.renderVillagers(animationElapsed, simulation.state.builtBuildingIds);
+  villagerField.renderVillagers(animationElapsed, simulation.state.builtBuildingIds, crowdElapsed);
   hud.updateMilestoneVisibility(animationElapsed);
   constructionView.renderProductionPulses(animationElapsed);
 }

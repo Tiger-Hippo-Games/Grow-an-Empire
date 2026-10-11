@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { loadTexture } from "./spriteAssets";
+import { bundledAssetNames } from "./assetCatalog";
 
 /** Identity references for every civilian, defender, and raider role. */
 export const CHARACTER_FILES = {
@@ -23,11 +24,32 @@ export function directionFromVector(dx: number, dy: number): WalkDirection {
   return ((Math.round(Math.atan2(dx, dy) / (Math.PI / 4)) + 8) % 8) as WalkDirection;
 }
 
-export function walkSheetFilename(role: CharacterRole): string { return `${role}-walk32-master-v1.png`; }
-export function workSheetFilename(role: CharacterRole): string { return `${role}-work8-master-v1.png`; }
-/** The 32-frame atlas stores directions in columns and stride poses in rows. */
-export function walkAtlasIndex(direction: WalkDirection, frame: number): number {
-  return (((Math.floor(frame) % 4) + 4) % 4) * 8 + direction;
+/**
+ * Smoother sheets drop in without code changes (Docs/ANIMATION_COMMISSION_BRIEF.md):
+ * a `<role>-walk64-master-v1` sheet (8 directions × 8 stride poses) replaces the
+ * 4-pose `walk32` sheet, and a `<role>-work16-master-v1` sheet (4 × 4) replaces
+ * the 8-frame `work8` loop, as soon as they are exported to Assets/Runtime.
+ */
+function bundled(filename: string): boolean {
+  return bundledAssetNames().includes(filename.replace(/\.png$/i, ".webp"));
+}
+/** Stride poses per direction in this role's walk sheet: 8 with a walk64 sheet, else 4. */
+export function walkPoseCount(role: CharacterRole): 4 | 8 {
+  return bundled(`${role}-walk64-master-v1.png`) ? 8 : 4;
+}
+/** Frames in this role's work loop: 16 with a work16 sheet, else 8. */
+export function workFrameCount(role: CharacterRole): 8 | 16 {
+  return bundled(`${role}-work16-master-v1.png`) ? 16 : 8;
+}
+export function walkSheetFilename(role: CharacterRole): string {
+  return walkPoseCount(role) === 8 ? `${role}-walk64-master-v1.png` : `${role}-walk32-master-v1.png`;
+}
+export function workSheetFilename(role: CharacterRole): string {
+  return workFrameCount(role) === 16 ? `${role}-work16-master-v1.png` : `${role}-work8-master-v1.png`;
+}
+/** The walk atlas stores directions in columns and stride poses in rows (4 rows, or 8). */
+export function walkAtlasIndex(direction: WalkDirection, pose: number, poses: number = 4): number {
+  return (((Math.floor(pose) % poses) + poses) % poses) * 8 + direction;
 }
 
 const BUILDING_ROLES: Record<string, CharacterRole> = {
@@ -78,7 +100,7 @@ export function createCharacterAssets(onReady: () => void = () => undefined) {
     const pending = pendingWalks.get(role);
     if (pending) return pending;
     const loading = loadTexture(walkSheetFilename(role)).then((sheet) => {
-      walks.set(role, atlasFrames(sheet, 8, 4));
+      walks.set(role, atlasFrames(sheet, 8, walkPoseCount(role)));
       onReady();
     }, (error: unknown) => {
       failedAt.set(`${role}:walk`, performance.now());
@@ -93,7 +115,7 @@ export function createCharacterAssets(onReady: () => void = () => undefined) {
     const pending = pendingWorks.get(role);
     if (pending) return pending;
     const loading = loadTexture(workSheetFilename(role)).then((sheet) => {
-      works.set(role, atlasFrames(sheet, 4, 2));
+      works.set(role, atlasFrames(sheet, 4, workFrameCount(role) / 4));
       onReady();
     }, (error: unknown) => {
       failedAt.set(`${role}:work`, performance.now());
@@ -116,27 +138,44 @@ export function createCharacterAssets(onReady: () => void = () => undefined) {
 
   function load(): Promise<void> { return loadWalk("builder"); }
 
-  function getFrame(role: CharacterRole, frame: number, direction: WalkDirection = 4): THREE.Texture {
+  /** The loaded walk frames for `role` (falling back to the builder's while it loads). */
+  function walkFrames(role: CharacterRole): THREE.Texture[] {
     const frames = walks.get(role);
-    if (!frames) {
-      if (mayRetry(`${role}:walk`)) void loadWalk(role).catch((error: unknown) => logFailure(role, "walk", error));
-      const fallback = walks.get("builder");
-      if (!fallback) throw new Error("Builder character art was requested before loading");
-      return fallback[walkAtlasIndex(direction, frame)];
-    }
-    return frames[walkAtlasIndex(direction, frame)];
+    if (frames) return frames;
+    if (mayRetry(`${role}:walk`)) void loadWalk(role).catch((error: unknown) => logFailure(role, "walk", error));
+    const fallback = walks.get("builder");
+    if (!fallback) throw new Error("Builder character art was requested before loading");
+    return fallback;
   }
 
+  /** A walk frame by 4-pose step (0–3), for callers that count steps; works with 8-pose sheets too. */
+  function getFrame(role: CharacterRole, frame: number, direction: WalkDirection = 4): THREE.Texture {
+    const frames = walkFrames(role);
+    const poses = frames.length / 8;
+    return frames[walkAtlasIndex(direction, (((Math.floor(frame) % 4) + 4) % 4) * (poses / 4), poses)];
+  }
+
+  /** A walk frame by stride position (`cycle`: 0–1 is one full stride), using every pose the sheet has. */
+  function getWalkFrame(role: CharacterRole, cycle: number, direction: WalkDirection = 4): THREE.Texture {
+    const frames = walkFrames(role);
+    const poses = frames.length / 8;
+    const fraction = cycle - Math.floor(cycle);
+    return frames[walkAtlasIndex(direction, Math.floor(fraction * poses), poses)];
+  }
+
+  /** A work-loop frame; `frame` counts in 8-frame-loop steps, so a 16-frame sheet plays twice as many in the same time. */
   function getWorkFrame(role: CharacterRole, frame: number): THREE.Texture | null {
     const frames = works.get(role);
     if (!frames) {
       if (mayRetry(`${role}:work`)) void loadWork(role).catch((error: unknown) => logFailure(role, "work", error));
       return null;
     }
-    return frames[((Math.floor(frame) % 8) + 8) % 8];
+    const count = frames.length;
+    const step = Math.floor(frame * (count / 8));
+    return frames[((step % count) + count) % count];
   }
 
-  return { load, ensureRole, getFrame, getWorkFrame };
+  return { load, ensureRole, getFrame, getWalkFrame, getWorkFrame };
 }
 
 export type CharacterAssets = ReturnType<typeof createCharacterAssets>;

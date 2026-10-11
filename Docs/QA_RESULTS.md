@@ -1,5 +1,16 @@
 # QA results
 
+## v0.10.3 (2026-10-11): smoother, less crowded city; wider roads
+
+Ravi: smoother worker animations, less clutter around the Town Hall, roads 5% wider each move (compounding, capped), new buildings as a proposal first (project doc "Grow an Empire: new buildings proposal").
+
+- **Motion:** walk poses follow the distance walked (`strideFrame`), so feet keep pace at every speed; a smooth step bob replaces the one-frame hop; commuters run on a √speed clock (at 4× the pose changes about 9 times a second instead of 28); work loops run on the same clock.
+- **Crowding:** each villager walks in its own lane beside the road's centre line and stops at its own distance (1.5–3.6 units) short of the Town Hall instead of on it; nearer villagers draw in front. Compared at the muster in a 12-move city, the hall plaza is clear and the crowd forms short queues along the approaches.
+- **Roads:** ×1.05 per completed move, capped at 1.6× (reached around move 10), eased in over about half a second; lanes widen with them. Checked at move 7 and at the muster: no road covers a building.
+- **Smoother sheets:** `walk64` (8 poses) and `work16` (16 frames) sheets are used automatically once exported; brief in `Docs/ANIMATION_COMMISSION_BRIEF.md`.
+
+Validation: TypeScript and ESLint clean; **239 tests** (new: road growth, lanes and stops, stride poses, 8-pose atlas indexing). Full browser suite against the production build, all pass: gameplay, platform_sdk, viewports (no overlap or clipping), campaign_map, text_budget, context_loss, fault_injection --quick, assets_audio, journey on the release build (no errors or warnings). Time to playable 1.7 s at 10 Mbps, 9.1 s on Slow 4G. The ZIP is 15.45 MB and passes all 15 validator checks.
+
 ## v0.10.2 (2026-10-10): pre-submission review fixes, asset checks, new key art
 
 Everything from the final review (project doc "Grow an Empire 0.10.1: pre-submission review") plus Ravi's decisions of 2026-10-10: listing orientation landscape, no maximum on the `campaign-progress` board, guests keep no cloud save, art/audio load checks, new thumbnail and banners.

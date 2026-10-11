@@ -117,9 +117,10 @@ function routeLength(points: THREE.Vector2[]): number {
  * `total` is the precomputed `routeLength(points)`; `out` is reused to avoid a
  * per-villager, per-frame allocation.
  */
-function samplePolyline(points: THREE.Vector2[], total: number, progress: number, out: THREE.Vector2): WalkDirection {
+function samplePolyline(points: THREE.Vector2[], total: number, progress: number, out: THREE.Vector2, normal?: THREE.Vector2): WalkDirection {
   if (points.length === 1) {
     out.copy(points[0]);
+    normal?.set(1, 0);
     return 4;
   }
   let remaining = progress * total;
@@ -130,6 +131,7 @@ function samplePolyline(points: THREE.Vector2[], total: number, progress: number
     if (remaining <= segmentLength || index === points.length - 1) {
       const segmentProgress = segmentLength > 0 ? Math.min(1, remaining / segmentLength) : 1;
       out.copy(from).lerp(to, segmentProgress);
+      if (normal && segmentLength > 0) normal.set(-(to.y - from.y) / segmentLength, (to.x - from.x) / segmentLength);
       return directionFromVector(to.x - from.x, to.y - from.y);
     }
     remaining -= segmentLength;
@@ -151,6 +153,52 @@ function pingPongProgress(elapsed: number, duration: number): { progress: number
   if (phase < 0.5) return { progress: (phase - dwell) / travel, moving: true, outbound: true };
   if (phase < 0.5 + dwell) return { progress: 1, moving: false, outbound: false };
   return { progress: 1 - (phase - 0.5 - dwell) / travel, moving: true, outbound: false };
+}
+
+/**
+ * Crowd spacing (0.10.3). Everyone's service route starts at the Town Hall, so
+ * without these the whole workforce met and dwelt on one spot. Each villager
+ * gets its own lane beside the road centre line, and stops short of the hall
+ * at its own distance, so the crowd spreads into short queues along the
+ * approaches instead of piling up on the hall.
+ */
+export const CROWD = {
+  /** Lane offsets beside the road's centre line, in world units (scaled by road width). */
+  lanes: [-0.3, 0.15, -0.08, 0.3, -0.2, 0.06, 0.22, -0.34] as const,
+  /** How far before the Town Hall a villager stops: base + slot × step (world units). */
+  hallStopBase: 1.5,
+  hallStopStep: 0.42,
+  hallStopSlots: 6,
+  /** World units walked per full 4-pose stride cycle, for a villager of size 2.15. */
+  strideLength: 1.25,
+  /** Peak of the walking bob, in world units. */
+  bobHeight: 0.045,
+  /** Work loop speed (frames per crowd-clock second). */
+  workFps: 7,
+} as const;
+
+/** Lane offset for villager `index`. */
+export function laneOffset(index: number): number {
+  return CROWD.lanes[index % CROWD.lanes.length];
+}
+
+/** Distance short of the Town Hall where villager `index` waits (never more than 40% of the route). */
+export function hallStop(index: number, routeLength: number): number {
+  const wanted = CROWD.hallStopBase + ((index * 5) % CROWD.hallStopSlots) * CROWD.hallStopStep;
+  return Math.min(wanted, routeLength * 0.4);
+}
+
+/**
+ * Walk pose and bob from the distance walked along the current leg, so feet
+ * keep pace with the ground at every speed (no sliding, no frantic flicker).
+ * Two steps per 4-pose cycle; the bob peaks mid-step.
+ */
+export function strideFrame(distance: number, size: number): { frame: number; cycle: number; bob: number } {
+  const stride = CROWD.strideLength * (size / 2.15);
+  const cycle = Math.max(0, distance) / stride;
+  const frame = Math.floor(cycle * 4) % 4;
+  const bob = CROWD.bobHeight * (size / 2.15) * (1 - Math.cos(cycle * Math.PI * 4)) * 0.5;
+  return { frame, cycle, bob };
 }
 
 /**
@@ -202,11 +250,14 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     villager.sprite.scale.set(size * WALK_CELL_ASPECT, size, 1);
   }
 
-  function setFrame(villager: Villager, frame: number, direction: WalkDirection = 4, working = false): void {
+  /** `frame`: a 4-pose step (or a work-loop step when `working`); `cycle`, when given, picks the walk pose by stride position. */
+  function setFrame(villager: Villager, frame: number, direction: WalkDirection = 4, working = false, cycle?: number): void {
     const normalized = ((Math.floor(frame) % 4) + 4) % 4;
     villager.frame = normalized;
     const texture = working ? characters.getWorkFrame(villager.profession, frame) : null;
-    const next = texture ?? characters.getFrame(villager.profession, normalized, direction);
+    const next = texture ?? (cycle === undefined
+      ? characters.getFrame(villager.profession, normalized, direction)
+      : characters.getWalkFrame(villager.profession, cycle, direction));
     villager.sprite.scale.x = villager.sprite.scale.y * (texture ? WORK_CELL_ASPECT : WALK_CELL_ASPECT);
     if (villager.material.map !== next) {
       villager.material.map = next;
@@ -343,8 +394,18 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     for (const soldier of garrison) soldier.sprite.visible = false;
   }
 
-  /** Per-frame: positions, flips, tints, and animates every visible villager. */
-  function renderVillagers(animationElapsed: number, builtBuildingIds: string[]): void {
+  const laneNormal = new THREE.Vector2();
+  /** How wide the roads are drawn now (cityLayout grows them each move); lanes widen with them. */
+  let laneScale = 1;
+  function setRoadScale(scale: number): void { laneScale = Number.isFinite(scale) && scale > 0 ? scale : 1; }
+
+  /**
+   * Per-frame: positions, flips, tints, and animates every visible villager.
+   * `crowdElapsed` is the commuters' own clock (main.ts advances it more gently
+   * than game speed, so 8× doesn't make the crowd frantic); it defaults to the
+   * animation clock.
+   */
+  function renderVillagers(animationElapsed: number, builtBuildingIds: string[], crowdElapsed: number = animationElapsed): void {
     if (combatActive) return;
     renderGarrison(animationElapsed);
     routesFor(builtBuildingIds);
@@ -355,20 +416,34 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
       const route = routes[routeIndex];
       setProfession(villager, routeProfession(route, index));
       const length = routeLengths[routeIndex];
-      const staggered = animationElapsed + villager.phase * Math.max(4, length / route.speed);
-      const duration = Math.max(4.5, (length * 2) / (route.speed * villager.speedVariation));
+      // Service routes start at the Town Hall: stop short of it, each at its own distance.
+      const startsAtHall = route.kind === "service" && length > 0;
+      const trim = startsAtHall ? hallStop(index, length) : 0;
+      const walked = Math.max(0, length - trim);
+      const staggered = crowdElapsed + villager.phase * Math.max(4, walked / route.speed);
+      const duration = Math.max(4.5, (walked * 2) / (route.speed * villager.speedVariation));
       const journey = pingPongProgress(staggered, duration);
-      const segmentDirection = samplePolyline(route.points, length, journey.progress, sampled);
+      const along = trim + journey.progress * walked;
+      const segmentDirection = samplePolyline(route.points, length, length > 0 ? along / length : 0, sampled, laneNormal);
       const direction = journey.outbound ? segmentDirection : ((segmentDirection + 4) % 8) as WalkDirection;
       const working = !journey.moving && journey.progress === 1 && route.kind === "service";
-      setFrame(villager, working ? Math.floor(animationElapsed * 8 + villager.phase * 8)
-        : journey.moving && length > 0 ? Math.floor(animationElapsed * 7 + villager.phase * 4) : 0,
-      direction, working);
-      const stepLift = journey.moving && length > 0 && villager.frame % 2 === 1 ? 0.055 : 0;
-      villager.sprite.position.set(sampled.x, sampled.y + Math.abs(villager.sprite.scale.y) / 2 + stepLift, 2.4);
+      const size = Math.abs(villager.sprite.scale.y);
+      let bob = 0;
+      if (working) setFrame(villager, Math.floor(crowdElapsed * CROWD.workFps + villager.phase * 8), direction, true);
+      else if (journey.moving && walked > 0) {
+        const legDistance = (journey.outbound ? journey.progress : 1 - journey.progress) * walked;
+        const stride = strideFrame(legDistance + villager.phase * CROWD.strideLength, size);
+        setFrame(villager, stride.frame, direction, false, stride.cycle);
+        bob = stride.bob;
+      } else setFrame(villager, 0, direction, false);
+      // Walk on the right of the road centre line, each in its own lane.
+      const lane = length > 0 ? laneOffset(index) * laneScale : 0;
+      villager.sprite.position.set(sampled.x + laneNormal.x * lane, sampled.y + laneNormal.y * lane + size / 2 + bob, 2.4);
+      // Nearer (lower on screen) villagers draw in front; kept within 40–59, above buildings and below the garrison.
+      villager.sprite.renderOrder = 40 + Math.max(0, Math.min(19, Math.round(10 - sampled.y * 0.45)));
       villager.material.color.setHex(0xffffff);
     }
   }
 
-  return { syncVillagers, syncGarrison, renderVillagers, clearArmyMuster, setCombatActive };
+  return { syncVillagers, syncGarrison, renderVillagers, clearArmyMuster, setCombatActive, setRoadScale };
 }
