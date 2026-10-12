@@ -11,6 +11,7 @@
 //   size (1920×1080 portal frame, laptop, phone portrait/landscape, or the whole window).
 // - --lan also listens on this computer's network address so a phone on the same Wi-Fi
 //   can open it (Windows may ask to allow Node through the firewall).
+// - Negotiates gzip for text assets to model compressed hosting; images stay unchanged.
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";

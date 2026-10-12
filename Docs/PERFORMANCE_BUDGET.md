@@ -2,6 +2,24 @@
 
 `common/MOBILE_PERFORMANCE.md` §5: "Every game must have an explicit budget." This is Grow an Empire's. Re-measure after any change to art, boot order or the render loop. The **how to measure** notes are below.
 
+## Current release: 0.10.8 (2026-10-12)
+
+| Metric | Budget | Fresh measurement |
+|---|---|---|
+| Upload ZIP | ≤ 50 MB; portal limit 200 MB | **17.86 MB**, 155 entries |
+| First playable screen at 10 Mbps | ≤ 5 s | **2.38 s** with HTTP gzip |
+| First playable screen on Slow 4G (1.6 Mbps) | ≤ 10 s | **9.15 s** with HTTP gzip |
+| Download before playable | ≤ 3 MB | **1.69 MB**, 11 requests |
+| JavaScript gzip | ≤ 250 KB | **202.50 KB** |
+| New eight buildings' decoded RGBA canvas size | Reduce larger painted runtime assets | **50.3 MB**, down from 201.3 MB; mipmaps excluded |
+| Real-device frame rate | 60 fps target; 30 fps floor | Still requires device measurement |
+
+Measurements use the exact unpacked release at the portal path, a local SDK stand-in and Chromium/ANGLE SwiftShader. The release simulator now negotiates gzip for text assets; WebP stays unchanged. Uncompressed delivery uses **2.31 MB** before playable and takes **2.18 s at 10 Mbps / 12.26 s on Slow 4G**. Confirm HTTP compression in Sandbox Preview before applying the Slow 4G result to the actual portal. `Docs/QA_RESULTS.md` records the iframe, visual and launch checks.
+
+Building exports retain full-resolution PNG masters and cap runtime width at 768 px, preserving proportions. All 24 building types and the civic-center images together are about 158.9 MB of decoded RGBA canvases; one campaign does not upload the whole pool. This is an image-size calculation, not a live GPU-memory measurement. The texture-size/proportion test prevents the larger masters from accidentally shipping as live textures again.
+
+## Historical baseline: 0.10.2
+
 | Metric | Budget | Measured (2026-10-10, v0.10.2; Chromium software renderer) | Source of the target |
 |---|---|---|---|
 | Upload ZIP | ≤ 50 MB (our performance target; portal limit 200 MB) | **15.45 MB** | GOLIVE_DEVELOPER_REFERENCE §1 |
@@ -20,7 +38,7 @@
 ## What the game does to stay inside it
 
 - **Nothing hidden competes with the first screen** (0.10.2): the build panel isn't drawn until boot ends or while the map covers the stage, and its card pictures are `loading="lazy"`.
-- **WebP runtime art** (`Assets/Runtime/`, exported by `Tools/ArtPipeline/export_runtime_webp.py`): 48.6 MB of PNG becomes 7.2 MB, with no visible loss.
+- **WebP runtime art** (`Assets/Runtime/`, exported by `Tools/ArtPipeline/export_runtime_webp.py`): 199.0 MB of PNG masters becomes 17.4 MB of WebP in 0.10.8. Building images are capped at 768 px wide; all full-resolution masters are retained.
 - **Only the first screen blocks boot**: terrain, tree, the level-0 civic center and the villager walk sheets. The rest loads after the game is playable: the offered cards' construction stages, the woodcutter's animation, and each next civic level.
 - **Rendering stops** while paused, behind the tutorial, and when nothing has changed.
 - **No per-frame DOM writes** unless the text actually changes, and no per-frame material re-uploads.
