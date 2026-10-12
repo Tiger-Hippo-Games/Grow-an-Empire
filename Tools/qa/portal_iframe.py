@@ -20,6 +20,7 @@ URL = os.environ.get("GAE_RELEASE_URL", "http://127.0.0.1:4175/")
 LAYOUT = """() => {
   const app = document.getElementById('app').getBoundingClientRect();
   const selectors = ['.flow-scrim:not(.hidden) .flow-dialog',
+    '.realm-scrim:not(.hidden) .realm-board',
     '#campaign-map:not(.hidden)', '#build-panel:not(.hidden)', '.speed-control'];
   const offscreen = selectors.flatMap(selector => [...document.querySelectorAll(selector)])
     .filter(el => el.offsetParent && getComputedStyle(el).visibility !== 'hidden')
@@ -62,15 +63,24 @@ with sync_playwright() as p:
     page.goto(URL + "?size=1920x1080")
     page.wait_for_function("document.getElementById('game')?.contentDocument?.documentElement.dataset.booted === 'true'", timeout=60000)
     # The shared flow works with Page/Frame, so obtain the actual Frame.
-    game = page.frames[1]
+    game = page.locator("#game").element_handle().content_frame()
 
     def screen(name):
         results["screens"][name] = game.evaluate(LAYOUT)
         page.locator("#game").screenshot(path=str(OUT / f"{name}.png"))
 
     screen("map")
+    game.click("#campaign-realm")
+    screen("realm")
+    page.keyboard.press("Shift+Tab")
+    results["realm_focus_trapped"] = game.evaluate("document.querySelector('.realm-board').contains(document.activeElement)")
+    page.keyboard.press("Escape")
+    results["realm_focus_returned"] = game.evaluate("document.activeElement.id === 'campaign-realm'")
     game.click("#campaign-launch")
     screen("briefing")
+    game.click(".flow-dialog [data-action=more]")
+    results["details_opened"] = game.is_visible(".flow-dialog.show-extra .flow-extra")
+    screen("briefing_details")
     game.click(".flow-dialog [data-action=begin]")
     game.wait_for_selector("#tutorial-skip", state="visible")
     screen("tutorial")
@@ -85,6 +95,9 @@ with sync_playwright() as p:
     play_move(game)
     game.wait_for_selector("#build-panel:not(.hidden) .report-continue", timeout=60000)
     screen("report")
+    move_before = game.inner_text("#move")
+    page.keyboard.press("1")
+    results["report_guards_shortcuts"] = game.is_visible("#build-panel .report-continue") and game.inner_text("#move") == move_before
     play_to_muster(game)
     screen("muster")
     results["result"] = fight(game)
@@ -107,6 +120,8 @@ results["pass"] = (all(s["width"] == 1920 and s["height"] == 1080 and s["scale"]
     and s["layout"] == "fixed" and s["fills"] and not s["scroll"] and not s["offscreen"]
     for s in results["screens"].values()) and len(results["ready"]) == 1
     and results["next_unlocked"] and results["completed_campaigns"] == 1
+    and results["realm_focus_trapped"] and results["realm_focus_returned"]
+    and results["details_opened"] and results["report_guards_shortcuts"]
     and not results["guest_cloud_calls"] and not health["imagesFailed"]
     and health["font"] == "loaded" and health["soundsPlayed"] > 0
     and not errors and not warnings and not failed)
