@@ -32,7 +32,10 @@ The fixes from the pre-submission review (project doc "Grow an Empire 0.10.1: pr
 - `pnpm check`: TypeScript, ESLint and 257 tests in 27 files; the new texture-size test checks the actual WebP headers and source proportions.
 - Runtime exporter `--check`: no stale exports.
 - `pnpm package`: all 15 bundle-validator checks pass; ZIP 17.86 MB.
-- Final release ZIP browser verification is in progress; completed evidence will be recorded in `Docs/QA_RESULTS.md` before handover.
+- Exact ZIP at the portal path: real 1920×1080 iframe passes all campaign screens and portal lifecycle; desktop and phone journeys complete with no game errors/warnings/failed requests; all 152 assets decode and art/font/audio checks pass.
+- All 14 viewport checks pass after resizing. Optimized painted art verified at all four stages, the eight-building view and all 24 plots. Baseline gameplay, SDK/guest/cloud, campaign-map, text-budget, context-recovery and 16 quick failure checks also pass.
+- Startup with HTTP compression: 2.38 s at 10 Mbps, 9.15 s on Slow 4G, 1.69 MB / 11 requests. Uncompressed delivery takes 12.26 s on Slow 4G; verify portal compression. Physical-device FPS remains unmeasured.
+- Local launcher reliability: generated QA/unpacked ZIP paths no longer crash Vite's Windows watcher. Release test server supports negotiated gzip; UTF-8 QA logs and deterministic ANGLE rendering verified. See `Docs/QA_RESULTS.md` for evidence and limitations.
 
 ## Historical 0.10.5 validation
 
