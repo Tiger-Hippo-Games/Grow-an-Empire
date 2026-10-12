@@ -34,13 +34,24 @@ LAYOUT = """() => {
 }"""
 
 results = {"screens": {}}
-errors, warnings, failed = [], [], []
+errors, warnings, failed, harness_warnings = [], [], [], []
 with sync_playwright() as p:
     browser = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
     context = browser.new_context(viewport={"width": 1920, "height": 1140})
     page = context.new_page()
     page.on("pageerror", lambda e: errors.append(str(e)))
-    page.on("console", lambda m: errors.append(m.text) if m.type == "error" else warnings.append(m.text) if m.type == "warning" else None)
+    def console(message):
+        if message.type == "error":
+            errors.append(message.text)
+        elif message.type == "warning":
+            # Chromium warns about the local harness's same-origin sandbox and
+            # screenshot readbacks. Keep them in the report, apart from game warnings.
+            if message.text.startswith("An iframe which has both allow-scripts and allow-same-origin") or "GPU stall due to ReadPixels" in message.text:
+                harness_warnings.append(message.text)
+            else:
+                warnings.append(message.text)
+
+    page.on("console", console)
     page.on("requestfailed", lambda r: failed.append({"url": r.url, "failure": r.failure}))
     page.on("response", lambda r: failed.append({"url": r.url, "status": r.status}) if r.status >= 400 else None)
     context.add_init_script("""window.__portalReady = [];
@@ -90,7 +101,7 @@ with sync_playwright() as p:
     results["session_end"] = True
     browser.close()
 
-results.update(errors=errors, warnings=warnings, failed_requests=failed)
+results.update(errors=errors, warnings=warnings, harness_warnings=harness_warnings, failed_requests=failed)
 health = results["asset_health"]
 results["pass"] = (all(s["width"] == 1920 and s["height"] == 1080 and s["scale"] == 1.5
     and s["layout"] == "fixed" and s["fills"] and not s["scroll"] and not s["offscreen"]

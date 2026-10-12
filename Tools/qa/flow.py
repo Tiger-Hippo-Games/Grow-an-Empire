@@ -79,4 +79,5 @@ def speed8(page):
     for _ in range(4):
         if "8" in (page.evaluate("document.getElementById('speed-value')?.textContent || ''") or ""):
             return
-        page.keyboard.press("s")
+        keyboard = page.keyboard if hasattr(page, "keyboard") else page.page.keyboard
+        keyboard.press("s")
