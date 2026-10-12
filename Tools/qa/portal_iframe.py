@@ -37,7 +37,7 @@ LAYOUT = """() => {
 results = {"screens": {}}
 errors, warnings, failed, harness_warnings = [], [], [], []
 with sync_playwright() as p:
-    browser = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
+    browser = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
     context = browser.new_context(viewport={"width": 1920, "height": 1140})
     page = context.new_page()
     page.on("pageerror", lambda e: errors.append(str(e)))

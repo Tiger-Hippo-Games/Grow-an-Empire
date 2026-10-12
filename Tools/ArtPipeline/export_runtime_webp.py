@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = ROOT / "Assets" / "Runtime"
 MANIFEST = OUT_DIR / "manifest.json"
 QUALITY = 82
-EXPORT_REVISION = 2  # Re-export when runtime resize rules change.
+EXPORT_REVISION = 3  # Re-export when runtime resize rules change.
 
 # Keep in sync with what the code loads. src/render/__tests__/runtimeAssets.test.ts
 # checks that every file the code references is in the manifest.
@@ -88,7 +88,11 @@ def export(source: Path, target: Path) -> None:
     image = image.convert("RGBA" if has_alpha else "RGB")
     # Keep the PNG masters at full resolution. Runtime sprites occupy only a
     # few screen pixels, so smaller atlases save decoded GPU memory and bandwidth.
-    if source.name.endswith("-walk32-master-v1.png"):
+    if "Buildings" in source.parts and image.width > 768:
+        # Buildings show at roughly 100–220 screen pixels in the portal frame.
+        # Keep new 1536px painted masters on disk, not in every live texture.
+        image = image.resize((768, round(image.height * 768 / image.width)), Image.Resampling.LANCZOS)
+    elif source.name.endswith("-walk32-master-v1.png"):
         image = image.resize((1024, 680), Image.Resampling.LANCZOS)
     elif source.name.endswith("-walk64-master-v1.png"):
         # 8 directions × 8 poses, same cell size as walk32 (128 × 170).
