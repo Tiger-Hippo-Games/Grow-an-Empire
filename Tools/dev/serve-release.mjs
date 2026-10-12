@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { exec } from "node:child_process";
+import { createGzip, gzipSync } from "node:zlib";
 
 const args = process.argv.slice(2);
 const root = path.resolve(args.find((a) => !a.startsWith("--") && !/^\d+$/.test(a)) ?? ".tmp/release-test");
@@ -131,8 +132,11 @@ const TEST_PAGE = `<!doctype html>
 `;
 
 function send(res, status, type, body, extra = {}) {
-  res.writeHead(status, { "Content-Type": type, "Cache-Control": "no-store", ...extra });
-  res.end(body);
+  const gzip = status === 200 && /^(text\/|application\/(javascript|json))/.test(type)
+    && /\bgzip\b/.test(res.req.headers["accept-encoding"] ?? "");
+  res.writeHead(status, { "Content-Type": type, "Cache-Control": "no-store",
+    ...(gzip ? { "Content-Encoding": "gzip", Vary: "Accept-Encoding" } : {}), ...extra });
+  res.end(gzip ? gzipSync(body) : body);
 }
 
 const server = http.createServer((req, res) => {
@@ -161,10 +165,18 @@ const server = http.createServer((req, res) => {
   }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { console.warn(`404 ${p}  <- missing from the ZIP`); return send(res, 404, "text/plain", "Not found"); }
-    res.writeHead(200, { "Content-Type": TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream", "Content-Length": st.size, "Cache-Control": "no-store" });
-    fs.createReadStream(file)
-      .on("error", (error) => { console.warn(`Read failed for ${p}: ${error.message}`); res.destroy(error); })
-      .pipe(res);
+    const type = TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream";
+    const gzip = /^(text\/|application\/(javascript|json))/.test(type)
+      && /\bgzip\b/.test(req.headers["accept-encoding"] ?? "");
+    res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store",
+      ...(gzip ? { "Content-Encoding": "gzip", Vary: "Accept-Encoding" } : { "Content-Length": st.size }) });
+    const stream = fs.createReadStream(file)
+      .on("error", (error) => { console.warn(`Read failed for ${p}: ${error.message}`); res.destroy(error); });
+    if (gzip) {
+      stream.pipe(createGzip().on("error", (error) => {
+        console.warn(`Compression failed for ${p}: ${error.message}`); res.destroy(error);
+      })).pipe(res);
+    } else stream.pipe(res);
   });
 });
 

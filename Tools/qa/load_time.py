@@ -3,9 +3,9 @@
 import pathlib as _pl
 OUT = _pl.Path(__file__).resolve().parent / "out"
 OUT.mkdir(exist_ok=True)
-import json
+import json, os
 from playwright.sync_api import sync_playwright
-URL="http://127.0.0.1:4174/"
+URL=os.environ.get("GAE_URL", "http://127.0.0.1:4174/")
 res={}
 with sync_playwright() as p:
     b=p.chromium.launch(args=["--use-angle=swiftshader","--enable-unsafe-swiftshader"])

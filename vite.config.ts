@@ -67,9 +67,9 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 4173,
     strictPort: true,
-    // PNG masters are never imported by the app. Watching large art copies on
-    // Windows can raise EBUSY and terminate the dev server during an export.
-    watch: { ignored: ["**/Assets/Art/**", "**/release/**"] },
+    // Generated archives, unpacked QA copies and screenshots are not inputs.
+    // Windows may lock them while writing; watching them can terminate Vite.
+    watch: { ignored: ["**/Assets/Art/**", "**/release/**", "**/.tmp/**", "**/Tools/qa/out/**"] },
   },
   // `pnpm preview` serves the production build (`pnpm build` first) on its own
   // port, so it can run alongside the dev server for side-by-side checks.

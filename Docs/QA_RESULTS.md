@@ -1,5 +1,17 @@
 # QA results
 
+## v0.10.8 (2026-10-12): final iframe and UI readiness pass
+
+- Runtime building textures are capped at 768 px wide, with source proportions and full-resolution PNG masters preserved. The 32 new sprites use **50.3 MB decoded RGBA instead of 201.3 MB** (75% less, before mipmaps). Export revision 3; all runtime art is fresh. The release shrinks from 24.04 MB to **17.86 MB**. Gameplay, campaign balance, save schema 6 and plot positions are unchanged.
+- `pnpm check`: TypeScript and ESLint clean; **257 tests in 27 files pass**, including a new check of actual WebP dimensions and source proportions. `pnpm package`: **17,856,956 bytes**, 155 entries, all **15 bundle checks pass**. SHA-256: `DDD466FCC422041641CB8A95B4DB74C35EFB767B5AA5E8F65EE1C17C8740932F`.
+- The exact ZIP was unpacked under the project on D: and served at `/api/v1/games/grow-an-empire/play/`. New `portal_iframe.py` passes inside a real **1920×1080 iframe**: 1.5× stage fit, no page scroll or off-screen panels on the map, Realm, briefing/Details, tutorial, choices, report, muster, result and progress map. Realm Tab focus and focus return, Details, report shortcut guards, one `GAME_READY` with version 0.10.8, guest without cloud/score calls, pause/resume and session end all pass. No game errors, game warnings or failed requests. The local harness's two same-origin sandbox warnings are recorded separately.
+- Release journeys at **1920×1080** and **390×844** complete: tutorial, controls, reload, battle/results, campaign progression, defeat/retry, Continue and Restart. Both logs end with `ERRORS: []`, `WARNINGS: []`, `FAILED: []`.
+- Asset/audio checks against the exact release pass: **all 152 bundled assets decode**; desktop and phone campaign playthroughs have no failed requests or broken images, Yatra One loaded, audio running and cues played.
+- Before runtime resizing, the full readiness baseline also passed gameplay, SDK/cloud/guest scenarios, campaign map, 14 viewports, mobile text budgets, graphics context recovery and all 16 quick fault-injection scenarios. Final resized-art viewport, visual and startup measurements are being recorded below before handover.
+- QA runner fixes: shared `flow.speed8` now supports Frames; Chromium uses `--use-angle=swiftshader` after the older GL flag caused shader/context warnings; iframe layout snapshots await finite entrance animations; viewport checks now exit nonzero for layout failures; journey output/logs use UTF-8 on Windows. These fixes affect development QA only. The official SDK URL stays in the packaged HTML; the release test server supplies a local stand-in.
+
+The immutable v0.10.7 ZIP is an intermediate QA artifact, superseded by v0.10.8. Still required before publication: real portal accounts/leaderboard and cloud checks, Safari and physical-device frame rate/speakers, and owner provenance confirmations. Software-renderer QA does not establish a real-device FPS guarantee.
+
 ## v0.10.6 (2026-10-12): painted buildings and elephant
 
 - Delivered 32 transparent 1536×1024 building masters for all eight new buildings, plus an eight-pose elephant combat atlas. Original procedural masters archived. Prompts and provenance recorded; WebP exports replace the existing runtime filenames.
