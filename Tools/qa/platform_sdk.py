@@ -26,7 +26,7 @@ def play_moves(page, n):
         page.wait_for_selector("#build-panel.hidden", state="attached", timeout=5000)
 
 with sync_playwright() as p:
-    b = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
+    b = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
 
     # A. Mock SDK lifecycle + cloud restore (a signed-in player: guests keep no cloud save).
     ctx = b.new_context(viewport={"width": 1280, "height": 800})

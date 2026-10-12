@@ -62,7 +62,7 @@ def run(width, height):
     size = f"{width}x{height}"
     results, problems = {}, []
     with sync_playwright() as p:
-        browser = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
+        browser = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
         page = browser.new_page(viewport={"width": width, "height": height}, is_mobile=True, has_touch=True)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))

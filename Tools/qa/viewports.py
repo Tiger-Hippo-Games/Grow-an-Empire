@@ -38,7 +38,7 @@ CHECK = """() => {
 }"""
 out = {}
 with sync_playwright() as p:
-    b = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
+    b = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
     for w, h in SIZES:
         mobile = min(w, h) < 500 or (w < 900 and h > w)
         ctx = b.new_context(viewport={"width": w, "height": h}, device_scale_factor=2 if mobile else 1, has_touch=mobile, is_mobile=mobile)
@@ -69,3 +69,10 @@ with sync_playwright() as p:
         ctx.close()
     b.close()
 print(json.dumps(out, indent=1))
+failed = [size for size, checks in out.items()
+          if any(checks[key] for key in ("clipped", "offscreen", "overlaps", "small_buttons", "text_below_11px", "scroll"))
+          or not checks["stage"]["centred"] or not checks["stage"]["fills"]
+          or (checks["tutorial_dialog"] and not checks["tutorial_dialog"]["fits"])]
+if failed:
+    print("FAILED: " + ", ".join(failed), file=sys.stderr)
+sys.exit(1 if failed else 0)

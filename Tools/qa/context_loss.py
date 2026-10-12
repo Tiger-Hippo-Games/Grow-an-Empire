@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
 from flow import enter, past_report  # noqa: E402
 with sync_playwright() as p:
-    b=p.chromium.launch(args=["--use-gl=swiftshader","--enable-unsafe-swiftshader"])
+    b=p.chromium.launch(args=["--use-angle=swiftshader","--enable-unsafe-swiftshader"])
     pg=b.new_page(); errs=[]; pg.on("pageerror",lambda e: errs.append(str(e)))
     pg.add_init_script("localStorage.setItem('grow-an-empire:tutorial:v1','complete')")
     pg.goto("http://127.0.0.1:4174/"); pg.wait_for_function("document.documentElement.dataset.booted==='true'")

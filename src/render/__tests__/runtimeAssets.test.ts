@@ -18,12 +18,14 @@ const ROOT = process.cwd();
 const STAGES: ConstructionStage[] = ["foundation", "frame", "late", "complete"];
 
 /** Canvas dimensions from the three WebP bitstream headers used by the exporter. */
-function webpSize(data: Buffer): { width: number; height: number } {
-  const chunk = data.toString("ascii", 12, 16);
-  if (chunk === "VP8X") return { width: data.readUIntLE(24, 3) + 1, height: data.readUIntLE(27, 3) + 1 };
-  if (chunk === "VP8 ") return { width: data.readUInt16LE(26) & 0x3fff, height: data.readUInt16LE(28) & 0x3fff };
+function webpSize(data: Uint8Array): { width: number; height: number } {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const chunk = String.fromCharCode(...data.subarray(12, 16));
+  const uint24 = (at: number): number => data[at] + data[at + 1] * 256 + data[at + 2] * 65536;
+  if (chunk === "VP8X") return { width: uint24(24) + 1, height: uint24(27) + 1 };
+  if (chunk === "VP8 ") return { width: view.getUint16(26, true) & 0x3fff, height: view.getUint16(28, true) & 0x3fff };
   if (chunk === "VP8L") {
-    const bits = data.readUInt32LE(21);
+    const bits = view.getUint32(21, true);
     return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
   }
   throw new Error(`Unsupported WebP header: ${chunk}`);
@@ -62,7 +64,8 @@ describe("runtime art bundle", () => {
     for (const [name, entry] of Object.entries(manifest)) {
       if (!entry.source.includes("/Buildings/")) continue;
       const png = readFileSync(resolve(ROOT, entry.source));
-      const source = { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+      const header = new DataView(png.buffer, png.byteOffset, png.byteLength);
+      const source = { width: header.getUint32(16), height: header.getUint32(20) };
       const runtime = webpSize(readFileSync(resolve(ROOT, "Assets/Runtime", name)));
       expect(runtime.width, name).toBeLessThanOrEqual(768);
       expect(runtime.width, name).toBeLessThanOrEqual(source.width);

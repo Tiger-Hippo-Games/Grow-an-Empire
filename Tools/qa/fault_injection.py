@@ -340,7 +340,7 @@ def zero_size(browser):
 
 
 with sync_playwright() as p:
-    browser = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
+    browser = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
     for check in [broken_card_art, boot_art_fails, sdk_throws, sdk_login_hangs, sdk_login_null, sdk_rejects,
                   storage_blocked, storage_full, corrupt_save, invalid_state_save, newer_save, other_players_save,
                   session_end, zero_size, combat_art_fails, stalled_card_art]:

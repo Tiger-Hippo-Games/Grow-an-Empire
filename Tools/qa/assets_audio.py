@@ -103,7 +103,7 @@ def run(browser, size, tag):
 
 
 with sync_playwright() as p:
-    b = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"])
+    b = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"])
 
     # 1. Every bundled file loads and decodes.
     names = sorted(f"assets/{f.name}" for f in (DIST / "assets").iterdir() if f.is_file()) if (DIST / "assets").is_dir() else []

@@ -39,7 +39,7 @@ def wait_move(page, n, t=20000):
     page.wait_for_function(f"document.querySelector('#move').textContent.startsWith('{n} ')", timeout=t)
 
 with sync_playwright() as p:
-    b = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
+    b = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
 
     # 1. Failed boot must not clobber the save; the error must be readable.
     ctx, page, errs, perrs = new(b)

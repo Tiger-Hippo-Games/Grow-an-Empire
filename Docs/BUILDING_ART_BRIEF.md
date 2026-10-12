@@ -47,4 +47,4 @@ Today the elephant is an inline SVG (`ELEPHANT_SVG` in `src/render/combatScene.t
 
 ## Budget
 
-The painted buildings of the same size are about 250–300 KB each as WebP (the stand-ins are 20–50 KB). Thirty-two images add about 8 MB to the ZIP (0.10.5 is 16.5 MB, portal limit 50 MB). They load only when a building is built, so the first screen is unaffected.
+Delivered in 0.10.6; optimized in 0.10.8. Keep the 1536×1024 painted PNG masters. The runtime exporter limits building textures to 768 px wide, preserving proportions, matching the established building sprites. The 32 new sprites occupy about 50 MB decoded as RGBA instead of 201 MB (excluding mipmaps); textures upload as their stages appear. Runtime pictures load on demand, so the first screen is unaffected. The 0.10.8 ZIP is 17.86 MB; our performance target is 50 MB and the portal limit is 200 MB.

@@ -206,7 +206,7 @@ def progress(browser, won=9):
 
 
 with sync_playwright() as p:
-    browser = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
+    browser = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
     results = {"desktop 1280x720": desktop(browser, 1280, 720), "portal 1920x1080": desktop(browser, 1920, 1080),
                "phone": phone(browser), "progress": progress(browser)}
     browser.close()

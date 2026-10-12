@@ -66,6 +66,14 @@ with sync_playwright() as p:
     game = page.locator("#game").element_handle().content_frame()
 
     def screen(name):
+        # Report and choice panels slide in. Measure their settled positions,
+        # not the first animation frame where a panel is still outside the stage.
+        game.evaluate("""async () => {
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          await Promise.all(document.getAnimations()
+            .filter(a => a.effect?.getComputedTiming().iterations !== Infinity)
+            .map(a => a.finished.catch(() => {})));
+        }""")
         results["screens"][name] = game.evaluate(LAYOUT)
         page.locator("#game").screenshot(path=str(OUT / f"{name}.png"))
 

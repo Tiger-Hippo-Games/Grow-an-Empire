@@ -34,4 +34,6 @@ pnpm build; pnpm exec vite preview  # http://127.0.0.1:4174 (viewports, load_tim
 
 Screenshots go to `Tools/qa/out/` (git-ignored). The scripts use Chromium's software renderer, so their frame rates don't reflect real devices. Use `?perf` on a phone for that.
 
+The production iframe check uses Chromium's ANGLE SwiftShader option (`--use-angle=swiftshader`). The older `--use-gl=swiftshader` option produced shader/context warnings in Chromium 153 at the full portal size. Run browser suites serially when collecting rendering or startup evidence. The asset/audio check can use the release server's local SDK stand-in via `GAE_URL=http://127.0.0.1:4175/api/v1/games/grow-an-empire/play/`; this keeps the local test independent of access to the external portal SDK. The packaged HTML retains the official SDK URL.
+
 All scripts share `flow.py` (campaign map → briefing → city, play a move, play to the muster, fight). When the game's flow changes, update it there.

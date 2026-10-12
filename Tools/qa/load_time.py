@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 URL="http://127.0.0.1:4174/"
 res={}
 with sync_playwright() as p:
-    b=p.chromium.launch(args=["--use-gl=swiftshader","--enable-unsafe-swiftshader"])
+    b=p.chromium.launch(args=["--use-angle=swiftshader","--enable-unsafe-swiftshader"])
     for label,mbps,lat in [("10 Mbps",10,40),("Slow 4G 1.6 Mbps",1.6,150)]:
         ctx=b.new_context(viewport={"width":1280,"height":720}); ctx.add_init_script("localStorage.setItem('grow-an-empire:tutorial:v1','complete')")
         pg=ctx.new_page(); cdp=ctx.new_cdp_session(pg); cdp.send("Network.enable")

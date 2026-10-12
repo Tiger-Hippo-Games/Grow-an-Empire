@@ -84,7 +84,7 @@ def result_text(pg):
     return pg.inner_text(".flow-dialog")
 
 with sync_playwright() as p:
-    b = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader"])
+    b = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
     mob = min(W, H) < 500
     ctx = b.new_context(viewport={"width": W, "height": H}, device_scale_factor=2 if mob else 1, has_touch=mob, is_mobile=mob)
     pg = ctx.new_page()
