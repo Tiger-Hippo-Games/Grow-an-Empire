@@ -16,6 +16,8 @@ a pass/fail test.
 """
 import json, sys, time, re, pathlib
 from playwright.sync_api import sync_playwright
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from flow import speed8  # noqa: E402
 
@@ -214,4 +216,4 @@ with sync_playwright() as p:
     note("SDK calls:", sdk[:6], "... tracks:", sorted(set(x for x in sdk if x.startswith('track'))), "| saves:", sdk.count("saveGameProgress"))
     note("ERRORS:", errors); note("WARNINGS:", warnings[:10]); note("FAILED:", failed)
     b.close()
-(O / f"{TAG}_log.txt").write_text("\n".join(LOG))
+(O / f"{TAG}_log.txt").write_text("\n".join(LOG), encoding="utf-8")
