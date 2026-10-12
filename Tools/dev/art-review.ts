@@ -89,14 +89,4 @@ for (const [id, flag] of [["all", false], ["new", true]] as const) {
   });
 }
 document.getElementById("stage")!.addEventListener("change", event => { selectedStage = (event.target as HTMLSelectElement).value as Stage; applyView(); });
-document.getElementById("export")!.addEventListener("click", () => {
-  draw();
-  const link = document.getElementById("export-link") as HTMLAnchorElement;
-  link.download = `city-painted-art-${selectedStage}.png`;
-  link.href = renderer.domElement.toDataURL("image/png");
-  link.hidden = false;
-  const preview = document.getElementById("export-preview") as HTMLImageElement;
-  preview.src = link.href;
-  preview.hidden = false;
-});
 boot().catch((error: unknown) => { console.warn("[Grow an Empire] Art review failed", error); status.textContent = "Art could not load. Check the console, export runtime art and reload."; });
