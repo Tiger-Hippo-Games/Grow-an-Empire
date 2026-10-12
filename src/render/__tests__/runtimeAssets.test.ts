@@ -17,6 +17,18 @@ import { buildingFilename, type ConstructionStage } from "../constructionView";
 const ROOT = process.cwd();
 const STAGES: ConstructionStage[] = ["foundation", "frame", "late", "complete"];
 
+/** Canvas dimensions from the three WebP bitstream headers used by the exporter. */
+function webpSize(data: Buffer): { width: number; height: number } {
+  const chunk = data.toString("ascii", 12, 16);
+  if (chunk === "VP8X") return { width: data.readUIntLE(24, 3) + 1, height: data.readUIntLE(27, 3) + 1 };
+  if (chunk === "VP8 ") return { width: data.readUInt16LE(26) & 0x3fff, height: data.readUInt16LE(28) & 0x3fff };
+  if (chunk === "VP8L") {
+    const bits = data.readUInt32LE(21);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
+  }
+  throw new Error(`Unsupported WebP header: ${chunk}`);
+}
+
 /** Every filename the game code requests at runtime. Keep in step with the loaders. */
 function referencedFilenames(): string[] {
   const names = [
@@ -43,6 +55,19 @@ describe("runtime art bundle", () => {
   it("ships nothing the game doesn't load", () => {
     const referenced = new Set(referencedFilenames().map(runtimeAssetName));
     expect(bundledAssetNames().filter((name) => !referenced.has(name))).toEqual([]);
+  });
+
+  it("bounds decoded building textures while preserving the painted masters' proportions", () => {
+    const manifest = JSON.parse(readFileSync(resolve(ROOT, "Assets/Runtime/manifest.json"), "utf8")) as Record<string, { source: string }>;
+    for (const [name, entry] of Object.entries(manifest)) {
+      if (!entry.source.includes("/Buildings/")) continue;
+      const png = readFileSync(resolve(ROOT, entry.source));
+      const source = { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+      const runtime = webpSize(readFileSync(resolve(ROOT, "Assets/Runtime", name)));
+      expect(runtime.width, name).toBeLessThanOrEqual(768);
+      expect(runtime.width, name).toBeLessThanOrEqual(source.width);
+      expect(runtime.height, name).toBe(Math.round(source.height * runtime.width / source.width));
+    }
   });
 
   it("has no WebP that is stale against its PNG source (re-run export_runtime_webp.py)", () => {
