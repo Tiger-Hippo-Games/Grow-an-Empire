@@ -19,7 +19,7 @@ CHECK = """() => {
   const vis = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
     return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0 && !faded(el) ? r : null; };
   const W = innerWidth, H = innerHeight;
-  const ids = ['.hud', '.settlement-hud', '#build-panel', '.controls'];
+  const ids = ['.hud', '.settlement-hud', '#resource-hud', '.speed-control', '#build-panel', '.controls'];
   const rects = ids.map(id => [id, document.querySelector(id) && vis(document.querySelector(id))]).filter(x => x[1]);
   const offscreen = rects.filter(([, r]) => r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1).map(([id, r]) => `${id} ${Math.round(r.left)},${Math.round(r.top)}-${Math.round(r.right)},${Math.round(r.bottom)}`);
   const overlaps = [];

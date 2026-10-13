@@ -1185,3 +1185,57 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 /* Until boot ends, and while the map (the title screen) covers the stage, the build panel waits
    (not drawn), so its card pictures (loading="lazy") don't compete with the first screen's download. */
 #app:has(.campaign-map:not(.hidden)) .build-panel, :root:not([data-booted]) .build-panel { display: none; }
+
+/* Persistent resources and a bottom build tray (0.11.0). */
+.persistent-hud { position: absolute; z-index: 40; top: calc(14px + var(--safe-top)); left: 50%; transform: translateX(-50%); }
+.persistent-hud .stockpile-toggle { margin: 0; min-height: 44px; gap: 16px; padding: 0 14px; color: var(--cream); background: #191d48f5; border-color: var(--gold); }
+.persistent-hud .stockpile-toggle > span:first-child, .hud-move { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.persistent-hud .stockpile-toggle span { color: var(--cream); font-size: .82rem; }
+.persistent-hud .hud-move { border-left: 1px solid #f4d78d55; padding-left: 12px; }
+.persistent-hud .hud-move strong { background: transparent; color: var(--gold); font-size: .9rem; padding: 0; }
+#stockpile-total { display: none; }
+:root:not([data-booted]) .persistent-hud { display: none; }
+#app #resource-ledger { z-index: 41; top: calc(var(--hud-bottom, 58px) + 8px); left: 50%; right: auto; transform: translateX(-50%); width: min(440px, calc(100% - 24px)); max-height: calc(100% - var(--hud-bottom, 58px) - 24px); overflow-y: auto; }
+#app #resource-ledger .settlement-hud { position: static; width: auto; min-height: 0; padding: 0 0 10px; transform: none !important; display: flex; flex-wrap: wrap; gap: 8px; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; background: none; box-shadow: none; border: 0; }
+#resource-ledger .metrics { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; }
+#resource-ledger .metrics div { display: flex !important; flex: 1 1 60px; flex-direction: column !important; gap: 2px; min-width: 54px; }
+#resource-ledger .level-track { display: grid !important; width: 100%; }
+#resource-ledger .resource-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#app.ui-open .hud { top: calc(var(--hud-bottom, 58px) + 12px); }
+#app .speed-control, #app.ui-open .speed-control, #app:has(.campaign-map:not(.hidden)) .speed-control { top: calc(14px + var(--safe-top)); }
+#app .build-panel, #app.ui-choice .build-panel, #app.ui-choice .build-panel.reporting,
+:root[data-layout="fluid"] #app .build-panel { top: auto; bottom: calc(64px + var(--safe-bottom)); left: calc(12px + var(--safe-left)); right: calc(12px + var(--safe-right)); width: auto; transform: none; max-height: min(42%, 320px); padding: 10px; display: flex; flex-direction: column; overflow: hidden; animation: tray-in 220ms ease both; }
+#app .decision-heading { order: 0; padding-bottom: 6px; }
+#app .decision-heading .move-chip { display: none; }
+:root:not(.words) #app .decision-heading { display: none; }
+#app .stock-strip { display: none; }
+#app .move-summary { order: 1; }
+#app .build-options, #app.ui-choice .build-options { order: 2; display: grid; grid-auto-flow: column; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: 9px; min-height: 0; overflow-x: auto; overflow-y: auto; scrollbar-width: thin; scroll-snap-type: x proximity; }
+#app .build-slot { scroll-snap-align: start; grid-template-columns: minmax(0, 1fr); }
+#app .build-info { position: absolute; top: 2px; right: 2px; }
+#app .build-card { min-height: 112px; grid-template-columns: 70px minmax(0, 1fr); grid-template-rows: repeat(7, auto); grid-template-areas: none; padding: 8px; }
+#app .build-card > * { grid-area: auto; }
+#app .build-art { grid-row: 1 / 8; width: 70px; height: 74px; }
+#app .build-art img { width: 70px; height: 70px; }
+#app .build-name { padding-right: 34px; font-size: .9rem; }
+#app .build-action { position: absolute; right: 8px; bottom: 8px; padding: 0; background: none; }
+#app .build-foot { order: 3; flex: none; margin-top: 8px; padding: 0; }
+#app .build-panel.reporting .build-options { display: block; overflow-y: auto; }
+#app .build-panel.reporting .build-foot { position: static; }
+@keyframes tray-in { from { opacity: 0; translate: 0 20px; } to { opacity: 1; translate: 0 0; } }
+@container app (max-width: 700px) {
+  #app .persistent-hud { top: calc(8px + var(--safe-top)); }
+  #app .speed-control, #app.ui-open .speed-control, #app:has(.campaign-map:not(.hidden)) .speed-control { top: calc(64px + var(--safe-top)); width: 164px; }
+  #app .build-panel, #app.ui-choice .build-panel, #app.ui-choice .build-panel.reporting { left: 8px; right: 8px; padding: 8px; }
+  #app .build-options, #app.ui-choice .build-options { grid-template-columns: repeat(3, minmax(210px, 1fr)); }
+  #app .build-card { grid-template-columns: 50px minmax(0, 1fr); }
+  #app .build-art, #app .build-art img { width: 50px; height: 54px; }
+}
+@container app (orientation: landscape) and (max-height: 540px) {
+  #app .build-panel, #app.ui-choice .build-panel, #app.ui-choice .build-panel.reporting { max-height: 48%; bottom: 56px; }
+  #app .decision-heading { display: none; }
+  #app .build-options, #app.ui-choice .build-options { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+  #app .build-card { min-height: 94px; grid-template-columns: 50px minmax(0, 1fr); }
+  #app .build-art, #app .build-art img { width: 50px; height: 50px; }
+}
+#app:has(.campaign-map:not(.hidden)) .build-panel, :root:not([data-booted]) .build-panel { display: none; }

@@ -96,6 +96,16 @@ export function createHud(callbacks: HudCallbacks) {
   const stockpileToggle = requireElement<HTMLButtonElement>("#stockpile-toggle");
   const stockpileClose = requireElement<HTMLButtonElement>("#stockpile-close");
   const stockpileTotal = requireElement<HTMLElement>("#stockpile-total");
+  const persistentHud = requireElement<HTMLElement>("#resource-hud");
+  const moveCounter = document.createElement("span");
+  moveCounter.className = "hud-move";
+  moveCounter.innerHTML = "<span>Move</span>";
+  moveLabel.parentElement!.remove();
+  moveCounter.appendChild(moveLabel);
+  persistentHud.appendChild(stockpileToggle);
+  stockpileToggle.appendChild(moveCounter);
+  stockpileTotal.setAttribute("aria-hidden", "true");
+  resourceLedger.insertBefore(settlementBar, resourceGrid);
   const milestone = requireElement<HTMLElement>("#milestone");
   const milestoneKicker = requireElement<HTMLElement>("#milestone-kicker");
   const milestoneTitle = requireElement<HTMLElement>("#milestone-title");
@@ -139,11 +149,12 @@ export function createHud(callbacks: HudCallbacks) {
   // Icons beside the settlement numbers and in the tutorial's picture steps.
   const METRIC_ICONS: Array<[string, IconName]> = [["#move", "move"], ["#civic-level", "civic"], ["#population", "people"], ["#archers", "archers"], ["#swordsmen", "swordsmen"], ["#horsemen", "horsemen"]];
   for (const [selector, name] of METRIC_ICONS) {
+    if (selector === "#move") continue; // The persistent bar keeps its explicit Move label.
     const label = document.querySelector(selector)?.parentElement?.querySelector("span");
     if (label) { const word = label.textContent ?? ""; label.title = word; label.innerHTML = `${icon(name)}<span class="sr">${word}</span>`; }
   }
-  stockpileToggle.querySelector("span")!.innerHTML = `${icon("stockpile")}<span class="sr">Stockpile</span>`;
-  stockpileToggle.title = "Stockpile";
+  stockpileToggle.querySelector("span")!.innerHTML = `${icon("stockpile")}<span>Resources</span>`;
+  stockpileToggle.title = "Resources and move count";
   tutorialScrim.querySelectorAll<HTMLElement>("[data-icons]").forEach((slot) => {
     slot.innerHTML = (slot.dataset.icons ?? "").split(" ").filter(Boolean).map((name) => icon(name as IconName)).join("");
   });
@@ -224,9 +235,9 @@ export function createHud(callbacks: HudCallbacks) {
     cityUiToggle.setAttribute("aria-expanded", String(chromeOpen));
     const chromeRetracted = choiceOpen || !chromeOpen;
     controls.inert = chromeRetracted;
-    settlementBar.inert = chromeRetracted;
+    settlementBar.inert = false;
     statusBar.setAttribute("aria-hidden", String(chromeRetracted));
-    settlementBar.setAttribute("aria-hidden", String(chromeRetracted));
+    settlementBar.setAttribute("aria-hidden", "false");
     // Transforms do not trigger ResizeObserver, but the camera uses the
     // published panel bounds on compact screens.
     requestAnimationFrame(() => {
@@ -238,9 +249,6 @@ export function createHud(callbacks: HudCallbacks) {
   function setChromeOpen(open: boolean): void {
     chromeOpen = open;
     if (!open) {
-      resourceLedger.classList.add("hidden");
-      stockpileToggle.setAttribute("aria-expanded", "false");
-      stockpileToggle.classList.remove("active");
       controls.classList.remove("expanded");
       controlsMore.setAttribute("aria-expanded", "false");
     }
@@ -763,8 +771,8 @@ export function createHud(callbacks: HudCallbacks) {
     resourceLedger.classList.toggle("hidden", !visible);
     stockpileToggle.setAttribute("aria-expanded", String(visible));
     stockpileToggle.classList.toggle("active", visible);
-    if (visible) chromeOpen = true;
-    syncPresentation();
+    stockpileToggle.setAttribute("aria-label", visible ? "Hide resources" : "Show resources");
+    stockpileToggle.setAttribute("aria-describedby", "move");
   }
 
   // --- Layout ---------------------------------------------------------------
@@ -779,15 +787,15 @@ export function createHud(callbacks: HudCallbacks) {
     // inside it, so convert screen pixels back to stage pixels.
     const toStage = app.offsetWidth > 0 && appBox.width > 0 ? app.offsetWidth / appBox.width : 1;
     const root = document.documentElement.style;
-    const hudBox = statusBar.getBoundingClientRect();
-    const settlementBox = settlementBar.getBoundingClientRect();
+    const hudBox = persistentHud.getBoundingClientRect();
+    const settlementBox = hudBox;
     if (hudBox.height > 0) root.setProperty("--hud-bottom", `${Math.round((hudBox.bottom - appBox.top) * toStage)}px`);
     if (settlementBox.height > 0) root.setProperty("--settlement-bottom", `${Math.round((settlementBox.bottom - appBox.top) * toStage)}px`);
     const panelBox = buildPanel.getBoundingClientRect();
     if (panelBox.height > 0) root.setProperty("--build-panel-reach", `${Math.round((appBox.bottom - panelBox.top) * toStage)}px`);
     // The camera keeps the city clear of the bars (sceneSetup.freeArea), so
     // tell main.ts when they move.
-    const layout = [root.getPropertyValue("--hud-bottom"), root.getPropertyValue("--settlement-bottom"), app.offsetWidth, app.offsetHeight].join();
+    const layout = [root.getPropertyValue("--hud-bottom"), root.getPropertyValue("--settlement-bottom"), root.getPropertyValue("--build-panel-reach"), app.offsetWidth, app.offsetHeight].join();
     if (layout !== lastLayout) {
       lastLayout = layout;
       window.dispatchEvent(new Event("gae:layout"));
@@ -795,9 +803,10 @@ export function createHud(callbacks: HudCallbacks) {
   }
   if (typeof ResizeObserver !== "undefined") {
     const observer = new ResizeObserver(() => publishLayout());
-    for (const element of [app, statusBar, settlementBar, buildPanel]) observer.observe(element);
+    for (const element of [app, persistentHud, buildPanel]) observer.observe(element);
   }
   window.addEventListener("resize", publishLayout);
+  buildPanel.addEventListener("animationend", publishLayout);
   publishLayout();
 
   // --- First-run tutorial -------------------------------------------------
@@ -903,7 +912,18 @@ export function createHud(callbacks: HudCallbacks) {
     callbacks.onGridToggle(gridVisible);
   });
   stockpileToggle.addEventListener("click", () => setStockpileVisible(resourceLedger.classList.contains("hidden")));
-  stockpileClose.addEventListener("click", () => setStockpileVisible(false));
+  stockpileClose.addEventListener("click", () => { setStockpileVisible(false); stockpileToggle.focus({ preventScroll: true }); });
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element) || event.target.closest("#resource-ledger, #resource-hud")) return;
+    setStockpileVisible(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || resourceLedger.classList.contains("hidden")) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    setStockpileVisible(false);
+    focusFirst(".flow-scrim:not(.hidden) [data-primary]", ".realm-scrim:not(.hidden) [data-primary]", stockpileToggle);
+  }, true);
   cityUiToggle.addEventListener("click", () => {
     setChromeOpen(true);
     playToggle.focus();

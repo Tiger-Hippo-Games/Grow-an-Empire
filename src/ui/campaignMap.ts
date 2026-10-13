@@ -477,7 +477,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       return;
     }
     for (const child of Array.from(app.children) as HTMLElement[]) {
-      if (child === map || child.inert || child.matches(".speed-control, .realm-scrim, .flow-scrim, .tutorial-scrim, .loading")) continue;
+      if (child === map || child.inert || child.matches(".persistent-hud, .resource-drawer, .speed-control, .realm-scrim, .flow-scrim, .tutorial-scrim, .loading")) continue;
       child.inert = true;
       madeInert.add(child);
     }

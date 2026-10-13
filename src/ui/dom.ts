@@ -31,6 +31,8 @@ export function focusFirst(...candidates: Array<HTMLElement | string | null | un
 /** Keeps Tab and Shift+Tab inside `container` (for modal dialogs). */
 export function trapTab(event: KeyboardEvent, container: HTMLElement): void {
   if (event.key !== "Tab") return;
+  const ledger = document.getElementById("resource-ledger");
+  if (ledger && !ledger.classList.contains("hidden") && (document.activeElement as HTMLElement | null)?.closest("#resource-ledger, #resource-hud")) container = ledger;
   const focusable = [...container.querySelectorAll<HTMLElement>("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")].filter(canFocus);
   if (focusable.length === 0) { event.preventDefault(); return; }
   const first = focusable[0];

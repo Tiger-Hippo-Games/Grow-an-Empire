@@ -48,7 +48,7 @@ describe("every reachable twelve-move build order", () => {
 
     expect(explore([], [...OPENING_BUILD_OPTIONS])).toBeGreaterThan(0);
     expect(checkedRoads.size).toBeGreaterThan(TOTAL_MOVES);
-  });
+  }, 30_000); // Exhaustive traversal can exceed 5 s alongside the balance/art checks.
 
   it("keeps an available offer on every reachable route", () => {
     const visited = new Set<string>();

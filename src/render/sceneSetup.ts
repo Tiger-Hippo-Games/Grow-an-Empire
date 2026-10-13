@@ -34,13 +34,18 @@ interface Area { left: number; top: number; right: number; bottom: number }
  * mirror styles.css: change them together.
  */
 function freeArea(width: number, height: number): Area | null {
-  if (stageLayout() !== "fluid") return null;
   const app = document.getElementById("app");
+  const choiceOpen = app?.classList.contains("ui-choice") === true;
+  const styles = getComputedStyle(document.documentElement);
+  const hudBottom = parseFloat(styles.getPropertyValue("--hud-bottom"));
+  const top = Number.isFinite(hudBottom) ? hudBottom + 12 : 72;
+  const reach = parseFloat(styles.getPropertyValue("--build-panel-reach"));
+  if (choiceOpen) return { left: 0, top, right: width, bottom: height - (Number.isFinite(reach) ? reach + 10 : height * 0.42 + 64) };
+  if (stageLayout() !== "fluid") return null;
   // The HUD deliberately retreats while the city runs. Let the camera reclaim
   // that space too, otherwise the canvas would stay framed for panels that are
   // no longer visible.
   if (app?.classList.contains("ui-idle")) return { left: 0, top: 0, right: width, bottom: height };
-  const choiceOpen = app?.classList.contains("ui-choice") === true;
   const measured = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--settlement-bottom"));
   const barsBottom = Number.isFinite(measured) && measured > 0 ? measured : height * 0.3;
   if (width > height && height <= 540) {
