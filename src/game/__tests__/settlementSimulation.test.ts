@@ -29,6 +29,20 @@ describe("costs and construction", () => {
     expect(sim.state.builtBuildingIds).toEqual(["woodcutter", "farm", "sawmill"]);
     expect(sim.chooseBuilding("burj")).toEqual([]);
   });
+  it("refills a retired Burj offer during a restored construction without duplicating its selection", () => {
+    const sim = new SettlementSimulation();
+    build(sim, "woodcutter"); build(sim, "farm"); build(sim, "sawmill");
+    expect(sim.chooseBuilding("granary")).toHaveLength(1);
+    const snapshot = sim.serialize();
+    snapshot.state.availableBuildingIds = ["burj", "quarry"];
+    sim.loadSnapshot(snapshot);
+    expect(sim.state.availableBuildingIds).toHaveLength(2);
+    expect(sim.state.availableBuildingIds).not.toContain("burj");
+    expect(sim.state.availableBuildingIds).not.toContain("granary");
+    sim.update(CONSTRUCTION_DURATION_SECONDS);
+    expect(sim.state.builtBuildingIds).toContain("granary");
+    expect(sim.state.availableBuildingIds).toHaveLength(3);
+  });
   it("can build a Granary immediately after the opening Farm and keeps surplus grain", () => {
     const sim = new SettlementSimulation();
     build(sim, "farm");

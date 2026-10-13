@@ -19,7 +19,7 @@ CHECK = """() => {
   const vis = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
     return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0 && !faded(el) ? r : null; };
   const W = innerWidth, H = innerHeight;
-  const ids = ['.hud', '.settlement-hud', '#resource-hud', '.speed-control', '#build-panel', '.controls'];
+  const ids = ['.hud', '.settlement-hud', '#resource-hud', '.speed-control', '#build-panel', '.controls', '.campaign-map-heading', '.campaign-realm'];
   const rects = ids.map(id => [id, document.querySelector(id) && vis(document.querySelector(id))]).filter(x => x[1]);
   const offscreen = rects.filter(([, r]) => r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1).map(([id, r]) => `${id} ${Math.round(r.left)},${Math.round(r.top)}-${Math.round(r.right)},${Math.round(r.bottom)}`);
   const overlaps = [];
@@ -48,6 +48,7 @@ with sync_playwright() as p:
         pg.evaluate("localStorage.setItem('grow-an-empire:tutorial:v1','complete')")
         pg.wait_for_timeout(600)
         pg.screenshot(path=f"{OUT}/vp_{TAG}_map_{w}x{h}.png")
+        map_checks = pg.evaluate(CHECK)
         # Both layouts: the stage is centred and fills the frame (no bars; the portal checklist).
         stage = pg.evaluate("""() => { const r = document.getElementById('app').getBoundingClientRect();
           const layout = document.documentElement.dataset.layout;
@@ -66,11 +67,13 @@ with sync_playwright() as p:
         out[f"{w}x{h}"] = pg.evaluate(CHECK)
         out[f"{w}x{h}"]["tutorial_dialog"] = tut
         out[f"{w}x{h}"]["stage"] = stage
+        out[f"{w}x{h}"]["map"] = map_checks
         ctx.close()
     b.close()
 print(json.dumps(out, indent=1))
 failed = [size for size, checks in out.items()
           if any(checks[key] for key in ("clipped", "offscreen", "overlaps", "small_buttons", "text_below_11px", "scroll"))
+          or any(checks["map"][key] for key in ("clipped", "offscreen", "overlaps", "small_buttons", "text_below_11px", "scroll"))
           or not checks["stage"]["centred"] or not checks["stage"]["fills"]
           or (checks["tutorial_dialog"] and not checks["tutorial_dialog"]["fits"])]
 if failed:

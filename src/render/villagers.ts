@@ -283,7 +283,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     const row = Math.floor(index / 7) + precedingRows;
     const column = index % 7;
     const tower = getBuildingPosition("prakara");
-    return out.set(tower.x + 5 + column * (role === "horseman" ? 1.85 : 1.35), tower.y + 1.5 - row * 1.2);
+    return out.set(tower.x + 5 + column * (role === "horseman" ? 1.85 : 1.35), tower.y + 1.5 + row * 1.2);
   }
   const garrisonSpot = new THREE.Vector2();
 

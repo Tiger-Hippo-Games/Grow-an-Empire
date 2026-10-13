@@ -120,7 +120,7 @@ export const OPENING_BUILD_OPTIONS = ["woodcutter", "farm", "quarry"];
  */
 export function isBuildingEligible(definition: BuildingDefinition, builtIds: string[], move: number): boolean {
   if (move < definition.offerMove) return false;
-  if (definition.id === "burj" && WAR_BUILDINGS.filter((id) => builtIds.includes(id)).length < 3) return false;
+  if (definition.id === "burj" && builtIds.filter((id) => OFFER_FAMILY[id] === "war").length < 3) return false;
   if (definition.requiresAll && !definition.requiresAll.every((id) => builtIds.includes(id))) return false;
   if (definition.requiresAny && !definition.requiresAny.some((id) => builtIds.includes(id))) return false;
   return true;

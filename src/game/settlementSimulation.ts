@@ -392,8 +392,10 @@ export class SettlementSimulation {
     // A rule update can retire an unbuilt offer; preserve completed/in-progress buildings.
     const retiredBurj = this.state.availableBuildingIds.includes("burj") && !isBuildingEligible(BUILDINGS.burj, this.state.builtBuildingIds, this.state.move);
     if (retiredBurj) this.state.availableBuildingIds = this.state.availableBuildingIds.filter(id => id !== "burj");
-    while (retiredBurj && this.state.mode === "awaiting-choice" && this.state.availableBuildingIds.length < 3) {
-      const replacement = nextBuildingOffer(this.state.builtBuildingIds, this.state.availableBuildingIds, this.state.move, this.state.builtBuildingIds.at(-1) ?? "", this.campaign.availableBuildingIds);
+    const offerSlots = building ? 2 : 3;
+    while (retiredBurj && (building || this.state.mode === "awaiting-choice") && this.state.availableBuildingIds.length < offerSlots) {
+      const reserved = this.state.selectedBuildingId ? [...this.state.availableBuildingIds, this.state.selectedBuildingId] : this.state.availableBuildingIds;
+      const replacement = nextBuildingOffer(this.state.builtBuildingIds, reserved, this.state.move, this.state.builtBuildingIds.at(-1) ?? "", this.campaign.availableBuildingIds);
       if (!replacement) break;
       this.state.availableBuildingIds.push(replacement);
     }

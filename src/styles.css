@@ -1193,7 +1193,7 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .arrival-count .gi { width: 48px; height: 48px; }
 .arrival-plan p { margin: 0; font-size: .9rem; line-height: 1.4; }
 .flow-dialog .arrive .gi { width: 32px; height: 32px; }
-.move-countdown { position: absolute; z-index: 36; top: 45%; left: 50%; transform: translate(-50%, -50%); padding: 14px 22px; border: 2px solid var(--gold); border-radius: 18px; background: #141738ed; color: var(--gold); font-family: var(--display); font-size: clamp(1.5rem, 4cqw, 2.8rem); text-align: center; white-space: nowrap; box-shadow: 0 12px 32px #0006; pointer-events: none; }
+.move-countdown { position: absolute; z-index: 36; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 14px 22px; border: 2px solid var(--gold); border-radius: 18px; background: #141738ed; color: var(--gold); font-family: var(--display); font-size: clamp(1.5rem, 4cqw, 2.8rem); text-align: center; white-space: nowrap; box-shadow: 0 12px 32px #0006; pointer-events: none; }
 .popup-battlefield.resolved .battle-actor:not(.fallen) .unit-icon { animation: none !important; background-position: 0 0 !important; }
 .popup-battlefield.resolved .battle-actor { animation: none !important; }
 @container app (max-width: 520px) {
@@ -1218,8 +1218,7 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 #resource-ledger .resource-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 #app.ui-open .hud { top: calc(var(--hud-bottom, 58px) + 12px); }
 #app .speed-control, #app.ui-open .speed-control, #app:has(.campaign-map:not(.hidden)) .speed-control { top: calc(14px + var(--safe-top)); }
-#app .build-panel, #app.ui-choice .build-panel, #app.ui-choice .build-panel.reporting,
-:root[data-layout="fluid"] #app .build-panel { top: auto; bottom: calc(64px + var(--safe-bottom)); left: calc(12px + var(--safe-left)); right: calc(12px + var(--safe-right)); width: auto; transform: none; max-height: min(42%, 320px); padding: 10px; display: flex; flex-direction: column; overflow: hidden; animation: tray-in 220ms ease both; }
+#app .build-panel, #app.ui-choice .build-panel, #app.ui-choice .build-panel.reporting { top: auto; bottom: calc(64px + var(--safe-bottom)); left: calc(12px + var(--safe-left)); right: calc(12px + var(--safe-right)); width: auto; transform: none; max-height: min(42%, 320px); padding: 10px; display: flex; flex-direction: column; overflow: hidden; animation: tray-in 220ms ease both; }
 #app .decision-heading { order: 0; padding-bottom: 6px; }
 #app .decision-heading .move-chip { display: none; }
 :root:not(.words) #app .decision-heading { display: none; }
@@ -1256,5 +1255,19 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
   #app .build-card { min-height: 94px; grid-template-columns: 50px minmax(0, 1fr); }
   #app .build-art, #app .build-art img { width: 50px; height: 50px; }
   #app .build-foot .gather-button { min-height: 44px; }
+  #app .build-card > .build-benefit { padding-bottom: 8px; padding-right: 22px; }
+}
+:root[data-layout="fixed"] #app .campaign-map-heading { left: 218px; }
+@container app (min-width: 761px) and (min-height: 541px) {
+  :root[data-layout="fluid"] #app .campaign-map-heading { top: 112px; }
+}
+@container app (orientation: portrait) and (max-width: 760px) {
+  #app .campaign-realm { top: calc(64px + var(--safe-top)); bottom: auto; right: 10px; max-width: calc(100% - 198px); }
+}
+@container app (orientation: landscape) and (max-height: 540px) {
+  #app .campaign-realm { top: auto; bottom: 10px; right: calc(clamp(220px, 32cqw, 300px) + 10px); }
+}
+@container app (orientation: landscape) and (max-height: 540px) and (min-width: 600px) {
+  #app .speed-control, #app.ui-open .speed-control, #app:has(.campaign-map:not(.hidden)) .speed-control { top: calc(14px + var(--safe-top)); }
 }
 #app:has(.campaign-map:not(.hidden)) .build-panel, :root:not([data-booted]) .build-panel { display: none; }

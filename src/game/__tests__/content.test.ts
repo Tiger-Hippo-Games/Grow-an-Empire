@@ -93,7 +93,8 @@ describe("isBuildingEligible", () => {
 
 describe("offer families", () => {
   it("unlocks Burj only after three war buildings are completed", () => {
-    expect(isBuildingEligible(BUILDINGS.burj, ["sawmill", "blacksmith", "barracks", "prakara"], 12)).toBe(false);
+    expect(isBuildingEligible(BUILDINGS.burj, ["sawmill", "blacksmith", "barracks", "baoli"], 12)).toBe(false);
+    expect(isBuildingEligible(BUILDINGS.burj, ["sawmill", "blacksmith", "barracks", "prakara"], 12)).toBe(true);
     expect(isBuildingEligible(BUILDINGS.burj, ["sawmill", "blacksmith", "barracks", "weapons-workshop"], 12)).toBe(true);
   });
   it("puts every building in one of the three offer families", () => {

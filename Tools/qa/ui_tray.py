@@ -11,7 +11,7 @@ URL = os.environ.get("GAE_URL", "http://127.0.0.1:4174/")
 results = {}
 with sync_playwright() as p:
     browser = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
-    for w, h in [(1920, 1080), (844, 390), (390, 844)]:
+    for w, h in [(844, 390), (390, 844), (1920, 1080)]:
         page = browser.new_page(viewport={"width": w, "height": h})
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -30,17 +30,20 @@ with sync_playwright() as p:
             rows = page.locator(".build-slot").evaluate_all("els=>els.map(e=>e.getBoundingClientRect().y)")
             assert max(rows) - min(rows) < 2
             # Every card's benefit fits vertically inside its scrolling tray.
-            assert page.locator(".build-benefit").evaluate_all("""els=>els.every(e=>{
-                const r=e.getBoundingClientRect(), p=document.getElementById('build-options').getBoundingClientRect();
-                return getComputedStyle(e).display!=='none' && r.top>=p.top-1 && r.bottom<=p.bottom+1;
+            benefits = page.locator(".build-benefit").evaluate_all("""els=>els.map(e=>{
+                const text=document.createRange(); text.selectNodeContents(e);
+                const r=text.getBoundingClientRect(), p=document.getElementById('build-options').getBoundingClientRect();
+                return {text:e.textContent, top:r.top, bottom:r.bottom, trayTop:p.top, trayBottom:p.bottom,
+                  fits:getComputedStyle(e).display!=='none' && r.top>=p.top-1 && r.bottom<=p.bottom+1};
             })""")
+            assert all(b['fits'] for b in benefits), benefits
             assert "Game speed" in page.inner_text(".speed-control")
 
         resources()
         flow.enter(page)
         flow.speed8(page)
-        cards()
         page.screenshot(path=str(OUT / f"choice-{w}x{h}.png"))
+        cards()
         resources()
         flow.play_move(page)
         assert page.is_visible("#move")

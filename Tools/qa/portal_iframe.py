@@ -21,7 +21,7 @@ LAYOUT = """() => {
   const app = document.getElementById('app').getBoundingClientRect();
   const selectors = ['.flow-scrim:not(.hidden) .flow-dialog',
     '.realm-scrim:not(.hidden) .realm-board',
-    '#campaign-map:not(.hidden)', '#build-panel:not(.hidden)', '.speed-control'];
+    '#campaign-map:not(.hidden)', '#build-panel:not(.hidden)', '.speed-control', '#resource-hud'];
   const offscreen = selectors.flatMap(selector => [...document.querySelectorAll(selector)])
     .filter(el => el.offsetParent && getComputedStyle(el).visibility !== 'hidden')
     .filter(el => { const r = el.getBoundingClientRect();
@@ -29,6 +29,7 @@ LAYOUT = """() => {
     .map(el => el.className);
   return { width: innerWidth, height: innerHeight, scale: window.__gaeStageScale,
     layout: document.documentElement.dataset.layout,
+    hudVisible: document.getElementById('stockpile-toggle').offsetParent !== null,
     fills: Math.abs(app.width - innerWidth) < 1 && Math.abs(app.height - innerHeight) < 1,
     scroll: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight,
     offscreen };
@@ -111,6 +112,10 @@ with sync_playwright() as p:
     results["result"] = fight(game)
     screen("result")
     results["next_unlocked"] = game.is_visible(".flow-dialog [data-action=next]")
+    game.click(".flow-dialog [data-action=city]")
+    screen("completed_city")
+    game.click("#city-ui-toggle")
+    game.click("#muster-toggle")
     game.click(".flow-dialog [data-action=map]")
     screen("progress_map")
     results["completed_campaigns"] = game.locator(".campaign-stop.completed").count()
@@ -125,7 +130,7 @@ with sync_playwright() as p:
 results.update(errors=errors, warnings=warnings, harness_warnings=harness_warnings, failed_requests=failed)
 health = results["asset_health"]
 results["pass"] = (all(s["width"] == 1920 and s["height"] == 1080 and s["scale"] == 1.5
-    and s["layout"] == "fixed" and s["fills"] and not s["scroll"] and not s["offscreen"]
+    and s["layout"] == "fixed" and s["fills"] and s["hudVisible"] and not s["scroll"] and not s["offscreen"]
     for s in results["screens"].values()) and len(results["ready"]) == 1
     and results["next_unlocked"] and results["completed_campaigns"] == 1
     and results["realm_focus_trapped"] and results["realm_focus_returned"]
