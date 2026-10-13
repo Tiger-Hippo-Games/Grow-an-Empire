@@ -78,6 +78,7 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
   let previous = performance.now();
   let shown = 0;
   let stopped = false;
+  let resolvedAt: number | null = null;
 
   function stop(): void { stopped = true; cancelAnimationFrame(frame); }
   function tick(now: number): void {
@@ -89,31 +90,40 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
       const paused = document.visibilityState === "hidden" || callbacks.isPaused?.() === true;
       arena.classList.toggle("playback-paused", paused);
       if (!paused) elapsed += delta;
-      if (elapsed >= approach && !arena.classList.contains("engaged")) {
+      if (elapsed >= approach && !arena.classList.contains("engaged") && resolvedAt === null) {
         arena.classList.remove("approaching");
         arena.classList.add("engaged");
         status.textContent = "The lines meet";
       }
-      const due = Math.min(rounds.length, Math.floor(Math.max(0, elapsed - approach) / step));
+      let due = Math.min(rounds.length, Math.floor(Math.max(0, elapsed - approach) / step));
       while (shown < due) {
         const round = rounds[shown];
         const counts: Counts[] = [{ ...round.player, elephants: round.player.elephants ?? 0 }, { ...round.enemy, militia: 0, elephants: 0 }];
         sides.forEach((side, sideIndex) => {
           for (const [kind, row] of side.rows) {
             const left = counts[sideIndex][kind];
-            const standing = Math.round(left / Math.max(1, side.start[kind]) * row.icons.length);
+            const standing = left > 0 ? Math.max(1, Math.ceil(left / Math.max(1, side.start[kind]) * row.icons.length)) : 0;
             row.icons.forEach((actor, index) => actor.classList.toggle("fallen", index >= standing));
             row.more.textContent = left > standing ? `+${left - standing}` : "";
             row.row.setAttribute("aria-label", `${kind}: ${left} of ${side.start[kind]} standing`);
           }
         });
-        status.textContent = `Round ${shown + 1} of ${rounds.length}`;
-        const impact = document.createElement("i");
-        clash.replaceChildren(impact);
+        if (resolvedAt === null) {
+          status.textContent = `Round ${shown + 1} of ${rounds.length}`;
+          clash.replaceChildren(document.createElement("i"));
+        }
+        if (counts.some(side => Object.values(side).every(count => count === 0))) {
+          resolvedAt ??= elapsed;
+          arena.classList.remove("engaged");
+          arena.classList.add("resolved");
+          clash.replaceChildren();
+          status.textContent = Object.values(counts[0]).some(count => count > 0) ? "Your army holds the field" : "Your army has fallen";
+          due = rounds.length; // Deliver exact final counts without more empty combat rounds.
+        }
         callbacks.onRound?.(shown, round);
         shown++;
       }
-      if (elapsed >= approach + step * rounds.length + (reduced ? 120 : 800)) {
+      if (elapsed >= (resolvedAt ?? approach + step * rounds.length) + (reduced ? 120 : 800)) {
         finished = true;
       }
     } catch (error) {

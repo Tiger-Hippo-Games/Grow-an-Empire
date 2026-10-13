@@ -282,11 +282,12 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     const precedingRows = role === "archer" ? Math.ceil(swordsmen / 5) : role === "horseman" ? Math.ceil(swordsmen / 5) + Math.ceil(archers / 5) : 0;
     const row = Math.floor(index / 5) + precedingRows;
     const column = index % 5;
-    return out.set(civicGround.x + (column - 2) * (role === "horseman" ? 1.85 : 1.35), civicGround.y - 3.3 - row * 1.65);
+    const tower = getBuildingPosition("prakara");
+    return out.set(tower.x + 5 + column * (role === "horseman" ? 1.85 : 1.35), tower.y + 1.5 - row * 1.65);
   }
   const garrisonSpot = new THREE.Vector2();
 
-  /** Each trained soldier travels from the training building to the town hall formation. */
+  /** Each trained soldier travels to the formation beside the Prakara watchtower. */
   function syncGarrison(units: TrainedUnits, animationElapsed?: number, builtBuildingIds: string[] = []): void {
     if (["swordsman", "archer", "horseman"].some((role) => garrison.filter((soldier) => soldier.role === role).length > units[role === "swordsman" ? "swordsmen" : role === "archer" ? "archers" : "horsemen"])) {
       for (const soldier of garrison) { scene.remove(soldier.sprite); soldier.sprite.material.dispose(); }
@@ -300,7 +301,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
         const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: characters.getFrame(role, 0), transparent: true, depthTest: false }));
         const destination = garrisonTarget(role, currentCount, units.swordsmen, units.archers);
         const source = role === "horseman" ? "stable" : builtBuildingIds.includes("barracks") ? "barracks" : role === "archer" ? "weapons-workshop" : "blacksmith";
-        const route = getServiceRoute(source).reverse();
+        const route = [...getServiceRoute(source).reverse(), ...getServiceRoute("prakara").slice(1), destination];
         const origin = animationElapsed === undefined ? destination : getBuildingPosition(source);
         sprite.scale.set(size * WALK_CELL_ASPECT, size, 1);
         sprite.position.set(origin.x, origin.y + size / 2, 2.6);
@@ -362,7 +363,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
           continue;
         }
         soldier.bornAt = null;
-        soldier.sprite.position.set(civicGround.x, civicGround.y + soldier.sprite.scale.y / 2, 2.6);
+        soldier.sprite.position.set(target.x, target.y + soldier.sprite.scale.y / 2, 2.6);
         soldier.sprite.material.map = characters.getFrame(soldier.role, 0, 4);
         soldier.sprite.scale.x = soldier.sprite.scale.y * WALK_CELL_ASPECT;
         soldier.sprite.material.needsUpdate = true;
