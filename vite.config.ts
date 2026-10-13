@@ -24,13 +24,13 @@ function goLiveSdkStub(): Plugin {
   };
 }
 
-/** Adds ?v=<version> to the game.js and style.css links in the built index.html. */
+/** Adds ?v=<version> to the game, style and early boot file links in the built index.html. */
 function versionedEntryLinks(): Plugin {
   return {
     name: "versioned-entry-links",
     apply: "build",
     transformIndexHtml(html) {
-      return html.replace(/(\.\/(?:game\.js|style\.css))"/g, `$1?v=${version}"`);
+      return html.replace(/(\.\/(?:game\.js|style\.css|boot-stage\.js|boot-watchdog\.js))"/g, `$1?v=${version}"`);
     },
   };
 }

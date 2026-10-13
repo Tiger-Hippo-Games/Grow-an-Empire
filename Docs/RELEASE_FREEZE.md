@@ -1,4 +1,17 @@
-# Release freeze: v0.12.2
+# Release freeze: v0.12.3
+
+2026-10-13. Replacement for the portal's inline-script warning. Screen fit and the boot watchdog are external, versioned files; index.html contains zero inline script blocks. All previous campaign/UI/leaderboard changes remain included. Not uploaded or published to the live portal.
+
+- Artifact: `release/grow-an-empire-0.12.3.zip`, **17,861,773 bytes**, 157 entries.
+- SHA-256: `B2AE919EBA2508236B677147B38361E1B25CD8A26DE8C1202F04F35829547ED1`
+- Production game `grow`, weekly board `strongplayer`, settlement schema 6.
+- TypeScript, lint, 280 tests and 16 bundle checks pass.
+- Exact ZIP completes the 1920×1080 iframe flow under file-only script policy, with no game errors/warnings/failed requests. Desktop/phone boot, resize and watchdog recovery pass under the same policy.
+- Startup 1.75 s at 10 Mbps / 9.13 s on Slow 4G. Full evidence in `Docs/QA_RESULTS.md`.
+
+Upload this ZIP and rerun the Developer Console check. Earlier stored builds are unchanged. Keep this ZIP immutable; further changes require a new version.
+
+## Historical release freeze: v0.12.2
 
 2026-10-13. Ready for Developer Console Sandbox Preview. Includes the complete earlier UI/loading changes, requested campaign lengths and stronger enemies, and production weekly Strongest Player integration. Supersedes intermediate 0.12.0/0.12.1 and earlier releases; their ZIPs remain unchanged. Not published to Netlify.
 

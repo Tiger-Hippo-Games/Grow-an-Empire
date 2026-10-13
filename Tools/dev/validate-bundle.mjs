@@ -64,6 +64,11 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
   }
   (/^\s*<!doctype html>/i.test(html) ? pass : fail)("index.html starts with <!DOCTYPE html>");
   const activeHtml = html.replace(/<!--[\s\S]*?-->/g, "");
+  const inlineScripts = [...activeHtml.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)]
+    .filter((match) => !/\ssrc\s*=\s*["'][^"']+["']/i.test(match[1]) || match[2].trim());
+  (inlineScripts.length === 0 ? pass : fail)(inlineScripts.length === 0
+    ? "No inline script blocks (portal security policy)"
+    : `index.html contains ${inlineScripts.length} inline script block(s); move scripts into .js files`);
   const sdkScripts = [...activeHtml.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi)].map((match) => match[1]);
   (sdkScripts.includes(SDK_PATH) ? pass : fail)(`Official GoLive SDK script tag present (${SDK_PATH})`);
   const viewport = activeHtml.match(/<meta\b[^>]*name=["']viewport["'][^>]*content=["']([^"']+)["']/i)?.[1] ?? "";

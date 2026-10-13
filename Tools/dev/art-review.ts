@@ -77,7 +77,7 @@ async function boot(): Promise<void> {
   }
   inspect(NEW[0]);
   (document.getElementById("atlas") as HTMLImageElement).src = assetUrl("elephant-combat-south8-master-v1.png");
-  status.textContent = "Ready · all 24 plots are shown for a spacing stress check; a campaign builds at most 12.";
+  status.textContent = "Ready · all 24 plots are shown for a spacing stress check; campaigns have 12–25 moves and can build all 24.";
   window.addEventListener("resize", () => { resize(); const b = viewBounds(); terrain.fit(b.width, b.height, b.centerX, b.centerY); draw(); });
 }
 for (const [id, flag] of [["all", false], ["new", true]] as const) {

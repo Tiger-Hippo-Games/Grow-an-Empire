@@ -1,5 +1,15 @@
 # QA results
 
+## v0.12.3 (2026-10-13): live portal script-policy fix
+
+The reported two inline scripts were still present in 0.12.2. Screen sizing and boot-error recovery now live in `public/boot-stage.js` and `public/boot-watchdog.js`, loaded as ordered, versioned external files before the SDK/game. The packaged HTML has **zero inline script blocks**; all four scripts load from files, and both new files are byte-identical to their packaged copies. The official SDK tag stays intact.
+
+- TypeScript, ESLint and **280 tests in 29 files** pass. The bundle validator now rejects inline scripts, including module and misleading data-src tags, and catches missing external boot files. **All 16 bundle checks pass**.
+- Exact ZIP, complete 1920×1080 iframe campaign with **script-src 'self'** (no unsafe-inline or unsafe-eval, local SDK stand-in): 1.5× stage, one GAME_READY for 0.12.3, no game errors/warnings/failed requests, portal pause/resume/session end, clean asset/font/audio health. `portal_iframe.py` now enforces this header for future checks.
+- Strict-policy boot checks at 1920×1080 and 390×844 pass with zero policy violations. Resize to phone landscape still switches layout correctly. Deliberately aborting game.js shows the external watchdog's error screen; Reload recovers after the fault is removed. `boot_csp.py` uses DOM selector polling because string-based browser-test polling can itself invoke eval under CSP.
+- Startup remains within budget: **1.75 s at 10 Mbps**, **9.13 s on Slow 4G**, 1.7 MB / 13 requests before playable. Earlier UI, campaign and leaderboard behavior is retained; v0.12.2's broader viewport evidence is below.
+- Immutable ZIP: **17,861,773 bytes**, 157 entries; SHA-256 `B2AE919EBA2508236B677147B38361E1B25CD8A26DE8C1202F04F35829547ED1`. Upload this replacement ZIP to resolve the stored portal build's warning; its existing uploaded bytes have not been changed here. Live portal revalidation remains pending upload.
+
 ## v0.12.2 (2026-10-13): extended campaigns and production weekly leaderboard
 
 - `pnpm check`: TypeScript, ESLint and **279 tests in 29 files** pass. Distinct campaign scores, legacy score migration, production SDK ids, guest reads/posting guards, weekly rollover with 30-second spacing, longer save round trips and old-muster offer refill are covered. Settlement schema remains 6, including original v4/v5 fixtures.

@@ -69,8 +69,8 @@ export async function loadEmptyTerrain(scene: THREE.Scene): Promise<TerrainHandl
  * These vectors are shared: treat them as read-only (clone before mutating).
  */
 const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
-  marketplace: planPoint(1124, 580),
-  house: planPoint(788, 587),
+  marketplace: planPoint(1200, 650),
+  house: planPoint(700, 625),
   woodcutter: planPoint(1639, 292),
   sawmill: planPoint(1466, 454),
   farm: planPoint(208, 294),
@@ -93,11 +93,11 @@ const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
   gajashala: planPoint(1170, 765),
   "dharma-stambha": planPoint(1180, 330),
   // 0.10.5: the bastion on the north approach, the caravanserai between the fields and the grove,
-  // the treasury between the Bazaar and the forge, the rest house south of the square (below the garrison).
+  // the treasury between the Bazaar and the forge, the rest house behind the Town Hall on the north approach.
   burj: planPoint(820, 200),
   sarai: planPoint(300, 450),
   koshagar: planPoint(1290, 520),
-  dharmashala: planPoint(1010, 900),
+  dharmashala: planPoint(1000, 270),
 };
 
 export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry";

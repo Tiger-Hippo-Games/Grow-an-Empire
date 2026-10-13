@@ -40,6 +40,14 @@ errors, warnings, failed, harness_warnings = [], [], [], []
 with sync_playwright() as p:
     browser = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
     context = browser.new_context(viewport={"width": 1920, "height": 1140})
+    # Match the live rule: executable scripts must come from files, with no
+    # unsafe-inline or unsafe-eval exception. The SDK is served locally here.
+    def secure_game(route):
+        response = route.fetch()
+        headers = dict(response.headers)
+        headers['content-security-policy'] = "script-src 'self'; object-src 'none'"
+        route.fulfill(response=response, headers=headers)
+    context.route("**/api/v1/games/grow/play/index.html*", secure_game)
     page = context.new_page()
     page.on("pageerror", lambda e: errors.append(str(e)))
     def console(message):

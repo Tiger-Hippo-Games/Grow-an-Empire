@@ -2,7 +2,7 @@
 
 Follow `common/GOLIVE_DEVELOPER_REFERENCE.md`. It supersedes conflicting integration details in the older portal documents. This checklist separates checks verified locally from the Developer Console steps still required. Game slug: `grow`.
 
-Frozen candidate: **v0.12.2** (supersedes intermediate v0.12.0 and earlier packages). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
+Frozen candidate: **v0.12.3** (supersedes intermediate v0.12.0 and earlier packages). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
 
 ## Code and bundle
 
@@ -14,6 +14,7 @@ Frozen candidate: **v0.12.2** (supersedes intermediate v0.12.0 and earlier packa
 - [x] `GAME_READY` is sent once: after title-map art or its playable fallback is ready and the first successful scene draw, or, if start-up fails, when the error screen is shown (so the portal's loader never hides it).
 - [x] Audio unlocks only after a user gesture.
 - [x] No parent/top navigation or blocking alert/confirm/prompt dialogs.
+- [x] No inline script blocks. Early fit/watchdog scripts load from bundled, relative, versioned JS files; file-only script-policy browser checks pass.
 - [x] Versioned saves retain schema 6 and older-save migrations.
 - [x] Cloud writes are at least five seconds apart, including conflict retries and exit checkpoints; browser checkpoints remain immediate.
 - [x] Cloud saves are checked against the 64 KB UTF-8 JSON limit.

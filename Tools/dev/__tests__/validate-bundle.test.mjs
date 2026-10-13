@@ -23,6 +23,14 @@ function validate(html = validHtml, extra = [], javascript = "") {
 afterAll(() => fs.rmdirSync(directory));
 
 describe("SDK 1.5.0 submission bundle rules", () => {
+  it("rejects inline boot scripts under the live portal security policy", () => {
+    for (const script of ['<script>window.boot=true;</script>', '<script type="module">boot();</script>', '<script data-src="fake.js">boot();</script>']) {
+      expect(validate(validHtml + script)).toContain("index.html contains 1 inline script block(s); move scripts into .js files");
+    }
+    expect(validate(validHtml + '<!-- <script>boot();</script> -->')).toEqual([]);
+    expect(validate(validHtml + '<script src="./boot-stage.js"></script>', ["boot-stage.js"])).toEqual([]);
+    expect(validate(validHtml + '<script src="./boot-stage.js"></script>')).toContain("index.html loads files missing from the ZIP: boot-stage.js");
+  });
   it("permits the official SDK URL while keeping game assets relative", () => {
     expect(validate()).toEqual([]);
     expect(validate(validHtml.replace("./game.js", "/game.js"))).toContain("Absolute URLs in index.html: /game.js");

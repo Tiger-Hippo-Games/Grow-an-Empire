@@ -4,6 +4,8 @@ Every build handed over gets a new version and its own ZIP in `release/` (never 
 
 | Version | Date | What changed |
 |---|---|---|
+| 0.12.4 | 2026-10-13 | Moves Dharmashala behind the town center on the north approach, and shifts the House left/down and Bazaar right/down to clear the mature civic building. Identity-keyed roads and villagers follow the new positions. |
+| 0.12.3 | 2026-10-13 | Fixes live portal inline-script rejection: fit and watchdog moved into versioned JS files; validator rejects inline scripts; strict script-policy iframe, phone, resize and boot recovery QA. |
 | 0.12.2 | 2026-10-13 | Restored musters refill eligible offers for the added preparation moves; unavailable private ranks show an explicit unavailable state. Final package includes the complete longer-campaign and weekly leaderboard feature set. |
 | 0.12.1 | 2026-10-13 | Longer campaign schedule (12–25 moves), recalibrated enemy armies/star margins/AI field, 25 civic levels and safe empty-offer Gather; saves resume extra preparation. Bounded visual crowds/formations. Production game `grow`, weekly `strongplayer` top ten and own rank, one point per distinct campaign win, reset handling, guest/empty/error UI and accessible ranking tabs. Clears the persistent HUD and uses styled refresh controls in all layouts. Supersedes intermediate 0.12.0. |
 | 0.12.0 | 2026-10-13 | Intermediate campaign/leaderboard package, superseded by 0.12.1 after browser layout review. |
