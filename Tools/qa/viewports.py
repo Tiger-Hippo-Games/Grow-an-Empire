@@ -33,7 +33,7 @@ CHECK = """() => {
     .map(([b, r]) => `${(b.id || b.className || b.textContent).toString().slice(0, 18)} ${Math.round(r.width)}x${Math.round(r.height)}`);
   const tiny = new Set(); document.querySelectorAll('body *').forEach(el => { if (el.children.length === 0 && el.textContent.trim() && vis(el)) { const fs = parseFloat(getComputedStyle(el).fontSize); if (fs * (window.__gaeStageScale || 1) < 11) tiny.add(`${fs.toFixed(1)}px`); } });
   const clipped = [...document.querySelectorAll('.hud *, .settlement-hud *, #build-panel *, .controls *')].map(el => [el, vis(el)])
-    .filter(([el, r]) => r && (r.right > W + 1 || r.left < -1)).map(([el, r]) => `${el.id || el.className || el.tagName} ${Math.round(r.left)}-${Math.round(r.right)}`);
+    .filter(([el, r]) => r && !el.closest('#build-options') && (r.right > W + 1 || r.left < -1)).map(([el, r]) => `${el.id || el.className || el.tagName} ${Math.round(r.left)}-${Math.round(r.right)}`);
   return { clipped, offscreen, overlaps, small_buttons: small, text_below_11px: [...tiny], scroll: document.documentElement.scrollWidth > W || document.documentElement.scrollHeight > H };
 }"""
 out = {}

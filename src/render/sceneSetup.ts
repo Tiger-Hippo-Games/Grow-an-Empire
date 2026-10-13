@@ -28,10 +28,8 @@ function stageLayout(): "fixed" | "fluid" {
 interface Area { left: number; top: number; right: number; bottom: number }
 
 /**
- * The part of the viewport the panels leave uncovered, on phones (the compact
- * fluid layouts in styles.css), or null when the panels overlay the city as
- * designed (the fixed stage, tablets, larger windows). The panel sizes here
- * mirror styles.css: change them together.
+ * The uncovered stage area above the measured bottom build tray. On phones,
+ * inspect mode also reserves the revealed HUD and transport controls.
  */
 function freeArea(width: number, height: number): Area | null {
   const app = document.getElementById("app");
@@ -49,15 +47,10 @@ function freeArea(width: number, height: number): Area | null {
   const measured = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--settlement-bottom"));
   const barsBottom = Number.isFinite(measured) && measured > 0 ? measured : height * 0.3;
   if (width > height && height <= 540) {
-    // Phone landscape: a choice is a right drawer; inspect mode only reserves
-    // the revealed status bars and controls.
-    const panel = choiceOpen ? Math.min(340, Math.max(280, width * 0.38)) + 20 : 0;
-    return { left: 0, top: choiceOpen ? 0 : barsBottom * 0.8, right: width - panel, bottom: choiceOpen ? height : height - 56 };
+    return { left: 0, top: barsBottom * 0.8, right: width, bottom: height - 56 };
   }
   if (height >= width && width <= 760) {
-    // Portrait: a choice is a bottom drawer. Inspect mode has no choice panel.
-    const panel = choiceOpen ? Math.min(height * 0.46, 440) + 64 : 56;
-    return { left: 0, top: choiceOpen ? 0 : barsBottom, right: width, bottom: height - panel };
+    return { left: 0, top: barsBottom, right: width, bottom: height - 56 };
   }
   return null;
 }

@@ -37,6 +37,29 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("popup battle playback", () => {
+  it("keeps the last survivor visible and stops strikes when one side falls", () => {
+    const container = new Element(), onRound = vi.fn(), onDone = vi.fn();
+    const oneLeft = { player: { swordsmen: 1, archers: 0, horsemen: 0, militia: 0 }, enemy: { swordsmen: 0, archers: 0, horsemen: 0 } };
+    playBattle(container as unknown as HTMLElement, player, enemy, [oneLeft, oneLeft, oneLeft, oneLeft], { onRound, onDone });
+    vi.advanceTimersByTime(2400);
+    const arena = container.children[0];
+    expect(arena.classList.contains("resolved")).toBe(true);
+    expect(arena.classList.contains("engaged")).toBe(false);
+    expect(arena.all().filter(e => e.classList.contains("battle-actor") && !e.classList.contains("fallen"))).toHaveLength(1);
+    expect(arena.all().find(e => e.className === "battle-clash")?.children).toHaveLength(0);
+    expect(onRound).toHaveBeenCalledTimes(4);
+    vi.advanceTimersByTime(900);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not animate a fight against an empty army", () => {
+    const container = new Element(), onDone = vi.fn();
+    const empty: BattleSide = { title: "Enemy", start: { swordsmen: 0, archers: 0, horsemen: 0, militia: 0, elephants: 0 } };
+    playBattle(container as unknown as HTMLElement, player, empty, [], { onDone });
+    expect(container.children[0].classList.contains("resolved")).toBe(true);
+    vi.advanceTimersByTime(900);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
   it("caps sprite counts while keeping full army labels and exact round survivors", () => {
     const container = new Element();
     const onRound = vi.fn(), onDone = vi.fn();

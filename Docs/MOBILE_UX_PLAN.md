@@ -36,6 +36,8 @@ On a phone the game asked players to read rules instead of letting them see them
 
 ## Word budgets (phone, per screen)
 
+v0.11.0 follows the requested permanent benefit sentences, explicit Game speed and Resources/Move labels, and a clearly explained enemy-arrival briefing. These remain visible after the tutorial. The QA counter now includes the persistent HUD above dialogs; benefit sentences may name resource amounts in prose, while price/stockpile chips still use icons. Current budgets: map 36, briefing 70, tutorial 44, first choice 55, report 20, later choice 65, muster/battle 20, result 28, returning map 22, returning briefing 60. The table below records the previous icon-only design.
+
 Enforced by `python Tools/qa/text_budget.py` in portrait and landscape. Words are letters-only tokens a player can see; while a dialog or the map is open, only its words count; folded text doesn't count until opened. The first map, briefing and tutorial are counted while learning; the rest after the tutorial is skipped (icons only).
 
 | Screen | v0.2.4 | v0.3.0 | v0.4.0 | v0.10.2 | Budget |

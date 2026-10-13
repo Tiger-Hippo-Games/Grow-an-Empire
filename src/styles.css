@@ -1186,6 +1186,21 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
    (not drawn), so its card pictures (loading="lazy") don't compete with the first screen's download. */
 #app:has(.campaign-map:not(.hidden)) .build-panel, :root:not([data-booted]) .build-panel { display: none; }
 
+/* Permanent benefit sentences, clear arrival briefing and end-of-move countdown. */
+#app .build-benefit, #app .build-slot.show-info .build-benefit { display: block; grid-column: 1 / -1; margin-top: 5px; padding-bottom: 20px; color: var(--haldi-soft); font-size: .78rem; line-height: 1.3; }
+.arrival-plan { display: flex; align-items: center; gap: 16px; margin: 12px 0; padding: 12px; border: 1px solid var(--gold); border-radius: 12px; background: #e0a52618; }
+.arrival-count { display: flex; flex-direction: column; align-items: center; flex: none; gap: 6px; color: var(--gold); font-size: 1.05rem; }
+.arrival-count .gi { width: 48px; height: 48px; }
+.arrival-plan p { margin: 0; font-size: .9rem; line-height: 1.4; }
+.flow-dialog .arrive .gi { width: 32px; height: 32px; }
+.move-countdown { position: absolute; z-index: 36; top: 45%; left: 50%; transform: translate(-50%, -50%); padding: 14px 22px; border: 2px solid var(--gold); border-radius: 18px; background: #141738ed; color: var(--gold); font-family: var(--display); font-size: clamp(1.5rem, 4cqw, 2.8rem); text-align: center; white-space: nowrap; box-shadow: 0 12px 32px #0006; pointer-events: none; }
+.popup-battlefield.resolved .battle-actor:not(.fallen) .unit-icon { animation: none !important; background-position: 0 0 !important; }
+.popup-battlefield.resolved .battle-actor { animation: none !important; }
+@container app (max-width: 520px) {
+  .arrival-plan { gap: 10px; padding: 10px; }
+  .arrival-plan p { font-size: .82rem; }
+}
+
 /* Persistent resources and a bottom build tray (0.11.0). */
 .persistent-hud { position: absolute; z-index: 40; top: calc(14px + var(--safe-top)); left: 50%; transform: translateX(-50%); }
 .persistent-hud .stockpile-toggle { margin: 0; min-height: 44px; gap: 16px; padding: 0 14px; color: var(--cream); background: #191d48f5; border-color: var(--gold); }
@@ -1215,11 +1230,14 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 #app .build-info { position: absolute; top: 2px; right: 2px; }
 #app .build-card { min-height: 112px; grid-template-columns: 70px minmax(0, 1fr); grid-template-rows: repeat(7, auto); grid-template-areas: none; padding: 8px; }
 #app .build-card > * { grid-area: auto; }
+#app .build-card > .build-benefit { grid-column: 1 / -1; }
 #app .build-art { grid-row: 1 / 8; width: 70px; height: 74px; }
 #app .build-art img { width: 70px; height: 70px; }
 #app .build-name { padding-right: 34px; font-size: .9rem; }
 #app .build-action { position: absolute; right: 8px; bottom: 8px; padding: 0; background: none; }
 #app .build-foot { order: 3; flex: none; margin-top: 8px; padding: 0; }
+#app .build-panel:not(.reporting) .build-foot { display: flex; align-items: center; gap: 8px; }
+#app .build-foot .gather-button { flex: 1; }
 #app .build-panel.reporting .build-options { display: block; overflow-y: auto; }
 #app .build-panel.reporting .build-foot { position: static; }
 @keyframes tray-in { from { opacity: 0; translate: 0 20px; } to { opacity: 1; translate: 0 0; } }
@@ -1232,10 +1250,11 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
   #app .build-art, #app .build-art img { width: 50px; height: 54px; }
 }
 @container app (orientation: landscape) and (max-height: 540px) {
-  #app .build-panel, #app.ui-choice .build-panel, #app.ui-choice .build-panel.reporting { max-height: 48%; bottom: 56px; }
+  #app .build-panel, #app.ui-choice .build-panel, #app.ui-choice .build-panel.reporting { max-height: 64%; bottom: 56px; }
   #app .decision-heading { display: none; }
   #app .build-options, #app.ui-choice .build-options { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
   #app .build-card { min-height: 94px; grid-template-columns: 50px minmax(0, 1fr); }
   #app .build-art, #app .build-art img { width: 50px; height: 50px; }
+  #app .build-foot .gather-button { min-height: 44px; }
 }
 #app:has(.campaign-map:not(.hidden)) .build-panel, :root:not([data-booted]) .build-panel { display: none; }

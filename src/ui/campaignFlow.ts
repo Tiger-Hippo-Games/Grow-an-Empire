@@ -261,6 +261,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     show("briefing", `
       <p class="flow-kicker">CAMPAIGN ${campaign.number} / ${CAMPAIGNS.length} ${tierChip(campaign)}</p>
       <h2>${escapeHtml(objective.enemyName)}</h2>
+      <div class="arrival-plan"><span class="arrival-count">${icon("move")}<b>${campaign.moveLimit} moves</b></span><p>You have ${campaign.moveLimit} moves to build your city and train an army. Building or gathering uses one move. After the final move, review your army and choose Fight.</p></div>
       <div class="army-chips">${armyChips(objective.army, true)}</div>
       ${veteran}
       <p class="flow-counter"><span class="tag w">Counter</span>${counterIcons(objective.army)}<span class="arrive" role="img" aria-label="Arrive after move ${campaign.moveLimit}">${icon("move")}<b>${campaign.moveLimit}</b><span class="w"> moves</span></span></p>
@@ -382,11 +383,16 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       meter.querySelector<HTMLElement>("span")!.style.width = `${share * 100}%`;
     };
     updateArmies(report.units, report.enemy);
+    let clashActive = Object.values(report.units).some(count => count > 0) && Object.values(report.enemy).some(count => count > 0);
     stopBattle = playBattle(strip,
       { title: "Your army", start: { archers: report.units.archers, swordsmen: report.units.swordsmen, horsemen: report.units.horsemen, militia: report.units.militia, elephants: report.units.elephants ?? 0 } },
       { title: campaign.objective.enemyName, start: { archers: report.enemy.archers, swordsmen: report.enemy.swordsmen, horsemen: report.enemy.horsemen, militia: 0, elephants: 0 } },
       report.rounds,
-      { onRound: (_index, round) => { updateArmies(round.player, round.enemy); callbacks.onSound("hit"); }, onDone: finish, isPaused: callbacks.isPlaybackPaused });
+      { onRound: (_index, round) => {
+        updateArmies(round.player, round.enemy);
+        if (clashActive) callbacks.onSound("hit");
+        clashActive = Object.values(round.player).some(count => count > 0) && Object.values(round.enemy).some(count => count > 0);
+      }, onDone: finish, isPaused: callbacks.isPlaybackPaused });
     dialog.querySelector("[data-action=skip]")!.addEventListener("click", () => { callbacks.onSound("click"); finish(); });
   }
 

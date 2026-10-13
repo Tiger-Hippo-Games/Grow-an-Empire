@@ -389,6 +389,14 @@ export class SettlementSimulation {
     // Only a city under construction has a selection; a stale one elsewhere is dropped.
     const selection = building ? {} : { selectedBuildingId: null, activePlotIndex: null };
     Object.assign(this.state, createInitialState(), loaded, { resources, armyReport, lastSummary, constructionElapsed }, selection);
+    // A rule update can retire an unbuilt offer; preserve completed/in-progress buildings.
+    const retiredBurj = this.state.availableBuildingIds.includes("burj") && !isBuildingEligible(BUILDINGS.burj, this.state.builtBuildingIds, this.state.move);
+    if (retiredBurj) this.state.availableBuildingIds = this.state.availableBuildingIds.filter(id => id !== "burj");
+    while (retiredBurj && this.state.mode === "awaiting-choice" && this.state.availableBuildingIds.length < 3) {
+      const replacement = nextBuildingOffer(this.state.builtBuildingIds, this.state.availableBuildingIds, this.state.move, this.state.builtBuildingIds.at(-1) ?? "", this.campaign.availableBuildingIds);
+      if (!replacement) break;
+      this.state.availableBuildingIds.push(replacement);
+    }
     // A finished city whose report is missing is re-fought without sellswords.
     if (this.state.mode === "complete" && !this.state.armyReport) this.state.armyReport = this.resolveMuster({ archers: 0, swordsmen: 0 });
   }

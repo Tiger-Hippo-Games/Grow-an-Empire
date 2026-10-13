@@ -25,10 +25,10 @@ URL = os.environ.get("GAE_URL", "http://127.0.0.1:4174/") + "?reset"
 OUT = Path(__file__).parent / "out"
 BUDGET = {
     # First visit: the player is learning, so labels show beside the icons.
-    "map": 30, "briefing": 24, "tutorial": 38,
+    "map": 36, "briefing": 70, "tutorial": 44,
     # From here on the tutorial is done (skipped): icons only.
-    "first-choice": 14, "report": 12, "later-choice": 20, "muster": 14, "battle": 14, "result": 22,
-    "map-again": 16, "briefing-again": 12,
+    "first-choice": 55, "report": 20, "later-choice": 65, "muster": 20, "battle": 20, "result": 28,
+    "map-again": 22, "briefing-again": 60,
 }
 GOODS = r"wood|stone|grain|livestock|cattle|fruit|mangoes|mango|planks?|rations?|wine|soma|gold"
 
@@ -43,8 +43,10 @@ COUNT = """() => {
     }
     return false;
   };
-  const walker = document.createTreeWalker(modal || document.body, NodeFilter.SHOW_TEXT);
-  let words = 0; const blocks = [];
+  let words = 0; const blocks = [], amountBlocks = [];
+  const roots = modal ? [modal, document.querySelector('#resource-hud'), document.querySelector('.speed-control')] : [document.body];
+  for (const root of roots.filter(Boolean)) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {
     const n = walker.currentNode, t = n.textContent.trim(); if (!t) continue;
     const el = n.parentElement;
@@ -52,9 +54,10 @@ COUNT = """() => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1 || r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw) continue;
     const w = t.split(/\\s+/).filter(x => /[A-Za-z]/.test(x)).length;
-    if (w) { words += w; blocks.push(t.slice(0, 80)); }
+    if (w) { words += w; blocks.push(t.slice(0, 80)); if (!el.closest('.build-benefit')) amountBlocks.push(t); }
   }
-  return {words, text: blocks.join(' | ')};
+  }
+  return {words, text: blocks.join(' | '), amount_text: amountBlocks.join(' | ')};
 }"""
 
 
@@ -72,7 +75,7 @@ def run(width, height):
             page.wait_for_function("!document.querySelector('.fly-good')", timeout=6000)  # goods landing in the stockpile
             data = page.evaluate(COUNT)
             budget = BUDGET[name]
-            bare = re.findall(rf"\b\d+\s+(?:{GOODS})\b", data["text"], re.I)
+            bare = re.findall(rf"\b\d+\s+(?:{GOODS})\b", data["amount_text"], re.I)
             ok = data["words"] <= budget and not bare
             results[name] = {"words": data["words"], "budget": budget, "pass": ok, "bare_amounts": bare, "text": data["text"]}
             if not ok:

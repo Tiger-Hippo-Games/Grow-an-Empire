@@ -279,11 +279,11 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
   }
 
   function garrisonTarget(role: GarrisonSoldier["role"], index: number, swordsmen: number, archers: number, out = new THREE.Vector2()): THREE.Vector2 {
-    const precedingRows = role === "archer" ? Math.ceil(swordsmen / 5) : role === "horseman" ? Math.ceil(swordsmen / 5) + Math.ceil(archers / 5) : 0;
-    const row = Math.floor(index / 5) + precedingRows;
-    const column = index % 5;
+    const precedingRows = role === "archer" ? Math.ceil(swordsmen / 7) : role === "horseman" ? Math.ceil(swordsmen / 7) + Math.ceil(archers / 7) : 0;
+    const row = Math.floor(index / 7) + precedingRows;
+    const column = index % 7;
     const tower = getBuildingPosition("prakara");
-    return out.set(tower.x + 5 + column * (role === "horseman" ? 1.85 : 1.35), tower.y + 1.5 - row * 1.65);
+    return out.set(tower.x + 5 + column * (role === "horseman" ? 1.85 : 1.35), tower.y + 1.5 - row * 1.2);
   }
   const garrisonSpot = new THREE.Vector2();
 

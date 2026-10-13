@@ -71,14 +71,20 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
   container.append(arena, status);
   const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
   arena.classList.toggle("reduced-motion", reduced);
-  const approach = reduced ? 0 : APPROACH_MS;
+  const noOpposition = [player.start, enemy.start].some(counts => Object.values(counts).every(count => count === 0));
+  const approach = reduced || noOpposition ? 0 : APPROACH_MS;
   const step = reduced ? 120 : ROUND_MS;
   let frame = 0;
   let elapsed = 0;
   let previous = performance.now();
   let shown = 0;
   let stopped = false;
-  let resolvedAt: number | null = null;
+  let resolvedAt: number | null = noOpposition ? 0 : null;
+  if (noOpposition) {
+    arena.classList.remove("approaching");
+    arena.classList.add("resolved");
+    status.textContent = Object.values(player.start).some(count => count > 0) ? "Your army holds the field" : "Your army has fallen";
+  }
 
   function stop(): void { stopped = true; cancelAnimationFrame(frame); }
   function tick(now: number): void {
@@ -96,6 +102,7 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
         status.textContent = "The lines meet";
       }
       let due = Math.min(rounds.length, Math.floor(Math.max(0, elapsed - approach) / step));
+      if (resolvedAt !== null) due = rounds.length;
       while (shown < due) {
         const round = rounds[shown];
         const counts: Counts[] = [{ ...round.player, elephants: round.player.elephants ?? 0 }, { ...round.enemy, militia: 0, elephants: 0 }];

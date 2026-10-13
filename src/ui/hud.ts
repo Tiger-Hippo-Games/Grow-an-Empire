@@ -97,6 +97,18 @@ export function createHud(callbacks: HudCallbacks) {
   const stockpileClose = requireElement<HTMLButtonElement>("#stockpile-close");
   const stockpileTotal = requireElement<HTMLElement>("#stockpile-total");
   const persistentHud = requireElement<HTMLElement>("#resource-hud");
+  const moveCountdown = document.createElement("output");
+  moveCountdown.className = "move-countdown hidden";
+  moveCountdown.setAttribute("role", "status");
+  moveCountdown.setAttribute("aria-live", "polite");
+  app.appendChild(moveCountdown);
+  let countdownTimer = 0;
+  function showMovesLeft(left: number): void {
+    window.clearTimeout(countdownTimer);
+    moveCountdown.textContent = `${left} ${left === 1 ? "move" : "moves"} left`;
+    moveCountdown.classList.remove("hidden");
+    countdownTimer = window.setTimeout(() => moveCountdown.classList.add("hidden"), 2200);
+  }
   const moveCounter = document.createElement("span");
   moveCounter.className = "hud-move";
   moveCounter.innerHTML = "<span>Move</span>";
@@ -561,7 +573,7 @@ export function createHud(callbacks: HudCallbacks) {
       const missing = state === "unaffordable" ? RESOURCE_NAMES.filter((name) => (card.missing[name] ?? 0) > 0).map((name) => amount(name, card.missing[name] as number, { className: "short" })).join("") : "";
       const swapLine = card.swap ? `<span class="build-swap">${icon("market")}${signedBag(card.swap.sell, "−")}<span class="arrow">→</span>${signedBag(card.swap.buy, "+")}${card.swap.change > 0 ? amount("gold", card.swap.change, { sign: "+", className: "gain" }) : ""}</span>` : "";
       button.setAttribute("aria-label", `${index + 1}: ${card.affordable ? "Build" : card.swap ? "Swap goods and build" : "Can't afford"} ${building.name}. Costs ${formatBag(building.cost)}. ${building.benefit}. ${building.unlocks}`);
-      button.innerHTML = `<span class="build-key" aria-hidden="true">${index + 1}</span><span class="build-art"><img src="${assetUrl(buildingFilename(card.id, "complete"))}" alt="" loading="lazy" decoding="async" /></span><span class="build-name">${escapeHtml(building.name)}</span><span class="build-costs">${costChips(building.cost, view.resources)}</span><span class="build-effect">${effectHtml(card.id)}</span><span class="build-benefit w">${escapeHtml(building.benefit)}</span>${swapLine}<span class="build-unlock w">${icon("unlock")}${escapeHtml(building.unlocks)}</span><span class="build-action">${action}${missing ? `<span class="build-missing">${missing}</span>` : ""}</span>`;
+      button.innerHTML = `<span class="build-key" aria-hidden="true">${index + 1}</span><span class="build-art"><img src="${assetUrl(buildingFilename(card.id, "complete"))}" alt="" loading="lazy" decoding="async" /></span><span class="build-name">${escapeHtml(building.name)}</span><span class="build-costs">${costChips(building.cost, view.resources)}</span><span class="build-effect">${effectHtml(card.id)}</span><span class="build-benefit">${escapeHtml(building.benefit)}</span>${swapLine}<span class="build-unlock w">${icon("unlock")}${escapeHtml(building.unlocks)}</span><span class="build-action">${action}${missing ? `<span class="build-missing">${missing}</span>` : ""}</span>`;
       if (state === "unaffordable") button.setAttribute("aria-disabled", "true");
       let longPressed = false;
       let pressTimer = 0;
@@ -648,6 +660,9 @@ export function createHud(callbacks: HudCallbacks) {
         : "Paid now. Built earlier, it works for more moves. Keys 1-3.";
       buildFoot.appendChild(hint);
     }
+    const reopenReport = moveSummary.querySelector<HTMLButtonElement>(".summary-reopen");
+    if (reopenReport) buildFoot.appendChild(reopenReport);
+    moveSummary.classList.add("hidden");
     buildPanel.classList.remove("hidden");
     chromeOpen = false;
     syncPresentation();
@@ -724,6 +739,8 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   function setCampaign(campaign: CampaignDefinition, index: number): void {
+    window.clearTimeout(countdownTimer);
+    moveCountdown.classList.add("hidden");
     campaignMoveLimit = campaign.moveLimit;
     for (const node of document.querySelectorAll<HTMLElement>("[data-move-limit]")) node.textContent = String(campaign.moveLimit);
     [...levelPips.children].forEach((pip, pipIndex) => { (pip as HTMLElement).hidden = pipIndex > campaignMoveLimit; });
@@ -1049,6 +1066,7 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   return {
+    showMovesLeft,
     viewport,
     loading,
     setLoadingProgress,

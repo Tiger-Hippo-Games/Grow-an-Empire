@@ -82,7 +82,8 @@ describe("isBuildingEligible", () => {
     for (const [id, dependencies] of Object.entries(required)) {
       expect(BUILDINGS[id].requiresAll ?? [], id).toEqual(dependencies);
       expect(BUILDINGS[id].requiresAny ?? [], id).toEqual(anyOf[id] ?? []);
-      expect(isBuildingEligible(BUILDINGS[id], anyOf[id] ? [anyOf[id][0]] : dependencies, 12), id).toBe(true);
+      const built = id === "burj" ? [...dependencies, "blacksmith", "weapons-workshop", "barracks"] : anyOf[id] ? [anyOf[id][0]] : dependencies;
+      expect(isBuildingEligible(BUILDINGS[id], built, 12), id).toBe(true);
       for (const missing of dependencies) {
         expect(isBuildingEligible(BUILDINGS[id], dependencies.filter((item) => item !== missing), 12), `${id} without ${missing}`).toBe(false);
       }
@@ -91,6 +92,10 @@ describe("isBuildingEligible", () => {
 });
 
 describe("offer families", () => {
+  it("unlocks Burj only after three war buildings are completed", () => {
+    expect(isBuildingEligible(BUILDINGS.burj, ["sawmill", "blacksmith", "barracks", "prakara"], 12)).toBe(false);
+    expect(isBuildingEligible(BUILDINGS.burj, ["sawmill", "blacksmith", "barracks", "weapons-workshop"], 12)).toBe(true);
+  });
   it("puts every building in one of the three offer families", () => {
     for (const id of Object.keys(BUILDINGS)) expect(["land", "town", "war"], id).toContain(OFFER_FAMILY[id]);
   });

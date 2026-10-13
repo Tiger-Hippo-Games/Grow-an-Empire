@@ -18,6 +18,17 @@ function emptyAll(sim: SettlementSimulation): void {
 }
 
 describe("costs and construction", () => {
+  it("retires an early Burj offer from older saves without losing the city", () => {
+    const sim = new SettlementSimulation();
+    build(sim, "woodcutter"); build(sim, "farm"); build(sim, "sawmill");
+    const snapshot = sim.serialize();
+    snapshot.state.availableBuildingIds = ["burj", "granary", "quarry"];
+    sim.loadSnapshot(snapshot);
+    expect(sim.state.availableBuildingIds).not.toContain("burj");
+    expect(sim.state.availableBuildingIds).toHaveLength(3);
+    expect(sim.state.builtBuildingIds).toEqual(["woodcutter", "farm", "sawmill"]);
+    expect(sim.chooseBuilding("burj")).toEqual([]);
+  });
   it("can build a Granary immediately after the opening Farm and keeps surplus grain", () => {
     const sim = new SettlementSimulation();
     build(sim, "farm");

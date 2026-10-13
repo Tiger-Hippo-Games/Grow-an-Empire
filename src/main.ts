@@ -696,6 +696,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       cityLayout.setCivicLevel(event.level, true); // Roads widen with the city (eased in update()).
       hud.setCivicLevel(event.level);
     } else if (event.type === "choices-ready") {
+      if (simulation.state.lastSummary) hud.showMovesLeft(Math.max(0, simulation.campaign.moveLimit - simulation.state.lastSummary.move));
       // Kick off loading for the newly-offered building(s) as soon as they can
       // be picked, rather than blocking the build panel on it: the player
       // reads the cards for a while before clicking, so this normally finishes
@@ -706,6 +707,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       hud.renderBuildPanel(buildPanelView());
       if (simulation.state.lastSummary?.warnings.length) sound.play("warning");
     } else if (event.type === "muster-ready") {
+      hud.showMovesLeft(0);
       openMuster();
     } else if (event.type === "economy-resolved") {
       for (const buildingId of event.activeBuildingIds) constructionView.markProduced(buildingId, animationElapsed);
