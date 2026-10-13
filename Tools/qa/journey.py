@@ -22,7 +22,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from flow import speed8  # noqa: E402
 
 O = pathlib.Path(__file__).resolve().parent / "out" / "journey"; O.mkdir(parents=True, exist_ok=True)
-URL = "http://127.0.0.1:4175/api/v1/games/grow-an-empire/play/index.html"
+URL = "http://127.0.0.1:4175/api/v1/games/grow/play/index.html"
 W, H = map(int, (sys.argv[1] if len(sys.argv) > 1 else "1920x1080").split("x"))
 TAG = f"{W}x{H}"
 LOG = []

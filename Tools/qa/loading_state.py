@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-URL = os.environ.get("GAE_URL", "http://127.0.0.1:4175/api/v1/games/grow-an-empire/play/")
+URL = os.environ.get("GAE_URL", "http://127.0.0.1:4175/api/v1/games/grow/play/")
 OUT = Path(__file__).parent / "out" / "loading"
 OUT.mkdir(parents=True, exist_ok=True)
 results = {}

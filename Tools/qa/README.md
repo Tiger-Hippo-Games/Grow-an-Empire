@@ -34,10 +34,12 @@ pnpm build; pnpm exec vite preview  # http://127.0.0.1:4174 (viewports, load_tim
 
 Screenshots go to `Tools/qa/out/` (git-ignored). The scripts use Chromium's software renderer, so their frame rates don't reflect real devices. Use `?perf` on a phone for that.
 
-The production iframe check uses Chromium's ANGLE SwiftShader option (`--use-angle=swiftshader`). The older `--use-gl=swiftshader` option produced shader/context warnings in Chromium 153 at the full portal size. Run browser suites serially when collecting rendering or startup evidence. The asset/audio check can use the release server's local SDK stand-in via `GAE_URL=http://127.0.0.1:4175/api/v1/games/grow-an-empire/play/`; this keeps the local test independent of access to the external portal SDK. The packaged HTML retains the official SDK URL.
+The production iframe check uses Chromium's ANGLE SwiftShader option (`--use-angle=swiftshader`). The older `--use-gl=swiftshader` option produced shader/context warnings in Chromium 153 at the full portal size. Run browser suites serially when collecting rendering or startup evidence. The asset/audio check can use the release server's local SDK stand-in via `GAE_URL=http://127.0.0.1:4175/api/v1/games/grow/play/`; this keeps the local test independent of access to the external portal SDK. The packaged HTML retains the official SDK URL.
 
 All scripts share `flow.py` (campaign map → briefing → city, play a move, play to the muster, fight). When the game's flow changes, update it there.
 
 `python Tools/qa/ui_tray.py` checks the persistent resource dropdown (including Escape during dialogs), same-row build choices, permanent benefit visibility, speed label, end-of-move countdown and full campaign completion at 1920×1080, 844×390 and 390×844. Uses preview port 4174 or `GAE_URL`. The viewport suite checks 14 sizes; horizontal card scrolling is intentional on narrow phones. Text budgets include permanent HUD labels and requested benefit sentences in v0.11.0.
 
 `python Tools/qa/loading_state.py` tests the exact release at the portal path on a throttled connection (1920×1080 and 390×844): visible building tips above the progress bar, monotonic progress, no early build-card layout/art, and immediate hint removal when ready. Unit tests cover all 24 tips and timer cleanup on success/error. The loader does not hold boot open to display every hint.
+
+`player_leaderboard.py` tests production SDK ids, weekly top-ten UI in desktop/phone layouts, escaped player names, guest/empty/error states, first-win posting and a full 25-move campaign with reload. Use the unpacked release server; all leaderboard responses are injected locally.

@@ -1157,6 +1157,7 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 }
 /* Realm board: Close sits in the top corner so it is always in view; rows are compact so the board fits a short portal frame. */
 .realm-board { position: relative; max-height: calc(100% - 8px); }
+.realm-scrim { padding-top: calc(var(--hud-bottom, 58px) + 12px); }
 .ranking-tabs { display: flex; gap: 8px; margin: 0 44px 16px 0; flex-wrap: wrap; }
 .ranking-tabs button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--gold); border-radius: 10px; background: transparent; color: var(--cream); cursor: pointer; font: inherit; }
 .ranking-tabs button[aria-pressed="true"] { background: var(--gold); color: var(--lampblack); }

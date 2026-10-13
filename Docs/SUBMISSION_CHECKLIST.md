@@ -1,8 +1,8 @@
 # Submission checklist — SDK 1.5.0
 
-Follow `common/GOLIVE_DEVELOPER_REFERENCE.md`. It supersedes conflicting integration details in the older portal documents. This checklist separates checks verified locally from the Developer Console steps still required. Game slug: `grow-an-empire`.
+Follow `common/GOLIVE_DEVELOPER_REFERENCE.md`. It supersedes conflicting integration details in the older portal documents. This checklist separates checks verified locally from the Developer Console steps still required. Game slug: `grow`.
 
-Frozen candidate: **v0.11.2** (supersedes the intermediate v0.11.0/v0.11.1 packages and v0.10.8). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
+Frozen candidate: **v0.12.2** (supersedes intermediate v0.12.0 and earlier packages). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
 
 ## Code and bundle
 
@@ -28,8 +28,9 @@ Frozen candidate: **v0.11.2** (supersedes the intermediate v0.11.0/v0.11.1 packa
 
 ## Developer Console — still required
 
-- [ ] Confirm the listing slug is `grow-an-empire` and orientation is **Landscape** (Ravi, 2026-10-10: laid out for the 1920×1080 frame; `index.html` declares landscape).
-- [ ] Create/activate the game's `campaign-progress` board: Campaign Progress, All-Time, Highest Score Wins, **no maximum score**. If using an existing board, change `LEADERBOARD_SLUG` to its actual slug before packaging.
+- [ ] Confirm the listing slug is `grow` and orientation is **Landscape** (Ravi, 2026-10-10: laid out for the 1920×1080 frame; `index.html` declares landscape).
+- [x] Configure the production board supplied on 2026-10-13: `strongplayer`, Strongest Player, Weekly (Monday 00:00 UTC), Highest Score Wins, no cap; score = distinct campaign wins.
+- [ ] Verify signed-in score posting, top ten and own rank against the live production `strongplayer` board in Sandbox Preview.
 - [ ] Upload the latest ZIP and run the Developer Console Sandbox Preview.
 - [ ] Confirm the loading screen clears after `GAME_READY`, art/fonts load, and player identity matches the portal display name.
 - [ ] Play as a signed-in player and verify a completed battle posts the score to the configured board.

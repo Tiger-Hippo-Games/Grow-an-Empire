@@ -42,5 +42,6 @@ describe("extended campaign preparation", () => {
     restored.loadSnapshot(old.serialize());
     expect(restored.state).toMatchObject({ mode: "awaiting-choice", move: 13, civicLevel: 12 });
     expect(restored.state.builtBuildingIds).toEqual(old.state.builtBuildingIds);
+    expect(restored.state.availableBuildingIds).toHaveLength(3);
   });
 });

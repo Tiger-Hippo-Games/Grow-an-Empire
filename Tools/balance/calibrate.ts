@@ -6,7 +6,8 @@
  * (swordsmen S, archers A, horsemen H, in combinations). For each campaign it
  * tries the mix in even and 2:1 proportions and veterancy 1.0–1.2 in 0.02 steps, never
  * repeating an army, and keeps the one whose share of winning build orders
- * is closest to the target. Star margins come from how far the winners win
+ * is closest to the target. The 12-move reference is exhaustive; longer
+ * lengths use 4,096 seeded journeys each (see referenceEndings). Star margins come from how far the winners win
  * by (2 stars ≈ the better half of winners, 3 stars ≈ the top 15%, capped at
  * 50% and 100%); `field` is the share of all build orders reaching 1, 2 and 3
  * stars (the AI rivals in realm.ts use it). Prints values for CAMPAIGN_SEEDS.
@@ -21,22 +22,22 @@ import { CAMPAIGNS, ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
 {
   const used = new Set<string>();
   ENEMY_MIX.forEach((mix, index) => {
-  const { endings } = referenceEndings(CAMPAIGNS[index]);
-  // Equivalent armies and hiring budgets have identical margins. Keep their
-  // original multiplicities, so grouping speeds the search without reweighting it.
-  const keyOf = (ending: (typeof endings)[number]): string => [ending.archers, ending.swordsmen, ending.horsemen, ending.militia, ending.elephants, ending.prakara, ending.stambha, ending.burj, ending.koshagar, ending.market, ending.market ? Math.floor(ending.gold / SELLSWORD_COST) : 0].join("/");
-  const weighted = new Map<string, { ending: (typeof endings)[number]; count: number }>();
-  for (const ending of endings) {
-    const key = keyOf(ending);
-    const group = weighted.get(key);
-    if (group) group.count++;
-    else weighted.set(key, { ending, count: 1 });
-  }
-  const shareAgainst = (enemy: EnemyArmy): number => {
-    let wins = 0;
-    for (const { ending, count } of weighted.values()) if (bestMargin(ending, enemy) > 0) wins += count;
-    return wins / endings.length;
-  };
+    const { endings } = referenceEndings(CAMPAIGNS[index]);
+    // Equivalent armies and hiring budgets have identical margins. Keep their
+    // original multiplicities, so grouping speeds the search without reweighting it.
+    const keyOf = (ending: (typeof endings)[number]): string => [ending.archers, ending.swordsmen, ending.horsemen, ending.militia, ending.elephants, ending.prakara, ending.stambha, ending.burj, ending.koshagar, ending.market, ending.market ? Math.floor(ending.gold / SELLSWORD_COST) : 0].join("/");
+    const weighted = new Map<string, { ending: (typeof endings)[number]; count: number }>();
+    for (const ending of endings) {
+      const key = keyOf(ending);
+      const group = weighted.get(key);
+      if (group) group.count++;
+      else weighted.set(key, { ending, count: 1 });
+    }
+    const shareAgainst = (enemy: EnemyArmy): number => {
+      let wins = 0;
+      for (const { ending, count } of weighted.values()) if (bestMargin(ending, enemy) > 0) wins += count;
+      return wins / endings.length;
+    };
     const number = index + 1;
     const target = targetWinShare(number);
     const base = { S: mix.includes("S") ? 1 : 0, A: mix.includes("A") ? 1 : 0, H: mix.includes("H") ? 1 : 0 };

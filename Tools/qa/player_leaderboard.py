@@ -18,10 +18,10 @@ return {entries:window.__boardState==='empty'?[]:Array.from({length:10},(_,i)=>(
 getMyRank:async(slug)=>{record('getMyRank',slug);return {rank:window.__best===null?null:12,score:window.__best};},
 startSession(){},endSession(){},track(){}};
 '''
-R={};
+R=json.loads(OUT.joinpath('results.json').read_text()) if '--long-only' in sys.argv and OUT.joinpath('results.json').exists() else {};
 with sync_playwright() as p:
  b=p.chromium.launch(args=['--use-angle=swiftshader','--enable-unsafe-swiftshader'])
- for w,h,guest in [(1920,1080,False),(390,844,True),(844,390,True)]:
+ for w,h,guest in ([] if '--long-only' in sys.argv else [(1920,1080,False),(390,844,True),(844,390,True)]):
   ctx=b.new_context(viewport={'width':w,'height':h});ctx.add_init_script(f'window.__guest={str(guest).lower()}; localStorage.setItem("grow-an-empire:tutorial:v1","complete")')
   ctx.route('**/sdk/platform-sdk.js',lambda route:route.fulfill(content_type='application/javascript',body=SDK))
   pg=ctx.new_page(); errors=[];pg.on('pageerror',lambda e:errors.append(str(e)))
@@ -34,6 +34,10 @@ with sync_playwright() as p:
   assert pg.evaluate("window.__boardCalls.filter(c=>c.method==='getMyRank').length")==(0 if guest else 1)
   assert pg.evaluate("window.__boardCalls.find(c=>c.method==='init').args[0].gameId")=='grow'
   bounds=pg.locator('.realm-board').bounding_box(); assert bounds['x']>=0 and bounds['y']>=0 and bounds['x']+bounds['width']<=w+1 and bounds['y']+bounds['height']<=h+1
+  hud=pg.locator('#resource-hud').bounding_box()
+  tab=pg.locator('[data-tab=players]').bounding_box()
+  assert tab['y'] >= hud['y']+hud['height'], (hud,tab)
+  refresh=pg.locator('[data-refresh]').bounding_box(); assert refresh['height']>=44
   pg.screenshot(path=str(OUT/f'board-{w}x{h}.png'))
   pg.evaluate("window.__boardState='empty'");pg.click('[data-refresh]');pg.wait_for_selector('text=No scores yet this week.')
   pg.evaluate("window.__boardState='error'");pg.click('[data-refresh]');pg.wait_for_selector('text=The leaderboard is unavailable.')
@@ -51,17 +55,23 @@ with sync_playwright() as p:
    R['first-win-submission']=posts
   R[f'{w}x{h}']={'guest':guest,'errors':errors,'pass':not errors}
   assert not errors
+  print(f'PASS rankings {w}x{h}',flush=True)
   ctx.close()
+ OUT.joinpath('results.json').write_text(json.dumps(R,indent=2),encoding='utf-8')
  # A full 25-move journey, with existing wins seeded only for QA unlocking.
  ctx=b.new_context(viewport={'width':1920,'height':1080})
  ctx.route('**/sdk/platform-sdk.js',lambda route:route.fulfill(content_type='application/javascript',body=SDK))
  pg=ctx.new_page();errors=[];pg.on('pageerror',lambda e:errors.append(str(e)))
  pg.goto(URL);pg.wait_for_function("document.documentElement.dataset.booted==='true'",timeout=60000)
- pg.evaluate('''({ids})=>{const raw=JSON.parse(localStorage.getItem('grow-an-empire:save:v1'));raw.campaignId=ids[24];raw.campaignStars=Object.fromEntries(ids.slice(0,24).map(id=>[id,3]));raw.completedCampaignIds=ids.slice(0,24);raw.playerId='qa-player';raw.settings.tutorialComplete=true;localStorage.setItem('grow-an-empire:save:v1',JSON.stringify(raw));}''',{'ids':IDS})
+ seed=pg.evaluate("JSON.parse(localStorage.getItem('grow-an-empire:save:v1'))")
+ seed.update(campaignId=IDS[24],campaignStars={id:3 for id in IDS[:24]},completedCampaignIds=IDS[:24],playerId='qa-player')
+ seed['settings']['tutorialComplete']=True
+ ctx.add_init_script("if(!localStorage.getItem('qa-seeded')) { localStorage.setItem('grow-an-empire:save:v1',"+json.dumps(json.dumps(seed))+ ");localStorage.setItem('qa-seeded','1'); }")
  pg.reload();pg.wait_for_function("document.documentElement.dataset.booted==='true'",timeout=60000)
  enter(pg);speed8(pg);moves=[]
  def check_move(move):
   moves.append(move);past_report(pg)
+  print(f'Campaign 25 move {move}',flush=True)
   assert pg.inner_text('#move').endswith('/ 25'),pg.inner_text('#move')
   if move==14:
    pg.reload();pg.wait_for_function("document.documentElement.dataset.booted==='true'",timeout=60000);enter(pg);speed8(pg);past_report(pg)
@@ -73,4 +83,5 @@ with sync_playwright() as p:
  R['25-move-journey']={'moves':moves,'postedScore':posts[0]['args'][1],'result':result,'errors':errors,'pass':not errors}
  assert not errors
  ctx.close();b.close()
+OUT.joinpath('results.json').write_text(json.dumps(R,indent=2),encoding='utf-8')
 print(json.dumps(R,indent=2));print('ALL PASSED')

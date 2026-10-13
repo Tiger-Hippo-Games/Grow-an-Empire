@@ -5,7 +5,7 @@ The metadata for the GoLive listing (SUBMISSION_GUIDE §2 and §16 "Content & me
 | Field | Value | Rule |
 |---|---|---|
 | Title | Grow an Empire | Must match `<title>` in `index.html` |
-| Slug | `grow-an-empire` | Lowercase, digits, hyphens, ≤ 60 characters, globally unique. Must equal `GAME_ID` in `src/platform/adapters.ts` (it's passed to `Platform.init`). If the slug is taken, change both. |
+| Slug | `grow` | Lowercase, digits, hyphens, ≤ 60 characters, globally unique. Must equal `GAME_ID` in `src/platform/adapters.ts` (it's passed to `Platform.init`). If the slug is taken, change both. |
 | Genre | `strategy` | One of idle, strategy, platformer, puzzle, arcade, rpg, simulation, sports |
 | Orientation | `landscape` | Ravi, 2026-10-10. The game is laid out for the 16:9 1920×1080 portal frame (a 1280×720 stage scaled to fit; exactly 1.5× at 1920×1080); any device that shows at least 1920 px along one side gets that frame. Smaller frames still get a rearranged layout, so a phone held either way stays playable. Also declared in `index.html` (`<meta name="orientation">`) |
 | Tags | `city-builder, strategy, medieval, short-session, single-player` | Optional, comma-separated |

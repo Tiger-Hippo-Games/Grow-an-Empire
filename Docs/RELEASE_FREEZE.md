@@ -1,4 +1,26 @@
-# Release freeze: v0.11.2
+# Release freeze: v0.12.2
+
+2026-10-13. Ready for Developer Console Sandbox Preview. Includes the complete earlier UI/loading changes, requested campaign lengths and stronger enemies, and production weekly Strongest Player integration. Supersedes intermediate 0.12.0/0.12.1 and earlier releases; their ZIPs remain unchanged. Not published to Netlify.
+
+## Immutable artifact
+
+- `release/grow-an-empire-0.12.2.zip`: **17,861,278 bytes**, 155 entries.
+- SHA-256: `191596B2E3B59EB63A4A6A75EC652A45007F54D28AE4CE475F6A51D3055F8CCE`
+- Portal game slug **`grow`**, weekly leaderboard **`strongplayer`**, Highest Score Wins, no cap, Monday 00:00 UTC reset.
+- Score = distinct campaigns won (0–25); stars still unlock campaigns and rank the separate AI Realm.
+- Settlement save schema **6**, v4/v5 migration retained; stored leaderboard entries rederived as schema 2.
+
+## Verified locally
+
+- TypeScript, ESLint and 279 tests in 29 files; all 15 portal bundle checks.
+- Campaign limits 12/14/15/16/18/20/25, corresponding recalibration and 25 civic levels. Full 25-move browser run with all 24 buildings and reload at move 14.
+- Weekly leaderboard in desktop and both phone layouts: top ten, own rank, correct first-win score, guest/empty/error states, escaped names, HUD clearance and focus return.
+- Exact ZIP in a 1920×1080 iframe at 1.5×: complete campaign flow, persistent HUD, one GAME_READY, portal lifecycle and guest safeguards; no game errors/warnings/failed requests.
+- Fourteen viewport checks, phone word budgets, throttled loading tips/bar and startup budgets (1.82 s at 10 Mbps; 9.16 s on Slow 4G).
+
+Full evidence and local-test limitations are in `Docs/QA_RESULTS.md`. Live production leaderboard/account checks, Safari, physical-device FPS and listing provenance remain required before publication. Use the supplied `grow` / `strongplayer` configuration rather than the historical board setup below. Keep this ZIP unchanged; further source changes need a new version and ZIP.
+
+## Historical release freeze: v0.11.2
 
 2026-10-13. Ready for Sandbox Preview, including the full UI/gameplay update and loading bar with 24 building tips. Supersedes intermediate v0.11.0/v0.11.1 and v0.10.8; their ZIPs remain unchanged. Not published to the live portal.
 

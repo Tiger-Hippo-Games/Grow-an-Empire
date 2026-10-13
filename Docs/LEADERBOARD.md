@@ -1,44 +1,30 @@
-# Portal leaderboard (GoLive SDK 1.5.0)
+# Strongest Player — production weekly leaderboard
 
-The current contract is `common/GOLIVE_DEVELOPER_REFERENCE.md`, section 5. Real player rankings use the SDK leaderboard API. The `leaderboard_score` analytics event and the leaderboard object in saves are diagnostics and migration data; they do not post a score to the portal board.
+Production configuration supplied on 2026-10-13: game slug `grow`, SDK leaderboard ID `strongplayer`, Weekly, Highest Score Wins, no maximum score. The platform resets the board every Monday at 00:00 UTC (05:30 IST). The official SDK script and SDK-selected API host remain unchanged.
 
-## Developer Console setup required
+## Score
 
-For game slug `grow-an-empire`, create this board before sandbox testing:
+One point per distinct campaign won: 0–25. Winning a replay, earning extra stars, or repeatedly losing after a prior win cannot increase or reduce that count. Stars still unlock campaigns and rank the separate single-player AI Realm. A new campaign win increases the score by exactly one. The platform keeps the player's best submitted count in the current week; it owns ranking and ties.
 
-| Setting | Value |
-|---|---|
-| Name | Campaign Progress |
-| Slug | `campaign-progress` |
-| Reset period | All-Time |
-| Metric | Highest Score Wins |
-| Max score | None (no cap; Ravi, 2026-10-10) |
+The weekly submission is the player's accumulated campaign wins when a battle finishes, including progress earned in previous weeks. It is not a count of wins earned only during this week. An unchanged accumulated count can be posted again after the Monday reset. An account with prior progress joins the new week after its next battle.
 
-The slug must match `LEADERBOARD_SLUG` in `src/platform/adapters.ts`. It must be active and belong to this game. If a board already exists with a different slug, update that constant before packaging. Slugs cannot be renamed after creation. All-Time has no reset date; a future periodic board must show its period and reset time wherever it is displayed.
+`leaderboardEntry()` derives the count from known campaign star records. Saved leaderboard schema 1 (level × 100 + stars) is recalculated as schema 2 on the next save/result. Settlement snapshot schema stays 6; campaign ids, star records and v4/v5 migration remain intact. Browser save keys retain their established names. Changing the portal game slug to the supplied production `grow` selects that game's cloud namespace; it does not move cloud saves from an unrelated listing.
 
-## Score and identity
-
-Score is `highest campaign won * 100 + total best stars`: 0 to 2575 with today's 25 campaigns. The board has no maximum, so more campaigns later need no board change. Campaigns range from 1 to 25 and total stars from 0 to 75. A replay never removes stars. The platform retains each player's best score; do not implement a separate server ranking or rely on a client-provided timestamp to decide platform ties.
-
-`Platform.init({ gameId: "grow-an-empire" })` precedes `Platform.login()`. The returned player id owns saves. The game uses the portal's `displayName` in the Realm board, escapes it as text, and falls back to username or Guest if it is malformed. Offline play uses You. Scores are submitted only for signed-in accounts; guests play normally without posting.
-
-## Posting
-
-At battle end, `src/platform/scoreSubmission.ts` sends the standing through the platform adapter:
+## SDK and UI
 
 ```typescript
-await Platform.submitScore("campaign-progress", score, {
-  level, campaignId, totalStars, reachedAt
-});
+await Platform.init({ gameId: "grow" });
+await Platform.submitScore("strongplayer", completedCampaignCount, metadata);
+const top = await Platform.getLeaderboard("strongplayer", 10);
+const me = await Platform.getMyRank("strongplayer");
 ```
 
-Metadata stays below 2 KB of UTF-8 JSON. Attempts are at least 30 seconds apart. Fast battle results coalesce to the highest pending score; duplicate or worse successful scores are skipped. Missing/deactivated boards, rejected scores, an old SDK, sign-in failures and permission failures never block the result screen or the next campaign. A later battle may retry a rejected result; there is no endless score retry loop.
+Calls go through the platform adapter. Submissions are caught and spaced at least 30 seconds apart, including weekly transitions; fast results coalesce to the best pending count. Metadata stays below 2 KB. Guests never post or request a private rank, but can read the top ten. Missing SDK methods, timeouts, denied requests and unavailable boards cannot block gameplay.
 
-The in-game Realm ranks the player against 1,008 seeded AI rajas. It is a separate single-player feature and must not be presented as the live player leaderboard. The portal displays the real board and owns its player names, ranks and best scores.
+Open the map's rank chip or More → Realm, then select **Strongest Player**. The view shows top ten players, campaign counts, your own rank when signed in, the reset schedule, and Refresh. AI Realm remains a separate tab. Portal display names are escaped. Loading, empty week, guest, unavailable board and unavailable private-rank states are explicit; close/Escape return focus to the opener, Tab stays inside the dialog, and refresh restores focus without stealing it from another control.
 
 ## Verification
 
-- `?platform=mock&auth=email`: after a battle, the mock log records `submitScore`, `campaign-progress`, score and metadata.
-- `?platform=mock`: guests have browser progress and AI Realm standings, but no cloud save and no score submission. `?platform=mock&auth=email` is a signed-in player (cloud save and scores).
-- Unit tests cover slug selection, guests, rejected calls, byte caps, 30-second spacing and coalescing.
-- Required live sandbox checks: registered player score appears under their portal name, guest posts are absent, a denied trial save does not stop play, and a replay cannot lower the platform best score.
+`pnpm check` covers counting unique campaigns, invalid/unknown stars, old score migration, production game/board ids, guest access, response validation, rejected calls, byte caps, weekly resets and 30-second coalescing. `Tools/qa/player_leaderboard.py` injects a scriptable SDK into the unpacked release for three-size UI checks, escaped names, empty/error recovery, the first-win score, and a 25-move journey with a mid-run reload. It never contacts or changes the live leaderboard.
+
+Developer Console Sandbox Preview remains the final live check: verify a signed-in score appears under the player's portal name on `strongplayer`, a guest cannot post, and the production weekly reset is reflected correctly. The local test verifies API calls and behavior, not Netlify persistence or gem payouts; the platform handles ended-period prizes.

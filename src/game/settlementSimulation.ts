@@ -391,7 +391,8 @@ export class SettlementSimulation {
     Object.assign(this.state, createInitialState(), loaded, { resources, armyReport, lastSummary, constructionElapsed }, selection);
     // An unfinished muster from the older 12-move schedule can use the new
     // preparation moves. Completed battles keep their recorded result.
-    if (this.state.mode === "muster" && this.state.civicLevel < this.campaign.moveLimit) {
+    const extendedMuster = this.state.mode === "muster" && this.state.civicLevel < this.campaign.moveLimit;
+    if (extendedMuster) {
       this.state.mode = "awaiting-choice";
       this.state.move = this.state.civicLevel + 1;
     }
@@ -399,7 +400,7 @@ export class SettlementSimulation {
     const retiredBurj = this.state.availableBuildingIds.includes("burj") && !isBuildingEligible(BUILDINGS.burj, this.state.builtBuildingIds, this.state.move);
     if (retiredBurj) this.state.availableBuildingIds = this.state.availableBuildingIds.filter(id => id !== "burj");
     const offerSlots = building ? 2 : 3;
-    while (retiredBurj && (building || this.state.mode === "awaiting-choice") && this.state.availableBuildingIds.length < offerSlots) {
+    while ((retiredBurj || extendedMuster) && (building || this.state.mode === "awaiting-choice") && this.state.availableBuildingIds.length < offerSlots) {
       const reserved = this.state.selectedBuildingId ? [...this.state.availableBuildingIds, this.state.selectedBuildingId] : this.state.availableBuildingIds;
       const replacement = nextBuildingOffer(this.state.builtBuildingIds, reserved, this.state.move, this.state.builtBuildingIds.at(-1) ?? "", this.campaign.availableBuildingIds);
       if (!replacement) break;

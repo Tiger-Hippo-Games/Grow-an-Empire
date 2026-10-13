@@ -7,9 +7,9 @@ import { MAX_CAMPAIGN_MOVES } from "./content";
  * buildings); only the enemy and the number of moves before it arrives can
  * change. Within each chapter the order is easy, medium, medium, medium,
  * hard, and each chapter is harder than the one before (`targetWinShare`).
- * Each enemy was sized with the balance simulation to hit that share of all
- * build orders, and the star margins were set from how far the winning build
- * orders win by (`__tests__/balance.test.ts` keeps both honest; rerun
+ * Each enemy was sized with the balance simulation: exhaustive orders at 12
+ * moves, 4,096 seeded build-first journeys per longer move limit. Star
+ * margins follow how far the winning orders win by (`__tests__/balance.test.ts` keeps both honest; rerun
  * `npx tsx Tools/balance/calibrate.ts` after a rules change).
  */
 

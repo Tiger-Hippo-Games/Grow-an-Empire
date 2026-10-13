@@ -6,9 +6,8 @@ import { SCORE_PER_LEVEL } from "./leaderboard";
  * (design: "Grow an Empire: Bharatvarsha", project docs). The player's goal is
  * rank 1.
  *
- * - Everyone is ranked by the portal leaderboard score (level × 100 + stars,
- *   `leaderboard.ts`), then by who got there first, so the in-game rank and the
- *   portal board agree on what counts.
+ * - AI Realm ranks by level × 100 + stars, then by who got there first.
+ *   The separate production weekly player board scores distinct campaign wins.
  * - The field is fixed (seed 108), the same for every player. A rival's skill
  *   limits how far it can ever get: it clears a campaign only while its skill
  *   is within the share of all build orders that win that campaign

@@ -61,12 +61,13 @@ export function sampleEndings(campaign: CampaignDefinition, count = 4096): Searc
   return { endings, deadEnds };
 }
 
-const referenceCache = new Map<number, SearchResult>();
+const referenceCache = new Map<string, SearchResult>();
 export function referenceEndings(campaign: CampaignDefinition): SearchResult {
-  let result = referenceCache.get(campaign.moveLimit);
+  const key = `${campaign.moveLimit}/${campaign.availableBuildingIds.join(",")}`;
+  let result = referenceCache.get(key);
   if (!result) {
     result = campaign.moveLimit === 12 ? searchEndings({ campaign }) : sampleEndings(campaign);
-    referenceCache.set(campaign.moveLimit, result);
+    referenceCache.set(key, result);
   }
   return result;
 }

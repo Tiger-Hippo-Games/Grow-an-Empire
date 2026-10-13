@@ -5,18 +5,25 @@ import { CAMPAIGN_FIELD } from "../realm";
 import { bestMargin } from "../balance";
 
 /**
- * Plays every reachable 12-move game under the reference build-first policy
+ * Exhaustively checks 12-move games; longer games use 4,096 seeded journeys
+ * per move limit under the reference build-first policy
  * and checks the difficulty plan: in every chapter
  * easy → medium ×3 → hard, each chapter harder than the last, Campaign 1
  * always winnable and Campaign 25 about 5%.
  * If this fails after a rules change, rerun Tools/balance/calibrate.ts.
  */
-describe("balance across every reference build order", () => {
+describe("campaign balance: exhaustive early orders and seeded long journeys", () => {
   const { endings, deadEnds } = referenceEndings(CAMPAIGNS[0]);
 
   it("never leaves a player with no legal move", () => {
     expect(deadEnds).toBe(0);
     expect(endings.length).toBeGreaterThan(5000);
+    for (const limit of [14,15,16,18,20,25]) {
+      const reference = referenceEndings(CAMPAIGNS.find(c => c.moveLimit === limit)!);
+      expect(reference.deadEnds, `${limit} moves`).toBe(0);
+      expect(reference.endings).toHaveLength(4096);
+      expect(reference.endings.every(e => e.built.length + e.gathers === limit)).toBe(true);
+    }
   });
 
   it("explores strategic Gather on every turn of an eight-move campaign", () => {
