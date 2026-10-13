@@ -25,6 +25,8 @@ export interface GoLiveSdk {
   saveGameProgress(progress: Record<string, unknown>, gameId?: string): Promise<unknown>;
   /** Optional only so a stale SDK degrades safely; SDK 1.5.0 provides it. */
   submitScore?(leaderboardSlug: string, score: number, metadata?: Record<string, unknown>): Promise<unknown>;
+  getLeaderboard?(leaderboardSlug: string, limit: number): Promise<unknown>;
+  getMyRank?(leaderboardSlug: string): Promise<unknown>;
   startSession(): string | void;
   endSession(durationSeconds?: number): void;
   track(eventName: string, properties?: Record<string, unknown>): void;
@@ -39,6 +41,12 @@ declare global {
 
 /** Which backend is active. Shown in the console at boot. */
 export type PlatformKind = "golive" | "local" | "mock";
+
+export interface PlayerRanking { rank: number; displayName: string; score: number }
+export interface LiveLeaderboard {
+  entries: PlayerRanking[];
+  me: { rank: number | null; score: number | null } | null;
+}
 
 /**
  * Everything the game needs from "the platform". Every method is safe to call
@@ -70,6 +78,7 @@ export interface PlatformAdapter {
   cloudSaveAllowed(): boolean;
   /** Real portal leaderboard submission; failure never blocks gameplay. */
   submitScore(score: number, metadata: Record<string, unknown>): Promise<"ok" | "error" | "unavailable">;
+  readLeaderboard(): Promise<LiveLeaderboard | "unavailable">;
   startSession(): void;
   endSession(durationSeconds: number): void;
   /** Fire-and-forget analytics. Never throws. */

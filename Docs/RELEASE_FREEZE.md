@@ -1,4 +1,25 @@
-# Release freeze: v0.10.8
+# Release freeze: v0.11.2
+
+2026-10-13. Ready for Sandbox Preview, including the full UI/gameplay update and loading bar with 24 building tips. Supersedes intermediate v0.11.0/v0.11.1 and v0.10.8; their ZIPs remain unchanged. Not published to the live portal.
+
+## Immutable artifact
+
+- `release/grow-an-empire-0.11.2.zip`: **17,859,610 bytes**, 155 entries.
+- SHA-256: `83BD50EDB8AE4B3A6F790C16AB8D2685109A73BE39EC0F64E8F7F98CE65110A1`
+- Save schema **6**, v4/v5 migrations retained. Game slug `grow-an-empire`; leaderboard `campaign-progress`.
+
+## Verified locally
+
+- TypeScript, ESLint and 266 tests in 28 files; all 15 bundle checks.
+- Persistent resource/move HUD, horizontal cards, permanent benefits, speed label, move briefing/countdown, watchtower formations, correct battle stopping and Burj prerequisites.
+- 14-size UI sweep; desktop and both phone-orientation campaign journeys; final phone word budgets.
+- Exact ZIP in a 1920×1080 iframe at 1.5×: full campaign flow, completed-city inspection, one GAME_READY, guest behavior and portal lifecycle; no game errors/warnings/failed requests.
+- Loading tips/bar at desktop and phone sizes under throttling, including pre-boot card hiding and immediate tip cleanup.
+- Compressed startup: 1.75 s at 10 Mbps, 9.15 s on Slow 4G; 1.7 MB / 11 requests.
+
+Full evidence and local-test limitations are in `Docs/QA_RESULTS.md`. Real portal, Safari and physical-device checks remain required before publication. Follow the existing Developer Console and provenance steps below. Keep this ZIP unchanged; further changes require a new version and ZIP.
+
+## Historical release freeze: v0.10.8
 
 2026-10-12. Release candidate for Sandbox Preview; not yet submitted or approved for publication. Includes the completed painted buildings and elephant, smaller runtime building textures and a full iframe/UI readiness pass. Supersedes v0.10.6 and the intermediate v0.10.7 QA package. Earlier ZIPs stay in `release/`, unchanged.
 

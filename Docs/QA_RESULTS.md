@@ -1,5 +1,17 @@
 # QA results
 
+## v0.11.2 (2026-10-13): UI, army, moves and loading tips
+
+- `pnpm check`: TypeScript, ESLint and **266 tests in 28 files** pass. Coverage includes all 24 loading hints, progress/timer cleanup, premature Burj offers restored during choices/construction, the last surviving actor, empty armies and combat stopping on defeat. Original v4/v5 save migration fixtures still load (schema 6).
+- v0.11 UI sweep: **14 viewports** pass, including map headers/Realm controls, speed/HUD/tray overlap, bounds, touch targets, text and stage fit. Full first-campaign journeys at 1920×1080, 844×390 and 390×844 validate persistent resources during every phase, horizontal choices, visible benefits and the move countdown. Final phone word-budget checks pass in both orientations with the requested permanent wording.
+- Exact final ZIP, real **1920×1080 iframe**: fixed stage at **1.5×**, no scroll or offscreen panels, persistent HUD on all screens; map/Realm, briefing/Details/tutorial, choices/report, muster/result and completed-city inspection pass. GAME_READY arrives once with gameVersion 0.11.2; portal pause/resume/session end work; guest cloud/score calls remain absent. No game errors, warnings or failed requests; art, font and audio health clean. Harness sandbox notices are recorded separately.
+- Exact ZIP on a throttled connection (desktop and phone): building tips rotate above the progress bar, all 24 tips have catalog-backed unit coverage, progress is monotonic, build cards stay hidden until boot, and tips stop immediately on readiness. No added art downloads or minimum loading delay.
+- Startup with negotiated HTTP gzip: **1.75 s at 10 Mbps**, **9.15 s on Slow 4G (1.6 Mbps)**, **1.7 MB / 11 requests** before playable. v0.11.1 briefly exposed lazy card art before boot and measured 10.59 s / 1.98 MB on Slow 4G; v0.11.2 restores the first-screen download budget with a stronger pre-boot selector.
+- All 25 campaigns and the AI Realm field recalibrated after Burj began requiring three completed war-family buildings (including Prakara). Trained troops now form beside the watchtower; battle sprites preserve the final survivor and stop striking when one army falls. Briefing explains build/Gather moves and Fight; remaining moves appear centrally after each completed move.
+- `pnpm package`: all **15 validator checks** pass; **17,859,610 bytes**, 155 ZIP entries. SHA-256 `83BD50EDB8AE4B3A6F790C16AB8D2685109A73BE39EC0F64E8F7F98CE65110A1`. Intermediate 0.11.0 and 0.11.1 ZIPs are preserved; deliver 0.11.2.
+
+The release simulator supplies a local SDK stand-in and compressed text responses; the packaged HTML retains the official SDK URL. Real portal accounts/leaderboard, Safari and physical-device FPS remain outside this local QA. Earlier art/SDK/failure validation is recorded below.
+
 ## v0.10.8 (2026-10-12): final iframe and UI readiness pass
 
 - Runtime building textures are capped at 768 px wide, with source proportions and full-resolution PNG masters preserved. The 32 new sprites use **50.3 MB decoded RGBA instead of 201.3 MB** (75% less, before mipmaps). Export revision 3; all runtime art is fresh. The release shrinks from 24.04 MB to **17.86 MB**. Gameplay, campaign balance, save schema 6 and plot positions are unchanged.

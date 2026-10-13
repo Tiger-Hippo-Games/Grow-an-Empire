@@ -16,7 +16,7 @@ import { CAMPAIGNS } from "./campaigns";
  * submits it to the SDK leaderboard at battle end. Analytics are diagnostic.
  */
 export const SCORE_PER_LEVEL = 100;
-export const LEADERBOARD_SCHEMA = 1;
+export const LEADERBOARD_SCHEMA = 2;
 
 export interface LeaderboardEntry {
   schema: number;
@@ -27,7 +27,7 @@ export interface LeaderboardEntry {
   campaignName: string | null;
   /** Best stars summed over every campaign, 0–75. */
   totalStars: number;
-  /** level × 100 + totalStars. Higher ranks higher. */
+  /** One point for each distinct campaign won, 0–25. Stars do not change the score. */
   score: number;
   /** ISO time the score last increased; null while it is 0. */
   reachedAt: string | null;
@@ -47,9 +47,11 @@ export function leaderboardEntry(
   let campaignId: string | null = null;
   let campaignName: string | null = null;
   let totalStars = 0;
+  let completedCampaigns = 0;
   for (const campaign of CAMPAIGNS) {
     const stars = campaignStars[campaign.id] ?? 0;
-    if (!(stars > 0)) continue;
+    if (!Number.isFinite(stars) || Math.floor(stars) < 1) continue;
+    completedCampaigns += 1;
     totalStars += Math.min(3, Math.floor(stars));
     if (campaign.number > level) {
       level = campaign.number;
@@ -57,8 +59,8 @@ export function leaderboardEntry(
       campaignName = campaign.name;
     }
   }
-  const score = level * SCORE_PER_LEVEL + totalStars;
-  const unchanged = previous && previous.score === score && typeof previous.reachedAt === "string";
+  const score = completedCampaigns;
+  const unchanged = previous?.schema === LEADERBOARD_SCHEMA && previous.score === score && typeof previous.reachedAt === "string";
   return {
     schema: LEADERBOARD_SCHEMA, level, campaignId, campaignName, totalStars, score,
     reachedAt: score === 0 ? null : unchanged ? previous.reachedAt as string : now.toISOString(),

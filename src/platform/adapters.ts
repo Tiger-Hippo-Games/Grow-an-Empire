@@ -1,4 +1,4 @@
-import type { GoLiveSdk, PlatformAdapter, PlayerInfo } from "./types";
+import type { GoLiveSdk, LiveLeaderboard, PlatformAdapter, PlayerInfo } from "./types";
 import { isRegisteredPlayer } from "../game/leaderboard";
 
 /** The portal's guest player (signed out): may play, can't save to the cloud or post scores. */
@@ -18,9 +18,9 @@ import { debugFlagsAllowed } from "./debugFlags";
  */
 
 /** Slug registered in the Developer Console. Must match it exactly (DEVELOPER_GUIDE §8). */
-export const GAME_ID = "grow-an-empire";
-/** Create this All-Time, Highest Score Wins board in the Developer Console. */
-export const LEADERBOARD_SLUG = "campaign-progress";
+export const GAME_ID = "grow";
+/** Production weekly Highest Score Wins board; resets Monday at 00:00 UTC. */
+export const LEADERBOARD_SLUG = "strongplayer";
 export const MAX_CLOUD_SAVE_BYTES = 64 * 1024;
 const MAX_SCORE_METADATA_BYTES = 2 * 1024;
 
@@ -161,6 +161,33 @@ export function createGoLivePlatform(sdk: GoLiveSdk, apiBaseUrl?: string): Platf
         return "error";
       }
     },
+    async readLeaderboard() {
+      if (!connected || typeof sdk.getLeaderboard !== "function") return "unavailable";
+      try {
+        const [raw, own] = await Promise.all([
+          withTimeout(sdk.getLeaderboard(LEADERBOARD_SLUG, 10), REQUEST_TIMEOUT_MS, "Platform.getLeaderboard()"),
+          isRegisteredPlayer(activePlayer?.authType) && typeof sdk.getMyRank === "function"
+            ? withTimeout(sdk.getMyRank(LEADERBOARD_SLUG), REQUEST_TIMEOUT_MS, "Platform.getMyRank()").catch((error: unknown) => { warn("rank", "Your rank could not be loaded.", error); return null; })
+            : Promise.resolve(null),
+        ]);
+        if (!raw || typeof raw !== "object" || !Array.isArray((raw as { entries?: unknown }).entries)) throw new Error("Malformed leaderboard response");
+        const entries: LiveLeaderboard["entries"] = [];
+        for (const value of (raw as { entries: unknown[] }).entries.slice(0, 10)) {
+          if (!value || typeof value !== "object") continue;
+          const row = value as Record<string, unknown>;
+          if (!Number.isInteger(row.rank) || (row.rank as number) < 1 || typeof row.score !== "number" || !Number.isFinite(row.score) || row.score < 0) continue;
+          entries.push({ rank: row.rank as number, score: row.score, displayName: typeof row.displayName === "string" ? row.displayName : "Player" });
+        }
+        const rank = own && typeof own === "object" ? own as Record<string, unknown> : null;
+        return { entries, me: rank ? {
+          rank: Number.isInteger(rank.rank) && (rank.rank as number) > 0 ? rank.rank as number : null,
+          score: typeof rank.score === "number" && Number.isFinite(rank.score) && rank.score >= 0 ? rank.score : null,
+        } : null };
+      } catch (error) {
+        warn("board", "Weekly leaderboard could not be loaded; play continues.", error);
+        return "unavailable";
+      }
+    },
     startSession() {
       if (!connected) return;
       callQuietly(() => sdk.startSession(), (error) => warn("session", "startSession failed", error));
@@ -190,6 +217,7 @@ export function createLocalPlatform(): PlatformAdapter {
     saveProgress: async () => "error",
     cloudSaveAllowed: () => false,
     submitScore: async () => "unavailable",
+    readLeaderboard: async () => "unavailable",
     startSession() {},
     endSession() {},
     track() {},
@@ -224,6 +252,7 @@ export function createMockPlatform(): PlatformAdapter {
   };
 
   let registered = false;
+  let mockScore: number | null = null;
   return {
     kind: "mock",
     async connect() {
@@ -239,7 +268,13 @@ export function createMockPlatform(): PlatformAdapter {
     async submitScore(score, metadata) {
       if (!registered) return "unavailable";
       record("submitScore", LEADERBOARD_SLUG, score, metadata);
+      mockScore = Math.max(mockScore ?? 0, score);
       return "ok";
+    },
+    async readLeaderboard() {
+      record("getLeaderboard", LEADERBOARD_SLUG, 10);
+      if (registered) record("getMyRank", LEADERBOARD_SLUG);
+      return { entries: mockScore === null ? [] : [{ rank: 1, displayName: "Mock Player", score: mockScore }], me: registered ? { rank: mockScore === null ? null : 1, score: mockScore } : null };
     },
     cloudSaveAllowed: () => registered,
     async loadProgress() {
