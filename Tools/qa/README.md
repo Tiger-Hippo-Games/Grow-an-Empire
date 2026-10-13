@@ -39,3 +39,5 @@ The production iframe check uses Chromium's ANGLE SwiftShader option (`--use-ang
 All scripts share `flow.py` (campaign map → briefing → city, play a move, play to the muster, fight). When the game's flow changes, update it there.
 
 `python Tools/qa/ui_tray.py` checks the persistent resource dropdown (including Escape during dialogs), same-row build choices, permanent benefit visibility, speed label, end-of-move countdown and full campaign completion at 1920×1080, 844×390 and 390×844. Uses preview port 4174 or `GAE_URL`. The viewport suite checks 14 sizes; horizontal card scrolling is intentional on narrow phones. Text budgets include permanent HUD labels and requested benefit sentences in v0.11.0.
+
+`python Tools/qa/loading_state.py` tests the exact release at the portal path on a throttled connection (1920×1080 and 390×844): visible building tips above the progress bar, monotonic progress, no early build-card layout/art, and immediate hint removal when ready. Unit tests cover all 24 tips and timer cleanup on success/error. The loader does not hold boot open to display every hint.

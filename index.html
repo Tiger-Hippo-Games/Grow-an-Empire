@@ -260,8 +260,9 @@
       </aside>
 
       <div id="loading" class="loading" role="status">
-        <div class="loading-mark" aria-hidden="true"></div>
-        <span>Preparing the city…</span>
+        <p id="loading-tip" class="loading-tip"><strong id="loading-building">Woodcutter’s Hut</strong><span id="loading-benefit">Supplies wood to expand your city.</span></p>
+        <div id="loading-progress" class="loading-progress" role="progressbar" aria-label="Loading the game" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="loading-fill" class="loading-fill"></div></div>
+        <span id="loading-label">Preparing the city…</span>
       </div>
     </main>
     <script type="module" src="/src/main.ts"></script>

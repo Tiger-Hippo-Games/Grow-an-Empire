@@ -1081,7 +1081,7 @@ async function initialize(): Promise<void> {
   stopProgress();
   resize();
   requestRender();
-  hud.loading.classList.add("hidden");
+  hud.finishLoading();
   document.documentElement.dataset.booted = "true"; // Tells the boot watchdog in index.html that startup succeeded.
   performance.mark("gae-playable"); // Time-to-playable, for QA measurements (Docs/PERFORMANCE_BUDGET.md).
   initialized = true;

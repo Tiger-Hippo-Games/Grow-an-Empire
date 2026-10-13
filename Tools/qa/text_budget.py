@@ -3,9 +3,9 @@
 Plays Campaign 1 on a phone in portrait (390x844) and landscape (844x390)
 against the preview build, and on every screen counts the words a player can
 see: text that is visible, on screen, not hidden for screen readers only, and,
-while a dialog or the map is open, only the words inside it. Fails if a screen
-goes over its budget, or if an amount of a good is written out ("4 wood")
-instead of shown with its icon.
+while a dialog or the map is open, its words plus the persistent HUD labels.
+Fails if a screen exceeds its budget or price/stockpile amounts omit icons.
+The requested permanent building benefit sentences may name amounts in prose.
 
     pnpm build; pnpm exec vite preview   # http://127.0.0.1:4174
     python Tools/qa/text_budget.py [WxH ...]

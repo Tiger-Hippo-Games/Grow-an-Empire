@@ -14,6 +14,7 @@ import { buildingFilename } from "../render/constructionView";
 import { effectHtml } from "./cardEffect";
 import { escapeHtml, focusFirst, requireElement } from "./dom";
 import { amount, icon, iconWord, type IconName } from "./icons";
+import { createLoadingScreen } from "./loadingScreen";
 import type { CampaignDefinition } from "../game/campaigns";
 
 /** User actions the HUD reports back to `main.ts`. The HUD never changes game state itself. */
@@ -77,6 +78,7 @@ export function createHud(callbacks: HudCallbacks) {
   const campaignTitle = requireElement<HTMLElement>(".brand h1");
   const raidObjective = requireElement<HTMLElement>(".raid-objective strong");
   const loading = requireElement<HTMLElement>("#loading");
+  const loadingScreen = createLoadingScreen(loading);
   const phaseLabel = requireElement<HTMLElement>("#phase");
   const progressFill = requireElement<HTMLElement>("#phase-progress");
   const moveLabel = requireElement<HTMLElement>("#move");
@@ -695,14 +697,14 @@ export function createHud(callbacks: HudCallbacks) {
     buildFoot.querySelectorAll("button").forEach((button) => { button.disabled = busy; });
   }
 
-  const loadingLabel = loading.querySelector("span");
   /** Shows boot progress on the loading screen, e.g. "Preparing the city… 12 / 20". */
   function setLoadingProgress(settled: number, requested: number): void {
-    if (loadingLabel && requested > 0) loadingLabel.textContent = `Preparing the city… ${settled} / ${requested}`;
+    loadingScreen.setProgress(settled, requested);
   }
 
   /** Replaces the loading screen's content with an error message and a reload button. */
   function showLoadError(message: string): void {
+    loadingScreen.stop();
     const title = document.createElement("strong");
     title.textContent = "Could not load the settlement.";
     const detail = document.createElement("span");
@@ -1070,6 +1072,7 @@ export function createHud(callbacks: HudCallbacks) {
     viewport,
     loading,
     setLoadingProgress,
+    finishLoading: loadingScreen.finish,
     setStatus,
     setCivicLevel,
     updateHud,
