@@ -1,4 +1,16 @@
-# Release freeze: v0.12.3
+# Release freeze: v0.12.4
+
+2026-10-13. Civic spacing update: Dharmashala behind the town center, House and Bazaar farther out to avoid overlapping the mature hall. Building-keyed roads and walking routes follow the new anchors. All preceding campaign, leaderboard and script-policy fixes are included. Not published to the live portal.
+
+- `release/grow-an-empire-0.12.4.zip`: **17,861,770 bytes**, 157 entries.
+- SHA-256: `2DBAB625C91D6592174F3A932C57767DAF50D822FAC643C14312E63C094497C9`
+- Production game `grow`, board `strongplayer`, settlement schema 6.
+- All 24 plots visually reviewed, including mature hall and the newer buildings' construction stages; no art errors.
+- TypeScript, lint, 280 tests and 16 upload checks pass. External boot scripts / zero inline blocks retained.
+
+See `Docs/QA_RESULTS.md`. Upload this latest ZIP for live revalidation; older releases remain unchanged. Further changes need a new version and ZIP.
+
+## Historical release freeze: v0.12.3
 
 2026-10-13. Replacement for the portal's inline-script warning. Screen fit and the boot watchdog are external, versioned files; index.html contains zero inline script blocks. All previous campaign/UI/leaderboard changes remain included. Not uploaded or published to the live portal.
 

@@ -1,5 +1,13 @@
 # QA results
 
+## v0.12.4 (2026-10-13): clearer civic-center spacing
+
+Dharmashala moves behind the Town Hall on the north approach, from plan (1010, 900) to (1000, 270). House moves left/down from (788, 587) to (700, 625); Bazaar moves right/down from (1124, 580) to (1200, 650). Positions remain keyed by building identity, so roads, construction sprites, villagers and restored cities follow the same anchors without a save migration.
+
+- Visual review shows all 24 finished buildings around the largest level-8 civic art, plus construction stages for the eight newer buildings. The central hall, House and Bazaar are visually separated; Dharmashala is clearly behind the hall. No browser errors, warnings or broken images. Screenshot: `Tools/qa/out/art-optimized/all-plots.png`; log: `Tools/qa/out/city-spacing-final.txt`.
+- Updated existing reserved-anchor expectations. TypeScript, lint and **280 tests in 29 files** pass, including functional routes and the exhaustive early route/offer proof.
+- Versioned package passes **all 16 upload checks**, retaining the external boot scripts and zero inline script blocks. ZIP: **17,861,770 bytes**, 157 entries, SHA-256 `2DBAB625C91D6592174F3A932C57767DAF50D822FAC643C14312E63C094497C9`. Preview server serves this exact unpacked ZIP. Broader browser/CSP/leaderboard validation from the preceding releases is retained below; this change is limited to three plot positions.
+
 ## v0.12.3 (2026-10-13): live portal script-policy fix
 
 The reported two inline scripts were still present in 0.12.2. Screen sizing and boot-error recovery now live in `public/boot-stage.js` and `public/boot-watchdog.js`, loaded as ordered, versioned external files before the SDK/game. The packaged HTML has **zero inline script blocks**; all four scripts load from files, and both new files are byte-identical to their packaged copies. The official SDK tag stays intact.
