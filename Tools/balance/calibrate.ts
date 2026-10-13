@@ -13,13 +13,15 @@
  *
  *   npx tsx Tools/balance/calibrate.ts
  */
-import { bestMargin, searchEndings } from "../../src/game/balance";
+import { bestMargin, referenceEndings } from "../../src/game/balance";
 import { SELLSWORD_COST } from "../../src/game/economy";
 import type { EnemyArmy } from "../../src/game/battle";
-import { ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
+import { CAMPAIGNS, ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
 
 {
-  const { endings } = searchEndings();
+  const used = new Set<string>();
+  ENEMY_MIX.forEach((mix, index) => {
+  const { endings } = referenceEndings(CAMPAIGNS[index]);
   // Equivalent armies and hiring budgets have identical margins. Keep their
   // original multiplicities, so grouping speeds the search without reweighting it.
   const keyOf = (ending: (typeof endings)[number]): string => [ending.archers, ending.swordsmen, ending.horsemen, ending.militia, ending.elephants, ending.prakara, ending.stambha, ending.burj, ending.koshagar, ending.market, ending.market ? Math.floor(ending.gold / SELLSWORD_COST) : 0].join("/");
@@ -35,8 +37,6 @@ import { ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
     for (const { ending, count } of weighted.values()) if (bestMargin(ending, enemy) > 0) wins += count;
     return wins / endings.length;
   };
-  const used = new Set<string>();
-  ENEMY_MIX.forEach((mix, index) => {
     const number = index + 1;
     const target = targetWinShare(number);
     const base = { S: mix.includes("S") ? 1 : 0, A: mix.includes("A") ? 1 : 0, H: mix.includes("H") ? 1 : 0 };
@@ -44,7 +44,7 @@ import { ENEMY_MIX, targetWinShare } from "../../src/game/campaigns";
     let best: { d: number; enemy: EnemyArmy; share: number; key: string } | null = null;
     weights.forEach((w, uneven) => {
       for (const veterancy of Array.from({ length: 11 }, (_, step) => +(1 + step * 0.02).toFixed(2))) {
-        for (let n = 1; n <= (number === 1 ? 1 : 80); n += 1) {
+        for (let n = 1; n <= (number === 1 ? 1 : 240); n += 1) {
           const total = w.S + w.A + w.H;
           let swordsmen = Math.round((n * w.S) / total);
           let horsemen = Math.round((n * w.H) / total);

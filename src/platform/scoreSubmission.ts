@@ -3,6 +3,14 @@ import type { PlatformAdapter, PlayerInfo } from "./types";
 
 const SCORE_INTERVAL_MS = 30_000;
 
+/** Monday UTC identifies the portal's current weekly competition. */
+export function leaderboardWeek(now = Date.now()): string {
+  const date = new Date(now);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7);
+  return date.toISOString().slice(0, 10);
+}
+
 /** Posts completed battle results, coalescing fast replays to the best score. */
 export function createScoreSubmission(platform: PlatformAdapter) {
   let lastAttempt = -Infinity;
@@ -11,6 +19,7 @@ export function createScoreSubmission(platform: PlatformAdapter) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let sending = false;
   let warned = false;
+  let period = leaderboardWeek();
 
   async function send(): Promise<void> {
     timer = null;
@@ -18,6 +27,8 @@ export function createScoreSubmission(platform: PlatformAdapter) {
     const wait = SCORE_INTERVAL_MS - (Date.now() - lastAttempt);
     if (wait > 0) { timer = setTimeout(() => { void send(); }, wait); return; }
     const entry = pending;
+    const sendingPeriod = leaderboardWeek();
+    if (period !== sendingPeriod) { period = sendingPeriod; postedScore = -1; }
     pending = null;
     lastAttempt = Date.now();
     sending = true;
@@ -25,8 +36,9 @@ export function createScoreSubmission(platform: PlatformAdapter) {
       const result = await platform.submitScore(entry.score, {
         level: entry.level, campaignId: entry.campaignId,
         totalStars: entry.totalStars, reachedAt: entry.reachedAt,
+        completedCampaigns: entry.score,
       });
-      if (result === "ok") postedScore = Math.max(postedScore, entry.score);
+      if (result === "ok" && sendingPeriod === leaderboardWeek()) postedScore = Math.max(postedScore, entry.score);
       // A rejection is non-fatal. The next battle can try again; do not
       // repeatedly retry a missing/deactivated board or a forbidden account.
     } catch (error) {
@@ -50,6 +62,8 @@ export function createScoreSubmission(platform: PlatformAdapter) {
   return {
     /** Call on match end, including a defeat with earlier earned progress. */
     submit(entry: LeaderboardEntry, player: PlayerInfo | null): void {
+      const week = leaderboardWeek();
+      if (week !== period) { period = week; postedScore = -1; }
       if (!player || !isRegisteredPlayer(player.authType) || !Number.isFinite(entry.score) || entry.score <= 0 || entry.score <= postedScore) return;
       if (!pending || entry.score > pending.score) pending = entry;
       if (!sending && !timer) void send();

@@ -1,6 +1,8 @@
 import { JANAPADAS, rankedRows, type PlayerStanding, type RankedRow, type RealmSource, type RealmState } from "../game/realm";
 import { escapeHtml, trapTab } from "./dom";
 import { icon } from "./icons";
+import { createPlayerLeaderboard } from "./playerLeaderboard";
+import type { PlatformAdapter } from "../platform/types";
 
 /**
  * The Realm board (game/realm.ts): the top 5 rajas, the player's
@@ -27,7 +29,7 @@ function row(entry: RankedRow): string {
   </li>`;
 }
 
-export function createRealmBoard(root: HTMLElement, onModalChange: (open: boolean) => void) {
+export function createRealmBoard(root: HTMLElement, onModalChange: (open: boolean) => void, platform: PlatformAdapter, signedIn: () => boolean) {
   const scrim = document.createElement("div");
   scrim.className = "realm-scrim hidden";
   const dialog = document.createElement("section");
@@ -41,6 +43,8 @@ export function createRealmBoard(root: HTMLElement, onModalChange: (open: boolea
   let input: RealmBoardInput | null = null;
   let filter = "";
   let returnFocus: HTMLElement | null = null;
+  let tab: "realm" | "players" = "realm";
+  const players = createPlayerLeaderboard(platform, signedIn);
 
   function render(): void {
     if (!input) return;
@@ -52,19 +56,30 @@ export function createRealmBoard(root: HTMLElement, onModalChange: (open: boolea
     const near = shown.slice(Math.max(0, at - 3), at + 4).filter((entry) => !top.includes(entry));
     dialog.innerHTML = `
       <button type="button" class="realm-close" data-primary data-action="close" aria-label="Close the realm board" title="Close">${icon("close")}</button>
+      <div class="ranking-tabs" role="group" aria-label="Choose rankings"><button type="button" data-tab="realm" aria-pressed="${tab === "realm"}">AI Realm</button><button type="button" data-tab="players" aria-pressed="${tab === "players"}">Strongest Player</button></div>
+      ${tab === "players" ? `<h2>Strongest Player</h2><div data-player-board></div>` : `
       <p class="flow-kicker">THE REALM · ${number(all.length - 1)} <span class="ws">RIVAL RAJAS</span> + ${icon("people")}<span class="ws">YOU</span></p>
       <h2 class="realm-head">${icon("rank")}<b>${number(me.rank)}</b><small>/ ${number(all.length)}</small><span class="realm-title">${escapeHtml(me.title)}</span></h2>
       <label class="realm-filter"><span class="w">Janapada</span><select aria-label="Show rajas from one janapada"><option value="">All</option>${JANAPADAS.map((name) => `<option${name === filter ? " selected" : ""}>${name}</option>`).join("")}</select></label>
       <ol class="realm-list" aria-label="Top rajas">${top.map(row).join("")}</ol>
       ${near.length ? `<p class="realm-gap" aria-hidden="true">⋯</p><ol class="realm-list" aria-label="Around you">${near.map(row).join("")}</ol>` : ""}
       <p class="flow-note quiet w">The other rajas are AI rivals on the same road. Win campaigns and stars to climb.</p>
+      `}
 `;
-    dialog.querySelector<HTMLSelectElement>("select")!.addEventListener("change", (event) => {
+    dialog.setAttribute("aria-label", tab === "players" ? "Strongest Player weekly leaderboard" : "The realm");
+    dialog.querySelector<HTMLSelectElement>("select")?.addEventListener("change", (event) => {
       filter = (event.target as HTMLSelectElement).value;
       render();
       dialog.querySelector<HTMLSelectElement>("select")?.focus();
     });
     dialog.querySelector("[data-action=close]")!.addEventListener("click", hide);
+    dialog.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach(button => button.addEventListener("click", () => {
+      tab = button.dataset.tab as typeof tab;
+      players.cancel();
+      render();
+      dialog.querySelector<HTMLButtonElement>(`[data-tab=${tab}]`)?.focus();
+    }));
+    if (tab === "players") void players.show(dialog.querySelector<HTMLElement>("[data-player-board]")!);
   }
 
   function show(next: RealmBoardInput): void {
@@ -78,6 +93,7 @@ export function createRealmBoard(root: HTMLElement, onModalChange: (open: boolea
   }
 
   function hide(): void {
+    players.cancel();
     scrim.classList.add("hidden");
     if (open) { open = false; onModalChange(false); }
     returnFocus?.focus?.({ preventScroll: true });

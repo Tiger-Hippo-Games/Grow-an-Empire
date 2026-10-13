@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { searchEndings, winShare } from "../balance";
+import { referenceEndings, searchEndings, winShare } from "../balance";
 import { CAMPAIGNS, ENEMY_MIX, campaignTier, targetWinShare } from "../campaigns";
 import { CAMPAIGN_FIELD } from "../realm";
 import { bestMargin } from "../balance";
@@ -12,7 +12,7 @@ import { bestMargin } from "../balance";
  * If this fails after a rules change, rerun Tools/balance/calibrate.ts.
  */
 describe("balance across every reference build order", () => {
-  const { endings, deadEnds } = searchEndings();
+  const { endings, deadEnds } = referenceEndings(CAMPAIGNS[0]);
 
   it("never leaves a player with no legal move", () => {
     expect(deadEnds).toBe(0);
@@ -30,7 +30,7 @@ describe("balance across every reference build order", () => {
   });
 
   it("puts each campaign's win chance on the plan", () => {
-    const shares = CAMPAIGNS.map((campaign) => winShare(endings, campaign.objective.army));
+    const shares = CAMPAIGNS.map((campaign) => winShare(referenceEndings(campaign).endings, campaign.objective.army));
     expect(shares[0]).toBe(1);
     for (const [index, share] of shares.entries()) {
       expect(Math.abs(share - targetWinShare(index + 1)), `campaign ${index + 1}: ${(share * 100).toFixed(1)}%`).toBeLessThan(0.05);
@@ -47,7 +47,7 @@ describe("balance across every reference build order", () => {
 
   it("keeps the rival field's shares in step with the rules", () => {
     for (const [index, campaign] of CAMPAIGNS.entries()) {
-      const margins = endings.map((ending) => bestMargin(ending, campaign.objective.army));
+      const margins = referenceEndings(campaign).endings.map((ending) => bestMargin(ending, campaign.objective.army));
       const reach = (margin: number) => margins.filter((m) => m > 0 && m >= margin - 1e-9).length / margins.length;
       const [win, two, three] = CAMPAIGN_FIELD[index];
       expect(Math.abs(reach(0) - win), `campaign ${index + 1} win`).toBeLessThan(0.005);

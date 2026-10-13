@@ -5,10 +5,7 @@ import { CAMPAIGNS } from "./campaigns";
  *
  * - **level**: the highest campaign won (1–25; 0 before the first win).
  *   Campaigns open in order, so this is how far up the road the player is.
- * - **score**: `level × 100 + total stars`. Level always decides first (a
- *   player on a higher campaign is ahead whatever their stars, since stars
- *   top out at 75), and among players on the same campaign more stars win.
- *   It only goes up: replays can add stars but never take them away.
+ * - **score**: one point per distinct campaign won. Replays and stars do not add points.
  * - **reachedAt**: when the score last went up. The portal breaks a tie by
  *   who got there first.
  *

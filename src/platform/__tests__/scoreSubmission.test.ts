@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CAMPAIGNS } from "../../game/campaigns";
 import { leaderboardEntry } from "../../game/leaderboard";
 import { createLocalPlatform } from "../adapters";
-import { createScoreSubmission } from "../scoreSubmission";
+import { createScoreSubmission, leaderboardWeek } from "../scoreSubmission";
 
 const player = { id: "p", displayName: "Ananya", authType: "EMAIL" };
-const entry = (stars: number) => leaderboardEntry({ [CAMPAIGNS[0].id]: stars });
+const entry = (count: number) => leaderboardEntry(Object.fromEntries(CAMPAIGNS.slice(0, count).map(c => [c.id, 1])));
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -25,9 +25,24 @@ describe("completed-result score submission", () => {
     await vi.advanceTimersByTimeAsync(29_999);
     expect(submitScore).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
-    expect(submitScore).toHaveBeenLastCalledWith(103, expect.objectContaining({ level: 1, totalStars: 3 }));
+    expect(submitScore).toHaveBeenLastCalledWith(3, expect.objectContaining({ level: 3, completedCampaigns: 3 }));
     queue.submit(entry(2), player);
     await vi.advanceTimersByTimeAsync(30_000);
+    expect(submitScore).toHaveBeenCalledTimes(2);
+  });
+
+  it("allows an unchanged score in a new UTC week, preserving rate limits", async () => {
+    vi.setSystemTime(new Date("2026-10-11T23:59:50Z"));
+    expect(leaderboardWeek()).toBe("2026-10-05");
+    const submitScore = vi.fn().mockResolvedValue("ok");
+    const queue = createScoreSubmission({ ...createLocalPlatform(), submitScore });
+    queue.submit(entry(2), player);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(leaderboardWeek()).toBe("2026-10-12");
+    queue.submit(entry(2), player);
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(submitScore).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
     expect(submitScore).toHaveBeenCalledTimes(2);
   });
 

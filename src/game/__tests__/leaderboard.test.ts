@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CAMPAIGNS } from "../campaigns";
-import { isRegisteredPlayer, leaderboardEntry, readLeaderboardEntry, SCORE_PER_LEVEL } from "../leaderboard";
+import { isRegisteredPlayer, leaderboardEntry, readLeaderboardEntry } from "../leaderboard";
 import { toSavedGame } from "../../platform/progressStore";
 import { SettlementSimulation } from "../settlementSimulation";
 
@@ -13,23 +13,30 @@ describe("leaderboard standing", () => {
     expect(leaderboardEntry({}, null, NOW)).toMatchObject({ level: 0, campaignId: null, totalStars: 0, score: 0, reachedAt: null });
   });
 
-  it("levels by the highest campaign won and adds the stars", () => {
+  it("scores distinct completed campaigns and keeps stars as metadata", () => {
     const entry = leaderboardEntry({ [id(1)]: 3, [id(2)]: 2, [id(3)]: 1 }, null, NOW);
-    expect(entry).toMatchObject({ level: 3, campaignId: id(3), campaignName: CAMPAIGNS[2].name, totalStars: 6, score: 3 * SCORE_PER_LEVEL + 6 });
+    expect(entry).toMatchObject({ level: 3, campaignId: id(3), campaignName: CAMPAIGNS[2].name, totalStars: 6, score: 3 });
     expect(entry.reachedAt).toBe(NOW.toISOString());
   });
 
-  it("ranks a higher campaign above any number of stars on a lower one", () => {
+  it("ranks more completed campaigns above any number of stars", () => {
     const allStarsOnTwentyFour = Object.fromEntries(CAMPAIGNS.slice(0, 24).map((campaign) => [campaign.id, 3]));
     const oneStarEachToTwentyFive = Object.fromEntries(CAMPAIGNS.map((campaign) => [campaign.id, 1]));
     expect(leaderboardEntry(oneStarEachToTwentyFive).score).toBeGreaterThan(leaderboardEntry(allStarsOnTwentyFour).score);
-    expect(leaderboardEntry(Object.fromEntries(CAMPAIGNS.map((campaign) => [campaign.id, 3]))).score).toBe(25 * SCORE_PER_LEVEL + 75);
+    expect(leaderboardEntry(Object.fromEntries(CAMPAIGNS.map((campaign) => [campaign.id, 3]))).score).toBe(25);
   });
 
   it("keeps the time a score was reached until it improves", () => {
     const first = leaderboardEntry({ [id(1)]: 2 }, null, NOW);
     expect(leaderboardEntry({ [id(1)]: 2 }, first, LATER).reachedAt).toBe(NOW.toISOString());
-    expect(leaderboardEntry({ [id(1)]: 3 }, first, LATER).reachedAt).toBe(LATER.toISOString());
+    expect(leaderboardEntry({ [id(1)]: 3 }, first, LATER).reachedAt).toBe(NOW.toISOString());
+    expect(leaderboardEntry({ [id(1)]: 3, [id(2)]: 1 }, first, LATER).reachedAt).toBe(LATER.toISOString());
+  });
+
+  it("counts sparse wins rather than the highest campaign and migrates legacy scores", () => {
+    expect(leaderboardEntry({ [id(25)]: 1 }).score).toBe(1);
+    expect(leaderboardEntry({ [id(1)]: Infinity, [id(2)]: NaN, [id(3)]: 0.5 }).score).toBe(0);
+    expect(leaderboardEntry({ [id(1)]: 3 }, { schema: 1, score: 103 }, NOW)).toMatchObject({ schema: 2, score: 1 });
   });
 
   it("ignores unknown campaign ids and caps stars at 3", () => {

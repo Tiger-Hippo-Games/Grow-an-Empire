@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUILDINGS, isBuildingEligible, MAX_CAMPAIGN_MOVES, nextBuildingOffer, OPENING_BUILD_OPTIONS, TOTAL_MOVES } from "../content";
+import { BUILDINGS, isBuildingEligible, nextBuildingOffer, OPENING_BUILD_OPTIONS, TOTAL_MOVES } from "../content";
 import { getVisibleRoadSegments } from "../../render/cityLayout";
 import { buildFunctionalRoutes } from "../../render/villagers";
 
@@ -53,14 +53,14 @@ describe("every reachable twelve-move build order", () => {
   it("keeps an available offer on every reachable route", () => {
     const visited = new Set<string>();
     function explore(built: string[], options: string[]): void {
-      if (built.length === MAX_CAMPAIGN_MOVES) return;
+      if (built.length === TOTAL_MOVES) return;
       const key = `${[...built].sort().join(",")}|${options.join(",")}`;
       if (visited.has(key)) return;
       visited.add(key);
       expect(options.length, `move ${built.length + 1}: ${built.join(", ")}`).toBeGreaterThan(0);
       for (const id of options) {
         const nextBuilt = [...built, id];
-        if (nextBuilt.length === MAX_CAMPAIGN_MOVES) continue;
+        if (nextBuilt.length === TOTAL_MOVES) continue;
         const nextOptions = options.filter((option) => option !== id);
         const offer = nextBuildingOffer(nextBuilt, nextOptions, nextBuilt.length + 1, id);
         if (offer) nextOptions.push(offer);

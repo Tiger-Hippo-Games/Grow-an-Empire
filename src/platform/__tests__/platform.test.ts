@@ -112,6 +112,7 @@ function fakePlatform(overrides: Partial<PlatformAdapter> = {}) {
     saveProgress: async (progress) => { saves.push(progress); cloud = progress; return "ok"; },
     cloudSaveAllowed: () => true,
     submitScore: async () => "ok",
+    readLeaderboard: async () => "unavailable",
     startSession: vi.fn(),
     endSession: vi.fn(),
     track: vi.fn(),
@@ -637,7 +638,7 @@ describe("guests keep no cloud save (portal rule)", () => {
     const saveProgress = vi.fn(async () => "ok" as const);
     const platform: PlatformAdapter = {
       kind: "golive", connect: async () => null, loadProgress: async () => "unavailable", saveProgress,
-      cloudSaveAllowed: () => false, submitScore: async () => "unavailable", startSession() {}, endSession() {}, track() {}, onLateSignIn() {},
+      cloudSaveAllowed: () => false, submitScore: async () => "unavailable", readLeaderboard: async () => "unavailable", startSession() {}, endSession() {}, track() {}, onLateSignIn() {},
     };
     const progress = createProgressStore(platform, null);
     await progress.load(null);

@@ -51,10 +51,11 @@ describe("battle strength", () => {
 describe("the 25 campaigns", () => {
   it("has 25 distinct campaigns on standard rules", () => {
     expect(CAMPAIGNS).toHaveLength(25);
+    expect(CAMPAIGNS.map(c => c.moveLimit)).toEqual([12,12,12,12,12,14,14,14,14,14,15,15,15,15,15,16,16,16,16,16,18,18,20,20,25]);
     expect(new Set(CAMPAIGNS.map((campaign) => campaign.id)).size).toBe(25);
     expect(CAMPAIGNS[0].id).toBe("campaign-1-first-muster");
     for (const campaign of CAMPAIGNS) {
-      expect(campaign.moveLimit).toBe(MAX_CAMPAIGN_MOVES);
+      expect(campaign.moveLimit).toBeLessThanOrEqual(MAX_CAMPAIGN_MOVES);
       expect(campaignById(campaign.id)).toBe(campaign);
       expect(campaign.objective.enemyName.length).toBeGreaterThan(0);
       expect(campaign.stars.two).toBeLessThanOrEqual(campaign.stars.three);

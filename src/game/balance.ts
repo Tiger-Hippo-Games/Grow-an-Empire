@@ -23,6 +23,54 @@ export interface Ending {
 
 export interface SearchResult { endings: Ending[]; deadEnds: number }
 
+function endingOf(sim: SettlementSimulation): Ending {
+  return {
+    ...sim.state.trainedUnits, militia: sim.militia, gold: sim.musterGold, market: sim.hasMarketplace,
+    elephants: sim.elephants, prakara: sim.has("prakara"), stambha: sim.has("dharma-stambha"), burj: sim.has("burj"), koshagar: sim.has("koshagar"),
+    gathers: sim.state.gatherMoves, swaps: sim.state.swaps, deserted: sim.state.deserted, built: [...sim.state.builtBuildingIds],
+  };
+}
+
+/** Seeded reference policies keep long-campaign calibration bounded and reproducible.
+ * Twelve-move campaigns retain the exhaustive proof; longer campaigns sample
+ * 4,096 build-first journeys. This is a policy sample, not a count of all orders.
+ */
+export function sampleEndings(campaign: CampaignDefinition, count = 4096): SearchResult {
+  let seed = 0x6a09e667;
+  const random = (): number => {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    return (seed >>> 0) / 0x100000000;
+  };
+  const endings: Ending[] = [];
+  let deadEnds = 0;
+  for (let run = 0; run < count; run++) {
+    const sim = new SettlementSimulation(campaign);
+    for (let move = 0; move < campaign.moveLimit; move++) {
+      const affordable = sim.state.availableBuildingIds.filter(id => sim.canAffordBuilding(id));
+      const swaps = affordable.length ? [] : sim.state.availableBuildingIds.filter(id => sim.swapPlanFor(id));
+      const options = affordable.length ? affordable : swaps;
+      if (options.length) {
+        const id = options[Math.floor(random() * options.length)];
+        if (affordable.length) sim.chooseBuilding(id); else sim.swapAndBuild(id);
+        sim.update(1e9);
+      } else if (sim.canGather()) sim.gather();
+      else { deadEnds++; break; }
+    }
+    if (sim.state.mode === "muster") endings.push(endingOf(sim));
+  }
+  return { endings, deadEnds };
+}
+
+const referenceCache = new Map<number, SearchResult>();
+export function referenceEndings(campaign: CampaignDefinition): SearchResult {
+  let result = referenceCache.get(campaign.moveLimit);
+  if (!result) {
+    result = campaign.moveLimit === 12 ? searchEndings({ campaign }) : sampleEndings(campaign);
+    referenceCache.set(campaign.moveLimit, result);
+  }
+  return result;
+}
+
 function cloneInto(state: SettlementState, campaign: CampaignDefinition): SettlementSimulation {
   const sim = new SettlementSimulation(campaign);
   Object.assign(sim.state, structuredClone(state));

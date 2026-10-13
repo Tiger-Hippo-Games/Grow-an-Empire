@@ -17,11 +17,11 @@ export { RESOURCE_LABELS, type ResourceName } from "./economy";
 /** Moves in a campaign that doesn't set its own (`CampaignSeed.moves`). Read `campaign.moveLimit`, never assume 12. */
 export const TOTAL_MOVES = 12;
 /**
- * Longest campaign. Campaigns may set 8–12 moves; longer ones are clamped.
- * Raising it needs more `CIVIC_LEVEL_NAMES` (one per level), civic-centre art
- * for the new levels and an offer-path test at the new length.
+ * Longest campaign. Campaigns may set 8–25 moves; longer ones are clamped.
+ * Every level has a civic name; the mature centre keeps its level-8 art.
+ * Gather remains legal after all unique buildings have been built.
  */
-export const MAX_CAMPAIGN_MOVES = 12;
+export const MAX_CAMPAIGN_MOVES = 25;
 /** One civic level per completed move, plus the founding campsite. */
 export const TOTAL_SETTLEMENT_LEVELS = MAX_CAMPAIGN_MOVES + 1;
 /** Simulation seconds each construction takes at 1x speed. */
@@ -219,6 +219,9 @@ export const CIVIC_LEVEL_NAMES = [
   "Defenders' Square",
   "Fortified Borough",
   "Grand Muster Hall",
+  "Royal Council", "Citadel Court", "War Council", "Royal Stronghold",
+  "High Citadel", "Warrior Assembly", "Grand Citadel", "Imperial Court",
+  "Realm Council", "Sovereign Court", "Great Durbar", "Imperial Durbar", "Seat of Dharma",
 ];
 
 

@@ -379,7 +379,7 @@ function selectCampaign(campaign: CampaignDefinition, options: { fresh?: boolean
   else startPlaying();
 }
 
-const realmBoard = createRealmBoard(document.getElementById("app")!, (open) => setModalPause(open));
+const realmBoard = createRealmBoard(document.getElementById("app")!, (open) => setModalPause(open), platform, () => isRegisteredPlayer(player?.authType));
 function openRealmBoard(): void {
   realmBoard.show({ source: realmSource, state: realm, player: standingFromStars(campaignStars, playerName()) });
 }

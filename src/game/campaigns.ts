@@ -38,7 +38,7 @@ export interface CampaignDefinition {
   tier: CampaignTier;
   name: string;
   subtitle: string;
-  /** Build moves before the enemy arrives (8–12; read this, never assume a number). */
+  /** Build moves before the enemy arrives (8–25; read this, never assume a number). */
   moveLimit: number;
   availableBuildingIds: string[];
   objective: CampaignObjective;
@@ -59,6 +59,17 @@ export const CHAPTERS: ReadonlyArray<{ name: string; lore: string }> = [
 export const CAMPAIGNS_PER_CHAPTER = 5;
 /** Shortest and longest campaign the rules support. */
 export const MIN_CAMPAIGN_MOVES = 8;
+
+/** Preparation grows with the journey; the final campaign has 25 moves. */
+export function campaignMoves(number: number): number {
+  if (number <= 5) return 12;
+  if (number <= 10) return 14;
+  if (number <= 15) return 15;
+  if (number <= 20) return 16;
+  if (number <= 22) return 18;
+  if (number <= 24) return 20;
+  return 25;
+}
 
 /** Easy, medium, medium, medium, hard, repeating every chapter. */
 export function campaignTier(number: number): CampaignTier {
@@ -100,7 +111,7 @@ export interface CampaignSeed {
   /** Part of the save id: never change it for an existing campaign. */
   slug: string; name: string; subtitle: string; enemyName: string; kingdomName: string; briefing: string;
   swordsmen: number; archers: number; horsemen?: number; veterancy?: number; two: number; three: number;
-  /** Build moves (8–12, clamped to MIN/MAX_CAMPAIGN_MOVES); 12 when left out. */
+  /** Build moves (8–25, clamped to MIN/MAX_CAMPAIGN_MOVES); journey schedule when left out. */
   moves?: number;
 }
 
@@ -151,7 +162,7 @@ export function campaignFromSeed(seed: CampaignSeed, index: number): CampaignDef
     tier: campaignTier(index + 1),
     name: seed.name,
     subtitle: seed.subtitle,
-    moveLimit: Math.min(MAX_CAMPAIGN_MOVES, Math.max(MIN_CAMPAIGN_MOVES, seed.moves ?? 12)),
+    moveLimit: Math.min(MAX_CAMPAIGN_MOVES, Math.max(MIN_CAMPAIGN_MOVES, seed.moves ?? campaignMoves(index + 1))),
     availableBuildingIds: ALL_BUILDINGS,
     objective: {
       enemyName: seed.enemyName,
