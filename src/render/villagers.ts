@@ -274,12 +274,15 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
 
   /** Grows the crowd to `targetPopulation` (creating sprites as needed) and hides any extras. */
   function syncVillagers(targetPopulation: number): void {
+    // Longer campaigns can have hundreds of citizens. A representative crowd
+    // keeps rendering bounded; the simulation and HUD retain the full totals.
+    targetPopulation = Math.min(targetPopulation, 80);
     while (villagers.length < targetPopulation) villagers.push(createVillager(villagers.length));
     villagers.forEach((villager, index) => { villager.sprite.visible = index < targetPopulation; });
   }
 
   function garrisonTarget(role: GarrisonSoldier["role"], index: number, swordsmen: number, archers: number, out = new THREE.Vector2()): THREE.Vector2 {
-    const precedingRows = role === "archer" ? Math.ceil(swordsmen / 7) : role === "horseman" ? Math.ceil(swordsmen / 7) + Math.ceil(archers / 7) : 0;
+    const precedingRows = role === "archer" ? Math.ceil(Math.min(swordsmen, 14) / 7) : role === "horseman" ? Math.ceil(Math.min(swordsmen, 14) / 7) + Math.ceil(Math.min(archers, 14) / 7) : 0;
     const row = Math.floor(index / 7) + precedingRows;
     const column = index % 7;
     const tower = getBuildingPosition("prakara");
@@ -294,7 +297,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
       garrison.length = 0;
     }
     for (const role of ["swordsman", "archer", "horseman"] as const) {
-      const targetCount = units[role === "swordsman" ? "swordsmen" : role === "archer" ? "archers" : "horsemen"];
+      const targetCount = Math.min(14, units[role === "swordsman" ? "swordsmen" : role === "archer" ? "archers" : "horsemen"]);
       let currentCount = garrison.filter((soldier) => soldier.role === role).length;
       while (currentCount < targetCount) {
         const size = role === "horseman" ? 2.95 : 2.15;

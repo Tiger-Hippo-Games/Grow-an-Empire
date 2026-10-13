@@ -180,8 +180,8 @@ h1 { margin: 2px 0 0; font-size: 1.25rem; line-height: 1.1; }
 @keyframes choice-drawer-in { from { opacity: 0; transform: translateX(28px); } }
 
 .level-track { display: grid; justify-items: center; gap: 5px; margin-inline: auto; white-space: nowrap; color: #d8e2cf; font-size: .78rem; font-weight: 900; letter-spacing: .08em; }
-.level-pips { display: flex; gap: 4px; }
-.level-pips i { width: 13px; height: 4px; border-radius: 99px; background: rgba(255,255,255,.2); }
+.level-pips { display: flex; gap: 4px; max-width: 100%; }
+.level-pips i { width: 13px; min-width: 0; flex-shrink: 1; height: 4px; border-radius: 99px; background: rgba(255,255,255,.2); }
 .level-pips i.active { background: #d69b3e; box-shadow: 0 0 7px rgba(230,189,99,.35); }
 
 

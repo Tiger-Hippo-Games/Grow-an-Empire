@@ -443,7 +443,6 @@ describe("progress store: saves from a newer game version", () => {
   });
 });
 
-describe("GoLive SDK wrapper", () => {
   function fakeSdk(overrides: Partial<GoLiveSdk> = {}): GoLiveSdk {
     return {
       init: vi.fn(),
@@ -457,16 +456,19 @@ describe("GoLive SDK wrapper", () => {
     };
   }
 
+describe("GoLive SDK wrapper", () => {
+
+
   it("initializes with the registered slug before signing in", async () => {
     const sdk = fakeSdk();
     await createGoLivePlatform(sdk, "/api/v1").connect();
-    expect(sdk.init).toHaveBeenCalledWith({ apiBaseUrl: "/api/v1", gameId: "grow-an-empire" });
+    expect(sdk.init).toHaveBeenCalledWith({ apiBaseUrl: "/api/v1", gameId: "grow" });
   });
 
   it("lets SDK 1.5.0 choose the API host by default and preserves the portal display name", async () => {
     const sdk = fakeSdk({ login: async () => ({ player: { id: "p", displayName: "Ananya", authType: "EMAIL" } }) });
     expect(await createGoLivePlatform(sdk).connect()).toMatchObject({ id: "p", displayName: "Ananya" });
-    expect(sdk.init).toHaveBeenCalledWith({ gameId: "grow-an-empire" });
+    expect(sdk.init).toHaveBeenCalledWith({ gameId: "grow" });
   });
 
   it("uses a safe fallback for a malformed display name", async () => {
@@ -646,5 +648,42 @@ describe("guests keep no cloud save (portal rule)", () => {
     await progress.flush();
     expect(saveProgress).not.toHaveBeenCalled();
     expect(store.size).toBeGreaterThan(0); // The browser copy was written.
+  });
+});
+
+
+describe("production Strongest Player leaderboard", () => {
+  it("reads the top ten and the registered player's rank using the production slug", async () => {
+    const getLeaderboard = vi.fn().mockResolvedValue({ entries: [{ rank: 1, displayName: "Raja <one>", score: 12 }] });
+    const getMyRank = vi.fn().mockResolvedValue({ rank: 4, score: 8 });
+    const sdk = fakeSdk({ getLeaderboard, getMyRank, login: async () => ({ player: { id: "p", displayName: "Player", authType: "EMAIL" } }) });
+    const adapter = createGoLivePlatform(sdk);
+    await adapter.connect();
+    expect(await adapter.readLeaderboard()).toEqual({ entries: [{ rank: 1, displayName: "Raja <one>", score: 12 }], me: { rank: 4, score: 8 } });
+    expect(getLeaderboard).toHaveBeenCalledWith("strongplayer", 10);
+    expect(getMyRank).toHaveBeenCalledWith("strongplayer");
+    expect(sdk.init).toHaveBeenCalledWith({ gameId: "grow" });
+  });
+
+  it("lets guests read rankings without requesting a private rank", async () => {
+    const getMyRank = vi.fn();
+    const adapter = createGoLivePlatform(fakeSdk({ getLeaderboard: async () => ({ entries: [] }), getMyRank, login: async () => ({ player: { id: "g", displayName: "Guest", authType: "GUEST" } }) }));
+    await adapter.connect();
+    expect(await adapter.readLeaderboard()).toEqual({ entries: [], me: null });
+    expect(getMyRank).not.toHaveBeenCalled();
+  });
+
+  it("handles missing methods, malformed responses and portal failures without blocking play", async () => {
+    const missing = createGoLivePlatform(fakeSdk());
+    await missing.connect();
+    expect(await missing.readLeaderboard()).toBe("unavailable");
+    for (const raw of [null, {}, { entries: "bad" }]) {
+      const adapter = createGoLivePlatform(fakeSdk({ getLeaderboard: async () => raw }));
+      await adapter.connect();
+      expect(await adapter.readLeaderboard()).toBe("unavailable");
+    }
+    const adapter = createGoLivePlatform(fakeSdk({ getLeaderboard: async () => { throw new Error("offline"); } }));
+    await adapter.connect();
+    expect(await adapter.readLeaderboard()).toBe("unavailable");
   });
 });

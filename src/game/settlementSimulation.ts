@@ -389,6 +389,12 @@ export class SettlementSimulation {
     // Only a city under construction has a selection; a stale one elsewhere is dropped.
     const selection = building ? {} : { selectedBuildingId: null, activePlotIndex: null };
     Object.assign(this.state, createInitialState(), loaded, { resources, armyReport, lastSummary, constructionElapsed }, selection);
+    // An unfinished muster from the older 12-move schedule can use the new
+    // preparation moves. Completed battles keep their recorded result.
+    if (this.state.mode === "muster" && this.state.civicLevel < this.campaign.moveLimit) {
+      this.state.mode = "awaiting-choice";
+      this.state.move = this.state.civicLevel + 1;
+    }
     // A rule update can retire an unbuilt offer; preserve completed/in-progress buildings.
     const retiredBurj = this.state.availableBuildingIds.includes("burj") && !isBuildingEligible(BUILDINGS.burj, this.state.builtBuildingIds, this.state.move);
     if (retiredBurj) this.state.availableBuildingIds = this.state.availableBuildingIds.filter(id => id !== "burj");

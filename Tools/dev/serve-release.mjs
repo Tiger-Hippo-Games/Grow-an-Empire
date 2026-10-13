@@ -3,7 +3,7 @@
 //
 //   node Tools/dev/serve-release.mjs <unpacked-zip-folder> [--lan] [--port 4175] [--no-open]
 //
-// - The game is served at /api/v1/games/grow-an-empire/play/index.html (the portal path).
+// - The game is served at /api/v1/games/grow/play/index.html (the portal path).
 // - /sdk/platform-sdk.js is a local stand-in SDK: guest login (as on the portal, a guest
 //   has no cloud save, so the run is restored from the browser save), and a "cloud"
 //   save kept in this browser's localStorage for signed-in testing.
@@ -25,7 +25,7 @@ const lan = args.includes("--lan");
 const open = !args.includes("--no-open");
 const portIndex = args.indexOf("--port");
 const port = portIndex >= 0 ? Number(args[portIndex + 1]) : 4175;
-const PLAY = "/api/v1/games/grow-an-empire/play/";
+const PLAY = "/api/v1/games/grow/play/";
 
 if (!fs.existsSync(path.join(root, "index.html"))) {
   console.error(`No index.html in ${root}. Unpack the release ZIP there first (test-release.cmd does this).`);
@@ -52,6 +52,8 @@ const SDK = `// Stand-in for the GoLive portal SDK (local testing only).
     getGameProgress: function () { log("getGameProgress", []); try { var raw = localStorage.getItem(KEY); return Promise.resolve({ progress: raw ? JSON.parse(raw) : null }); } catch (e) { return Promise.reject(e); } },
     saveGameProgress: function (d) { log("saveGameProgress", []); try { localStorage.setItem(KEY, JSON.stringify(d)); return Promise.resolve({ ok: true }); } catch (e) { return Promise.reject(e); } },
     submitScore: function () { return Promise.reject(new Error("Local stand-in is a guest; use the registered mock to test scores.")); },
+    getLeaderboard: function (slug, limit) { log("getLeaderboard", [slug, limit]); return Promise.resolve({ entries: [] }); },
+    getMyRank: function (slug) { log("getMyRank", [slug]); return Promise.resolve({ rank: null, score: null }); },
     startSession: function () { log("startSession", []); },
     endSession: function (s) { log("endSession", [s]); },
     track: function (e, p) { log("track", [e, p]); }

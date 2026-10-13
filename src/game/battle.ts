@@ -166,8 +166,11 @@ export function resolveBattle(army: PlayerArmy, enemy: EnemyArmy, margins: StarM
  */
 export function gapToTarget(army: PlayerArmy, enemy: EnemyArmy, targetMargin: number, types: ReadonlyArray<keyof ArmyCounts> = ["archers", "swordsmen", "horsemen"], mods: BattleModifiers = {}): { type: keyof ArmyCounts; count: number } | null {
   let best: { type: keyof ArmyCounts; count: number } | null = null;
+  // Bound the search by the enemy's maximum possible strength. Late armies
+  // can need more than the old 60-soldier limit for an accurate defeat hint.
+  const limit = Math.max(60, Math.ceil(enemyHeadCount(enemy) * 3.5 * enemy.veterancy * (1 + targetMargin) / (1 + (mods.bonus ?? 0))) + 1);
   for (const type of types) {
-    for (let count = 1; count <= 60; count += 1) {
+    for (let count = 1; count <= limit; count += 1) {
       const trial = { ...army, [type]: army[type] + count };
       const ours = playerStrength(trial, enemy, mods);
       const theirs = enemyStrength(enemy, trial);
