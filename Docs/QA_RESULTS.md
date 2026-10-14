@@ -1,5 +1,17 @@
 # QA results
 
+## v0.12.5 (2026-10-14): final portal release build
+
+Version-only production release of the complete v0.12.4 game; gameplay, assets, layout and settlement schema 6 are unchanged. Earlier archives remain intact.
+
+- `pnpm check` passed TypeScript and ESLint; its first test run encountered four default five-second timeouts. The complete Vitest suite then passed **280 tests in 29 files** with `--maxWorkers=1 --fileParallelism=false --testTimeout=30000`. No assertions were weakened or source tests changed. Log: `Tools/qa/out/final-0.12.5/unit-tests.txt`.
+- `pnpm package`: **all 16 portal checks pass**, **17,861,770 bytes**, **157 entries**. SHA-256 `4F597C688F5E9D8ED4A234444FD235EECEB2BCDCC6852CCE2C53455E4EA5A0BA`. Exact ZIP unpacked to `.tmp/release-0.12.5` and served at the production-style `grow/play/` path on local port 4176; packaged official SDK URL retained, local server supplies its stand-in.
+- Exact-ZIP strict script policy (`script-src 'self'`, no unsafe-inline/unsafe-eval): desktop 1920×1080 and phone 390×844 boot, layout scaling, landscape resize, blocked-game watchdog and Reload recovery all pass with zero CSP violations. Log: `Tools/qa/out/final-0.12.5/boot_csp.txt`.
+- Fresh full iframe QA did **not** complete: Chromium stalled taking Realm screenshots; capture-free retry also exceeded a 240-second bound. This is incomplete browser evidence, not a passing iframe result. Prior full iframe/UI/leaderboard evidence below remains historical; no such fresh pass is claimed for this version. The bounded runner lives in `.tmp/final-release-qa.py`.
+- The fresh asset/audio browser run also exceeded its 240-second bound and is incomplete. Unit asset freshness/dimension checks and the ZIP's referenced-asset validator passed; they do not replace a complete browser decode/audio run.
+
+Live production accounts, leaderboard persistence, Safari, physical-device checks and owner art-provenance confirmations remain on `Docs/SUBMISSION_CHECKLIST.md`. This ZIP is built locally and has not been uploaded or published.
+
 ## v0.12.4 (2026-10-13): clearer civic-center spacing
 
 Dharmashala moves behind the Town Hall on the north approach, from plan (1010, 900) to (1000, 270). House moves left/down from (788, 587) to (700, 625); Bazaar moves right/down from (1124, 580) to (1200, 650). Positions remain keyed by building identity, so roads, construction sprites, villagers and restored cities follow the same anchors without a save migration.
