@@ -10,8 +10,8 @@ SDK='''window.__boardCalls=[]; window.__boardState='full'; window.__best=null;
 const record=(method,...args)=>window.__boardCalls.push({method,args});
 window.Platform={
 init:async options=>{record('init',options)},
-login:async()=>({player:{id:'qa-player',displayName:'QA Player',authType:window.__guest?'GUEST':'EMAIL'}}),
-getGameProgress:async()=>({progress:null}),saveGameProgress:async()=>({}),
+getPlayer:async()=>({id:'qa-player',displayName:'QA Player',authType:window.__guest?'GUEST':'EMAIL'}),
+getGameProgress:async()=>({progress:{},version:0}),saveGameProgress:async()=>({}),
 submitScore:async(slug,score,metadata)=>{record('submitScore',slug,score,metadata); window.__best=Math.max(window.__best??0,score);},
 getLeaderboard:async(slug,limit)=>{record('getLeaderboard',slug,limit); if(window.__boardState==='error')throw Error('QA offline');
 return {entries:window.__boardState==='empty'?[]:Array.from({length:10},(_,i)=>({rank:i+1,displayName:i===0?'Raja <img src=x onerror=alert(1)>':'Player '+(i+1),score:25-i}))};},
@@ -23,7 +23,7 @@ with sync_playwright() as p:
  b=p.chromium.launch(args=['--use-angle=swiftshader','--enable-unsafe-swiftshader'])
  for w,h,guest in ([] if '--long-only' in sys.argv else [(1920,1080,False),(390,844,True),(844,390,True)]):
   ctx=b.new_context(viewport={'width':w,'height':h});ctx.add_init_script(f'window.__guest={str(guest).lower()}; localStorage.setItem("grow-an-empire:tutorial:v1","complete")')
-  ctx.route('**/sdk/platform-sdk.js',lambda route:route.fulfill(content_type='application/javascript',body=SDK))
+  ctx.route('**/sdk/v2/platform-sdk.js',lambda route:route.fulfill(content_type='application/javascript',body=SDK))
   pg=ctx.new_page(); errors=[];pg.on('pageerror',lambda e:errors.append(str(e)))
   pg.goto(URL);pg.wait_for_function("document.documentElement.dataset.booted==='true'",timeout=60000)
   pg.click('#campaign-realm');pg.click('[data-tab=players]');pg.wait_for_selector('.player-rankings')
@@ -32,7 +32,7 @@ with sync_playwright() as p:
   assert 'Raja <img' in pg.inner_text('.player-rankings')
   assert 'Monday at 00:00 UTC' in pg.inner_text('[data-player-board]')
   assert pg.evaluate("window.__boardCalls.filter(c=>c.method==='getMyRank').length")==(0 if guest else 1)
-  assert pg.evaluate("window.__boardCalls.find(c=>c.method==='init').args[0].gameId")=='grow'
+  assert pg.evaluate("Object.keys(window.__boardCalls.find(c=>c.method==='init').args[0]).sort()")==['clientVersion','platform','timeoutMs']
   bounds=pg.locator('.realm-board').bounding_box(); assert bounds['x']>=0 and bounds['y']>=0 and bounds['x']+bounds['width']<=w+1 and bounds['y']+bounds['height']<=h+1
   hud=pg.locator('#resource-hud').bounding_box()
   tab=pg.locator('[data-tab=players]').bounding_box()
@@ -60,7 +60,7 @@ with sync_playwright() as p:
  OUT.joinpath('results.json').write_text(json.dumps(R,indent=2),encoding='utf-8')
  # A full 25-move journey, with existing wins seeded only for QA unlocking.
  ctx=b.new_context(viewport={'width':1920,'height':1080})
- ctx.route('**/sdk/platform-sdk.js',lambda route:route.fulfill(content_type='application/javascript',body=SDK))
+ ctx.route('**/sdk/v2/platform-sdk.js',lambda route:route.fulfill(content_type='application/javascript',body=SDK))
  pg=ctx.new_page();errors=[];pg.on('pageerror',lambda e:errors.append(str(e)))
  pg.goto(URL);pg.wait_for_function("document.documentElement.dataset.booted==='true'",timeout=60000)
  seed=pg.evaluate("JSON.parse(localStorage.getItem('grow-an-empire:save:v1'))")

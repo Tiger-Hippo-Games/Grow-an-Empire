@@ -50,11 +50,11 @@ describe("GAME_READY", () => {
   it("is sent once, however many paths ask (first draw, error screen, watchdog)", () => {
     const postMessage = vi.fn();
     const parent = { postMessage };
-    vi.stubGlobal("window", { parent });
+    vi.stubGlobal("window", { parent, location: { origin: "https://www.hippoarcade.com" } });
     notifyPortalReady("0.10.2");
     notifyPortalReady("0.10.2");
     expect(postMessage).toHaveBeenCalledTimes(1);
-    expect(postMessage).toHaveBeenCalledWith({ type: "GAME_READY", gameVersion: "0.10.2" }, "*");
+    expect(postMessage).toHaveBeenCalledWith({ type: "GAME_READY", gameVersion: "0.10.2" }, "https://www.hippoarcade.com");
   });
 
   it("is not sent again when the boot watchdog already sent it", () => {

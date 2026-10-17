@@ -7,7 +7,7 @@ import { validateBundle } from "../validate-bundle.mjs";
 
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), "gae-bundle-validation-"));
 let sequence = 0;
-const sdk = "https://golive-platform.netlify.app/sdk/platform-sdk.js";
+const sdk = "/sdk/v2/platform-sdk.js";
 const validHtml = `<!doctype html><meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no"><script src="${sdk}"></script><script src="./game.js"></script>`;
 
 function validate(html = validHtml, extra = [], javascript = "") {
@@ -22,7 +22,7 @@ function validate(html = validHtml, extra = [], javascript = "") {
 }
 afterAll(() => fs.rmdirSync(directory));
 
-describe("SDK 1.5.0 submission bundle rules", () => {
+describe("SDK v2 submission bundle rules", () => {
   it("rejects inline boot scripts under the live portal security policy", () => {
     for (const script of ['<script>window.boot=true;</script>', '<script type="module">boot();</script>', '<script data-src="fake.js">boot();</script>']) {
       expect(validate(validHtml + script)).toContain("index.html contains 1 inline script block(s); move scripts into .js files");
@@ -36,8 +36,8 @@ describe("SDK 1.5.0 submission bundle rules", () => {
     expect(validate(validHtml.replace("./game.js", "/game.js"))).toContain("Absolute URLs in index.html: /game.js");
   });
   it("rejects the obsolete SDK URL and a commented-out SDK tag", () => {
-    expect(validate(validHtml.replace(sdk, "/api/v1/sdk/platform-sdk.js"))).toContain(`Official GoLive SDK script tag present (${sdk})`);
-    expect(validate(validHtml.replace(`<script src="${sdk}"></script>`, `<!--<script src="${sdk}"></script>-->`))).toContain(`Official GoLive SDK script tag present (${sdk})`);
+    expect(validate(validHtml.replace(sdk, "/api/v1/sdk/platform-sdk.js"))).toContain(`Official Hippo Arcade SDK script tag present (${sdk})`);
+    expect(validate(validHtml.replace(`<script src="${sdk}"></script>`, `<!--<script src="${sdk}"></script>-->`))).toContain(`Official Hippo Arcade SDK script tag present (${sdk})`);
   });
   it.each(["assets/tool.exe", "tool.ps1", "server.php", ".htaccess", "tool.py"])("rejects prohibited file %s", (name) => {
     expect(validate(validHtml, [name])).toContain(`Prohibited or unsupported files: ${name}`);

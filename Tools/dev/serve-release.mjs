@@ -4,7 +4,7 @@
 //   node Tools/dev/serve-release.mjs <unpacked-zip-folder> [--lan] [--port 4175] [--no-open]
 //
 // - The game is served at /api/v1/games/grow/play/index.html (the portal path).
-// - /sdk/platform-sdk.js is a local stand-in SDK: guest login (as on the portal, a guest
+// - /sdk/v2/platform-sdk.js is a local stand-in SDK: guest login (as on the portal, a guest
 //   has no cloud save, so the run is restored from the browser save), and a "cloud"
 //   save kept in this browser's localStorage for signed-in testing.
 // - http://127.0.0.1:<port>/ is a test page that puts the game in an iframe of a chosen
@@ -48,7 +48,7 @@ const SDK = `// Stand-in for the GoLive portal SDK (local testing only).
   window.__sdkCalls = calls;
   window.Platform = {
     init: function (o) { log("init", [o]); return Promise.resolve(); },
-    login: function () { log("login", []); return Promise.resolve({ player: { id: "local-guest", displayName: "Local guest", authType: "guest" } }); },
+    getPlayer: function () { log("getPlayer", []); return Promise.resolve({ id: "local-guest", displayName: "Local guest", authType: "GUEST" }); },
     getGameProgress: function () { log("getGameProgress", []); try { var raw = localStorage.getItem(KEY); return Promise.resolve({ progress: raw ? JSON.parse(raw) : null }); } catch (e) { return Promise.reject(e); } },
     saveGameProgress: function (d) { log("saveGameProgress", []); try { localStorage.setItem(KEY, JSON.stringify(d)); return Promise.resolve({ ok: true }); } catch (e) { return Promise.reject(e); } },
     submitScore: function () { return Promise.reject(new Error("Local stand-in is a guest; use the registered mock to test scores.")); },
@@ -147,7 +147,7 @@ const server = http.createServer((req, res) => {
   let p;
   try { p = decodeURIComponent(url.pathname); } catch { return send(res, 400, "text/plain", "Bad request"); }
   if (p === "/" || p === "/index.html") return send(res, 200, TYPES[".html"], TEST_PAGE);
-  if (p === "/sdk/platform-sdk.js") return send(res, 200, TYPES[".js"], SDK);
+  if (p === "/sdk/v2/platform-sdk.js") return send(res, 200, TYPES[".js"], SDK);
   if (p === "/favicon.ico") return send(res, 204, "image/x-icon", "");
   if (p === PLAY.slice(0, -1)) return send(res, 301, "text/plain", "", { Location: PLAY });
   if (!p.startsWith(PLAY)) { console.warn(`404 ${p}`); return send(res, 404, "text/plain", "Not found"); }
@@ -162,7 +162,7 @@ const server = http.createServer((req, res) => {
         console.warn(`Read failed for ${p}: ${error.message}`);
         return send(res, 500, "text/plain", "Could not read the game entry point");
       }
-      send(res, 200, TYPES[".html"], html.replace("https://golive-platform.netlify.app/sdk/platform-sdk.js", "/sdk/platform-sdk.js"));
+      send(res, 200, TYPES[".html"], html.replace("https://golive-platform.netlify.app/sdk/v2/platform-sdk.js", "/sdk/v2/platform-sdk.js"));
     });
     return;
   }

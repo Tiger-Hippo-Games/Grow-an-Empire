@@ -14,7 +14,7 @@
     // and this message is seen (main.ts never sends it twice).
     if (window.parent !== window && !window.__gaeReadySent) {
       window.__gaeReadySent = true;
-      try { window.parent.postMessage({ type: "GAME_READY", gameVersion: "boot-error" }, "*"); } catch (e) { /* Cross-origin parent refused. */ }
+      try { window.parent.postMessage({ type: "GAME_READY", gameVersion: "boot-error" }, window.location.origin); } catch (e) { /* Parent refused. */ }
     }
     // A machine-local host (single-label name or 127.x loopback); the portal is always a full domain.
     var host = window.location.hostname;

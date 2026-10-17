@@ -1,4 +1,4 @@
-"""Portal SDK checks: mock SDK call order (init, login, getGameProgress), cloud restore, portal pause/resume/session-end messages in an iframe, and offline play."""
+"""Portal SDK checks: mock SDK call order (init, getPlayer, getGameProgress), cloud restore, portal pause/resume/session-end messages in an iframe, and offline play."""
 # Run from the project root with the servers up (see Tools/qa/README.md).
 import pathlib as _pl
 OUT = _pl.Path(__file__).resolve().parent / "out"
@@ -40,7 +40,7 @@ with sync_playwright() as p:
     speed8(page)
     play_moves(page, 2)
     page.wait_for_function("document.querySelector('#move').textContent.startsWith('3 ')", timeout=30000)
-    time.sleep(5.5)  # SDK 1.5.0 cloud checkpoint cadence
+    time.sleep(5.5)  # SDK v2 cloud checkpoint cadence
     first_calls = calls(page)
     cloud = json.loads(page.evaluate("localStorage.getItem('grow-an-empire:mock-cloud')") or "null")
     # Wipe the browser save; keep the mock cloud -> the game must resume from the cloud.
@@ -59,7 +59,7 @@ with sync_playwright() as p:
         "tutorial_not_shown_again": not tutorial_again,
         "errors": errs,
     }
-    R["A_mock_sdk"]["pass"] = (first_calls[:3] == ["init", "login", "getGameProgress"] and "startSession" in first_calls
+    R["A_mock_sdk"]["pass"] = (first_calls[:3] == ["init", "getPlayer", "getGameProgress"] and "startSession" in first_calls
         and {"track:game_start", "track:level_start", "track:level_completed", "track:tutorial_skipped"} <= set(first_calls)
         and R["A_mock_sdk"]["cloud_moves_built"] >= 2 and resumed_move.startswith("3 ") and not tutorial_again and not errs)
     ctx.close()

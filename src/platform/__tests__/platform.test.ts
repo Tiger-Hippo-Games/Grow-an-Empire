@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { playMove } from "../../game/__tests__/play";
 import { SettlementSimulation } from "../../game/settlementSimulation";
-import { createGoLivePlatform, LEADERBOARD_SLUG, normalizeProgress } from "../adapters";
+import { createGoLivePlatform, jsonDepth, LEADERBOARD_SLUG, normalizeProgress } from "../adapters";
 import { belongsToAnotherPlayer, chooseSave, createProgressStore, toSavedGame, type SavedGame } from "../progressStore";
 import { createSessionTracker, notifyPortalReady } from "../session";
 import type { GoLiveSdk, PlatformAdapter } from "../types";
@@ -323,6 +323,22 @@ describe("progress store", () => {
     expect(saves).toHaveLength(1);
   });
 
+  it("reloads after an uncertain save and never overwrites a newer cloud run", async () => {
+    vi.useFakeTimers();
+    const { platform, setCloud } = fakePlatform();
+    const reads = vi.fn(platform.loadProgress);
+    const writes = vi.fn(async () => "error" as const);
+    const progress = createProgressStore({ ...platform, loadProgress: reads, saveProgress: writes }, campaignId);
+    await progress.load("p");
+    progress.save(saveAfter(2, "r", 2), { immediate: true });
+    await progress.flush();
+    setCloud(saveAfter(4, "r", 4));
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(reads).toHaveBeenCalledTimes(2);
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(store.get(BROWSER_SAVE_KEY)!).state.builtBuildingIds).toHaveLength(2);
+  });
+
   it("keeps cloud writes five seconds apart even at rapid checkpoints and page exit", async () => {
     vi.useFakeTimers();
     const { platform, saves } = fakePlatform();
@@ -446,7 +462,7 @@ describe("progress store: saves from a newer game version", () => {
   function fakeSdk(overrides: Partial<GoLiveSdk> = {}): GoLiveSdk {
     return {
       init: vi.fn(),
-      login: async () => ({ player: { id: "1", displayName: "Guest_1" } }),
+      getPlayer: async () => ({ id: "1", displayName: "Guest_1" }),
       getGameProgress: async () => ({ progress: {}, version: 0 }),
       saveGameProgress: async () => ({ version: 1 }),
       startSession: vi.fn(),
@@ -456,29 +472,29 @@ describe("progress store: saves from a newer game version", () => {
     };
   }
 
-describe("GoLive SDK wrapper", () => {
+describe("Hippo Arcade SDK v2 wrapper", () => {
 
 
-  it("initializes with the registered slug before signing in", async () => {
+  it("initializes with client telemetry only before reading portal identity", async () => {
     const sdk = fakeSdk();
-    await createGoLivePlatform(sdk, "/api/v1").connect();
-    expect(sdk.init).toHaveBeenCalledWith({ apiBaseUrl: "/api/v1", gameId: "grow" });
+    await createGoLivePlatform(sdk).connect();
+    expect(sdk.init).toHaveBeenCalledWith({ clientVersion: __APP_VERSION__, platform: "web", timeoutMs: 15_000 });
   });
 
-  it("lets SDK 1.5.0 choose the API host by default and preserves the portal display name", async () => {
-    const sdk = fakeSdk({ login: async () => ({ player: { id: "p", displayName: "Ananya", authType: "EMAIL" } }) });
+  it("lets SDK v2 bind routing in the parent portal by default and preserves the portal display name", async () => {
+    const sdk = fakeSdk({ getPlayer: async () => ({ id: "p", displayName: "Ananya", authType: "EMAIL" }) });
     expect(await createGoLivePlatform(sdk).connect()).toMatchObject({ id: "p", displayName: "Ananya" });
-    expect(sdk.init).toHaveBeenCalledWith({ gameId: "grow" });
+    expect(sdk.init).toHaveBeenCalledWith({ clientVersion: __APP_VERSION__, platform: "web", timeoutMs: 15_000 });
   });
 
   it("uses a safe fallback for a malformed display name", async () => {
-    const sdk = fakeSdk({ login: async () => ({ player: { id: "p", displayName: 42 as unknown as string, username: "Raja" } }) });
+    const sdk = fakeSdk({ getPlayer: async () => ({ id: "p", displayName: 42 as unknown as string, username: "Raja" }) });
     expect(await createGoLivePlatform(sdk).connect()).toMatchObject({ displayName: "Raja" });
   });
 
   it("uses the real game's leaderboard slug and metadata", async () => {
     const submitScore = vi.fn().mockResolvedValue({ rank: 1 });
-    const sdk = fakeSdk({ submitScore, login: async () => ({ player: { id: "p", displayName: "Ananya", authType: "EMAIL" } }) });
+    const sdk = fakeSdk({ submitScore, getPlayer: async () => ({ id: "p", displayName: "Ananya", authType: "EMAIL" }) });
     const adapter = createGoLivePlatform(sdk);
     await adapter.connect();
     expect(await adapter.submitScore(103, { level: 1 })).toBe("ok");
@@ -487,16 +503,16 @@ describe("GoLive SDK wrapper", () => {
 
   it("never submits guests and survives missing or rejecting leaderboard methods", async () => {
     const submitScore = vi.fn().mockRejectedValue(new Error("Leaderboard deactivated"));
-    const guestSdk = fakeSdk({ submitScore, login: async () => ({ player: { id: "g", displayName: "Guest", authType: "GUEST" } }) });
+    const guestSdk = fakeSdk({ submitScore, getPlayer: async () => ({ id: "g", displayName: "Guest", authType: "GUEST" }) });
     const guest = createGoLivePlatform(guestSdk);
     await guest.connect();
     expect(await guest.submitScore(103, {})).toBe("unavailable");
     expect(submitScore).not.toHaveBeenCalled();
-    const login = async () => ({ player: { id: "p", displayName: "Player", authType: "EMAIL" } });
-    const missing = createGoLivePlatform(fakeSdk({ login }));
+    const getPlayer = async () => ({ id: "p", displayName: "Player", authType: "EMAIL" });
+    const missing = createGoLivePlatform(fakeSdk({ getPlayer }));
     await missing.connect();
     expect(await missing.submitScore(103, {})).toBe("unavailable");
-    const rejecting = createGoLivePlatform(fakeSdk({ login, submitScore }));
+    const rejecting = createGoLivePlatform(fakeSdk({ getPlayer, submitScore }));
     await rejecting.connect();
     expect(await rejecting.submitScore(103, {})).toBe("error");
     expect(await rejecting.submitScore(103, {})).toBe("error");
@@ -505,11 +521,11 @@ describe("GoLive SDK wrapper", () => {
 
   it("rejects invalid scores and oversized UTF-8 metadata before contacting the SDK", async () => {
     const submitScore = vi.fn();
-    const sdk = fakeSdk({ submitScore, login: async () => ({ player: { id: "p", displayName: "Player", authType: "EMAIL" } }) });
+    const sdk = fakeSdk({ submitScore, getPlayer: async () => ({ id: "p", displayName: "Player", authType: "EMAIL" }) });
     const adapter = createGoLivePlatform(sdk);
     await adapter.connect();
     for (const score of [-1, NaN, Infinity]) expect(await adapter.submitScore(score, {})).toBe("error");
-    expect(await adapter.submitScore(103, { text: "अ".repeat(800) })).toBe("error");
+    expect(await adapter.submitScore(103, { text: "à¤…".repeat(800) })).toBe("error");
     expect(submitScore).not.toHaveBeenCalled();
   });
 
@@ -517,15 +533,16 @@ describe("GoLive SDK wrapper", () => {
     const sdk = fakeSdk({ saveGameProgress: vi.fn().mockRejectedValue(new Error("Trial player cannot save")) });
     const adapter = createGoLivePlatform(sdk);
     expect(await adapter.connect()).not.toBeNull();
+    await adapter.loadProgress();
     expect(await adapter.saveProgress({ schemaVersion: 6 })).toBe("error");
-    expect(await adapter.saveProgress({ text: "अ".repeat(23_000) })).toBe("error");
+    expect(await adapter.saveProgress({ text: "à¤…".repeat(23_000) })).toBe("error");
     expect(sdk.saveGameProgress).toHaveBeenCalledTimes(1);
     expect(console.warn).toHaveBeenCalledTimes(1);
   });
 
   it("never throws: failed login means offline, and nothing is sent", async () => {
-    const sdk = fakeSdk({ login: async () => { throw new Error("network"); } });
-    const adapter = createGoLivePlatform(sdk, "/api/v1");
+    const sdk = fakeSdk({ getPlayer: async () => { throw new Error("network"); } });
+    const adapter = createGoLivePlatform(sdk);
     expect(await adapter.connect()).toBeNull();
     expect(await adapter.saveProgress({})).toBe("error");
     adapter.track("x");
@@ -533,20 +550,21 @@ describe("GoLive SDK wrapper", () => {
   });
 
   it("reports conflicts distinctly from other errors", async () => {
-    const adapter = createGoLivePlatform(fakeSdk({ saveGameProgress: async () => { throw new Error("Conflict"); } }), "/api/v1");
+    const adapter = createGoLivePlatform(fakeSdk({ saveGameProgress: async () => { throw Object.assign(new Error("Stale revision"), { code: "SAVE_CONFLICT", status: 409 }); } }));
     await adapter.connect();
+    await adapter.loadProgress();
     expect(await adapter.saveProgress({ a: 1 })).toBe("conflict");
   });
 
   it("survives a track() that throws", async () => {
-    const adapter = createGoLivePlatform(fakeSdk({ track: () => { throw new Error("boom"); } }), "/api/v1");
+    const adapter = createGoLivePlatform(fakeSdk({ track: () => { throw new Error("boom"); } }));
     await adapter.connect();
     expect(() => adapter.track("x")).not.toThrow();
   });
 
   it("catches rejected promises from the fire-and-forget calls", async () => {
     const rejected = () => Promise.reject(new Error("offline")) as unknown as void;
-    const adapter = createGoLivePlatform(fakeSdk({ track: rejected, startSession: rejected, endSession: rejected }), "/api/v1");
+    const adapter = createGoLivePlatform(fakeSdk({ track: rejected, startSession: rejected, endSession: rejected }));
     await adapter.connect();
     const unhandled = vi.fn();
     process.on("unhandledRejection", unhandled);
@@ -562,33 +580,154 @@ describe("GoLive SDK wrapper", () => {
     const order: string[] = [];
     const sdk = fakeSdk({
       init: async () => { await new Promise((resolve) => setTimeout(resolve, 5)); order.push("init"); },
-      login: async () => { order.push("login"); return { player: { id: "1", displayName: "Guest_1" } }; },
+      getPlayer: async () => { order.push("getPlayer"); return { id: "1", displayName: "Guest_1" }; },
     });
-    expect(await createGoLivePlatform(sdk, "/api/v1").connect()).not.toBeNull();
-    expect(order).toEqual(["init", "login"]);
+    expect(await createGoLivePlatform(sdk).connect()).not.toBeNull();
+    expect(order).toEqual(["init", "getPlayer"]);
   });
 
   it("treats a login with no player as offline instead of crashing", async () => {
-    const adapter = createGoLivePlatform(fakeSdk({ login: async () => null }), "/api/v1");
+    const adapter = createGoLivePlatform(fakeSdk({ getPlayer: async () => null as never }));
     expect(await adapter.connect()).toBeNull();
     expect(await adapter.saveProgress({ a: 1 })).toBe("error");
   });
 
   it("gives up on a login that never answers", async () => {
     vi.useFakeTimers();
-    const adapter = createGoLivePlatform(fakeSdk({ login: () => new Promise(() => {}) }), "/api/v1");
+    const adapter = createGoLivePlatform(fakeSdk({ getPlayer: () => new Promise(() => {}) }));
     const connecting = adapter.connect();
     await vi.advanceTimersByTimeAsync(5100);
     expect(await connecting).toBeNull();
   });
+
+  it("initializes once even when multiple consumers connect", async () => {
+    const sdk = fakeSdk();
+    const adapter = createGoLivePlatform(sdk);
+    await Promise.all([adapter.connect(), adapter.connect()]);
+    expect(sdk.init).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires a successful load before saving and again after any save error", async () => {
+    const saveGameProgress = vi.fn().mockRejectedValueOnce(Object.assign(new Error("Outcome unknown"), { code: "PORTAL_TIMEOUT" })).mockResolvedValue({ version: 2 });
+    const adapter = createGoLivePlatform(fakeSdk({ saveGameProgress }));
+    await adapter.connect();
+    expect(await adapter.saveProgress({ a: 1 })).toBe("error");
+    expect(saveGameProgress).not.toHaveBeenCalled();
+    await adapter.loadProgress();
+    expect(await adapter.saveProgress({ a: 1 })).toBe("error");
+    expect(await adapter.saveProgress({ a: 2 })).toBe("error");
+    expect(saveGameProgress).toHaveBeenCalledTimes(1);
+    await adapter.loadProgress();
+    expect(await adapter.saveProgress({ a: 2 })).toBe("ok");
+  });
+
+  it("never treats a failed or malformed load as an empty save", async () => {
+    const saveGameProgress = vi.fn();
+    const getGameProgress = vi.fn().mockRejectedValueOnce(new Error("Offline")).mockResolvedValueOnce({ progress: {}, version: -1 }).mockResolvedValueOnce({ progress: {}, version: 0 });
+    const adapter = createGoLivePlatform(fakeSdk({ getGameProgress, saveGameProgress }));
+    await adapter.connect();
+    for (let i = 0; i < 2; i++) {
+      expect(await adapter.loadProgress()).toBe("unavailable");
+      expect(await adapter.saveProgress({ a: 1 })).toBe("error");
+    }
+    expect(saveGameProgress).not.toHaveBeenCalled();
+    expect(await adapter.loadProgress()).toBeNull();
+    expect(await adapter.saveProgress({ a: 1 })).toBe("ok");
+  });
+
+  it("serializes progress operations without acquiring browser locks", async () => {
+    let finishRead!: (value: { progress: Record<string, unknown>; version: number }) => void;
+    const saveGameProgress = vi.fn(async () => ({ version: 1 }));
+    const request = vi.fn().mockRejectedValue(new Error("Locks denied"));
+    vi.stubGlobal("navigator", { locks: { request } });
+    const adapter = createGoLivePlatform(fakeSdk({ getGameProgress: () => new Promise(resolve => { finishRead = resolve; }), saveGameProgress }));
+    await adapter.connect();
+    const read = adapter.loadProgress();
+    const write = adapter.saveProgress({ a: 1 });
+    await Promise.resolve();
+    expect(saveGameProgress).not.toHaveBeenCalled();
+    finishRead({ progress: {}, version: 0 });
+    await read;
+    expect(await write).toBe("ok");
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("keeps preview browser and cloud progress separate from the live save and rankings", async () => {
+    const live = saveAfter(3, "live-run", 3);
+    store.set(BROWSER_SAVE_KEY, JSON.stringify(live));
+    const sdk = fakeSdk({ getPlayer: async () => ({ id: "preview-reviewer", displayName: "Preview", authType: "PREVIEW" }), submitScore: vi.fn(), getLeaderboard: vi.fn(), getMyRank: vi.fn() });
+    const adapter = createGoLivePlatform(sdk);
+    const player = await adapter.connect();
+    const progress = createProgressStore(adapter, campaignId);
+    expect(await progress.load(player?.id)).toBeNull();
+    expect(adapter.cloudSaveAllowed()).toBe(true);
+    progress.save(saveAfter(1, "preview-run", 5), { immediate: true });
+    await progress.flush();
+    expect(JSON.parse(store.get(BROWSER_SAVE_KEY)!)).toEqual(live);
+    expect(JSON.parse(store.get(adapter.localSaveKey!)!).runId).toBe("preview-run");
+    expect(await adapter.submitScore(1, {})).toBe("unavailable");
+    expect(await adapter.readLeaderboard()).toBe("unavailable");
+    expect(sdk.submitScore).not.toHaveBeenCalled();
+    expect(sdk.getLeaderboard).not.toHaveBeenCalled();
+    expect(sdk.getMyRank).not.toHaveBeenCalled();
+    expect((await createProgressStore(adapter, campaignId).load(player?.id))?.runId).toBe("preview-run");
+  });
+
+  it("requires reload if preview identity arrives after local practice has booted", async () => {
+    vi.useFakeTimers();
+    let identify!: (player: { id: string; displayName: string; authType: string }) => void;
+    const adapter = createGoLivePlatform(fakeSdk({ getPlayer: () => new Promise(resolve => { identify = resolve; }) }));
+    const late = vi.fn();
+    const status = vi.fn();
+    adapter.onLateSignIn(late);
+    adapter.onStatusChange?.(status);
+    const connecting = adapter.connect();
+    await vi.advanceTimersByTimeAsync(5100);
+    expect(await connecting).toBeNull();
+    identify({ id: "preview", displayName: "Preview", authType: "PREVIEW" });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(late).not.toHaveBeenCalled();
+    expect(adapter.cloudSaveAllowed()).toBe(false);
+    expect(status).toHaveBeenLastCalledWith(expect.stringContaining("Reload"));
+  });
+
+  it("stops cloud operations and asks for reload when the portal account changes", async () => {
+    const getGameProgress = vi.fn().mockRejectedValue(Object.assign(new Error("Changed"), { code: "SESSION_CHANGED" }));
+    const adapter = createGoLivePlatform(fakeSdk({ getGameProgress }));
+    const status = vi.fn();
+    adapter.onStatusChange?.(status);
+    await adapter.connect();
+    expect(await adapter.loadProgress()).toBe("unavailable");
+    expect(adapter.cloudSaveAllowed()).toBe(false);
+    expect(status).toHaveBeenCalledWith(expect.stringContaining("Reload"));
+    await adapter.loadProgress();
+    expect(getGameProgress).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps schema-6 move reports and final battles within the v2 size/depth limits", async () => {
+    const sim = new SettlementSimulation();
+    while (sim.state.mode !== "muster") playMove(sim);
+    sim.muster();
+    const save = { ...JSON.parse(JSON.stringify(sim.serialize())), runId: "r", settings: { tutorialComplete: true } };
+    expect(jsonDepth(save)).toBeLessThanOrEqual(6);
+    const saveGameProgress = vi.fn(async () => ({ version: 1 }));
+    const adapter = createGoLivePlatform(fakeSdk({ saveGameProgress }));
+    await adapter.connect();
+    await adapter.loadProgress();
+    expect(await adapter.saveProgress(save)).toBe("ok");
+    expect(saveGameProgress).toHaveBeenCalledWith(save);
+    const deep = { a: { b: { c: { d: { e: { f: {} } } } } } };
+    expect(await adapter.saveProgress(deep)).toBe("error");
+    expect(saveGameProgress).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("session tracker", () => {
-  it("sends the SDK 1.5.0 GAME_READY handshake to the embedding portal", () => {
+  it("sends the SDK v2 GAME_READY handshake to the embedding portal", () => {
     const parent = { postMessage: vi.fn() };
-    vi.stubGlobal("window", { parent });
+    vi.stubGlobal("window", { parent, location: { origin: "https://www.hippoarcade.com" } });
     notifyPortalReady("0.7.0");
-    expect(parent.postMessage).toHaveBeenCalledWith({ type: "GAME_READY", gameVersion: "0.7.0" }, "*");
+    expect(parent.postMessage).toHaveBeenCalledWith({ type: "GAME_READY", gameVersion: "0.7.0" }, "https://www.hippoarcade.com");
   });
   it("reports played seconds once and only once", () => {
     const { platform } = fakePlatform();
@@ -621,7 +760,7 @@ describe("guests keep no cloud save (portal rule)", () => {
     const saveGameProgress = vi.fn(async () => ({ version: 1 }));
     const sdk = {
       init: vi.fn(), startSession: vi.fn(), endSession: vi.fn(), track: vi.fn(),
-      login: async () => ({ player: { id: "g", displayName: "Guest_1", authType: "GUEST" } }),
+      getPlayer: async () => ({ id: "g", displayName: "Guest_1", authType: "GUEST" }),
       getGameProgress, saveGameProgress,
     } as unknown as GoLiveSdk;
     const guest = createGoLivePlatform(sdk);
@@ -656,18 +795,18 @@ describe("production Strongest Player leaderboard", () => {
   it("reads the top ten and the registered player's rank using the production slug", async () => {
     const getLeaderboard = vi.fn().mockResolvedValue({ entries: [{ rank: 1, displayName: "Raja <one>", score: 12 }] });
     const getMyRank = vi.fn().mockResolvedValue({ rank: 4, score: 8 });
-    const sdk = fakeSdk({ getLeaderboard, getMyRank, login: async () => ({ player: { id: "p", displayName: "Player", authType: "EMAIL" } }) });
+    const sdk = fakeSdk({ getLeaderboard, getMyRank, getPlayer: async () => ({ id: "p", displayName: "Player", authType: "EMAIL" }) });
     const adapter = createGoLivePlatform(sdk);
     await adapter.connect();
     expect(await adapter.readLeaderboard()).toEqual({ entries: [{ rank: 1, displayName: "Raja <one>", score: 12 }], me: { rank: 4, score: 8 } });
     expect(getLeaderboard).toHaveBeenCalledWith("strongplayer", 10);
     expect(getMyRank).toHaveBeenCalledWith("strongplayer");
-    expect(sdk.init).toHaveBeenCalledWith({ gameId: "grow" });
+    expect(sdk.init).toHaveBeenCalledWith({ clientVersion: __APP_VERSION__, platform: "web", timeoutMs: 15_000 });
   });
 
   it("lets guests read rankings without requesting a private rank", async () => {
     const getMyRank = vi.fn();
-    const adapter = createGoLivePlatform(fakeSdk({ getLeaderboard: async () => ({ entries: [] }), getMyRank, login: async () => ({ player: { id: "g", displayName: "Guest", authType: "GUEST" } }) }));
+    const adapter = createGoLivePlatform(fakeSdk({ getLeaderboard: async () => ({ entries: [] }), getMyRank, getPlayer: async () => ({ id: "g", displayName: "Guest", authType: "GUEST" }) }));
     await adapter.connect();
     expect(await adapter.readLeaderboard()).toEqual({ entries: [], me: null });
     expect(getMyRank).not.toHaveBeenCalled();

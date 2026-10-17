@@ -62,7 +62,7 @@ export function listenForPortalMessages(handler: (message: PortalMessage) => voi
 }
 
 /**
- * SDK 1.5.0 ready handshake. Sent at most once per page: after the first
+ * SDK v2 ready handshake. Sent at most once per page: after the first
  * screen has drawn, or, if start-up fails, when the error screen is shown,
  * so the portal's loading overlay never hides the game's own message. The
  * boot watchdog in index.html sets `__gaeReadySent` when it sends it first.
@@ -72,7 +72,7 @@ export function notifyPortalReady(version: string): void {
   if (window.parent === window || flags.__gaeReadySent) return;
   flags.__gaeReadySent = true;
   try {
-    window.parent.postMessage({ type: "GAME_READY", gameVersion: version }, "*");
+    window.parent.postMessage({ type: "GAME_READY", gameVersion: version }, window.location.origin);
   } catch (error) {
     console.warn("[Grow an Empire] Could not notify the portal that the game is ready.", error);
   }

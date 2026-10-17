@@ -1,10 +1,9 @@
 /**
- * Types for the GoLive platform integration.
+ * Types for the Hippo Arcade portal-bridge integration.
  *
  * `GoLiveSdk` describes `window.Platform` as documented in
- * common/GOLIVE_DEVELOPER_REFERENCE.md (SDK 1.5.0). The older docs
- * disagree on a few details (e.g. empty progress is `{}` in one and `null` in
- * another), so these types are deliberately loose where the docs are.
+ * developer-kit/SDK_REFERENCE.md (SDK v2). Routing, game binding and
+ * authentication belong to the parent portal; games never receive tokens.
  *
  * `PlatformAdapter` is what the rest of the game uses. Gameplay code never
  * touches `window.Platform` directly (GAME_ARCHITECTURE §4, CODING_STANDARDS §16).
@@ -19,11 +18,11 @@ export interface PlayerInfo {
 
 /** The documented surface of `window.Platform` that this game uses. */
 export interface GoLiveSdk {
-  init(config: { apiBaseUrl?: string; gameId: string; storagePrefix?: string }): void | Promise<unknown>;
-  login(): Promise<{ player: PlayerInfo; accessToken?: string } | null | undefined>;
-  getGameProgress(gameId?: string): Promise<{ progress?: Record<string, unknown> | null; version?: number } | null | undefined>;
-  saveGameProgress(progress: Record<string, unknown>, gameId?: string): Promise<unknown>;
-  /** Optional only so a stale SDK degrades safely; SDK 1.5.0 provides it. */
+  init(config?: { clientVersion?: string; platform?: string; timeoutMs?: number }): Promise<unknown> | void;
+  getPlayer(): Promise<PlayerInfo>;
+  getGameProgress(): Promise<{ progress: Record<string, unknown>; version: number }>;
+  saveGameProgress(progress: Record<string, unknown>): Promise<unknown>;
+  /** Optional to degrade safely if a capability is unavailable. */
   submitScore?(leaderboardSlug: string, score: number, metadata?: Record<string, unknown>): Promise<unknown>;
   getLeaderboard?(leaderboardSlug: string, limit: number): Promise<unknown>;
   getMyRank?(leaderboardSlug: string): Promise<unknown>;
@@ -34,7 +33,7 @@ export interface GoLiveSdk {
 
 declare global {
   interface Window {
-    /** Loaded from the official /sdk/platform-sdk.js URL. */
+    /** Loaded from the serving origin's /sdk/v2/platform-sdk.js. */
     Platform?: GoLiveSdk;
   }
 }
@@ -56,7 +55,7 @@ export interface LiveLeaderboard {
  */
 export interface PlatformAdapter {
   readonly kind: PlatformKind;
-  /** Initializes and signs the player in (guest on first visit). Resolves `null` if unavailable. */
+  /** Initializes the bridge and reads portal identity. Resolves `null` if unavailable. */
   connect(): Promise<PlayerInfo | null>;
   /**
    * The cloud save blob, `null` if the player has none, or `"unavailable"` if
@@ -76,6 +75,11 @@ export interface PlatformAdapter {
    * guest who signs in later starts saving to the cloud from then on.
    */
   cloudSaveAllowed(): boolean;
+  /** Isolated browser cache for preview profiles; live saves retain their existing key. */
+  readonly localSaveKey?: string;
+  /** Connection/save failures that need a visible retry/reload message. */
+  onStatusChange?(listener: (message: string) => void): void;
+  readonly isPreview?: boolean;
   /** Real portal leaderboard submission; failure never blocks gameplay. */
   submitScore(score: number, metadata: Record<string, unknown>): Promise<"ok" | "error" | "unavailable">;
   readLeaderboard(): Promise<LiveLeaderboard | "unavailable">;

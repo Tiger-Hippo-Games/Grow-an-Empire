@@ -1009,6 +1009,12 @@ function applyTestingUrlFlags(): boolean {
  * *save* is unusable, it's discarded and a new settlement starts.
  */
 async function initialize(): Promise<void> {
+  let platformMessage: string | null = null;
+  platform.onStatusChange?.((message) => {
+    platformMessage = message;
+    hud.setStatus(message, 0);
+    requestRender();
+  });
   const resetRequested = applyTestingUrlFlags();
   const stopProgress = onImageLoadProgress((settled, requested) => {
     (window as unknown as { __gaeLoadActivityAt: number }).__gaeLoadActivityAt = Date.now();
@@ -1075,6 +1081,7 @@ async function initialize(): Promise<void> {
   hud.setCivicLevel(simulation.state.civicLevel);
   hud.updateHud(stateSnapshot());
   if (progress.savingDisabledReason) hud.setStatus(progress.savingDisabledReason, 0);
+  else if (platformMessage) hud.setStatus(platformMessage, 0);
   // The map is the title screen. Its image (or the usable fallback) must be
   // ready before the portal loading screen is dismissed.
   await campaignMap.ready;

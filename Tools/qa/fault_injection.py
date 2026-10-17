@@ -18,10 +18,10 @@ SAVE_KEY = "grow-an-empire:save:v1"
 QUICK = "--quick" in sys.argv
 TUTORIAL_DONE = "try { localStorage.setItem('grow-an-empire:tutorial:v1','complete') } catch (e) {}"
 
-# A scriptable stand-in for the portal SDK, served in place of /sdk/platform-sdk.js.
+# A scriptable stand-in for the portal SDK, served in place of /sdk/v2/platform-sdk.js.
 def fake_sdk(player_id="bob", login="ok", rejecting=False, cloud="null"):
     login_js = {
-        "ok": f"return {{ player: {{ id: '{player_id}', displayName: 'Guest_{player_id}' }} }};",
+        "ok": f"return {{ id: '{player_id}', displayName: 'Guest_{player_id}', authType: 'EMAIL' }};",
         "hang": "return new Promise(function () {});",
         "null": "return null;",
     }[login]
@@ -31,8 +31,8 @@ def fake_sdk(player_id="bob", login="ok", rejecting=False, cloud="null"):
     window.__cloud = {cloud};
     window.Platform = {{
       init: function (c) {{ window.__sdkLog.push(['init', c]); }},
-      login: async function () {{ window.__sdkLog.push(['login']); {login_js} }},
-      getGameProgress: async function () {{ return {{ progress: window.__cloud }}; }},
+      getPlayer: async function () {{ window.__sdkLog.push(['getPlayer']); {login_js} }},
+      getGameProgress: async function () {{ return {{ progress: window.__cloud || {{}}, version: window.__cloud ? 1 : 0 }}; }},
       saveGameProgress: async function (p) {{ window.__sdkLog.push(['save', p.runId, p.playerId]); window.__cloud = p; return {{ version: 1 }}; }},
       startSession: function () {{ window.__sdkLog.push(['startSession']); {fire} }},
       endSession: function (s) {{ window.__sdkLog.push(['endSession', s]); {fire} }},
@@ -49,7 +49,7 @@ def open_game(browser, *, init_scripts=(), sdk_js=None, routes=(), viewport=(128
     page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
     page.on("console", lambda m: errors.append(f"console.error: {m.text}") if m.type == "error" else None)
     if sdk_js is not None:
-        page.route("**/sdk/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body=sdk_js))
+        page.route("**/sdk/v2/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body=sdk_js))
     for pattern, handler in routes:
         page.route(pattern, handler)
     page.goto(url, wait_until="commit")  # boot is awaited separately; a stalled image would block "load"
@@ -101,7 +101,7 @@ def broken_card_art(browser):
         else:
             route.continue_()
     # The portal SDK is stubbed so the scenario doesn't depend on reaching the portal's host.
-    sdk_stub = ("**/sdk/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body="/* offline */"))
+    sdk_stub = ("**/sdk/v2/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body="/* offline */"))
     ctx, page, errors = open_game(browser, routes=[("**/assets/quarry-construction-*", maybe_abort), sdk_stub])
     booted(page)
     enter(page)
@@ -278,7 +278,7 @@ def session_end(browser):
     ctx = browser.new_context(viewport={"width": 1280, "height": 800})
     ctx.add_init_script(TUTORIAL_DONE)
     page = ctx.new_page()
-    page.route("**/sdk/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body=fake_sdk()))
+    page.route("**/sdk/v2/platform-sdk.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body=fake_sdk()))
     page.set_content(f"<iframe id=g src='{URL}' style='width:1200px;height:700px'></iframe>")
     for _ in range(100):
         if len(page.frames) > 1:

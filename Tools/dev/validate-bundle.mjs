@@ -1,6 +1,6 @@
-// Pre-upload validator for the GoLive portal bundle.
+// Pre-upload validator for the Hippo Arcade portal bundle.
 //
-// Checks the SDK 1.5.0 contract in common/GOLIVE_DEVELOPER_REFERENCE.md.
+// Checks the SDK v2 contract in developer-kit/HIPPO_ARCADE_DEVELOPER_REFERENCE.md.
 // This does not replace the live Developer Console Sandbox Preview.
 //
 // Usage: node Tools/dev/validate-bundle.mjs release/grow-an-empire-0.1.0.zip [--verbose]
@@ -13,7 +13,7 @@ import { readZip } from "./zip.mjs";
 
 const MAX_BYTES = 200 * 1024 * 1024; // GOLIVE_DEVELOPER_REFERENCE §1
 const INITIAL_TARGET_BYTES = 5 * 1024 * 1024; // GAME_DEVELOPER_GUIDE §3.5
-const SDK_PATH = "https://golive-platform.netlify.app/sdk/platform-sdk.js";
+const SDK_PATH = "/sdk/v2/platform-sdk.js";
 const ALLOWED_FORMATS = new Set(".png .jpg .jpeg .webp .svg .gif .ico .mp3 .ogg .wav .aac .webm .glb .gltf .bin .html .js .css .json .wasm .woff .woff2 .ttf .otf".split(" "));
 
 const results = [];
@@ -70,7 +70,7 @@ export function validateBundle(zipPath, { verbose = false } = {}) {
     ? "No inline script blocks (portal security policy)"
     : `index.html contains ${inlineScripts.length} inline script block(s); move scripts into .js files`);
   const sdkScripts = [...activeHtml.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi)].map((match) => match[1]);
-  (sdkScripts.includes(SDK_PATH) ? pass : fail)(`Official GoLive SDK script tag present (${SDK_PATH})`);
+  (sdkScripts.includes(SDK_PATH) ? pass : fail)(`Official Hippo Arcade SDK script tag present (${SDK_PATH})`);
   const viewport = activeHtml.match(/<meta\b[^>]*name=["']viewport["'][^>]*content=["']([^"']+)["']/i)?.[1] ?? "";
   (/width=device-width/.test(viewport) && /maximum-scale=1(?:\.0)?(?:,|\s|$)/.test(viewport) && /user-scalable=no/.test(viewport) ? pass : fail)("Viewport prevents unwanted mobile zooming");
 
@@ -143,7 +143,7 @@ if (invokedDirectly) {
     process.exit(2);
   }
   const rows = validateBundle(zipPath, { verbose: process.argv.includes("--verbose") });
-  console.log("GoLive bundle validator (local copy of GAME_SUBMISSION_GUIDE §7 checks)\n");
+  console.log("Hippo Arcade bundle validator (local copy of GAME_SUBMISSION_GUIDE §7 checks)\n");
   for (const [level, message] of rows) console.log(`  ${level === "PASS" ? "✔" : level === "FAIL" ? "✖" : level === "WARN" ? "⚠" : "ℹ"} ${level.padEnd(4)}  ${message}`);
   const failures = rows.filter(([level]) => level === "FAIL").length;
   const checks = rows.filter(([level]) => level === "PASS" || level === "FAIL").length;

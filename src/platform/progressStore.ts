@@ -310,6 +310,9 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     lastCloudWrite = Date.now();
     const result = await platform.saveProgress(toWrite as unknown as Record<string, unknown>);
     if (result === "ok") { failedWrites = 0; return; }
+    // SDK v2 invalidates its loaded revision after every failed write.
+    // Reload and reconcile before any retry, including uncertain timeouts.
+    cloudRead = false;
     if (result === "error") { retryLater(toWrite); return; }
     // Another device saved first. Re-read and keep the better copy for a later retry.
     const resolved = await reconcile(toWrite);
@@ -325,7 +328,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
       timer = null;
     }
     if (inFlight) await inFlight;
-    if (hasNewerLocalSave()) disableSaving();
+    if (hasNewerLocalSave(platform.localSaveKey)) disableSaving();
     if (!pending || savingDisabledReason || cloudAhead) return;
     const wait = CLOUD_DEBOUNCE_MS - (Date.now() - lastCloudWrite);
     if (wait > 0) {
@@ -335,6 +338,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     const game = pending;
     pending = null;
     inFlight = writeCloud(game).catch((error: unknown) => {
+      cloudRead = false;
       warnOnce("write", error);
       retryLater(game);
     }).finally(() => { inFlight = null; });
@@ -350,10 +354,10 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
 
   return {
     async load(playerId = null) {
-      let local = toSavedGame(loadSavedSnapshot(), campaignId);
+      let local = toSavedGame(loadSavedSnapshot(platform.localSaveKey), campaignId);
       const rawCloud = await readCloud();
       const cloudAvailable = rawCloud !== "unavailable";
-      if (hasNewerLocalSave() || (cloudAvailable && isFromNewerVersion(rawCloud))) {
+      if (hasNewerLocalSave(platform.localSaveKey) || (cloudAvailable && isFromNewerVersion(rawCloud))) {
         disableSaving();
         return null;
       }
@@ -378,13 +382,13 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     },
     save(game, options = {}) {
       // Another tab may have upgraded since this session loaded.
-      if (hasNewerLocalSave()) disableSaving();
+      if (hasNewerLocalSave(platform.localSaveKey)) disableSaving();
       if (savingDisabledReason) return;
       // Another tab may have won stars since this one loaded: keep them.
-      const stored = toSavedGame(loadSavedSnapshot(), null);
+      const stored = toSavedGame(loadSavedSnapshot(platform.localSaveKey), null);
       if (stored && !belongsToAnotherPlayer(stored, ownerId ?? null)) remember(stored);
       const owned = withOwner(withKnown(game));
-      saveSnapshot(owned);
+      saveSnapshot(owned, platform.localSaveKey);
       // Guests and offline play keep their progress in the browser only.
       if (platform.kind === "local" || !platform.cloudSaveAllowed() || cloudAhead) return;
       pending = owned;
@@ -397,8 +401,8 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     flush,
     clear() {
       // Never delete progress a newer version wrote.
-      if (hasNewerLocalSave()) disableSaving();
-      if (!savingDisabledReason) clearSavedSnapshot();
+      if (hasNewerLocalSave(platform.localSaveKey)) disableSaving();
+      if (!savingDisabledReason) clearSavedSnapshot(platform.localSaveKey);
     },
     get savingDisabledReason() { return savingDisabledReason; },
     get knownStars() { return { ...known.campaignStars }; },

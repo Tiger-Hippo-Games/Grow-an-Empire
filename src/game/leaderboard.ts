@@ -87,5 +87,5 @@ export function readLeaderboardEntry(raw: unknown): LeaderboardEntry | null {
  * the portal keeps the player id when a guest registers.
  */
 export function isRegisteredPlayer(authType: string | undefined | null): boolean {
-  return typeof authType === "string" && authType.length > 0 && authType.toUpperCase() !== "GUEST";
+  return typeof authType === "string" && authType.length > 0 && !["GUEST", "PREVIEW"].includes(authType.toUpperCase());
 }

@@ -34,10 +34,10 @@ function warnOnce(kind: string, message: string, error: unknown): void {
  * has already had the update, then got an older cached build). It is left in
  * place, not deleted: see `isFromNewerVersion` and progressStore.ts.
  */
-export function loadSavedSnapshot(): SettlementSnapshot | null {
+export function loadSavedSnapshot(key = SAVE_KEY): SettlementSnapshot | null {
   let raw: string | null;
   try {
-    raw = window.localStorage.getItem(SAVE_KEY);
+    raw = window.localStorage.getItem(key);
   } catch (error) {
     warnOnce("read", "Local storage can't be read", error);
     return null;
@@ -56,7 +56,7 @@ export function loadSavedSnapshot(): SettlementSnapshot | null {
   } catch (error) {
     console.warn("[Grow an Empire] Discarding autosave that is not valid JSON", error);
   }
-  clearSavedSnapshot();
+  clearSavedSnapshot(key);
   return null;
 }
 
@@ -64,9 +64,9 @@ export function loadSavedSnapshot(): SettlementSnapshot | null {
  * Writes the autosave.
  * @returns `false` if storage is unavailable or full (the game keeps running without saving).
  */
-export function saveSnapshot(snapshot: SettlementSnapshot): boolean {
+export function saveSnapshot(snapshot: SettlementSnapshot, key = SAVE_KEY): boolean {
   try {
-    window.localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+    window.localStorage.setItem(key, JSON.stringify(snapshot));
     return true;
   } catch (error) {
     warnOnce("write", "Autosave couldn't be written (storage full or disabled)", error);
@@ -75,9 +75,9 @@ export function saveSnapshot(snapshot: SettlementSnapshot): boolean {
 }
 
 /** Deletes the autosave (used by Restart and when a save turns out to be unusable). */
-export function clearSavedSnapshot(): void {
+export function clearSavedSnapshot(key = SAVE_KEY): void {
   try {
-    window.localStorage.removeItem(SAVE_KEY);
+    window.localStorage.removeItem(key);
   } catch (error) {
     warnOnce("clear", "Autosave couldn't be deleted", error);
   }
@@ -95,9 +95,9 @@ export function isFromNewerVersion(value: unknown): boolean {
 }
 
 /** True if the browser holds a save from a newer version of the game. */
-export function hasNewerLocalSave(): boolean {
+export function hasNewerLocalSave(key = SAVE_KEY): boolean {
   try {
-    const raw = window.localStorage.getItem(SAVE_KEY);
+    const raw = window.localStorage.getItem(key);
     return raw !== null && isFromNewerVersion(JSON.parse(raw));
   } catch (error) {
     // Storage blocked or the save isn't JSON: nothing newer to protect.

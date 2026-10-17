@@ -7,6 +7,10 @@ export function createPlayerLeaderboard(platform: PlatformAdapter, signedIn: () 
   return {
     async show(container: HTMLElement): Promise<void> {
       const current = ++request;
+      if (platform.isPreview) {
+        container.innerHTML = `<p class="flow-note" role="status">Rankings are available in player playback. Your preview progress is saved separately.</p>`;
+        return;
+      }
       const restoreFocus = container.contains(document.activeElement);
       container.innerHTML = `<p class="flow-note" role="status">Loading this week's players…</p>`;
       const board = await platform.readLeaderboard();
