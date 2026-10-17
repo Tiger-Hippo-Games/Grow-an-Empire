@@ -59,6 +59,7 @@ describe("leaderboard standing", () => {
     expect(isRegisteredPlayer("google")).toBe(true);
     expect(isRegisteredPlayer("GUEST")).toBe(false);
     expect(isRegisteredPlayer("guest")).toBe(false);
+    expect(isRegisteredPlayer("PREVIEW")).toBe(false);
     expect(isRegisteredPlayer(undefined)).toBe(false);
   });
 });

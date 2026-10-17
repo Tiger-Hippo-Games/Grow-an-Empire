@@ -1,3 +1,5 @@
+> Historical v1 implementation plan. For current SDK loading, identity, previews and persistence, use developer-kit/ and Docs/adr/0003-sdk-v2-portal-bridge.md. Conflicting v1 API/game-ID initialization and token guidance below is obsolete.
+
 # GoLive portal readiness: implementation plan
 
 *Written 2026-09-23 from the 12 portal guideline files in `common/`, audited against the current code.*

@@ -308,7 +308,13 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
     if (toWrite === "retry") { retryLater(game); return; }
     if (!toWrite) return;
     lastCloudWrite = Date.now();
-    const result = await platform.saveProgress(toWrite as unknown as Record<string, unknown>);
+    let result: Awaited<ReturnType<PlatformAdapter["saveProgress"]>>;
+    try {
+      result = await platform.saveProgress(toWrite as unknown as Record<string, unknown>);
+    } finally {
+      // SDK dispatch may be queued; space real calls from the settled attempt.
+      lastCloudWrite = Date.now();
+    }
     if (result === "ok") { failedWrites = 0; return; }
     // SDK v2 invalidates its loaded revision after every failed write.
     // Reload and reconcile before any retry, including uncertain timeouts.

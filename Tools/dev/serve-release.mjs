@@ -49,7 +49,7 @@ const SDK = `// Stand-in for the GoLive portal SDK (local testing only).
   window.Platform = {
     init: function (o) { log("init", [o]); return Promise.resolve(); },
     getPlayer: function () { log("getPlayer", []); return Promise.resolve({ id: "local-guest", displayName: "Local guest", authType: "GUEST" }); },
-    getGameProgress: function () { log("getGameProgress", []); try { var raw = localStorage.getItem(KEY); return Promise.resolve({ progress: raw ? JSON.parse(raw) : null }); } catch (e) { return Promise.reject(e); } },
+    getGameProgress: function () { log("getGameProgress", []); try { var raw = localStorage.getItem(KEY); return Promise.resolve({ progress: raw ? JSON.parse(raw) : {}, version: raw ? 1 : 0 }); } catch (e) { return Promise.reject(e); } },
     saveGameProgress: function (d) { log("saveGameProgress", []); try { localStorage.setItem(KEY, JSON.stringify(d)); return Promise.resolve({ ok: true }); } catch (e) { return Promise.reject(e); } },
     submitScore: function () { return Promise.reject(new Error("Local stand-in is a guest; use the registered mock to test scores.")); },
     getLeaderboard: function (slug, limit) { log("getLeaderboard", [slug, limit]); return Promise.resolve({ entries: [] }); },
@@ -155,14 +155,13 @@ const server = http.createServer((req, res) => {
   const file = path.resolve(root, rel);
   if (!file.startsWith(root + path.sep) && file !== root) return send(res, 403, "text/plain", "Forbidden");
   if (rel === "index.html") {
-    // Local QA only: avoid contacting the production portal. The ZIP itself
-    // retains the official SDK URL required for submission.
+    // The same-origin SDK route above supplies a local stand-in for QA.
     fs.readFile(file, "utf8", (error, html) => {
       if (error) {
         console.warn(`Read failed for ${p}: ${error.message}`);
         return send(res, 500, "text/plain", "Could not read the game entry point");
       }
-      send(res, 200, TYPES[".html"], html.replace("https://golive-platform.netlify.app/sdk/v2/platform-sdk.js", "/sdk/v2/platform-sdk.js"));
+      send(res, 200, TYPES[".html"], html);
     });
     return;
   }

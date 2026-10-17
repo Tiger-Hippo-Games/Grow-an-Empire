@@ -4,6 +4,8 @@ Every build handed over gets a new version and its own ZIP in `release/` (never 
 
 | Version | Date | What changed |
 |---|---|---|
+| 0.12.7 | 2026-10-18 | Final SDK v2 migration, with cloud-write spacing measured after each attempt settles to account for SDK queue delays. All 290 tests, bundle validation and real-client/local-bridge browser checks pass, including preview save/reopen and live battle score posting. |
+| 0.12.6 | 2026-10-18 | Intermediate candidate, superseded by 0.12.7. Migrates to Hippo Arcade SDK v2: serving-origin hosted SDK, portal identity/routing, load-before-save with reload/reconcile after all failures, isolated preview saves and skipped preview rankings. Existing gameplay, weekly board and schema-6 saves retained. |
 | 0.12.5 | 2026-10-14 | Final portal release package with all preceding campaign, leaderboard, UI, art, script-policy and city-spacing changes. Fresh release verification; gameplay and save schema unchanged. |
 | 0.12.4 | 2026-10-13 | Moves Dharmashala behind the town center on the north approach, and shifts the House left/down and Bazaar right/down to clear the mature civic building. Identity-keyed roads and villagers follow the new positions. |
 | 0.12.3 | 2026-10-13 | Fixes live portal inline-script rejection: fit and watchdog moved into versioned JS files; validator rejects inline scripts; strict script-policy iframe, phone, resize and boot recovery QA. |

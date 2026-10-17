@@ -51,6 +51,7 @@ describe("completed-result score submission", () => {
     const queue = createScoreSubmission({ ...createLocalPlatform(), submitScore });
     queue.submit(entry(3), null);
     queue.submit(entry(3), { ...player, authType: "GUEST" });
+    queue.submit(entry(3), { ...player, authType: "PREVIEW" });
     queue.submit(entry(0), player);
     expect(submitScore).not.toHaveBeenCalled();
   });

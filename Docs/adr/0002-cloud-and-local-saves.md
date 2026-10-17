@@ -1,5 +1,7 @@
 # ADR 0002: Cloud save first, with a local copy and a run-aware merge
 
+SDK v2 loading, preview isolation and recovery after every failed write are updated in [ADR 0003](0003-sdk-v2-portal-bridge.md). Historical SDK 1.5.0 references below do not override the current developer kit.
+
 - **Status:** Accepted, 2026-09-23; amended 2026-10-10 (0.10.2: guests, 5 s spacing, schema 6)
 - **Code:** `src/platform/progressStore.ts`, `src/game/saveGame.ts`
 

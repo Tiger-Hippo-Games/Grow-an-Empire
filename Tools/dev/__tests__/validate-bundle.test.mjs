@@ -36,6 +36,7 @@ describe("SDK v2 submission bundle rules", () => {
     expect(validate(validHtml.replace("./game.js", "/game.js"))).toContain("Absolute URLs in index.html: /game.js");
   });
   it("rejects the obsolete SDK URL and a commented-out SDK tag", () => {
+    expect(validate(validHtml.replace(sdk, "https://golive-platform.netlify.app/sdk/platform-sdk.js"))).toContain(`Official Hippo Arcade SDK script tag present (${sdk})`);
     expect(validate(validHtml.replace(sdk, "/api/v1/sdk/platform-sdk.js"))).toContain(`Official Hippo Arcade SDK script tag present (${sdk})`);
     expect(validate(validHtml.replace(`<script src="${sdk}"></script>`, `<!--<script src="${sdk}"></script>-->`))).toContain(`Official Hippo Arcade SDK script tag present (${sdk})`);
   });

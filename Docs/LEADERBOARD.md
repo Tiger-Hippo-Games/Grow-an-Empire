@@ -1,6 +1,6 @@
 # Strongest Player — production weekly leaderboard
 
-Production configuration supplied on 2026-10-13: game slug `grow`, SDK leaderboard ID `strongplayer`, Weekly, Highest Score Wins, no maximum score. The platform resets the board every Monday at 00:00 UTC (05:30 IST). The official SDK script and SDK-selected API host remain unchanged.
+Production configuration supplied on 2026-10-13: game slug `grow`, SDK leaderboard ID `strongplayer`, Weekly, Highest Score Wins, no maximum score. The platform resets the board every Monday at 00:00 UTC (05:30 IST). SDK v2 loads from `/sdk/v2/platform-sdk.js`; the parent portal binds the game and owns API routing. Production is Hippo Arcade; Netlify is test.
 
 ## Score
 
@@ -13,13 +13,15 @@ The weekly submission is the player's accumulated campaign wins when a battle fi
 ## SDK and UI
 
 ```typescript
-await Platform.init({ gameId: "grow" });
+await Platform.init({ clientVersion: "0.12.7" });
+const player = await Platform.getPlayer();
+// Live registered player playback only; PREVIEW and GUEST never post.
 await Platform.submitScore("strongplayer", completedCampaignCount, metadata);
 const top = await Platform.getLeaderboard("strongplayer", 10);
 const me = await Platform.getMyRank("strongplayer");
 ```
 
-Calls go through the platform adapter. Submissions are caught and spaced at least 30 seconds apart, including weekly transitions; fast results coalesce to the best pending count. Metadata stays below 2 KB. Guests never post or request a private rank, but can read the top ten. Missing SDK methods, timeouts, denied requests and unavailable boards cannot block gameplay.
+PREVIEW profiles save isolated progress but skip every leaderboard operation. Test rankings through live player playback in the test environment, not developer/admin preview. Calls go through the platform adapter. Submissions are caught and spaced at least 30 seconds apart, including weekly transitions; fast results coalesce to the best pending count. Metadata stays below 2 KB. Guests never post or request a private rank, but can read the top ten. Missing SDK methods, timeouts, denied requests and unavailable boards cannot block gameplay.
 
 Open the map's rank chip or More → Realm, then select **Strongest Player**. The view shows top ten players, campaign counts, your own rank when signed in, the reset schedule, and Refresh. AI Realm remains a separate tab. Portal display names are escaped. Loading, empty week, guest, unavailable board and unavailable private-rank states are explicit; close/Escape return focus to the opener, Tab stays inside the dialog, and refresh restores focus without stealing it from another control.
 

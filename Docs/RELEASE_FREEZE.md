@@ -1,4 +1,30 @@
-# Release freeze: v0.12.5
+# Release freeze: v0.12.7
+
+2026-10-18. Verified Hippo Arcade SDK v2 integration using the supplied `developer-kit/` contract. Replaces the v1 packages and intermediate v0.12.6 candidate. Built locally; not uploaded or published.
+
+- Artifact: `release/grow-an-empire-0.12.7.zip`, **17,862,329 bytes**, 157 entries.
+- SHA-256: `C6DB54E7D9E716E75CE154850419DE4C06A394DCCEB1AB1FBAB0508EAEAEA3F0`
+- Serving-origin hosted `/sdk/v2/platform-sdk.js` (actual client tested: 2.1.0); no bundled SDK copy or API/game-ID configuration. Portal identity, versioned save/reload/reconcile and preview isolation are integrated.
+- Existing `grow` listing, `strongplayer` weekly board, live browser save keys and schema-6 settlement saves retained.
+- TypeScript, ESLint, **290 tests** and **16 bundle checks** pass. Exact-ZIP real-client/local-bridge browser checks pass for preview, signed-in and guest play, including completed-move save/reopen, live battle score **1**, and five-second SDK-call spacing. See `Docs/QA_RESULTS.md` for evidence and limits.
+- Test console: `https://golive-platform.netlify.app/developer`. Production console: `https://www.hippoarcade.com/developer`. Verify real preview persistence and test player rankings before production submission; environments do not share uploads/saves.
+
+Follow `Docs/SUBMISSION_CHECKLIST.md` before publication. Keep this ZIP immutable; further builds require a new version.
+
+## Historical release freeze: v0.12.6 (intermediate candidate, superseded)
+
+2026-10-18. Hippo Arcade SDK v2 migration using the supplied `developer-kit/` as the current portal contract. Replaces the v1 integration in earlier packages. Built locally; not uploaded or published.
+
+- Artifact: `release/grow-an-empire-0.12.6.zip`, **17,862,321 bytes**, 157 entries.
+- SHA-256: `4FF27EBBD8299BD3D4A00E01422C2B408A8C11D33E5581F0260489A68EDB0594`
+- Serving-origin hosted `/sdk/v2/platform-sdk.js` (actual client tested: 2.1.0); no SDK copy in the ZIP, API URL, game-ID configuration or token handling.
+- Existing `grow` listing, `strongplayer` weekly board and schema-6 settlement saves retained. Preview saves are isolated; preview rankings are skipped.
+- TypeScript, ESLint and **289 tests** pass; all **16 bundle checks** pass. Real-client/local-bridge browser evidence and limitations are in `Docs/QA_RESULTS.md`.
+- Test environment: `https://golive-platform.netlify.app/developer`. Production: `https://www.hippoarcade.com/developer`. Uploads and saves are separate; test rankings in player playback, not developer/admin preview.
+
+Follow `Docs/SUBMISSION_CHECKLIST.md` before publication. Keep this ZIP immutable; further builds require a new version.
+
+## Historical release freeze: v0.12.5
 
 2026-10-14. Final portal release package, including all preceding campaign, leaderboard, UI, loading, art, external-script and city-spacing changes. Gameplay and save schema are unchanged from v0.12.4. Built locally; not uploaded or published to the live portal.
 

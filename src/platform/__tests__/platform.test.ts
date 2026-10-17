@@ -332,7 +332,7 @@ describe("progress store", () => {
     await progress.load("p");
     progress.save(saveAfter(2, "r", 2), { immediate: true });
     await progress.flush();
-    setCloud(saveAfter(4, "r", 4));
+    setCloud(saveAfter(4, "r", 4) as unknown as Record<string, unknown>);
     await vi.advanceTimersByTimeAsync(15_000);
     expect(reads).toHaveBeenCalledTimes(2);
     expect(writes).toHaveBeenCalledTimes(1);
@@ -357,6 +357,27 @@ describe("progress store", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(saves).toHaveLength(2);
     expect((saves[1] as unknown as SavedGame).state.builtBuildingIds).toHaveLength(3);
+  });
+
+  it("keeps the five-second guard after a delayed SDK write settles", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const times: number[] = [];
+    const saveProgress = vi.fn(async () => {
+      times.push(Date.now());
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return "ok" as const;
+    });
+    const progress = createProgressStore({ ...fakePlatform().platform, saveProgress }, campaignId);
+    await progress.load("p");
+    progress.save(saveAfter(1, "r", 1), { immediate: true });
+    await vi.advanceTimersByTimeAsync(500);
+    progress.save(saveAfter(2, "r", 2), { immediate: true });
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(saveProgress).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(times).toEqual([0, 5500]);
+    await vi.advanceTimersByTimeAsync(500);
   });
 
   it("keeps working offline: browser save only, no cloud calls", async () => {
@@ -525,7 +546,7 @@ describe("Hippo Arcade SDK v2 wrapper", () => {
     const adapter = createGoLivePlatform(sdk);
     await adapter.connect();
     for (const score of [-1, NaN, Infinity]) expect(await adapter.submitScore(score, {})).toBe("error");
-    expect(await adapter.submitScore(103, { text: "à¤…".repeat(800) })).toBe("error");
+    expect(await adapter.submitScore(103, { text: "अ".repeat(800) })).toBe("error");
     expect(submitScore).not.toHaveBeenCalled();
   });
 
@@ -535,7 +556,7 @@ describe("Hippo Arcade SDK v2 wrapper", () => {
     expect(await adapter.connect()).not.toBeNull();
     await adapter.loadProgress();
     expect(await adapter.saveProgress({ schemaVersion: 6 })).toBe("error");
-    expect(await adapter.saveProgress({ text: "à¤…".repeat(23_000) })).toBe("error");
+    expect(await adapter.saveProgress({ text: "अ".repeat(23_000) })).toBe("error");
     expect(sdk.saveGameProgress).toHaveBeenCalledTimes(1);
     expect(console.warn).toHaveBeenCalledTimes(1);
   });
@@ -622,7 +643,7 @@ describe("Hippo Arcade SDK v2 wrapper", () => {
   });
 
   it("never treats a failed or malformed load as an empty save", async () => {
-    const saveGameProgress = vi.fn();
+    const saveGameProgress = vi.fn().mockResolvedValue({ version: 1 });
     const getGameProgress = vi.fn().mockRejectedValueOnce(new Error("Offline")).mockResolvedValueOnce({ progress: {}, version: -1 }).mockResolvedValueOnce({ progress: {}, version: 0 });
     const adapter = createGoLivePlatform(fakeSdk({ getGameProgress, saveGameProgress }));
     await adapter.connect();
@@ -653,6 +674,7 @@ describe("Hippo Arcade SDK v2 wrapper", () => {
   });
 
   it("keeps preview browser and cloud progress separate from the live save and rankings", async () => {
+    const campaignId = new SettlementSimulation().campaign.id;
     const live = saveAfter(3, "live-run", 3);
     store.set(BROWSER_SAVE_KEY, JSON.stringify(live));
     const sdk = fakeSdk({ getPlayer: async () => ({ id: "preview-reviewer", displayName: "Preview", authType: "PREVIEW" }), submitScore: vi.fn(), getLeaderboard: vi.fn(), getMyRank: vi.fn() });
