@@ -45,3 +45,7 @@ All scripts share `flow.py` (campaign map → briefing → city, play a move, pl
 `python Tools/qa/loading_state.py` tests the exact release at the portal path on a throttled connection (1920×1080 and 390×844): visible building tips above the progress bar, monotonic progress, no early build-card layout/art, and immediate hint removal when ready. Unit tests cover all 24 tips and timer cleanup on success/error. The loader does not hold boot open to display every hint.
 
 `player_leaderboard.py` tests production SDK ids, weekly top-ten UI in desktop/phone layouts, escaped player names, guest/empty/error states, first-win posting and a full 25-move campaign with reload. Use the unpacked release server; all leaderboard responses are injected locally.
+
+### Guided tutorial and character polish
+
+`python Tools/qa/tutorial_polish.py` uses `GAE_URL` (default dev port 4173) and checks the real three-lesson flow at desktop, portrait and landscape sizes, keyboard choice, Gather first, report acknowledgement, coach/tray separation, reading size and replay/skip. Screenshots and results are saved under `out/tutorial-polish/`.

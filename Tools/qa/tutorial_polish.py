@@ -26,6 +26,8 @@ with sync_playwright() as p:
         page.locator('#speed-slider').evaluate("e=>{e.value='3';e.dispatchEvent(new Event('input',{bubbles:true}))}")
         if gather:
             page.click('.gather-button')
+        elif width == 1280:
+            page.keyboard.press('1')
         else:
             page.click('.tutorial-pick')
         page.wait_for_selector('#tutorial-coach[data-step=report]:not(.hidden)', timeout=30000)

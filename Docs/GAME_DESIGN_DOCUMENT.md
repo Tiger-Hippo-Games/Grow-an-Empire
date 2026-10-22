@@ -2,7 +2,7 @@
 
 **Document version:** 1.0  
 **Date:** 22 October 2026  
-**Implementation baseline:** Grow an Empire 0.12.7  
+**Implementation baseline:** Grow an Empire 0.13.0  
 **Purpose:** a complete design reference for this game and a worked example for future GROW games.  
 **Companion:** [Reusable GROW game design template](GROW_GAME_TEMPLATE.md).
 
@@ -541,20 +541,22 @@ Persistent stars, rival simulations, weekly boards and a multi-chapter road are 
 
 ### 10.2 Permanent hierarchy
 
-The world dominates the background. A persistent top-center Resources/Move button is available on the map, city and flow dialogs; its dropdown includes resources, army/population metrics and civic progress. Build choices occupy a horizontal bottom tray on all layouts; narrow phones can scroll the cards sideways. Game speed remains labeled after the tutorial. The report reopen control sits beside Gather. Secondary controls include pause, map, Realm, grid, sound, help, fullscreen and restart, with less important actions grouped under More on small layouts.
+The world dominates the background. A persistent top-center Resources/Move button is available on the map, city and flow dialogs; its dropdown includes resources, army/population metrics and civic progress. Build choices occupy a horizontal bottom tray; narrow phones can scroll the cards sideways. During guided lessons on short landscape frames, the coach sits to the left and the tray moves to the right so both remain actionable. Coach positions reserve the measured speed control and Resources/Move button. Game speed remains labeled after the tutorial. The report reopen control sits beside Gather. Secondary controls include pause, map, Realm, grid, sound, help, fullscreen and restart, with less important actions grouped under More on small layouts.
 
 The loading screen uses one economy-backed tip per building, starts at a varied tip and rotates every four seconds. Progress does not run backward, and tips stop immediately on readiness or error. No minimum delay is added to show tips. Pre-boot cards stay hidden so their art cannot compete with first-screen loading.
 
 ### 10.3 Tutorial and progressive disclosure
 
-The initial tutorial explains the campaign's move limit, paid construction, automatic per-move production, recruitment and food, and the final battle. It explains Build versus Gather without prescribing a fixed opening. It is skippable, recorded in settings and replayable from help.
+The welcome gives one goal: prepare an army before the campaign-specific move limit. Three contextual lessons follow: (1) try an affordable opening building, with its real cost and permanent benefit; (2) read the actual move report after that build or Gather; (3) connect wood/planks and grain/rations to automatic recruitment and the final muster. The suggestion never forces a choice or changes the economy. The report is taught through its real Choose button, with focus transferred to the final lesson afterward. Skipping and replay remain available; a persistent ? button beside Gather/Choose opens help even while the other city controls are retracted.
 
-Words support icons while learning. Afterward, amounts use icons plus numbers with accessible hidden labels; learner-only wording recedes. Permanent building-benefit sentences and the Game speed label remain visible. Unlock explanations and longer sentences use info/long press and Details folds. After completing the tutorial normally, wording stays on through reading the first report so the report itself is taught.
+Words support icons while learning. Afterward, amounts use icons plus numbers with accessible hidden labels; learner-only wording recedes. Permanent building-benefit sentences and the Game speed label remain visible. Unlock explanations and longer sentences use info/long press and Details folds. Words remain visible during every lesson, including the actual first report. After the report and final lesson are completed, the usual icon presentation resumes. If help is completed without a report, words stay on through the first report.
+
+The 0.13.0 visual pass repaints the founder/builder and six player/rival combat sheets in the Bharatvarsha palette. Enemy archers and mounted units use their own north-facing sheets. Existing specialist villager sheets and elephant art remain; all citizens gain restrained breathing/stride lean, and trained troops use the crowd clock and distance-based poses. Battle attacks distinguish melee, bows, cavalry and elephants, with a bounded arrow volley, clear army banners and recovery between strikes. Skip, exact casualties, portal/tab pause and reduced motion remain authoritative. See [character art and prompts](../Assets/Art/Production/Characters/POLISH_0_13_0.md).
 
 ### 10.4 Input and accessibility requirements
 
 - Support pointer, touch and keyboard without hover-only essential information.
-- Keep touch targets at least 44 stage pixels and text at least 0.78rem, approximately 12.5 stage pixels.
+- Keep touch targets at least 44 stage pixels. Supporting panel copy is at least 0.875rem (14 stage pixels), coach copy is 0.95rem and welcome copy is 1rem. Small UI labels retain the 0.78rem floor. Use a system sans-serif reading font in tutorials, popup headings and supporting text; ornamental lettering is reserved for the world/title treatment.
 - Give icon controls accessible names; amounts include a hidden resource/unit word.
 - Do not communicate affordability, selection or danger through color alone.
 - Name dialogs, trap Tab within the active modal and return focus to its opener.

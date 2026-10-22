@@ -15,10 +15,16 @@ const SHEETS: Record<"archers" | "swordsmen" | "horsemen" | "elephants" | "enemy
   elephants: "elephant-combat-south8-master-v1.png",
   enemy: "enemy-combat-north8-master-v1.png",
 };
+const ENEMY_SHEETS = {
+  archers: "enemy-archer-combat-north8-master-v1.png",
+  swordsmen: SHEETS.enemy,
+  horsemen: "enemy-horseman-combat-north8-master-v1.png",
+  elephants: SHEETS.elephants,
+};
 
 /** CSS `background` for a unit icon: the sheet is 4 × 2 frames; frame 0 is the ready pose. */
 export function iconStyle(kind: IconKind, enemy: boolean): string {
   if (kind === "militia") return "";
-  const url = assetUrl(enemy && kind !== "elephants" ? SHEETS.enemy : SHEETS[kind]);
+  const url = assetUrl(enemy ? ENEMY_SHEETS[kind] : SHEETS[kind]);
   return `background-image:url("${url}")`;
 }

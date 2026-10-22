@@ -30,3 +30,7 @@ Categories (ART_PIPELINE §41): Human-created · AI-generated · Licensed asset 
 ## If the art is AI-generated
 
 ART_PIPELINE §41: "Do not assume that an AI-generated asset is automatically free of licensing or commercial-use considerations." Record the provider and plan, confirm its terms allow commercial use of outputs, and keep the prompts for the important assets (buildings, civic center) next to their source folders.
+
+## Character polish, 0.13.0 (22 October 2026)
+
+Seven selected character masters were generated/edited with built-in OpenAI imagegen using this project's existing references: founder walk sheet, three player combat sheets and three north-facing rival combat sheets. Prompts, selected output IDs, D: archive paths and authored atlas windows are recorded in [POLISH_0_13_0.md](Production/Characters/POLISH_0_13_0.md). Specialist villager and elephant art remains from the earlier provenance entries; their animation treatment was polished. Runtime derivatives use the existing WebP exporter and manifest. No third-party source image was introduced by this pass.

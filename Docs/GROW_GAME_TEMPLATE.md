@@ -181,6 +181,8 @@ Provide a HUD hierarchy, card anatomy and report contents. Define what remains p
 
 Specify desktop/mobile layouts, world-space reservation for panels, touch targets, minimum text, contrast, non-color cues, screen-reader names, focus behavior, keyboard map, long-press alternatives and reduced motion. Define tutorial completion/skip/replay and how information remains available afterward.
 
+Teach through one real decision and its actual report before explaining the wider strategy. State the campaign goal and remaining choices first. Derive example costs/benefits from game data; support every legal first action, including waiting/Gather. Never require a secret tutorial build order. Keep an accessible help entry beside the current decision. Verify coach/card separation, report acknowledgement, skip, keyboard input, touch and campaign-specific move limits. Reading copy should use a clear sans-serif font at 14–16 stage pixels with generous line spacing; preserve ornament for titles rather than instructions.
+
 | First-session moment | What the player learns | Interaction that demonstrates it | Evidence of comprehension |
 |---|---|---|---|
 | `<moment>` | `<concept>` | `<action/feedback>` | `<test/event>` |

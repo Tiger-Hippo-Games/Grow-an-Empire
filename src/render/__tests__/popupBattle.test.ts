@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { playBattle, type BattleSide } from "../popupBattle";
+import { iconStyle } from "../combatScene";
 import { resolveBattle } from "../../game/battle";
 
 /** Minimal DOM double; timing and counts are exercised with the real controller. */
@@ -37,6 +38,12 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("popup battle playback", () => {
+  it("shows distinct enemy cavalry, archers and swordsmen", () => {
+    const sheets = ["archers", "horsemen", "swordsmen"] as const;
+    expect(new Set(sheets.map(kind => iconStyle(kind, true))).size).toBe(3);
+    for (const kind of sheets) expect(iconStyle(kind, true)).not.toBe(iconStyle(kind, false));
+  });
+
   it("keeps the last survivor visible and stops strikes when one side falls", () => {
     const container = new Element(), onRound = vi.fn(), onDone = vi.fn();
     const oneLeft = { player: { swordsmen: 1, archers: 0, horsemen: 0, militia: 0 }, enemy: { swordsmen: 0, archers: 0, horsemen: 0 } };

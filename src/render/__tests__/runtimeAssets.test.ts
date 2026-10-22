@@ -44,6 +44,7 @@ function referencedFilenames(): string[] {
     ...(Object.keys(CHARACTER_FILES) as CharacterRole[]).map(workSheetFilename),
     "swordsman-combat-south8-master-v1.png", "archer-combat-south8-master-v1.png",
     "horseman-combat-south8-master-v1.png", "elephant-combat-south8-master-v1.png", "enemy-combat-north8-master-v1.png",
+    "enemy-archer-combat-north8-master-v1.png", "enemy-horseman-combat-north8-master-v1.png",
     ...Object.keys(BUILDINGS).flatMap((id) => STAGES.map((stage) => buildingFilename(id, stage))),
   ];
   return [...new Set(names)];
