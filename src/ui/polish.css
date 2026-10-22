@@ -1,0 +1,76 @@
+/* Legible UI type; display lettering stays on the map and game title. */
+:root { --reading-font: "Segoe UI", Inter, system-ui, -apple-system, sans-serif; }
+body, button, input, select, textarea { font-family: var(--reading-font); }
+#app .flow-dialog h2, #app .tutorial-dialog h2, #app .realm-head b, #app .campaign-map-card h3 { font-family: var(--reading-font); font-weight: 750; letter-spacing: normal; line-height: 1.25; }
+#app .flow-dialog { font-size: .95rem; line-height: 1.5; }
+#app .flow-dialog p, #app .flow-extra, #app .flow-dialog li { line-height: 1.55; }
+#app .flow-dialog .flow-lead, #app .flow-dialog .flow-copy { font-size: .95rem; color: #f4e9d3; }
+#app .flow-dialog button, #app .tutorial-actions button, #app .tutorial-coach button { font-size: .92rem; min-height: 44px; line-height: 1.3; }
+#app .flow-dialog small, #app .flow-extra, #app .flow-extra summary, #app .summary-warning,
+#app .report-coach, #app .build-benefit, #app .build-slot.show-info .build-benefit,
+#app .flow-note, #app .flow-sub, #app .flow-hint, #app .side-label, #app .market-heading span,
+#app .market-foot, #app .result-order, #app .result-order-text, #app .result-notes,
+#app .star-rules, #app .realm-who small, #app .ledger-name, #app .ledger-idle,
+#app .report-empty, #app .report-head, #app .net-good small { font-size: .875rem; line-height: 1.45; }
+#app .flow-note.quiet { opacity: 1; color: #d5cebf; }
+#app .side-label, #app .flow-kicker { letter-spacing: .045em; }
+
+/* The welcome sets one goal. Coaches teach through an actual choice and report. */
+#app .tutorial-dialog { width: min(600px,100%); max-height: 100%; overflow-y: auto; }
+#app .tutorial-dialog h2 { font-size: 1.65rem; }
+#app .tutorial-dialog > p { font-size: 1rem; line-height: 1.55; color: #f4e9d3; }
+#app .tutorial-rules { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); margin: 16px 0; gap: 8px; }
+#app .tutorial-rules div { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 0; padding: 14px 12px; }
+#app .tutorial-rules b { display: flex; justify-content: start; align-items: center; width: auto; height: 30px; margin: 0; background: transparent; gap: 4px; }
+#app .tutorial-rules b .gi { width: 28px; height: 28px; }
+#app .tutorial-rules strong { font-size: 1rem; color: #ffe0a2; }
+#app .tutorial-rules span { font-size: .92rem; line-height: 1.45; color: #f4e9d3; }
+#app .tutorial-reassurance { margin-bottom: 18px; }
+#app .tutorial-actions { flex-wrap: wrap; }
+#app .tutorial-coach[data-step] { left: 50%; right: auto; top: var(--tutorial-top,112px); bottom: auto; transform: translateX(-50%); width: min(440px,calc(100% - 24px)); max-height: max(100px,calc(100% - var(--build-panel-reach,250px) - var(--tutorial-top,112px) - 12px)); overflow-y: auto; padding: 16px 18px; font-family: var(--reading-font); font-weight: 400; }
+#app .tutorial-coach::after { display: none; }
+#app .tutorial-coach > span { font-size: .78rem; letter-spacing: .05em; }
+#app .tutorial-coach strong { display: inline; font-size: inherit; margin: 0; color: #fff0c9; }
+#app .tutorial-coach > strong { display: block; margin: 6px 0; font-size: 1.15rem; line-height: 1.3; font-weight: 750; }
+#app .tutorial-coach p { font-size: .95rem; line-height: 1.5; color: #f4e9d3; }
+.coach-hint { display: block; margin-top: 8px; }
+#app #tutorial-coach-skip { background: transparent; color: #f4e9d3; border: 1px solid #dfc69880; margin-left: 6px; }
+#app .tutorial-pick { outline: 3px solid #ffe4a3; outline-offset: -3px; box-shadow: 0 0 20px #e0a52655; }
+#app .tutorial-pick .build-action::after { content: " · Try first"; color: #ffe4a3; font-size: .85rem; }
+.choice-help { flex: none; min-width: 44px; min-height: 44px; border: 1px solid #dfc69880; border-radius: 10px; background: #212548; color: #ffe4a3; font-size: 1.1rem; cursor: pointer; }
+#app .build-panel.reporting .build-foot { display: flex; gap: 8px; }
+#app .report-continue { flex: 1; }
+@container app (max-width: 520px) {
+  #app .tutorial-rules { margin: 12px 0; gap: 6px; }
+  #app .tutorial-rules div { padding: 9px 7px; }
+  #app .tutorial-rules span { font-size: .875rem; }
+  #app .tutorial-dialog h2 { font-size: 1.4rem; }
+  #app .tutorial-coach[data-step] { padding: 12px 14px; }
+}
+/* The coach and cards sit side by side during lessons on short frames. */
+@container app (orientation: landscape) and (max-height: 540px) {
+  #app .tutorial-coach[data-step] { width: calc(42% - 24px); left: 12px; transform: none; max-height: calc(100% - var(--tutorial-top,112px) - 12px); }
+  #app:has(.tutorial-coach:not(.hidden)) .build-panel { left: 42%; right: 8px; bottom: 8px; max-height: calc(100% - var(--hud-bottom,60px) - 24px); }
+}
+
+/* Distinct attack weight, a recovery beat, and bounded ranged effects. */
+.battle-banner { position: absolute; z-index: 3; top: 8px; left: 10px; max-width: 70%; padding: 3px 9px; border-radius: 6px; background: #20231ce8; color: #ffe4a3; font-size: .8rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.battle-banner.enemy { top: auto; left: auto; bottom: 8px; right: 10px; color: #ffcfbf; }
+.battle-actor { transform-origin: center 85%; }
+.engaged .battle-actor:not(.fallen) { animation: battle-melee 1350ms ease-in-out infinite; animation-delay: var(--beat); }
+.engaged .battle-actor:not(.fallen) .unit-icon { animation-duration: 1350ms; }
+.engaged .actor-archers:not(.fallen) { animation-name: battle-bow; }
+.engaged .actor-horsemen:not(.fallen) { animation-name: battle-cavalry; }
+.engaged .actor-elephants:not(.fallen) { animation-name: battle-elephant; }
+.battle-formation.enemy { --attack-direction: -1; }
+.battle-formation { --attack-direction: 1; }
+.battle-actor.fallen { opacity: .18; transform: translateY(7px) rotate(12deg) scale(.85); }
+.battle-volley { position: absolute; width: 100px; height: 2px; left: -50px; top: -20px; background: linear-gradient(90deg,transparent,#ffe0a2); box-shadow: -10px 7px #ffe0a299, 12px -7px #ffe0a299; transform: rotate(75deg); animation: battle-arrows 480ms ease-out both; }
+.playback-paused .battle-volley { animation-play-state: paused !important; }
+.resolved .battle-volley, .reduced-motion .battle-volley { display: none; }
+@keyframes battle-melee { 0%,25%,100% { translate: 0 0; rotate: 0deg; } 45% { translate: 0 calc(-2px * var(--attack-direction)); rotate: -3deg; } 58% { translate: 0 calc(5px * var(--attack-direction)); rotate: 4deg; } 75% { translate: 0 0; rotate: 0deg; } }
+@keyframes battle-bow { 0%,100% { translate: 0 0; } 35% { translate: 0 calc(-2px * var(--attack-direction)); } 60% { translate: 0 calc(1px * var(--attack-direction)); } }
+@keyframes battle-cavalry { 0%,100% { translate: 0 0; } 25% { translate: 0 -2px; } 55% { translate: 0 calc(6px * var(--attack-direction)); } 75% { translate: 0 -1px; } }
+@keyframes battle-elephant { 0%,100% { translate: 0 0; rotate: -1deg; } 50% { translate: 0 calc(3px * var(--attack-direction)); rotate: 1deg; } }
+@keyframes battle-arrows { from { opacity: 0; translate: 0 -35px; } 20% { opacity: 1; } to { opacity: 0; translate: 0 40px; } }
+@media (prefers-reduced-motion: reduce) { .battle-volley { display: none; } }

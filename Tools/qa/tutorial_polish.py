@@ -38,23 +38,19 @@ with sync_playwright() as p:
         assert 'LESSON 3' in page.inner_text('#tutorial-step')
         page.screenshot(path=str(OUT/f'{width}-roadmap.png'))
         # Every coach is contained in the stage and leaves the choice/report tray accessible.
-        bounds = page.locator('#tutorial-coach').evaluate("""e=>{const r=e.getBoundingClientRect(),t=document.getElementById('build-panel').getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,trayTop:t.top,font:parseFloat(getComputedStyle(e.querySelector('p')).fontSize)}}""")
+        bounds = page.locator('#tutorial-coach').evaluate("""e=>{const r=e.getBoundingClientRect(),t=document.getElementById('build-panel').getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,trayTop:t.top,trayLeft:t.left,font:parseFloat(getComputedStyle(e.querySelector('p')).fontSize)}}""")
         assert bounds['left'] >= 0 and bounds['right'] <= width+1, bounds
-        assert bounds['top'] >= 0 and bounds['bottom'] <= bounds['trayTop']+1, bounds
+        assert bounds['top'] >= 0 and (bounds['bottom'] <= bounds['trayTop']+1 or bounds['right'] <= bounds['trayLeft']+1), bounds
         assert bounds['font'] >= 14, bounds
         page.click('#tutorial-next')
         assert not page.is_visible('#tutorial-coach')
         assert not page.is_visible('#tutorial-scrim')
         assert not page.locator('.tutorial-pick').count()
         # Help is replayable; coach dismissal remains accessible without a build.
-        if page.is_visible('#city-ui-toggle'): page.click('#city-ui-toggle')
-        if not page.is_visible('#help-toggle'):
-            if page.is_visible('#controls-more'): page.click('#controls-more')
-        if page.is_visible('#help-toggle'):
-            page.click('#help-toggle')
-            page.click('#tutorial-start')
-            page.click('#tutorial-coach-skip')
-            assert not page.is_visible('#tutorial-coach')
+        page.click('.choice-help')
+        page.click('#tutorial-start')
+        page.click('#tutorial-coach-skip')
+        assert not page.is_visible('#tutorial-coach')
         assert not errors, errors
         results.append({'size':[width,height],'gather':gather,'bounds':bounds,'errors':errors,'pass':True})
         context.close()

@@ -27,6 +27,7 @@ import { createCampaignFlow, type RealmView } from "./ui/campaignFlow";
 import { createRealmBoard } from "./ui/realmBoard";
 import { createSound } from "./ui/sound";
 import "./styles.css";
+import "./ui/polish.css";
 
 // This file is the orchestrator: it owns nothing about *how* to draw a
 // building, animate a villager, or lay out a road — that lives in

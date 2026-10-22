@@ -63,7 +63,7 @@ const BUILDING_ROLES: Record<string, CharacterRole> = {
 
 export function roleForBuilding(buildingId: string): CharacterRole { return BUILDING_ROLES[buildingId] ?? "builder"; }
 
-function atlasFrames(sheet: THREE.Texture, columns: number, rows: number): THREE.Texture[] {
+function atlasFrames(sheet: THREE.Texture, columns: number, rows: number, builderWalk = false): THREE.Texture[] {
   const image = sheet.image as HTMLImageElement;
   const insetX = 0.5 / image.naturalWidth;
   const insetY = 0.5 / image.naturalHeight;
@@ -73,6 +73,14 @@ function atlasFrames(sheet: THREE.Texture, columns: number, rows: number): THREE
     const texture = sheet.clone();
     texture.repeat.set(1 / columns - 2 * insetX, 1 / rows - 2 * insetY);
     texture.offset.set(column / columns + insetX, 1 - (row + 1) / rows + insetY);
+    if (builderWalk) {
+      // The polished founder has generous transparent margins. Authored source
+      // windows keep feet aligned across poses without scaling the PNG master.
+      // Coordinates refer to the 1536×1024 master; runtime export is proportional.
+      const top = [80, 330, 574, 818][row];
+      texture.repeat.set(128 / 1536 - 2 * insetX, 170 / 1024 - 2 * insetY);
+      texture.offset.set((column * 192 + 48) / 1536 + insetX, 1 - (top + 170) / 1024 + insetY);
+    }
     texture.needsUpdate = true;
     return texture;
   });
@@ -102,7 +110,7 @@ export function createCharacterAssets(onReady: () => void = () => undefined) {
     const pending = pendingWalks.get(role);
     if (pending) return pending;
     const loading = loadTexture(walkSheetFilename(role)).then((sheet) => {
-      walks.set(role, atlasFrames(sheet, 8, walkPoseCount(role)));
+      walks.set(role, atlasFrames(sheet, 8, walkPoseCount(role), role === "builder" && walkPoseCount(role) === 4));
       onReady();
     }, (error: unknown) => {
       failedAt.set(`${role}:walk`, performance.now());

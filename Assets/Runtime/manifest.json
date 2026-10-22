@@ -1,10 +1,10 @@
 {
   "archer-combat-south8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/CombatLoops/archer-combat-south8-master-v1.png",
-    "sha256": "2b16e97909a0b41bac32f6cee3050cc5a8865bc3ed6bc533878e3a8c8322842e",
+    "sha256": "583f32f1b6d7b4422be1b0cdeb5c666984a6539672a0b266fa4fa3f6c4b4bc9e",
     "exportRevision": 3,
-    "sourceBytes": 1364063,
-    "bytes": 124432
+    "sourceBytes": 878329,
+    "bytes": 94194
   },
   "archer-walk32-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/DirectionalWalk/archer-walk32-master-v1.png",
@@ -162,10 +162,10 @@
   },
   "builder-walk32-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/DirectionalWalk/builder-walk32-master-v1.png",
-    "sha256": "f05100e52dc0dd0d2a6d8f335727a969d3b955868f8eca7848d4d6ed15be46c6",
+    "sha256": "54b8450e337fe8c6ffd01b0e6fe144c272b6672a1510d5cb55af0f6c1e6a231c",
     "exportRevision": 3,
-    "sourceBytes": 2647302,
-    "bytes": 334234
+    "sourceBytes": 1862504,
+    "bytes": 189176
   },
   "builder-work8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/WorkLoops/builder-work8-master-v1.png",
@@ -300,12 +300,26 @@
     "sourceBytes": 2347342,
     "bytes": 128396
   },
+  "enemy-archer-combat-north8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/CombatLoops/enemy-archer-combat-north8-master-v1.png",
+    "sha256": "d3e238f8a21af5fec1f0a8fecc933dec3e65d2c9c4752c23530209c29083a902",
+    "exportRevision": 3,
+    "sourceBytes": 859876,
+    "bytes": 87212
+  },
   "enemy-combat-north8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/CombatLoops/enemy-combat-north8-master-v1.png",
-    "sha256": "3164b8ec528eeaa1075e9b56b4538f141365913c38caaed903e63423f5603e2f",
+    "sha256": "56f3bada9a70342bcea2bcaf5dee843a87be986afccc0f8547a0e8788637ad38",
     "exportRevision": 3,
-    "sourceBytes": 1181588,
-    "bytes": 101436
+    "sourceBytes": 745117,
+    "bytes": 72838
+  },
+  "enemy-horseman-combat-north8-master-v1.webp": {
+    "source": "Assets/Art/Production/Characters/CombatLoops/enemy-horseman-combat-north8-master-v1.png",
+    "sha256": "1e2b6873a21ce25cadb5f63b45a3c476e3d2cb6fe12ac997499d4375e9b3462c",
+    "exportRevision": 3,
+    "sourceBytes": 688904,
+    "bytes": 71654
   },
   "enemy-walk32-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/DirectionalWalk/enemy-walk32-master-v1.png",
@@ -449,10 +463,10 @@
   },
   "horseman-combat-south8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/CombatLoops/horseman-combat-south8-master-v1.png",
-    "sha256": "f43d7f933649ec5835e7e2f236e1e564550a05c063895ccb3f7643b156521e2c",
+    "sha256": "d88cf6813c55988e9c14c652fe5e913b6da56a11110e1ce3cdc1d23dd5434d93",
     "exportRevision": 3,
-    "sourceBytes": 1175538,
-    "bytes": 109598
+    "sourceBytes": 645718,
+    "bytes": 70200
   },
   "horseman-walk32-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/DirectionalWalk/horseman-walk32-master-v1.png",
@@ -862,10 +876,10 @@
   },
   "swordsman-combat-south8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/CombatLoops/swordsman-combat-south8-master-v1.png",
-    "sha256": "f82c5b7967edadad1843dde17b505bd85671ff6bf19417b77f326afedda5c124",
+    "sha256": "8becde976c9ee4682f6dc5fb5e958be026cdcd08d6c9257383360df0f399fcb0",
     "exportRevision": 3,
-    "sourceBytes": 1566948,
-    "bytes": 136170
+    "sourceBytes": 1250756,
+    "bytes": 122488
   },
   "swordsman-walk32-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/DirectionalWalk/swordsman-walk32-master-v1.png",

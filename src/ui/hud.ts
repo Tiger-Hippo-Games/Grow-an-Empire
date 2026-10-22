@@ -524,6 +524,7 @@ export function createHud(callbacks: HudCallbacks) {
       (buildOptions.querySelector<HTMLButtonElement>(".build-card.affordable, .build-card.swappable") ?? buildFoot.querySelector<HTMLButtonElement>(".gather-button"))?.focus({ preventScroll: true });
     });
     buildFoot.appendChild(next);
+    appendChoiceHelp();
     buildPanel.classList.add("reporting");
     buildPanel.classList.remove("hidden");
     buildPanel.scrollTop = 0;
@@ -678,6 +679,7 @@ export function createHud(callbacks: HudCallbacks) {
     }
     const reopenReport = moveSummary.querySelector<HTMLButtonElement>(".summary-reopen");
     if (reopenReport) buildFoot.appendChild(reopenReport);
+    appendChoiceHelp();
     moveSummary.classList.add("hidden");
     buildPanel.classList.remove("hidden");
     chromeOpen = false;
@@ -821,6 +823,9 @@ export function createHud(callbacks: HudCallbacks) {
     const toStage = app.offsetWidth > 0 && appBox.width > 0 ? app.offsetWidth / appBox.width : 1;
     const root = document.documentElement.style;
     const hudBox = persistentHud.getBoundingClientRect();
+    const speedBox = speedSlider.closest<HTMLElement>(".speed-control")?.getBoundingClientRect();
+    const coachTop = Math.max(hudBox.bottom, speedBox?.bottom ?? hudBox.bottom);
+    root.setProperty("--tutorial-top", `${Math.round((coachTop - appBox.top) * toStage) + 12}px`);
     const settlementBox = hudBox;
     if (hudBox.height > 0) root.setProperty("--hud-bottom", `${Math.round((hudBox.bottom - appBox.top) * toStage)}px`);
     if (settlementBox.height > 0) root.setProperty("--settlement-bottom", `${Math.round((settlementBox.bottom - appBox.top) * toStage)}px`);
@@ -843,9 +848,19 @@ export function createHud(callbacks: HudCallbacks) {
   publishLayout();
 
   // --- First-run tutorial -------------------------------------------------
-  // Welcome modal (pauses the game) → step 1 coach on the build panel →
-  // step 2 coach after the first construction completes → done. main.ts
+  // Welcome → a real choice → its actual report → the army roadmap. main.ts
   // remembers completion in the save (so it follows the player to the cloud).
+
+  function appendChoiceHelp(): void {
+    const help = document.createElement("button");
+    help.type = "button";
+    help.className = "choice-help";
+    help.textContent = "?";
+    help.setAttribute("aria-label", "How to play: replay the guided tutorial");
+    help.title = "How to play";
+    help.addEventListener("click", showTutorialWelcome);
+    buildFoot.appendChild(help);
+  }
 
   function finishTutorial(skipped: boolean): void {
     const wasActive = tutorialActive;
