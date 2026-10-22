@@ -901,11 +901,11 @@ export function createHud(callbacks: HudCallbacks) {
     callbacks.onTutorialModalChange(false);
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 1);
     tutorialStep.textContent = "LESSON 1 OF 3 · CHOOSE";
-    tutorialCoachTitle.textContent = "Start something that keeps giving";
+    tutorialCoachTitle.textContent = "Choose your first building";
     const suggested = suggestedFirstChoice();
     const building = suggested ? BUILDINGS[suggested] : null;
     tutorialCoachCopy.innerHTML = building
-      ? `Try the <strong>${escapeHtml(building.name)}</strong>: pay ${escapeHtml(formatBag(building.cost))} once. ${escapeHtml(building.benefit)}<br><span class="coach-hint">Pick a card below. Every build uses one move. Gather also uses a move, but adds no building.</span>`
+      ? `Try the <strong>${escapeHtml(building.name)}</strong>: pay ${escapeHtml(formatBag(building.cost))} once. ${escapeHtml(building.benefit)}<br><span class="coach-hint">Each choice uses one move. Gather adds no building.</span>`
       : "Choose any affordable card below. Pay its cost once; the building works each move. Gather uses a move without adding a building.";
     tutorialNext.classList.add("hidden");
     tutorialCoach.dataset.step = "choice";
@@ -924,7 +924,7 @@ export function createHud(callbacks: HudCallbacks) {
     if (!summary || !lastPanelView) return;
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
     tutorialStep.textContent = "LESSON 2 OF 3 · SEE IT WORK";
-    tutorialCoachTitle.textContent = summary.buildingId ? `${BUILDINGS[summary.buildingId]?.name ?? "Your building"} is ready!` : "Your city worked while you gathered";
+    tutorialCoachTitle.textContent = summary.buildingId ? `${BUILDINGS[summary.buildingId]?.name ?? "Your building"} is ready!` : "Gather move complete";
     tutorialCoachCopy.innerHTML = "This is your move report. Each row shows what a building used and made. The totals show your supplies <strong>before → after</strong>.<br><span class=\"coach-hint\">Read it, then press <strong>Choose</strong> below. You’ll see this report after every move.</span>";
     tutorialCoach.dataset.step = "report";
     tutorialNext.classList.add("hidden");
@@ -939,7 +939,7 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 3);
     tutorialStep.textContent = "LESSON 3 OF 3 · PREPARE TO DEFEND";
     tutorialCoachTitle.textContent = "Build a supply chain, then an army";
-    tutorialCoachCopy.innerHTML = `<strong>Wood → Sawmill → planks</strong> to build military buildings.<br><strong>Grain → Royal Kitchen → rations</strong> to feed soldiers.<br>Military buildings train automatically when they have supplies and people. Check each card’s benefit.<br><span class="coach-hint">Battle comes after move <strong>${campaignMoveLimit}</strong>. Compare armies in the muster before you Fight. Win to unlock the next campaign!</span>`;
+    tutorialCoachCopy.innerHTML = `<strong>Wood → ${escapeHtml(BUILDINGS.sawmill.name)} → planks.</strong> Add a ${escapeHtml(BUILDINGS.quarry.name)} for stone.<br><strong>Grain → ${escapeHtml(BUILDINGS.bakery.name)} → rations</strong> to feed soldiers.<br>${escapeHtml(BUILDINGS["weapons-workshop"].name)} and ${escapeHtml(BUILDINGS.blacksmith.name)} train automatically when supplied. A ${escapeHtml(BUILDINGS.house.name)} brings more people.<br><span class="coach-hint">Battle comes after move <strong>${campaignMoveLimit}</strong>. Compare armies in the muster before you Fight. Win to unlock the next campaign!</span>`;
     tutorialNext.textContent = "I’m ready to grow my city";
     tutorialNext.classList.remove("hidden");
     tutorialCoach.dataset.step = "growth";

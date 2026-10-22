@@ -1,6 +1,6 @@
 # Grow an Empire: complete game design and the GROW framework
 
-**Document version:** 1.0  
+**Document version:** 1.1\
 **Date:** 22 October 2026  
 **Implementation baseline:** Grow an Empire 0.13.0  
 **Purpose:** a complete design reference for this game and a worked example for future GROW games.  
@@ -733,7 +733,7 @@ Only first-screen essentials may block boot. Load offered/building art as needed
 
 ### 15.3 Current evidence and open work
 
-The 0.12.7 release record documents 290 passing tests, 16 bundle checks and exact-ZIP real-SDK-client/local-bridge checks. Its ZIP is 17,862,329 bytes. Those are historical recorded results, not a fresh test run caused by this document's date. Current publication status must be established from the portal; the repository record alone does not prove an upload or approval.
+The 0.13.0 visual release records 291 passing tests, 14 viewport checks, full desktop/phone campaigns and a byte-matched production ZIP; see the current release freeze for its checksum. The earlier 0.12.7 release record documents 290 passing tests, 16 bundle checks and exact-ZIP real-SDK-client/local-bridge checks. Its ZIP is 17,862,329 bytes. Those are historical recorded results, not a fresh test run caused by this document's date. Current publication status must be established from the portal; the repository record alone does not prove an upload or approval.
 
 Outstanding release concerns include real portal persistence/account checks, Safari and physical-device performance, speakers/audio behavior, and remaining owner confirmations for art provenance. Future strategy tuning, additional campaigns, new animation atlases or new GROW themes are proposals until separately approved and implemented.
 

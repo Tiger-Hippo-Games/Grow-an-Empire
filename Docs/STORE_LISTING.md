@@ -1,11 +1,11 @@
 # Store listing
 
-The metadata for the GoLive listing (SUBMISSION_GUIDE §2 and §16 "Content & metadata"; DEVELOPER_GUIDE §2). Metadata can be changed later with `PUT /api/v1/developer/games/{id}` without another review. **The slug can't be changed after submission.**
+Metadata for the Hippo Arcade listing. The current submission contract is `developer-kit/HIPPO_ARCADE_DEVELOPER_REFERENCE.md`; conflicting older GoLive API examples below are historical. Use the production Developer Console for the existing `grow` listing. **Do not change the established slug.**
 
 | Field | Value | Rule |
 |---|---|---|
 | Title | Grow an Empire | Must match `<title>` in `index.html` |
-| Slug | `grow` | Lowercase, digits, hyphens, ≤ 60 characters, globally unique. Must equal `GAME_ID` in `src/platform/adapters.ts` (it's passed to `Platform.init`). If the slug is taken, change both. |
+| Slug | `grow` | Existing portal listing slug. SDK v2 binds the launched game through the parent portal; no game ID or slug is passed to SDK initialization. |
 | Genre | `strategy` | One of idle, strategy, platformer, puzzle, arcade, rpg, simulation, sports |
 | Orientation | `landscape` | Ravi, 2026-10-10. The game is laid out for the 16:9 1920×1080 portal frame (a 1280×720 stage scaled to fit; exactly 1.5× at 1920×1080); any device that shows at least 1920 px along one side gets that frame. Smaller frames still get a rearranged layout, so a phone held either way stays playable. Also declared in `index.html` (`<meta name="orientation">`) |
 | Tags | `city-builder, strategy, medieval, short-session, single-player` | Optional, comma-separated |

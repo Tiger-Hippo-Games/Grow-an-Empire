@@ -20,6 +20,9 @@ with sync_playwright() as p:
 
         def resources():
             assert page.is_visible("#move")
+            if page.is_visible('.flow-scrim:not(.hidden) .flow-dialog'):
+                bounds = page.locator('.flow-scrim:not(.hidden) .flow-dialog').evaluate("""e=>{const d=e.getBoundingClientRect(),h=document.getElementById('resource-hud').getBoundingClientRect();return {top:d.top,hudBottom:h.bottom}}""")
+                assert bounds['top'] >= bounds['hudBottom']+8, bounds
             page.click("#stockpile-toggle")
             assert page.is_visible("#resource-grid")
             page.keyboard.press("Escape")
@@ -55,12 +58,26 @@ with sync_playwright() as p:
         flow.past_report(page)
         cards()
         # Traverse all later cards, reports, muster, battle and result.
-        flow.play_to_muster(page, on_move=lambda _: (flow.past_report(page), cards()))
+        def inspect_move(move):
+            flow.past_report(page)
+            cards()
+            if move in (4,8):
+                page.screenshot(path=str(OUT / f'city-{move}-{w}x{h}.png'))
+        flow.play_to_muster(page, on_move=inspect_move)
         resources()
         page.click(".flow-dialog [data-action=fight]")
         page.wait_for_selector(".flow-dialog[data-kind=battle], .flow-dialog[data-kind=result]")
         resources()
+        if page.is_visible('.flow-dialog[data-kind=battle]'):
+            frame = page.locator('.popup-battlefield').evaluate("""e=>{const f=e.getBoundingClientRect(),d=e.closest('.flow-dialog').getBoundingClientRect(),s=document.querySelector('[data-action=skip]').getBoundingClientRect();return {top:f.top,bottom:f.bottom,left:f.left,right:f.right,dialogTop:d.top,dialogBottom:d.bottom,skipTop:s.top,skipBottom:s.bottom,skipLeft:s.left,skipRight:s.right}}""")
+            assert frame['top'] >= frame['dialogTop'] and frame['bottom'] <= frame['dialogBottom'], frame
+            overlap_x = min(frame['right'],frame['skipRight'])-max(frame['left'],frame['skipLeft'])
+            overlap_y = min(frame['bottom'],frame['skipBottom'])-max(frame['top'],frame['skipTop'])
+            assert overlap_x <= 0 or overlap_y <= 0, frame
+            page.wait_for_timeout(1100)
+            page.screenshot(path=str(OUT / f'battle-{w}x{h}.png'))
         page.wait_for_selector(".flow-dialog[data-kind=result]", timeout=15000)
+        page.screenshot(path=str(OUT / f'result-{w}x{h}.png'))
         resources()
         results[f"{w}x{h}"] = {"errors": errors, "passed": not errors}
         page.context.close()

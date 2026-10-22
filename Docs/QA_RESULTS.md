@@ -1,5 +1,20 @@
 # QA results
 
+## v0.13.0 (2026-10-22): guided tutorial, readable UI and character polish
+
+- `pnpm check`: **291 tests / 29 files**, TypeScript and ESLint pass. Log: `Tools/qa/out/polish-check.txt`.
+- `Tools/qa/tutorial_polish.py`: real three-lesson onboarding at 1280×720, 390×844, 844×390 and 375×667; keyboard first choice, Gather first, report acknowledgement, replay/skip, guide/tray separation and 15.2-stage-pixel coach copy. No uncaught errors. Results/screenshots: `Tools/qa/out/tutorial-polish/`. The final Gather caption is deliberately neutral when no producer exists: “Gather move complete.”
+- `Tools/qa/viewports.py`: **all 14 viewports pass**, fixed/fluid stage fit, contained panels, no overlapping controls, no tiny text, readable tutorial fit and no page scroll. Final log/screenshots: `Tools/qa/out/polish-viewports.txt`, `vp_polish-final_*`.
+- `Tools/qa/ui_tray.py`: complete campaigns at **844×390, 390×844 and 1920×1080**. Benefit text, resources, countdowns, all move reports, muster, animated fight and result pass with no uncaught errors. Added bounds checks verify that the popup clears the Resources/Move control, the battlefield fits and Skip does not cover it. Visual review corrected the compact battle into two columns and removed the final-move toast from combat. Evidence: `Tools/qa/out/polish-ui_tray.txt`, `Tools/qa/out/ui-tray/`.
+- `Tools/qa/assets_audio.py`: every bundled asset decodes; real desktop and portrait campaigns have no bad requests/broken images; Yatra One loads, audio unlocks after a tap and cues play; asset health is clean. Log: `Tools/qa/out/polish-assets_audio.txt`.
+- `Tools/qa/text_budget.py`: both phone orientations pass all screen budgets; welcome **40/44 words**, battle **16/20 words**. Log: `Tools/qa/out/polish-text_budget.txt`.
+- `Tools/qa/boot_csp.py`: desktop/phone boot and resize under file-only script policy, blocked-module error screen and reload recovery pass. Log: `Tools/qa/out/polish-boot_csp.txt`. The harness now accepts `GAE_URL` so it can target the built preview as well as a nested release server.
+- `pnpm package`: **16 portal checks pass**, **17,766,476 bytes**, **159 entries**. SHA-256 `1EE681D252C716B7E4F29C8F16276E804758F02F74194637C9D18989EA1F9E73`. Every ZIP entry's SHA-256 matches the snapshot of the production build used for browser QA. Logs: `Tools/qa/out/polish-package.txt`, `polish-release.json`.
+
+Seven selected character PNG masters and their WebP derivatives are current; overwritten masters were archived outside the runtime bundle. Prompts, source-window coordinates, tool provenance and selected output IDs are in `Assets/Art/Production/Characters/POLISH_0_13_0.md`. The image tool retains its originals in its managed C: location; game assets, backups and generated project files are on D:.
+
+This pass leaves campaign balance, settlement schema 6 and SDK integration unchanged. Browser QA uses the local SDK stub; prior v0.12.7 real-client bridge evidence is historical. No portal upload/publication, fresh human comprehension study, physical-device FPS or Safari certification is claimed. Existing publication checklist items remain applicable.
+
 ## v0.12.7 (2026-10-18): verified Hippo Arcade SDK v2 release
 
 Includes the complete SDK migration described below. Browser timing inspection found that measuring from before SDK dispatch could produce a 4.97-second call interval. The cloud guard now measures from the settled attempt, preserving at least five seconds even when SDK dispatch is delayed. The v0.12.6 candidate stays immutable and is superseded.

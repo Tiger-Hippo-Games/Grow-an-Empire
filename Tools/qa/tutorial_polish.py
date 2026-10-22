@@ -35,7 +35,7 @@ with sync_playwright() as p:
         assert page.is_visible('.move-report')
         page.screenshot(path=str(OUT/f'{width}-report.png'))
         if gather:
-            assert 'gathered' in page.inner_text('#tutorial-coach-title')
+            assert 'Gather move complete' in page.inner_text('#tutorial-coach-title')
         page.click('.report-continue')
         assert 'LESSON 3' in page.inner_text('#tutorial-step')
         page.screenshot(path=str(OUT/f'{width}-roadmap.png'))

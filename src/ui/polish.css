@@ -36,7 +36,7 @@ body, button, input, select, textarea { font-family: var(--reading-font); }
 .coach-hint { display: block; margin-top: 8px; }
 #app #tutorial-coach-skip { background: transparent; color: #f4e9d3; border: 1px solid #dfc69880; margin-left: 6px; }
 #app .tutorial-pick { outline: 3px solid #ffe4a3; outline-offset: -3px; box-shadow: 0 0 20px #e0a52655; }
-#app .tutorial-pick .build-action::after { content: " · Try first"; color: #ffe4a3; font-size: .85rem; }
+
 .choice-help { flex: none; min-width: 44px; min-height: 44px; border: 1px solid #dfc69880; border-radius: 10px; background: #212548; color: #ffe4a3; font-size: 1.1rem; cursor: pointer; }
 #app .build-panel.reporting .build-foot { display: flex; gap: 8px; }
 #app .report-continue { flex: 1; }
@@ -87,4 +87,25 @@ body, button, input, select, textarea { font-family: var(--reading-font); }
 /* Retracted controls leave the foot of short frames free for the reading tray. */
 @container app (orientation: landscape) and (max-height: 540px) {
   #app.ui-choice .build-panel { bottom: 8px; max-height: min(64%,calc(100% - var(--tutorial-top,112px) - 20px)); }
+}
+
+/* Unlock explanations use the whole card rather than a narrow art column. */
+#app .build-card > .build-unlock { grid-column: 1 / -1; font-size: .875rem; line-height: 1.4; padding-bottom: 24px; }
+/* Keep popup headings below the persistent Resources/Move control. */
+#app .flow-scrim { padding-top: calc(var(--hud-bottom,58px) + 12px); }
+#app:has(.flow-scrim:not(.hidden) .flow-dialog:is([data-kind="battle"],[data-kind="result"])) .move-countdown { visibility: hidden; }
+/* Short landscape battles keep both armies visible beside readable counts. */
+@container app (orientation: landscape) and (max-height: 540px) {
+  #app .flow-dialog[data-kind="battle"] { display: grid; grid-template-columns: minmax(180px,.44fr) minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) 7px 44px; gap: 6px 12px; height: min(300px,100%); padding: 12px 16px; }
+  #app .flow-dialog[data-kind="battle"] > .flow-kicker { display: none; }
+  #app .flow-dialog[data-kind="battle"] h2 { grid-column: 1; grid-row: 1; margin: 0; font-size: 1.05rem; }
+  #app .flow-dialog[data-kind="battle"] .battle-armies { grid-column: 1; grid-row: 2; grid-template-columns: minmax(0,1fr); gap: 4px; margin: 0; overflow-y: auto; min-height: 0; }
+  #app .flow-dialog[data-kind="battle"] .army-chips { gap: 4px; margin: 2px 0; }
+  #app .flow-dialog[data-kind="battle"] .army-chip { padding: 2px 4px; gap: 2px; font-size: .875rem; }
+  #app .flow-dialog[data-kind="battle"] .army-chip .unit-icon { width: 26px; height: 26px; }
+  #app .flow-dialog[data-kind="battle"] .popup-balance { grid-column: 1; grid-row: 3; margin: 0; }
+  #app .flow-dialog[data-kind="battle"] .flow-actions { grid-column: 1; grid-row: 4; position: static; align-self: end; margin: 0; padding: 0; border: 0; background: none; }
+  #app .flow-dialog[data-kind="battle"] .popup-battle { grid-column: 2; grid-row: 1 / -1; display: flex; flex-direction: column; min-height: 0; }
+  #app .flow-dialog[data-kind="battle"] .popup-battlefield { height: auto; flex: 1; min-height: 0; }
+  #app .flow-dialog[data-kind="battle"] .battle-phase { flex: none; }
 }

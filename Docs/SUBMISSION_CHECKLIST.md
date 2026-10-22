@@ -2,7 +2,7 @@
 
 Follow `developer-kit/HIPPO_ARCADE_DEVELOPER_REFERENCE.md` and `developer-kit/SDK_REFERENCE.md`. It supersedes conflicting integration details in the older portal documents. This checklist separates checks verified locally from the Developer Console steps still required. Game slug: `grow`.
 
-Final release build: **v0.12.7** (supersedes earlier packages). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
+Final release build: **v0.13.0** (supersedes earlier packages). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
 
 ## Code and bundle
 
@@ -18,7 +18,7 @@ Final release build: **v0.12.7** (supersedes earlier packages). Use the artifact
 - [x] Versioned saves retain schema 6 and older-save migrations.
 - [x] Cloud writes are at least five seconds apart, including conflict retries and exit checkpoints; browser checkpoints remain immediate.
 - [x] Cloud saves are checked against the 64 KB UTF-8 JSON and six-level nesting limits. Every failed write requires a successful reload and reconciliation before retry.
-- [x] Cloud load/save denial never blocks play. Guests have no cloud save at all (the game neither reads nor writes it for them); trials may play but cannot cloud-save unless the portal grants saving access; browser saves work only when local storage is available.
+- [x] Cloud load/save denial never blocks play. Guests remain local-only. Registered and PREVIEW progress follows portal identity/capabilities, with isolated preview slots; the game makes no trial/tier assumptions. Browser saves require available local storage.
 - [x] Testing switches (`?reset`, `?platform=mock`, `?perf`) are inert on the portal (development and localhost only).
 - [x] Errors from outside the game (SDK, browser notices) are reported but never stop play.
 - [x] Art, the font and sound are checked: the validator fails on any referenced asset missing from the ZIP; `Tools/qa/assets_audio.py` decodes every bundled file and plays a campaign; players' devices report `asset_problem`.

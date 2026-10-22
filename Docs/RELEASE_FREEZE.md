@@ -1,4 +1,18 @@
-# Release freeze: v0.12.7
+# Release freeze: v0.13.0
+
+2026-10-22. Tutorial, typography and character-animation polish. Built locally; not uploaded or published.
+
+- Artifact: `release/grow-an-empire-0.13.0.zip`, **17,766,476 bytes**, **159 entries**.
+- SHA-256: `1EE681D252C716B7E4F29C8F16276E804758F02F74194637C9D18989EA1F9E73`.
+- Three contextual tutorial lessons teach an actual choice, its real move report, and preparation for the campaign's battle. Build, keyboard input, Gather first, skip and replay are supported; the choice tray keeps an accessible help button.
+- Seven new character masters: founder/builder and three player plus three north-facing rival combat atlases. Citizen/garrison motion, role-specific battle attacks and readable UI typography are polished. Short landscape lessons and battles use two columns to preserve access to their content.
+- TypeScript, ESLint and **291 tests in 29 files** pass. All **16 portal bundle checks** pass. Every ZIP file matches the browser-tested production build byte for byte, including all assets, boot files, game code and styles.
+- Browser checks pass at 14 viewports; complete campaigns at 844×390, 390×844 and 1920×1080; guided lessons including keyboard and Gather first; phone word budgets; every bundled asset decoded; audio and font health; strict script policy, resize and boot recovery. Popup headings clear the Resources control; both armies and Skip fit together.
+- Campaign rules, balance, live SDK v2 adapter, `strongplayer` weekly board and settlement save schema 6 are unchanged. SDK-v2 real-client/local-bridge evidence from v0.12.7 remains recorded below; this visual pass did not repeat live portal account checks.
+
+See [QA_RESULTS.md](QA_RESULTS.md), [SUBMISSION_CHECKLIST.md](SUBMISSION_CHECKLIST.md) and [character art/prompts](../Assets/Art/Production/Characters/POLISH_0_13_0.md). The production Developer Console is `https://www.hippoarcade.com/developer`; testing and production uploads/saves are separate. Keep this ZIP immutable; further delivered builds require a new version.
+
+## Historical release freeze: v0.12.7
 
 2026-10-18. Verified Hippo Arcade SDK v2 integration using the supplied `developer-kit/` contract. Replaces the v1 packages and intermediate v0.12.6 candidate. Built locally; not uploaded or published.
 
