@@ -12,7 +12,7 @@ import type { MoveSummary, SimulationMode, ResourceLedger, TrainedUnits } from "
 import { assetUrl } from "../render/assetCatalog";
 import { buildingFilename } from "../render/constructionView";
 import { effectHtml } from "./cardEffect";
-import { escapeHtml, focusFirst, requireElement } from "./dom";
+import { escapeHtml, focusFirst, requireElement, trapTab } from "./dom";
 import { amount, icon, iconWord, type IconName } from "./icons";
 import { createLoadingScreen } from "./loadingScreen";
 import type { CampaignDefinition } from "../game/campaigns";
@@ -244,13 +244,13 @@ export function createHud(callbacks: HudCallbacks) {
   function syncPresentation(): void {
     const choiceOpen = !buildPanel.classList.contains("hidden");
     app.classList.toggle("ui-choice", choiceOpen);
-    app.classList.toggle("ui-open", !choiceOpen && chromeOpen);
+    app.classList.toggle("ui-open", chromeOpen);
     app.classList.toggle("ui-idle", !choiceOpen && !chromeOpen);
     cityUiToggle.setAttribute("aria-expanded", String(chromeOpen));
-    const chromeRetracted = choiceOpen || !chromeOpen;
+    const chromeRetracted = !chromeOpen;
     controls.inert = chromeRetracted;
     settlementBar.inert = false;
-    statusBar.setAttribute("aria-hidden", String(chromeRetracted));
+    statusBar.setAttribute("aria-hidden", String(chromeRetracted || choiceOpen));
     settlementBar.setAttribute("aria-hidden", "false");
     // Transforms do not trigger ResizeObserver, but the camera uses the
     // published panel bounds on compact screens.
@@ -548,6 +548,7 @@ export function createHud(callbacks: HudCallbacks) {
     if (view.mode !== "awaiting-choice") return;
     lastPanelView = view;
     buildOptions.replaceChildren();
+    buildOptions.scrollTop = 0;
     buildPanel.removeAttribute("aria-busy");
     moveChip.innerHTML = `${icon("move")}${view.move}/${campaignMoveLimit}`;
     moveChip.setAttribute("aria-label", `Move ${view.move} of ${campaignMoveLimit}`);
@@ -639,17 +640,28 @@ export function createHud(callbacks: HudCallbacks) {
       info.setAttribute("aria-expanded", "false");
       info.textContent = "i";
       function openInfo(via: "button" | "long_press"): void {
-        slot.classList.add("show-info");
         info.setAttribute("aria-expanded", "true");
         choiceInfoOpens += 1;
         ux("ux_card_info", { building_id: card.id, move: view.move, via });
-      }
-      info.addEventListener("click", () => {
-        if (slot.classList.contains("show-info")) {
-          slot.classList.remove("show-info");
+        const scrim = document.createElement("div");
+        scrim.className = "flow-scrim card-info-scrim";
+        scrim.innerHTML = `<section class="flow-dialog" role="dialog" aria-modal="true" aria-labelledby="card-info-title"><h2 id="card-info-title" tabindex="-1">${escapeHtml(building.name)}</h2><p>Costs ${escapeHtml(formatBag(building.cost))}.</p><p>${escapeHtml(building.benefit)}</p><p>${escapeHtml(building.unlocks)}</p><div class="flow-actions"><button type="button">Back to choices</button></div></section>`;
+        app.appendChild(scrim);
+        callbacks.onTutorialModalChange(true);
+        const close = (): void => {
+          scrim.remove();
           info.setAttribute("aria-expanded", "false");
-        } else openInfo("button");
-      });
+          callbacks.onTutorialModalChange(false);
+          info.focus({ preventScroll: true });
+        };
+        scrim.querySelector("button")!.addEventListener("click", close);
+        scrim.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); }
+          else trapTab(event, scrim);
+        });
+        scrim.querySelector<HTMLElement>("h2")!.focus({ preventScroll: true });
+      }
+      info.addEventListener("click", () => openInfo("button"));
       slot.append(button, info);
       buildOptions.appendChild(slot);
     });

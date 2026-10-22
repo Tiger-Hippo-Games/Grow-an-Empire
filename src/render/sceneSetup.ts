@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { fitCityCamera, type ScreenArea } from "./cameraFit";
 
 /**
  * Owns the renderer, scene, and camera. This is intentionally minimal: it
@@ -19,50 +20,25 @@ function stageScale(): number {
   return typeof scale === "number" && scale > 0 ? scale : 1;
 }
 
-/** Which stage layout index.html chose: the scaled 1280×720 stage, or the frame's own shape. */
-function stageLayout(): "fixed" | "fluid" {
-  return (window as Window & { __gaeLayout?: string }).__gaeLayout === "fluid" ? "fluid" : "fixed";
-}
-
-/** A rectangle in viewport pixels. */
-interface Area { left: number; top: number; right: number; bottom: number }
-
-/**
- * The uncovered stage area above the measured bottom build tray. On phones,
- * inspect mode also reserves the revealed HUD and transport controls.
- */
-function freeArea(width: number, height: number): Area | null {
-  const app = document.getElementById("app");
-  const choiceOpen = app?.classList.contains("ui-choice") === true;
-  const styles = getComputedStyle(document.documentElement);
-  const hudBottom = parseFloat(styles.getPropertyValue("--hud-bottom"));
-  const top = Number.isFinite(hudBottom) ? hudBottom + 12 : 72;
-  const reach = parseFloat(styles.getPropertyValue("--build-panel-reach"));
-  if (choiceOpen) return { left: 0, top, right: width, bottom: height - (Number.isFinite(reach) ? reach + 10 : height * 0.42 + 64) };
-  if (stageLayout() !== "fluid") return null;
-  // The HUD deliberately retreats while the city runs. Let the camera reclaim
-  // that space too, otherwise the canvas would stay framed for panels that are
-  // no longer visible.
-  if (app?.classList.contains("ui-idle")) return { left: 0, top: 0, right: width, bottom: height };
-  const measured = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--settlement-bottom"));
-  const barsBottom = Number.isFinite(measured) && measured > 0 ? measured : height * 0.3;
-  if (width > height && height <= 540) {
-    return { left: 0, top: barsBottom * 0.8, right: width, bottom: height - 56 };
+/** Visible chrome is measured in stage pixels; retracted controls do not reserve space. */
+function freeArea(width: number, height: number): ScreenArea {
+  const viewport = document.getElementById("viewport");
+  const box = viewport?.getBoundingClientRect();
+  const scale = box && box.width > 0 ? width / box.width : 1;
+  const area = { left: 12, right: width - 12, top: 12, bottom: height - 12 };
+  if (!box) return area;
+  for (const selector of ["#resource-hud", ".speed-control", ".hud", "#build-panel", ".controls", "#city-ui-toggle"]) {
+    const element = document.querySelector<HTMLElement>(selector);
+    if (!element || element.offsetParent === null || getComputedStyle(element).opacity === "0") continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.right <= box.left || rect.left >= box.right || rect.bottom <= box.top || rect.top >= box.bottom) continue;
+    if (["#build-panel", ".controls", "#city-ui-toggle"].includes(selector)) area.bottom = Math.min(area.bottom, (rect.top - box.top) * scale - 12);
+    else area.top = Math.max(area.top, (rect.bottom - box.top) * scale + 12);
   }
-  if (height >= width && width <= 760) {
-    return { left: 0, top: barsBottom, right: width, bottom: height - 56 };
-  }
-  return null;
+  // Transient dialogs may cover the city, but never produce an invalid camera.
+  area.bottom = Math.max(area.top + 1, area.bottom);
+  return area;
 }
-
-/**
- * The part of the city kept in the uncovered area when the panels leave only
- * part of the screen (world units; the painted terrain is 71 × 40 and the
- * buildings span about 61 × 28 around the Town Hall). Showing all of it would
- * make the buildings too small on a phone, so the outermost plots may sit
- * under a panel or past the edge.
- */
-const CITY_FOCUS = { width: 52, height: 24, x: 1, y: 0 };
 
 export function createSceneSetup(viewport: HTMLElement) {
   // MSAA mostly matters on 1x screens; on 2x+ screens the extra pixels already
@@ -90,10 +66,6 @@ export function createSceneSetup(viewport: HTMLElement) {
   const camera = new THREE.OrthographicCamera(-7, 7, 4, -4, 0.1, 100);
   camera.position.set(0, 0, 10);
 
-  /** Keep every district within the camera, even when the app panel is nearly square. */
-  const MIN_VIEW_HEIGHT = 44;
-  const CITY_WIDTH_WITH_MARGIN = 76;
-
   /** Matches the canvas and camera to the viewport's current size. Call on window resize. */
   function resize(): void {
     const width = viewport.clientWidth;
@@ -103,29 +75,13 @@ export function createSceneSetup(viewport: HTMLElement) {
     if (width === 0 || height === 0) return;
     quality.set(quality.tier); // The stage scale may have changed with the window.
     renderer.setSize(width, height, false);
-    const aspect = width / Math.max(height, 1);
-    const free = freeArea(width, height);
-    let viewHeight: number;
-    if (free) {
-      // Fit the city into the uncovered area and centre it there.
-      const freeWidth = Math.max(0.25, (free.right - free.left) / width);
-      const freeHeight = Math.max(0.2, (free.bottom - free.top) / height);
-      viewHeight = Math.max(CITY_FOCUS.height / freeHeight, CITY_FOCUS.width / freeWidth / aspect);
-      const viewWidth = viewHeight * aspect;
-      const centerX = (free.left + free.right) / 2 / width;
-      const centerY = (free.top + free.bottom) / 2 / height;
-      camera.position.x = CITY_FOCUS.x - viewWidth * (centerX - 0.5);
-      camera.position.y = CITY_FOCUS.y - viewHeight * (0.5 - centerY);
-    } else {
-      viewHeight = Math.max(MIN_VIEW_HEIGHT, CITY_WIDTH_WITH_MARGIN / aspect);
-      // Raise the map above the choice panel, leaving the southern districts visible.
-      camera.position.x = 0;
-      camera.position.y = -2.5;
-    }
-    camera.left = (-viewHeight * aspect) / 2;
-    camera.right = (viewHeight * aspect) / 2;
-    camera.top = viewHeight / 2;
-    camera.bottom = -viewHeight / 2;
+    const fit = fitCityCamera(width, height, freeArea(width, height));
+    camera.position.x = fit.x;
+    camera.position.y = fit.y;
+    camera.left = -fit.width / 2;
+    camera.right = fit.width / 2;
+    camera.top = fit.height / 2;
+    camera.bottom = -fit.height / 2;
     camera.updateProjectionMatrix();
   }
 

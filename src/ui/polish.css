@@ -109,3 +109,35 @@ body, button, input, select, textarea { font-family: var(--reading-font); }
   #app .flow-dialog[data-kind="battle"] .popup-battlefield { height: auto; flex: 1; min-height: 0; }
   #app .flow-dialog[data-kind="battle"] .battle-phase { flex: none; }
 }
+/* Complete cards: scrolling moves between choices horizontally, never through their names. */
+#app .build-panel:not(.reporting) { bottom: 64px; max-height: none; }
+#app .build-panel:not(.reporting) .build-options { flex: none; overflow-y: hidden; align-items: stretch; grid-template-columns: repeat(3,minmax(250px,1fr)); }
+#app .build-card { min-height: 0; grid-template-columns: 50px minmax(0,1fr); grid-template-rows: auto auto auto auto auto auto; align-content: start; padding: 8px; row-gap: 3px; }
+#app .build-card > .build-art { grid-column: 1; grid-row: 1 / 4; width: 50px; height: 64px; }
+#app .build-card .build-art img { width: 50px; height: 60px; }
+#app .build-name { grid-column: 2; grid-row: 1; align-self: start; padding-right: 34px; line-height: 1.25; }
+#app .build-costs { grid-column: 2; grid-row: 2; }
+#app .build-effect { grid-column: 2; grid-row: 3; margin: 0; }
+#app .build-card > .build-benefit { grid-column: 1 / -1; grid-row: 4; margin: 3px 0; padding: 0; line-height: 1.35; }
+#app .build-card > .build-unlock { display: none; }
+#app .build-card > .build-swap { grid-column: 1 / -1; grid-row: 5; }
+#app .build-card > .build-action { position: static; grid-column: 1 / -1; grid-row: 6; justify-self: end; margin-top: 3px; }
+#app .card-info-scrim { z-index: 45; }
+#app.ui-choice:not(.ui-open) .city-ui-toggle { display: flex; }
+#app.ui-choice.ui-open .controls { transform: none; opacity: 1; pointer-events: auto; }
+
+@container app (orientation: landscape) and (max-height: 540px) {
+  #app .build-panel:not(.reporting) { bottom: 8px; }
+  #app.ui-choice.ui-open .build-panel:not(.reporting) { bottom: 64px; }
+  #app .build-panel:not(.reporting) .build-options { grid-template-columns: repeat(3,minmax(280px,1fr)); }
+  #app .build-card { grid-template-columns: 44px minmax(0,1fr); padding: 6px; }
+  #app .build-card > .build-art, #app .build-card .build-art img { width: 44px; height: 52px; }
+  #app .build-card > .build-effect { display: none; }
+  #app .build-card > .build-art { grid-row: 1 / 3; }
+  #app .build-card > .build-benefit { grid-row: 3; }
+}
+
+#app .build-card:hover { transform: none; }
+@container app (orientation: landscape) and (max-height: 540px) {
+  #app.ui-choice:not(.ui-open) .city-ui-toggle { top: 14px; bottom: auto; left: auto; right: 12px; }
+}
