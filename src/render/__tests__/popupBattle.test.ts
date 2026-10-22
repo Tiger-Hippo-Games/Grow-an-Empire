@@ -64,7 +64,7 @@ describe("popup battle playback", () => {
     const container = new Element();
     const onRound = vi.fn(), onDone = vi.fn();
     playBattle(container as unknown as HTMLElement, player, enemy, rounds, { onRound, onDone });
-    expect(container.all().filter(e => e.className === "battle-actor")).toHaveLength(42);
+    expect(container.all().filter(e => e.classList.contains("battle-actor"))).toHaveLength(42);
     expect(container.all().some(e => e.attributes.get("aria-label") === "swordsmen: 40")).toBe(true);
     vi.advanceTimersByTime(7500);
     expect(onRound.mock.calls.map(call => call[0])).toEqual([0, 1, 2, 3]);

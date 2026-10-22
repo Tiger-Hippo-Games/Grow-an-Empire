@@ -355,8 +355,11 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
         if (travel < 1) {
           const direction = samplePolyline(soldier.route, soldier.routeLength, Math.max(0, travel), sampled);
           soldier.sprite.position.set(sampled.x, sampled.y + soldier.sprite.scale.y / 2, 2.6);
-          const frame = Math.floor(animationElapsed * 7 + index) % 4;
-          const texture = characters.getFrame(soldier.role, frame, direction);
+          const stride = strideFrame(Math.max(0, travel) * soldier.routeLength, soldier.sprite.scale.y);
+          const frame = stride.frame;
+          const texture = characters.getWalkFrame(soldier.role, stride.cycle, direction);
+          soldier.sprite.position.y += stride.bob;
+          soldier.sprite.material.rotation = Math.sin(stride.cycle * Math.PI * 2) * .018;
           soldier.sprite.scale.x = soldier.sprite.scale.y * WALK_CELL_ASPECT;
           if (soldier.sprite.material.map !== texture) {
             soldier.frame = frame;
@@ -375,6 +378,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
       soldier.sprite.position.x = THREE.MathUtils.lerp(soldier.sprite.position.x, target.x, blend);
       soldier.sprite.position.y = THREE.MathUtils.lerp(soldier.sprite.position.y, target.y + soldier.sprite.scale.y / 2, blend);
       const nearLine = Math.hypot(target.x - soldier.sprite.position.x, target.y + soldier.sprite.scale.y / 2 - soldier.sprite.position.y) < 0.2;
+      soldier.sprite.material.rotation = nearLine ? Math.sin(animationElapsed * 1.7 + index * 2.4) * .004 : 0;
       // In formation the army stands at ease (still, facing the viewer); it only strikes in the battle.
       const texture = nearLine
         ? characters.getFrame(soldier.role, 0, 4)
@@ -413,7 +417,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
    */
   function renderVillagers(animationElapsed: number, builtBuildingIds: string[], crowdElapsed: number = animationElapsed): void {
     if (combatActive) return;
-    renderGarrison(animationElapsed);
+    renderGarrison(crowdElapsed);
     routesFor(builtBuildingIds);
     for (let index = 0; index < villagers.length; index += 1) {
       const villager = villagers[index];
@@ -433,7 +437,11 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
       const segmentDirection = samplePolyline(route.points, length, length > 0 ? along / length : 0, sampled, laneNormal);
       const direction = journey.outbound ? segmentDirection : ((segmentDirection + 4) % 8) as WalkDirection;
       const working = !journey.moving && journey.progress === 1 && route.kind === "service";
-      const size = Math.abs(villager.sprite.scale.y);
+      const size = villager.baseSize * (villager.profession === "horseman" ? 1.35 : 1);
+      // Small, independent breaths keep waiting citizens alive without making
+      // the four walking poses stretch or changing their foot placement.
+      villager.sprite.scale.y = size * (1 + Math.sin(crowdElapsed * 1.8 + villager.phase * Math.PI * 2) * .006);
+      villager.material.rotation = Math.sin(crowdElapsed * 1.7 + villager.phase * Math.PI * 2) * .006;
       let bob = 0;
       if (working) setFrame(villager, Math.floor(crowdElapsed * CROWD.workFps + villager.phase * 8), direction, true);
       else if (journey.moving && walked > 0) {
@@ -441,6 +449,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
         const stride = strideFrame(legDistance + villager.phase * CROWD.strideLength, size);
         setFrame(villager, stride.frame, direction, false, stride.cycle);
         bob = stride.bob;
+        villager.material.rotation = Math.sin(stride.cycle * Math.PI * 2) * .022;
       } else setFrame(villager, 0, direction, false);
       // Walk on the right of the road centre line, each in its own lane.
       const lane = length > 0 ? laneOffset(index) * laneScale : 0;

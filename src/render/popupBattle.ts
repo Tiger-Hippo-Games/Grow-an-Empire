@@ -25,7 +25,7 @@ function formation(side: BattleSide, enemy: boolean) {
     const icons: HTMLElement[] = [];
     for (let index = 0; index < Math.min(count, MAX_ICONS); index++) {
       const actor = document.createElement("span");
-      actor.className = "battle-actor";
+      actor.className = `battle-actor actor-${kind}`;
       actor.style.setProperty("--beat", `${index * -137}ms`);
       actor.setAttribute("aria-hidden", "true");
       const sprite = document.createElement("i");
@@ -60,6 +60,12 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
   arena.setAttribute("aria-label", "The two armies approach and fight round by round");
   const sides = [formation(player, false), formation(enemy, true)];
   sides.forEach(side => arena.appendChild(side.element));
+  for (const [index, side] of [player, enemy].entries()) {
+    const label = document.createElement("span");
+    label.className = `battle-banner${index ? " enemy" : ""}`;
+    label.textContent = side.title;
+    arena.appendChild(label);
+  }
   const clash = document.createElement("span");
   clash.className = "battle-clash";
   clash.setAttribute("aria-hidden", "true");
@@ -118,6 +124,11 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
         if (resolvedAt === null) {
           status.textContent = `Round ${shown + 1} of ${rounds.length}`;
           clash.replaceChildren(document.createElement("i"));
+          if (counts.some(side => side.archers > 0)) {
+            const arrows = document.createElement("span");
+            arrows.className = "battle-volley";
+            clash.appendChild(arrows);
+          }
         }
         if (counts.some(side => Object.values(side).every(count => count === 0))) {
           resolvedAt ??= elapsed;

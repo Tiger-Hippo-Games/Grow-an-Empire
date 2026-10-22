@@ -516,6 +516,11 @@ export function createHud(callbacks: HudCallbacks) {
       }
       ux("ux_report_read", { move: summary.move, seconds: Math.round((performance.now() - choiceShownAt) / 100) / 10 });
       renderBuildPanel(view);
+      if (tutorialActive && tutorialCoach.dataset.step === "report") {
+        showGrowthCoach();
+        tutorialNext.focus({ preventScroll: true });
+        return;
+      }
       (buildOptions.querySelector<HTMLButtonElement>(".build-card.affordable, .build-card.swappable") ?? buildFoot.querySelector<HTMLButtonElement>(".gather-button"))?.focus({ preventScroll: true });
     });
     buildFoot.appendChild(next);
@@ -553,7 +558,7 @@ export function createHud(callbacks: HudCallbacks) {
       choiceBlockedTaps = 0;
     }
     // First the report of the move just played; the cards once it has been read.
-    if (view.summary?.ledger && reportReadFor !== view.summary.move && !tutorialActive) {
+    if (view.summary?.ledger && reportReadFor !== view.summary.move && (!tutorialActive || tutorialCoach.dataset.step === "report")) {
       moveSummary.classList.add("hidden");
       renderReport(view, view.summary);
       return;
@@ -571,6 +576,7 @@ export function createHud(callbacks: HudCallbacks) {
       const state = card.affordable ? "affordable" : card.swap ? "swappable" : "unaffordable";
       button.className = `build-card ${state}`;
       button.dataset.key = String(index + 1);
+      if (tutorialActive && tutorialCoach.dataset.step === "choice" && card.id === suggestedFirstChoice()) button.classList.add("tutorial-pick");
       const action = card.affordable ? `${icon("build")}<span class="w">BUILD</span>` : card.swap ? `${icon("market")}${icon("build")}<span class="w">SWAP</span>` : `<span class="w">NEEDS</span>`;
       const missing = state === "unaffordable" ? RESOURCE_NAMES.filter((name) => (card.missing[name] ?? 0) > 0).map((name) => amount(name, card.missing[name] as number, { className: "short" })).join("") : "";
       const swapLine = card.swap ? `<span class="build-swap">${icon("market")}${signedBag(card.swap.sell, "−")}<span class="arrow">→</span>${signedBag(card.swap.buy, "+")}${card.swap.change > 0 ? amount("gold", card.swap.change, { sign: "+", className: "gain" }) : ""}</span>` : "";
@@ -616,6 +622,7 @@ export function createHud(callbacks: HudCallbacks) {
           ux("ux_choice", { move: view.move, building_id: card.id, seconds: Math.round((performance.now() - choiceShownAt) / 100) / 10, info_opened: choiceInfoOpens, unaffordable_taps: choiceBlockedTaps, swap: state === "swappable" });
         }
         if (tutorialActive) {
+          if (tutorialCoach.dataset.step === "growth") finishTutorial(false);
           tutorialCoach.classList.add("hidden");
           buildPanel.classList.remove("tutorial-focus");
         }
@@ -652,7 +659,14 @@ export function createHud(callbacks: HudCallbacks) {
       gather.className = "gather-button";
       gather.innerHTML = `${icon("stockpile")}<b>Gather</b> <span class="w">Build nothing this move; the city still works. (G)</span>${icon("play")}`;
       gather.setAttribute("aria-label", "Gather: build nothing this move; your buildings still work and the army still eats. Press G");
-      gather.addEventListener("click", callbacks.onGather);
+      gather.addEventListener("click", () => {
+        if (tutorialActive) {
+          if (tutorialCoach.dataset.step === "growth") finishTutorial(false);
+          tutorialCoach.classList.add("hidden");
+          buildPanel.classList.remove("tutorial-focus");
+        }
+        callbacks.onGather();
+      });
       buildFoot.appendChild(gather);
     } else {
       const hint = document.createElement("p");
@@ -838,12 +852,13 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialActive = false;
     // Words stay on until the first move report has been read: it is the first
     // new screen after the tutorial, and icons alone don't explain it.
-    if (wasActive && learning && !skipped) wordsUntilFirstReport = true;
+    if (wasActive && learning && !skipped && reportReadFor < 1) wordsUntilFirstReport = true;
     else learning = false;
     syncWords();
     tutorialScrim.classList.add("hidden");
     tutorialCoach.classList.add("hidden");
     buildPanel.classList.remove("tutorial-focus");
+    buildPanel.querySelectorAll(".tutorial-pick").forEach((card) => card.classList.remove("tutorial-pick"));
     callbacks.onTutorialModalChange(false);
     if (wasActive) {
       callbacks.onTutorialFinished({ skipped, stepCount: tutorialStepsSeen, seconds: Math.round((performance.now() - tutorialStartedAt) / 1000) });
@@ -870,22 +885,47 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialScrim.classList.add("hidden");
     callbacks.onTutorialModalChange(false);
     tutorialStepsSeen = Math.max(tutorialStepsSeen, 1);
-    tutorialStep.textContent = "STEP 1 OF 2";
-    tutorialCoachTitle.textContent = "Build or gather";
-    tutorialCoachCopy.innerHTML = `Build: pay ${icon("wood")} now; it works every move after. Gather: build nothing this move; the city still works.`;
+    tutorialStep.textContent = "LESSON 1 OF 3 · CHOOSE";
+    tutorialCoachTitle.textContent = "Start something that keeps giving";
+    const suggested = suggestedFirstChoice();
+    const building = suggested ? BUILDINGS[suggested] : null;
+    tutorialCoachCopy.innerHTML = building
+      ? `Try the <strong>${escapeHtml(building.name)}</strong>: pay ${escapeHtml(formatBag(building.cost))} once. ${escapeHtml(building.benefit)}<br><span class="coach-hint">Pick a card below. Every build uses one move. Gather also uses a move, but adds no building.</span>`
+      : "Choose any affordable card below. Pay its cost once; the building works each move. Gather uses a move without adding a building.";
     tutorialNext.classList.add("hidden");
     tutorialCoach.dataset.step = "choice";
     tutorialCoach.classList.remove("hidden");
     buildPanel.classList.add("tutorial-focus");
+    if (lastPanelView) renderBuildPanel(lastPanelView);
+  }
+
+  function suggestedFirstChoice(): string | undefined {
+    return lastPanelView?.cards.find((card) => card.id === "woodcutter" && card.affordable)?.id
+      ?? lastPanelView?.cards.find((card) => card.affordable)?.id;
+  }
+
+  function showResultCoach(): void {
+    const summary = lastPanelView?.summary;
+    if (!summary || !lastPanelView) return;
+    tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
+    tutorialStep.textContent = "LESSON 2 OF 3 · SEE IT WORK";
+    tutorialCoachTitle.textContent = summary.buildingId ? `${BUILDINGS[summary.buildingId]?.name ?? "Your building"} is ready!` : "Your city worked while you gathered";
+    tutorialCoachCopy.innerHTML = "This is your move report. Each row shows what a building used and made. The totals show your supplies <strong>before → after</strong>.<br><span class=\"coach-hint\">Read it, then press <strong>Choose</strong> below. You’ll see this report after every move.</span>";
+    tutorialCoach.dataset.step = "report";
+    tutorialNext.classList.add("hidden");
+    tutorialCoach.classList.remove("hidden");
+    buildPanel.classList.remove("tutorial-focus");
+    renderBuildPanel(lastPanelView);
   }
 
   function showGrowthCoach(): void {
     tutorialScrim.classList.add("hidden");
     callbacks.onTutorialModalChange(false);
-    tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
-    tutorialStep.textContent = "STEP 2 OF 2";
-    tutorialCoachTitle.textContent = "Every move, the city works";
-    tutorialCoachCopy.innerHTML = `Goods ${icon("wood")} become soldiers ${icon("archers")}. Soldiers eat ${icon("rations")}. Battle after move ${campaignMoveLimit}.`;
+    tutorialStepsSeen = Math.max(tutorialStepsSeen, 3);
+    tutorialStep.textContent = "LESSON 3 OF 3 · PREPARE TO DEFEND";
+    tutorialCoachTitle.textContent = "Build a supply chain, then an army";
+    tutorialCoachCopy.innerHTML = `<strong>Wood → Sawmill → planks</strong> to build military buildings.<br><strong>Grain → Royal Kitchen → rations</strong> to feed soldiers.<br>Military buildings train automatically when they have supplies and people. Check each card’s benefit.<br><span class="coach-hint">Battle comes after move <strong>${campaignMoveLimit}</strong>. Compare armies in the muster before you Fight. Win to unlock the next campaign!</span>`;
+    tutorialNext.textContent = "I’m ready to grow my city";
     tutorialNext.classList.remove("hidden");
     tutorialCoach.dataset.step = "growth";
     tutorialCoach.classList.remove("hidden");
@@ -898,7 +938,7 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   function handleTutorialEvent(event: "first-move-complete"): void {
-    if (event === "first-move-complete" && tutorialActive) showGrowthCoach();
+    if (event === "first-move-complete" && tutorialActive && tutorialCoach.dataset.step === "choice") showResultCoach();
   }
 
   playToggle.addEventListener("click", callbacks.onPlayToggle);
@@ -966,6 +1006,11 @@ export function createHud(callbacks: HudCallbacks) {
   tutorialSkip.addEventListener("click", () => {
     finishTutorial(true);
     focusFirst(helpToggle, buildPanel.querySelector<HTMLElement>("button:not([disabled])"), cityUiToggle);
+  });
+  requireElement<HTMLButtonElement>("#tutorial-coach-skip").addEventListener("click", () => {
+    finishTutorial(true);
+    if (lastPanelView) renderBuildPanel(lastPanelView);
+    focusFirst(buildPanel.querySelector<HTMLElement>("button:not([disabled])"), helpToggle);
   });
   // Keyboard support for the modal dialog: Esc skips it, Tab stays inside it.
   // Listens on the document, not the dialog, so it still works after a click

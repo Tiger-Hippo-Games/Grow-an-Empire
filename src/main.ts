@@ -714,7 +714,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
     } else if (event.type === "population-changed") {
       villagerField.syncVillagers(Math.max(0, event.total - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
     } else if (event.type === "unit-trained") {
-      villagerField.syncGarrison(event.units, animationElapsed, simulation.state.builtBuildingIds);
+      villagerField.syncGarrison(event.units, crowdElapsed, simulation.state.builtBuildingIds);
       sound.play("trained");
       const trained = [
         event.newSwordsmen && `${event.newSwordsmen} swordsm${event.newSwordsmen === 1 ? "a" : "e"}n`,
@@ -754,7 +754,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
   }
   if (events.length === 0) return; // Nothing changed: skip the HUD rewrite and the save (runs every frame).
   hud.updateHud(stateSnapshot());
-  if (simulation.state.civicLevel === 1 && events.some((event) => event.type === "construction-complete")) {
+  if (events.some((event) => event.type === "choices-ready") && simulation.state.lastSummary) {
     hud.handleTutorialEvent("first-move-complete");
   }
   autosave();

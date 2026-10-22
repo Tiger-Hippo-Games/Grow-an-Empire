@@ -125,27 +125,28 @@
 
       <div id="tutorial-scrim" class="tutorial-scrim hidden">
         <section class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
-          <span class="tutorial-kicker">Your first settlement</span>
-          <h2 id="tutorial-title">Build. Grow. Defend.</h2>
-          <p class="tutorial-lead"><span data-move-limit>12</span> moves. Build or gather each move.</p>
+          <span class="tutorial-kicker">A village is counting on you</span>
+          <h2 id="tutorial-title">Raise a city. Defend your people.</h2>
+          <p class="tutorial-lead">An enemy army arrives after <strong><span data-move-limit>12</span> moves</strong>. Your choices will decide who holds the field.</p>
           <div class="tutorial-rules">
-            <div><b data-icons="wood stone"></b><span>Pay goods to build</span></div>
-            <div><b data-icons="move"></b><span>Buildings make goods every move</span></div>
-            <div><b data-icons="archers swordsmen rations"></b><span>Goods train soldiers; soldiers eat</span></div>
-            <div><b data-icons="star"></b><span>Win the battle after move <span data-move-limit>12</span></span></div>
+            <div><b data-icons="build"></b><strong>1. Choose</strong><span>Build one thing each move.</span></div>
+            <div><b data-icons="wood grain"></b><strong>2. Grow</strong><span>Your buildings work automatically.</span></div>
+            <div><b data-icons="swordsmen star"></b><strong>3. Defend</strong><span>Raise an army before time runs out.</span></div>
           </div>
+          <p class="tutorial-reassurance">Let’s play one move together. You choose; we’ll show you what changed.</p>
           <div class="tutorial-actions">
-            <button id="tutorial-start" type="button">Begin the settlement</button>
+            <button id="tutorial-start" type="button">Show my first choice</button>
             <button id="tutorial-skip" type="button">Skip tutorial</button>
           </div>
         </section>
       </div>
 
       <aside id="tutorial-coach" class="tutorial-coach hidden" aria-live="polite">
-        <span id="tutorial-step">STEP 1 OF 2</span>
+        <span id="tutorial-step">LESSON 1 OF 3</span>
         <strong id="tutorial-coach-title">Your first decision</strong>
         <p id="tutorial-coach-copy">Choose one of the three building icons. There is no immediate wrong answer—the order creates the strategy.</p>
         <button id="tutorial-next" class="hidden" type="button">Got it</button>
+        <button id="tutorial-coach-skip" type="button">I’ll explore</button>
       </aside>
 
       <div id="loading" class="loading" role="status">

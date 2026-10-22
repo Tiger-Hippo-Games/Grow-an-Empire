@@ -1287,3 +1287,76 @@ button[data-primary], #campaign-launch, #tutorial-start, .build-slot.selected {
 .loading-fill { height: 100%; transform: scaleX(0); transform-origin: left; background: linear-gradient(90deg, #bd7625, var(--gold)); transition: transform 200ms ease; }
 #loading-label { font-size: .9rem; }
 @media (prefers-reduced-motion: reduce) { .loading-fill { transition: none; } }
+
+/* Readability and guided first move: clear UI type; ornamental type stays on the world map. */
+:root { --reading-font: "Segoe UI", Inter, system-ui, -apple-system, sans-serif; }
+body, button, input, select, textarea { font-family: var(--reading-font); }
+.flow-dialog h2, .tutorial-dialog h2, .tutorial-coach, .realm-head b,
+.campaign-map-card h3 { font-family: var(--reading-font); font-weight: 750; letter-spacing: normal; }
+.flow-dialog { font-size: .95rem; line-height: 1.5; }
+.flow-dialog h2 { line-height: 1.25; }
+.flow-dialog p, .flow-extra, .flow-extra p, .flow-dialog li { line-height: 1.55; }
+.flow-dialog .flow-lead, .flow-dialog .flow-copy { font-size: .95rem; color: #f4e9d3; }
+.flow-dialog button, .tutorial-actions button, .tutorial-coach button { font-size: .92rem; min-height: 44px; line-height: 1.3; }
+.flow-dialog small, .flow-extra, .flow-extra summary, .summary-warning, .report-coach { font-size: .875rem; }
+.tutorial-dialog { width: min(600px,100%); max-height: 100%; overflow-y: auto; }
+.tutorial-dialog h2 { font-size: 1.65rem; line-height: 1.2; }
+.tutorial-dialog > p { font-size: 1rem; line-height: 1.55; color: #f4e9d3; }
+.tutorial-rules { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.tutorial-rules div { display: flex; flex-direction: column; gap: 6px; padding: 14px 12px; }
+.tutorial-rules b { width: auto; height: 30px; justify-content: start; display: flex; background: transparent; gap: 4px; }
+.tutorial-rules b .gi { width: 28px; height: 28px; }
+.tutorial-rules strong { font-size: 1rem; color: #ffe0a2; }
+.tutorial-rules span { font-size: .92rem; line-height: 1.45; color: #f4e9d3; }
+.tutorial-reassurance { margin-bottom: 18px !important; }
+.tutorial-actions { flex-wrap: wrap; }
+.tutorial-coach { width: min(440px,calc(100% - 24px)); max-height: max(100px,calc(100% - var(--build-panel-reach,250px) - var(--hud-bottom,60px) - 28px)); overflow-y: auto; padding: 16px 18px; }
+.tutorial-coach[data-step] { left: 50%; right: auto; top: calc(var(--hud-bottom,60px) + 12px); bottom: auto; transform: translateX(-50%); }
+.tutorial-coach::after { display: none; }
+.tutorial-coach > span { font-size: .78rem; letter-spacing: .05em; }
+.tutorial-coach strong { display: inline; font-size: inherit; margin: 0; color: #fff0c9; }
+.tutorial-coach > strong { display: block; margin: 6px 0; font-size: 1.15rem; line-height: 1.3; }
+.tutorial-coach p { font-size: .95rem; line-height: 1.5; color: #f4e9d3; }
+.coach-hint { display: block; margin-top: 8px; }
+#tutorial-coach-skip { background: transparent; color: #f4e9d3; border: 1px solid #dfc69880; margin-left: 6px; }
+.tutorial-pick { outline: 3px solid #ffe4a3; outline-offset: -3px; box-shadow: 0 0 20px #e0a52655; }
+.tutorial-pick .build-action::after { content: " · Try first"; color: #ffe4a3; font-size: .85rem; }
+@container app (max-width: 520px) {
+  :root[data-layout="fluid"] .tutorial-rules { margin: 12px 0; gap: 6px; }
+  :root[data-layout="fluid"] .tutorial-rules div { padding: 9px 7px; }
+  :root[data-layout="fluid"] .tutorial-rules span { font-size: .875rem; }
+  :root[data-layout="fluid"] .tutorial-dialog h2 { font-size: 1.4rem; }
+  :root[data-layout="fluid"] .tutorial-coach { padding: 12px 14px; }
+}
+
+/* Unit-specific weight and timing, with a quiet recovery between strikes. */
+.battle-banner { position: absolute; z-index: 3; top: 8px; left: 10px; max-width: 70%; padding: 3px 9px; border-radius: 6px; background: #20231ce8; color: #ffe4a3; font-size: .8rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.battle-banner.enemy { top: auto; left: auto; bottom: 8px; right: 10px; color: #ffcfbf; }
+.battle-actor { transform-origin: center 85%; }
+.engaged .battle-actor:not(.fallen) { animation: battle-melee 1350ms ease-in-out infinite; animation-delay: var(--beat); }
+.engaged .battle-actor:not(.fallen) .unit-icon { animation-duration: 1350ms; }
+.engaged .actor-archers:not(.fallen) { animation-name: battle-bow; }
+.engaged .actor-horsemen:not(.fallen) { animation-name: battle-cavalry; }
+.engaged .actor-elephants:not(.fallen) { animation-name: battle-elephant; }
+.battle-formation.enemy { --attack-direction: -1; }
+.battle-formation { --attack-direction: 1; }
+.battle-actor.fallen { opacity: .18; transform: translateY(7px) rotate(12deg) scale(.85); }
+.battle-volley { position: absolute; width: 100px; height: 2px; left: -50px; top: -20px; background: linear-gradient(90deg,transparent,#ffe0a2); box-shadow: -10px 7px #ffe0a299, 12px -7px #ffe0a299; transform: rotate(75deg); animation: battle-arrows 480ms ease-out both; }
+.playback-paused .battle-volley { animation-play-state: paused !important; }
+.resolved .battle-volley, .reduced-motion .battle-volley { display: none; }
+@keyframes battle-melee { 0%,25%,100% { translate: 0 0; rotate: 0deg; } 45% { translate: 0 calc(-2px * var(--attack-direction)); rotate: -3deg; } 58% { translate: 0 calc(5px * var(--attack-direction)); rotate: 4deg; } 75% { translate: 0 0; rotate: 0deg; } }
+@keyframes battle-bow { 0%,100% { translate: 0 0; } 35% { translate: 0 calc(-2px * var(--attack-direction)); } 60% { translate: 0 calc(1px * var(--attack-direction)); } }
+@keyframes battle-cavalry { 0%,100% { translate: 0 0; } 25% { translate: 0 -2px; } 55% { translate: 0 calc(6px * var(--attack-direction)); } 75% { translate: 0 -1px; } }
+@keyframes battle-elephant { 0%,100% { translate: 0 0; rotate: -1deg; } 50% { translate: 0 calc(3px * var(--attack-direction)); rotate: 1deg; } }
+@keyframes battle-arrows { from { opacity: 0; translate: 0 -35px; } 20% { opacity: 1; } to { opacity: 0; translate: 0 40px; } }
+@media (prefers-reduced-motion: reduce) { .battle-volley { display: none; } }
+/* Supporting copy has the same minimum reading size in every panel. */
+#app .build-benefit, #app .build-slot.show-info .build-benefit,
+.flow-dialog .flow-note, .flow-dialog .flow-sub, .flow-dialog .flow-hint,
+.flow-dialog .side-label, .flow-dialog .market-heading span, .flow-dialog .market-foot,
+.flow-dialog .result-order, .flow-dialog .result-order-text, .flow-dialog .result-notes,
+.flow-dialog .star-rules, .realm-who small, .ledger-name, .ledger-idle,
+.report-empty, .report-head, .net-good small { font-size: .875rem; line-height: 1.45; }
+.flow-dialog .flow-note.quiet { opacity: 1; color: #d5cebf; }
+.flow-dialog .side-label, .flow-dialog .flow-kicker { letter-spacing: .045em; }
+.tutorial-coach { font-weight: 400; }
