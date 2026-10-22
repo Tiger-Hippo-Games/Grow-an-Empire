@@ -1,8 +1,8 @@
 # Grow an Empire: complete game design and the GROW framework
 
-**Document version:** 1.1\
+**Document version:** 1.2  
 **Date:** 22 October 2026  
-**Implementation baseline:** Grow an Empire 0.13.0  
+**Implementation baseline:** Grow an Empire 0.13.1  
 **Purpose:** a complete design reference for this game and a worked example for future GROW games.  
 **Companion:** [Reusable GROW game design template](GROW_GAME_TEMPLATE.md).
 
@@ -569,11 +569,13 @@ Primary shortcuts include 1–3 for visible choices, Enter for Choose from the r
 
 ### 10.5 Layout contract
 
-The full-size game uses a 1280×720 stage scaled and centered as one unit when the frame can show it at approximately 95% scale or more. A 1920×1080 portal frame gives exactly 1.5× scale. Longer aspect ratios can have bars on the extra axis.
+The full-size game uses a stage of at least 1280×720, scaled as one unit when the frame can show it at approximately 95% scale or more. The stage takes the frame's shape to fill it without bars. A 1920×1080 portal frame gives exactly 1.5× scale; portal header space reduces the actual available frame height.
 
 Smaller frames use a fluid stage at their own dimensions and 1:1 scale. Container queries on `#app` rearrange the interface; do not use viewport-relative offsets to patch stage layouts. The horizontal choice tray persists across orientations. Measured HUD and tray reach variables reserve camera space, so content does not grow beneath controls. Layout changes must update both CSS panel assumptions and the renderer's free-area camera calculation.
 
 The campaign map is a tall painting: campaign 1 is near the bottom and 25 near the top. Wheel, drag, touch and keyboard navigation, a chapter rail, selected-stop centering and a back-to-campaign control support the journey.
+
+The city camera contains the complete 76×44 world-unit footprint, including outer plots and roofs, in the measured space between the visible top controls and bottom panels. It refits after resizing, panel changes and control transitions. Card names, costs, permanent benefits and Build stay visible without vertical scrolling; narrow trays scroll horizontally. Longer unlock explanations open in a keyboard-accessible information dialog. Controls remain reachable during build choices. Validate actual painted building corners and card contents, as well as panel boundaries.
 
 ## 11. World, art, animation and sound
 
@@ -733,7 +735,7 @@ Only first-screen essentials may block boot. Load offered/building art as needed
 
 ### 15.3 Current evidence and open work
 
-The 0.13.0 visual release records 291 passing tests, 14 viewport checks, full desktop/phone campaigns and a byte-matched production ZIP; see the current release freeze for its checksum. The earlier 0.12.7 release record documents 290 passing tests, 16 bundle checks and exact-ZIP real-SDK-client/local-bridge checks. Its ZIP is 17,862,329 bytes. Those are historical recorded results, not a fresh test run caused by this document's date. Current publication status must be established from the portal; the repository record alone does not prove an upload or approval.
+The 0.13.1 iframe fix records 302 passing tests, a 15-size all-building/card fit fixture, 14 viewport checks and full desktop/phone campaigns; see the current release freeze for the package checksum. The 0.13.0 visual release recorded 291 passing tests. The earlier 0.12.7 release record documents 290 passing tests, 16 bundle checks and exact-ZIP real-SDK-client/local-bridge checks. Its ZIP is 17,862,329 bytes. Current publication status must be established from the portal; the repository record alone does not prove an upload or approval.
 
 Outstanding release concerns include real portal persistence/account checks, Safari and physical-device performance, speakers/audio behavior, and remaining owner confirmations for art provenance. Future strategy tuning, additional campaigns, new animation atlases or new GROW themes are proposals until separately approved and implemented.
 

@@ -2,7 +2,7 @@
 
 Follow `developer-kit/HIPPO_ARCADE_DEVELOPER_REFERENCE.md` and `developer-kit/SDK_REFERENCE.md`. It supersedes conflicting integration details in the older portal documents. This checklist separates checks verified locally from the Developer Console steps still required. Game slug: `grow`.
 
-Final release build: **v0.13.0** (supersedes earlier packages). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
+Final release build: **v0.13.1** (supersedes earlier packages). Use the artifact and checksum in [RELEASE_FREEZE.md](RELEASE_FREEZE.md); complete the unchecked portal and provenance steps before publication.
 
 ## Code and bundle
 

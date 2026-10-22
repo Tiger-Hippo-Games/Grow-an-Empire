@@ -140,4 +140,9 @@ body, button, input, select, textarea { font-family: var(--reading-font); }
 #app .build-card:hover { transform: none; }
 @container app (orientation: landscape) and (max-height: 540px) {
   #app.ui-choice:not(.ui-open) .city-ui-toggle { top: 14px; bottom: auto; left: auto; right: 12px; }
+  #app .speed-control { display: grid; grid-template-columns: 78px minmax(0,1fr); gap: 6px; align-items: center; padding: 5px 8px; }
+  #app .speed-control label { flex-direction: column; align-items: flex-start; }
+  #app .speed-control output { margin-left: 0; }
+  #app .speed-control .speed-stops { display: none; }
+  #app #speed-slider { margin: 0; }
 }

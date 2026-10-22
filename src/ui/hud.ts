@@ -845,7 +845,9 @@ export function createHud(callbacks: HudCallbacks) {
     if (panelBox.height > 0) root.setProperty("--build-panel-reach", `${Math.round((appBox.bottom - panelBox.top) * toStage)}px`);
     // The camera keeps the city clear of the bars (sceneSetup.freeArea), so
     // tell main.ts when they move.
-    const layout = [root.getPropertyValue("--hud-bottom"), root.getPropertyValue("--settlement-bottom"), root.getPropertyValue("--build-panel-reach"), app.offsetWidth, app.offsetHeight].join();
+    const controlsBox = controls.getBoundingClientRect();
+    const statusBox = statusBar.getBoundingClientRect();
+    const layout = [root.getPropertyValue("--hud-bottom"), root.getPropertyValue("--settlement-bottom"), root.getPropertyValue("--build-panel-reach"), controlsBox.top, controlsBox.bottom, statusBox.bottom, app.offsetWidth, app.offsetHeight].join();
     if (layout !== lastLayout) {
       lastLayout = layout;
       window.dispatchEvent(new Event("gae:layout"));
@@ -853,10 +855,12 @@ export function createHud(callbacks: HudCallbacks) {
   }
   if (typeof ResizeObserver !== "undefined") {
     const observer = new ResizeObserver(() => publishLayout());
-    for (const element of [app, persistentHud, buildPanel]) observer.observe(element);
+    for (const element of [app, persistentHud, buildPanel, controls, statusBar]) observer.observe(element);
   }
   window.addEventListener("resize", publishLayout);
   buildPanel.addEventListener("animationend", publishLayout);
+  controls.addEventListener("transitionend", publishLayout);
+  statusBar.addEventListener("transitionend", publishLayout);
   publishLayout();
 
   // --- First-run tutorial -------------------------------------------------

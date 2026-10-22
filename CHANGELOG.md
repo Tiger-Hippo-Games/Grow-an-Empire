@@ -4,6 +4,8 @@ Every build handed over gets a new version and its own ZIP in `release/` (never 
 
 | Version | Date | What changed |
 |---|---|---|
+| 0.13.1 | 2026-10-22 | Fits the complete city footprint into the measured space above the choice tray at every iframe size. Compact cards keep names, costs, benefits and Build visible without vertical scrolling; longer explanations open in an accessible dialog. Controls remain reachable during choices. Gameplay and saves unchanged. |
+| 0.13.1 | 2026-10-22 | Fits the complete city footprint into the measured space above the choice tray at every iframe size. Compact cards keep names, costs, benefits and Build visible without vertical scrolling; longer explanations open in an accessible dialog. Controls remain reachable during choices. Gameplay and saves unchanged. |
 | 0.13.0 | 2026-10-22 | Guided first-move tutorial with a real report, accessible choice-tray help, readable popup typography, polished founder and six Bharatvarsha combat atlases, distinct rival unit art, calmer citizen/troop motion and unit-specific battle attacks. Economy, campaign balance and save schema unchanged. |
 | 0.12.7 | 2026-10-18 | Final SDK v2 migration, with cloud-write spacing measured after each attempt settles to account for SDK queue delays. All 290 tests, bundle validation and real-client/local-bridge browser checks pass, including preview save/reopen and live battle score posting. |
 | 0.12.6 | 2026-10-18 | Intermediate candidate, superseded by 0.12.7. Migrates to Hippo Arcade SDK v2: serving-origin hosted SDK, portal identity/routing, load-before-save with reload/reconcile after all failures, isolated preview saves and skipped preview rankings. Existing gameplay, weekly board and schema-6 saves retained. |

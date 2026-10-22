@@ -2,6 +2,8 @@
 
 Automated Playwright checks behind `Docs/QA_RESULTS.md`. They drive a real Chromium and fail loudly (`ALL PASS` / `pass: false`, console errors listed).
 
+`frame_fit.py` checks 15 real iframe sizes, including 870×668 and portal frames with header space. It checks all 24 production building sprites and all card groups with learner words on/off, plus information dialogs and Controls. Its isolated browser substitutes `Tools/dev/frame-fit-review.ts` for the entry module, uses the real HUD/renderer, and never reads or writes game saves. Results and screenshots: `Tools/qa/out/frame-fit/`.
+
 ## Setup (once)
 
 ```powershell

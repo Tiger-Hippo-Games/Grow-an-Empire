@@ -32,7 +32,8 @@ function freeArea(width: number, height: number): ScreenArea {
     if (!element || element.offsetParent === null || getComputedStyle(element).opacity === "0") continue;
     const rect = element.getBoundingClientRect();
     if (rect.right <= box.left || rect.left >= box.right || rect.bottom <= box.top || rect.top >= box.bottom) continue;
-    if (["#build-panel", ".controls", "#city-ui-toggle"].includes(selector)) area.bottom = Math.min(area.bottom, (rect.top - box.top) * scale - 12);
+    const lowerPanel = selector === "#build-panel" || selector === ".controls" || (selector === "#city-ui-toggle" && rect.top > box.top + box.height / 2);
+    if (lowerPanel) area.bottom = Math.min(area.bottom, (rect.top - box.top) * scale - 12);
     else area.top = Math.max(area.top, (rect.bottom - box.top) * scale + 12);
   }
   // Transient dialogs may cover the city, but never produce an invalid camera.
