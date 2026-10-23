@@ -1,4 +1,18 @@
-# Release freeze: v0.13.0
+# Release freeze: v0.13.1
+
+2026-10-22. Complete city and interface fit for portal iframes. Built locally; not uploaded or published.
+
+- Artifact: `release/grow-an-empire-0.13.1.zip`, **17,767,011 bytes**, **159 entries**.
+- SHA-256: `5BDEE45F9725177B3B0FC77A92B41813096CCA7C1EE590113A76533B5384D8E5`.
+- The camera contains the entire city footprint above the measured choice tray and below visible top controls. It updates on resize, panel changes and control transitions. Compact short-landscape speed controls preserve city space.
+- Card names, costs, benefits and Build remain visible without vertical scrolling. Unlock details open in an accessible information dialog. Controls remain reachable during choices.
+- TypeScript, ESLint and **302 tests / 30 files** pass. All **16 portal bundle checks** pass. Every ZIP entry matches the production build used for browser QA byte for byte (`Tools/qa/out/frame-release.json`).
+- All-building/card fit checks cover **15 frame sizes**, **24 painted buildings** and **240 card sets**, including the user's 870×668 preview and portal frames with header space. Production tutorial, 14 viewport and complete desktop/phone campaign evidence is recorded in [QA_RESULTS.md](QA_RESULTS.md).
+- Campaign rules, balance, SDK v2 integration and save schema 6 are unchanged. Existing player progress is retained. This layout pass does not repeat live portal account checks or establish publication.
+
+Use this package for the next portal upload. Keep this ZIP immutable; further delivered builds require a new version.
+
+## Historical release freeze: v0.13.0
 
 2026-10-22. Tutorial, typography and character-animation polish. Built locally; not uploaded or published.
 

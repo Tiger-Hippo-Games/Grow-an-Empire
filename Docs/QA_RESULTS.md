@@ -6,6 +6,7 @@
 - `Tools/qa/frame_fit.py`: isolated real-HUD/renderer fixture with all **24 painted building sprites**, **15 frame sizes**, **240 card sets** (all buildings with learner words on/off), information dialogs and Controls. Checks sprite corners, noncollapsed world extent and complete name/cost/benefit/action bounds without vertical card scrolling. Includes the user's 870×668 preview and portal heights 1036/916. Evidence: `Tools/qa/out/frame-fit/`.
 - Production preview browser regressions: guided tutorial at four sizes; **14 viewport layouts**; complete campaigns at **844×390, 390×844 and 1920×1080** through reports, muster, animated combat and result. No uncaught errors. Logs: `Tools/qa/out/polish-tutorial_polish.txt`, `polish-viewports.txt`, `polish-ui_tray.txt` (rerun for this release).
 - Camera now contains outer plots and roofs in measured uncovered screen space. Cards keep main content visible, unlock details use a focus-trapped dialog, and Controls remain reachable while choosing. Economy, balance, SDK contract and save schema are unchanged. This local layout pass does not establish live portal upload/publication.
+- `pnpm package`: **16 portal checks pass**, **17,767,011 bytes**, **159 entries**. SHA-256 `5BDEE45F9725177B3B0FC77A92B41813096CCA7C1EE590113A76533B5384D8E5`. All ZIP entries match the production-build snapshot. Logs: `Tools/qa/out/frame-package.txt`, `frame-release.json`.
 
 ## v0.13.0 (2026-10-22): guided tutorial, readable UI and character polish
 
