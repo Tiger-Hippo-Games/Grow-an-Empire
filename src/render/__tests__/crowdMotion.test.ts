@@ -40,8 +40,8 @@ describe("smoother sheets drop in", () => {
     expect([0, 1, 2, 3].map((pose) => walkAtlasIndex(3, pose))).toEqual([3, 11, 19, 27]);
     expect([0, 4, 7, 8].map((pose) => walkAtlasIndex(3, pose, 8))).toEqual([3, 35, 59, 3]);
     // Until walk64/work16 sheets are exported, every role keeps its current sheets.
-    expect(walkPoseCount("builder")).toBe(4);
+    expect(walkPoseCount("builder")).toBe(8);
     expect(workFrameCount("builder")).toBe(8);
-    expect(walkSheetFilename("farmer")).toBe("farmer-walk32-master-v1.png");
+    expect(walkSheetFilename("farmer")).toBe("farmer-walk64-master-v1.png");
   });
 });

@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { createCityTraffic } from "./cityTraffic";
+import { routeLength, sampleRoute } from "./routeSampler";
 import type { TrainedUnits } from "../game/settlementSimulation";
 import { civicGround, getBuildingPosition, getRoadRoute, getServiceRoute } from "./cityLayout";
 import { CITY_ANIMATION } from "./animationDesign";
@@ -28,7 +30,6 @@ interface Villager {
   frame: number;
   baseSize: number;
   phase: number;
-  speedVariation: number;
 }
 
 interface GarrisonSoldier {
@@ -106,55 +107,11 @@ export function buildFunctionalRoutes(builtBuildingIds: string[]): WorkRoute[] {
   return routes;
 }
 
-/** Total length of a polyline in world units. */
-function routeLength(points: THREE.Vector2[]): number {
-  let total = 0;
-  for (let index = 1; index < points.length; index += 1) total += points[index - 1].distanceTo(points[index]);
-  return total;
-}
-
-/**
- * Writes the point `progress` (0–1) of the way along a polyline into `out`,
- * and returns the direction of the segment it lies on.
- * `total` is the precomputed `routeLength(points)`; `out` is reused to avoid a
- * per-villager, per-frame allocation.
- */
-function samplePolyline(points: THREE.Vector2[], total: number, progress: number, out: THREE.Vector2, normal?: THREE.Vector2): WalkDirection {
-  if (points.length === 1) {
-    out.copy(points[0]);
-    normal?.set(1, 0);
-    return 4;
-  }
-  let remaining = progress * total;
-  for (let index = 1; index < points.length; index += 1) {
-    const from = points[index - 1];
-    const to = points[index];
-    const segmentLength = from.distanceTo(to);
-    if (remaining <= segmentLength || index === points.length - 1) {
-      const segmentProgress = segmentLength > 0 ? Math.min(1, remaining / segmentLength) : 1;
-      out.copy(from).lerp(to, segmentProgress);
-      if (normal && segmentLength > 0) normal.set(-(to.y - from.y) / segmentLength, (to.x - from.x) / segmentLength);
-      return directionFromVector(to.x - from.x, to.y - from.y);
-    }
-    remaining -= segmentLength;
-  }
-  out.copy(points[points.length - 1]);
-  return 4;
-}
-
-/**
- * Converts a looping clock into an out-and-back trip with a short pause at
- * each end (`endpointDwellFraction` of the cycle). `progress` is 0 at the
- * route start and 1 at its end; `outbound` says which way the villager faces.
- */
-function pingPongProgress(elapsed: number, duration: number): { progress: number; moving: boolean; outbound: boolean } {
-  const phase = (elapsed % duration) / duration;
-  const dwell = CITY_ANIMATION.routes.endpointDwellFraction;
-  const travel = 0.5 - dwell;
-  if (phase < dwell) return { progress: 0, moving: false, outbound: true };
-  if (phase < 0.5) return { progress: (phase - dwell) / travel, moving: true, outbound: true };
-  if (phase < 0.5 + dwell) return { progress: 1, moving: false, outbound: false };
-  return { progress: 1 - (phase - 0.5 - dwell) / travel, moving: true, outbound: false };
+/** Shared cached sampling for troops as well as the civilian traffic model. */
+const sampledTangent = new THREE.Vector2();
+function samplePolyline(points: THREE.Vector2[], total: number, progress: number, out: THREE.Vector2): WalkDirection {
+  sampleRoute(points, total * progress, out, sampledTangent);
+  return directionFromVector(sampledTangent.x, sampledTangent.y);
 }
 
 /**
@@ -220,7 +177,10 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
   // measured twice per villager) on every frame. They're now cached per build order.
   let routeKey = -1;
   let routes: WorkRoute[] = [];
-  let routeLengths: number[] = [];
+  const traffic = createCityTraffic(hallStop);
+  let targetCivilianCount = 0;
+  let lastCrowdElapsed: number | null = null;
+  let routesById = new Map<string, WorkRoute>();
   const sampled = new THREE.Vector2();
 
   // The build list only grows during a run and is a new array after a restart
@@ -231,7 +191,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     routeSource = builtBuildingIds;
     routeKey = builtBuildingIds.length;
     routes = buildFunctionalRoutes(builtBuildingIds);
-    routeLengths = routes.map((route) => routeLength(route.points));
+    routesById = new Map(routes.map(route => [route.id, route]));
   }
 
   function createVillager(index: number): Villager {
@@ -241,7 +201,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     sprite.scale.set(scale * WALK_CELL_ASPECT, scale, 1);
     sprite.renderOrder = 40 + (index % 4);
     scene.add(sprite);
-    return { sprite, material, profession: "builder", frame: 0, baseSize: scale, phase: (index * 0.61803398875) % 1, speedVariation: 0.92 + (index % 7) * 0.025 };
+    return { sprite, material, profession: "builder", frame: 0, baseSize: scale, phase: (index * 0.61803398875) % 1 };
   }
 
   function setProfession(villager: Villager, profession: CharacterRole): void {
@@ -277,6 +237,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     // Longer campaigns can have hundreds of citizens. A representative crowd
     // keeps rendering bounded; the simulation and HUD retain the full totals.
     targetPopulation = Math.min(targetPopulation, 80);
+    targetCivilianCount = targetPopulation;
     while (villagers.length < targetPopulation) villagers.push(createVillager(villagers.length));
     villagers.forEach((villager, index) => { villager.sprite.visible = index < targetPopulation; });
   }
@@ -394,8 +355,9 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
   /** Back to commuting (a new run, or after the battle): everyone visible, untinted. */
   function clearArmyMuster(): void {
     combatActive = false;
+    traffic.reset(); lastCrowdElapsed = null; routeSource = null; routeKey = -1;
     for (const soldier of garrison) soldier.sprite.visible = true;
-    for (const villager of villagers) { villager.sprite.visible = true; villager.material.color.setHex(0xffffff); }
+    villagers.forEach((villager, index) => { villager.sprite.visible = index < targetCivilianCount; villager.material.color.setHex(0xffffff); });
   }
 
   function setCombatActive(value: boolean): void {
@@ -404,10 +366,8 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     for (const soldier of garrison) soldier.sprite.visible = false;
   }
 
-  const laneNormal = new THREE.Vector2();
-  /** How wide the roads are drawn now (cityLayout grows them each move); lanes widen with them. */
-  let laneScale = 1;
-  function setRoadScale(scale: number): void { laneScale = Number.isFinite(scale) && scale > 0 ? scale : 1; }
+  /** Passing lanes widen with the same eased road scale as the painted paths. */
+  function setRoadScale(scale: number): void { traffic.setLaneScale(scale); }
 
   /**
    * Per-frame: positions, flips, tints, and animates every visible villager.
@@ -419,43 +379,25 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     if (combatActive) return;
     renderGarrison(crowdElapsed);
     routesFor(builtBuildingIds);
-    for (let index = 0; index < villagers.length; index += 1) {
-      const villager = villagers[index];
+    traffic.sync(routes, targetCivilianCount);
+    traffic.advance(lastCrowdElapsed === null ? 0 : Math.max(0, crowdElapsed - lastCrowdElapsed));
+    lastCrowdElapsed = crowdElapsed;
+    for (const actor of traffic.actors) {
+      const villager = villagers[actor.id];
       if (!villager.sprite.visible) continue;
-      const routeIndex = index % routes.length;
-      const route = routes[routeIndex];
-      setProfession(villager, routeProfession(route, index));
-      const length = routeLengths[routeIndex];
-      // Service routes start at the Town Hall: stop short of it, each at its own distance.
-      const startsAtHall = route.kind === "service" && length > 0;
-      const trim = startsAtHall ? hallStop(index, length) : 0;
-      const walked = Math.max(0, length - trim);
-      const staggered = crowdElapsed + villager.phase * Math.max(4, walked / route.speed);
-      const duration = Math.max(4.5, (walked * 2) / (route.speed * villager.speedVariation));
-      const journey = pingPongProgress(staggered, duration);
-      const along = trim + journey.progress * walked;
-      const segmentDirection = samplePolyline(route.points, length, length > 0 ? along / length : 0, sampled, laneNormal);
-      const direction = journey.outbound ? segmentDirection : ((segmentDirection + 4) % 8) as WalkDirection;
-      const working = !journey.moving && journey.progress === 1 && route.kind === "service";
+      const route = routesById.get(actor.route.id)!;
+      setProfession(villager, routeProfession(route, actor.id));
+      const direction = directionFromVector(actor.dx, actor.dy);
       const size = villager.baseSize * (villager.profession === "horseman" ? 1.35 : 1);
-      // Small, independent breaths keep waiting citizens alive without making
-      // the four walking poses stretch or changing their foot placement.
+      const stride = strideFrame(actor.stride, size);
       villager.sprite.scale.y = size * (1 + Math.sin(crowdElapsed * 1.8 + villager.phase * Math.PI * 2) * .006);
       villager.material.rotation = Math.sin(crowdElapsed * 1.7 + villager.phase * Math.PI * 2) * .006;
-      let bob = 0;
-      if (working) setFrame(villager, Math.floor(crowdElapsed * CROWD.workFps + villager.phase * 8), direction, true);
-      else if (journey.moving && walked > 0) {
-        const legDistance = (journey.outbound ? journey.progress : 1 - journey.progress) * walked;
-        const stride = strideFrame(legDistance + villager.phase * CROWD.strideLength, size);
-        setFrame(villager, stride.frame, direction, false, stride.cycle);
-        bob = stride.bob;
-        villager.material.rotation = Math.sin(stride.cycle * Math.PI * 2) * .022;
-      } else setFrame(villager, 0, direction, false);
-      // Walk on the right of the road centre line, each in its own lane.
-      const lane = length > 0 ? laneOffset(index) * laneScale : 0;
-      villager.sprite.position.set(sampled.x + laneNormal.x * lane, sampled.y + laneNormal.y * lane + size / 2 + bob, 2.4);
-      // Nearer (lower on screen) villagers draw in front; kept within 40–59, above buildings and below the garrison.
-      villager.sprite.renderOrder = 40 + Math.max(0, Math.min(19, Math.round(10 - sampled.y * 0.45)));
+      if (actor.working) setFrame(villager, Math.floor(crowdElapsed * CROWD.workFps + villager.phase * 8), direction, true);
+      else if (actor.moving || actor.waiting) setFrame(villager, stride.frame, direction, false, stride.cycle);
+      else setFrame(villager, 0, direction, false);
+      if (actor.moving) villager.material.rotation = Math.sin(stride.cycle * Math.PI * 2) * .022;
+      villager.sprite.position.set(actor.x, actor.y + size / 2 + (actor.moving ? stride.bob : 0), 2.4);
+      villager.sprite.renderOrder = 40 + Math.max(0, Math.min(19, Math.round(10 - actor.y * .45)));
       villager.material.color.setHex(0xffffff);
     }
   }

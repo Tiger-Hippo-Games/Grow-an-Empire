@@ -79,7 +79,38 @@ def collect_sources() -> list[Path]:
             if path.name in found and found[path.name] != path:
                 sys.exit(f"Duplicate runtime filename {path.name}: {found[path.name]} and {path}")
             found[path.name] = path
+    # Keep previous masters on disk, but ship only the selected higher-pose walk.
+    for name in list(found):
+        if name.endswith("-walk32-master-v1.png") and name.replace("-walk32-", "-walk64-") in found:
+            del found[name]
     return sorted(found.values(), key=lambda p: p.name)
+
+
+def pack_walk_atlas(image: Image.Image) -> Image.Image:
+    """Technical atlas export: register 64 authored cells with safe transparent gutters.
+
+    Preserve the generated masters. Do not synthesize, duplicate or interpolate poses.
+    One shared scale preserves differences in pose rather than stretching each figure.
+    """
+    image = image.convert("RGBA")
+    cells = []
+    for row in range(8):
+        for col in range(8):
+            cell = image.crop((round(col * image.width / 8), round(row * image.height / 8), round((col + 1) * image.width / 8), round((row + 1) * image.height / 8)))
+            bounds = cell.getchannel("A").point(lambda a: 255 if a > 32 else 0).getbbox()
+            if bounds is None:
+                raise ValueError(f"Missing authored walk pose at row {row + 1}, column {col + 1}")
+            cells.append((cell, bounds))
+    scale = min(112 / max(b[2] - b[0] for _, b in cells), 150 / max(b[3] - b[1] for _, b in cells))
+    atlas = Image.new("RGBA", (1024, 1360))
+    for index, (cell, bounds) in enumerate(cells):
+        # Crop only transparent technical margins and register the authored feet.
+        figure = cell.crop(bounds)
+        figure = figure.resize((round(figure.width * scale), round(figure.height * scale)), Image.Resampling.LANCZOS)
+        x = (index % 8) * 128 + (128 - figure.width) // 2
+        y = (index // 8) * 170 + 160 - figure.height
+        atlas.alpha_composite(figure, (x, y))
+    return atlas
 
 
 def export(source: Path, target: Path) -> None:
@@ -96,7 +127,7 @@ def export(source: Path, target: Path) -> None:
         image = image.resize((1024, 680), Image.Resampling.LANCZOS)
     elif source.name.endswith("-walk64-master-v1.png"):
         # 8 directions × 8 poses, same cell size as walk32 (128 × 170).
-        image = image.resize((1024, 1360), Image.Resampling.LANCZOS)
+        image = pack_walk_atlas(image)
     elif source.name.endswith("-work16-master-v1.png"):
         # 4 × 4 frames, same cell size as work8 (256 × 292).
         image = image.resize((1024, 1168), Image.Resampling.LANCZOS)

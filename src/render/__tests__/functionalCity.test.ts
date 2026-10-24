@@ -65,10 +65,11 @@ describe("functional city routes", () => {
     }
   });
 
-  it("maps every character to 32 walk and eight action frames", () => {
+  it("selects the three polished 64-frame walks and retains the specialist/action sheets", () => {
     expect(Object.keys(CHARACTER_FILES)).toHaveLength(14);
     for (const role of Object.keys(CHARACTER_FILES) as Array<keyof typeof CHARACTER_FILES>) {
-      expect(walkSheetFilename(role)).toBe(`${role}-walk32-master-v1.png`);
+      const poses = ["builder", "farmer", "woodcutter"].includes(role) ? 64 : 32;
+      expect(walkSheetFilename(role)).toBe(`${role}-walk${poses}-master-v1.png`);
       expect(workSheetFilename(role)).toBe(`${role}-work8-master-v1.png`);
     }
   });

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { routeLength, sampleRoute } from "./routeSampler";
 import { loadSheet, setSheetFrame, type SheetClip } from "./spriteAssets";
 import { workerFootOffset } from "./cityLayout";
 import { directionFromVector, WALK_CELL_ASPECT, WORK_CELL_ASPECT, type CharacterAssets, type CharacterRole, type WalkDirection } from "./characterAssets";
@@ -122,21 +123,13 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
     );
   }
 
+  const roadPosition = new THREE.Vector2(), roadTangent = new THREE.Vector2();
+
   /** Moves the construction crew along the same road polyline revealed for the chosen plot. */
   function moveWorkerAlong(points: THREE.Vector2[], progress: number): void {
-    // Runs every frame of a survey: measure in place instead of building arrays.
-    let total = 0;
-    for (let index = 1; index < points.length; index += 1) total += points[index].distanceTo(points[index - 1]);
-    let remaining = THREE.MathUtils.clamp(progress, 0, 1) * total;
-    for (let index = 1; index < points.length; index += 1) {
-      const length = points[index].distanceTo(points[index - 1]);
-      if (remaining <= length || index === points.length - 1) {
-        moveWorker(points[index - 1], points[index], length > 0 ? remaining / length : 1);
-        return;
-      }
-      remaining -= length;
-    }
-    placeWorker(points[0]);
+    sampleRoute(points, THREE.MathUtils.clamp(progress, 0, 1) * routeLength(points), roadPosition, roadTangent);
+    facing = directionFromVector(roadTangent.x, roadTangent.y);
+    placeWorker(roadPosition);
   }
 
   return { worker, loadClips, useClip, useCharacter, useWork, frameFor, placeWorker, moveWorker, moveWorkerAlong };

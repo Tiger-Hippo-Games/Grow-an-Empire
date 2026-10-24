@@ -158,19 +158,26 @@ export function getRoadRoute(fromBuildingId: string, toBuildingId: string): THRE
   return [...getServiceRoute(fromBuildingId).reverse(), ...getServiceRoute(toBuildingId).slice(1)];
 }
 
-/** The physical path segments visible after these buildings have been constructed. */
+/** Canonical authored branches: one edge even when many service/delivery trips share it. */
+export function sharedRoadPlan(builtBuildingIds: string[]): Array<{ key: string; from: THREE.Vector2; to: THREE.Vector2; users: number }> {
+  const edges = new Map<string, { key: string; from: THREE.Vector2; to: THREE.Vector2; users: number }>();
+  for (const id of new Set(builtBuildingIds)) {
+    const points = getServiceRoute(id);
+    for (let i = 1; i < points.length; i++) {
+      const from = points[i - 1], to = points[i];
+      if (from.distanceToSquared(to) < 1e-8) continue;
+      const key = [from.toArray().join(","), to.toArray().join(",")].sort().join("|");
+      const edge = edges.get(key);
+      if (edge) edge.users++;
+      else edges.set(key, { key, from, to, users: 1 });
+    }
+  }
+  return [...edges.values()];
+}
+
+/** The exact unique segments painted by the city and followed by its workforce. */
 export function getVisibleRoadSegments(builtBuildingIds: string[]): Array<[THREE.Vector2, THREE.Vector2]> {
-  const built = new Set(builtBuildingIds);
-  const segments: Array<[THREE.Vector2, THREE.Vector2]> = [];
-  for (const district of Object.keys(DISTRICT_PATHS) as CityDistrict[]) {
-    if (![...built].some((id) => getBuildingDistrict(id) === district)) continue;
-    const path = DISTRICT_PATHS[district];
-    for (let index = 1; index < path.length; index += 1) segments.push([path[index - 1], path[index]]);
-  }
-  for (const buildingId of built) {
-    segments.push([DISTRICT_JUNCTIONS[getBuildingDistrict(buildingId)], getBuildingPosition(buildingId)]);
-  }
-  return segments;
+  return sharedRoadPlan(builtBuildingIds).map(edge => [edge.from, edge.to]);
 }
 
 /** The faint diagonal grid lines on the ground (toggled by the Grid button). */
@@ -203,14 +210,6 @@ function createRoadSegment(from: THREE.Vector2, to: THREE.Vector2, width: number
   road.rotation.z = Math.atan2(dy, dx);
   road.renderOrder = order;
   return road;
-}
-
-function addRoadPath(group: THREE.Group, points: THREE.Vector2[], width: number, color: number, order: number, collect?: THREE.Mesh[]): void {
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const segment = createRoadSegment(points[index], points[index + 1], width, color, order);
-    collect?.push(segment);
-    group.add(segment);
-  }
 }
 
 /** Loads the single tree master sprite and scatters a static forest cluster around it. */
@@ -280,14 +279,24 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
   scene.add(grid);
 
   const background = new THREE.Group();
-  const districtRoads = new Map<string, THREE.Group>();
-  const buildingRoads = new Map<string, THREE.Group>();
-  const workflowRoads = new Map<string, THREE.Group>();
-  /** Every road segment that widens with the city (not fences or banner poles). */
-  const roadMeshes: THREE.Mesh[] = [];
+  const roadBranches = new Map<string, { group: THREE.Group; meshes: THREE.Mesh[]; users: number }>();
+  const visibleSites = new Set<string>();
   let roadScale = 1;
   let roadTarget = 1;
-  const applyRoadScale = (): void => { for (const mesh of roadMeshes) mesh.scale.y = roadScale; };
+  const applyRoadScale = (): void => {
+    for (const branch of roadBranches.values()) {
+      const sharedWidth = 1 + Math.min(4, Math.max(0, branch.users - 1)) * .09;
+      for (const mesh of branch.meshes) mesh.scale.y = roadScale * sharedWidth;
+    }
+  };
+  function revealRoads(): void {
+    for (const branch of roadBranches.values()) { branch.group.visible = false; branch.users = 0; }
+    for (const edge of sharedRoadPlan([...visibleSites])) {
+      const branch = roadBranches.get(edge.key);
+      if (branch) { branch.group.visible = true; branch.users = edge.users; }
+    }
+    applyRoadScale();
+  }
   // Every campaign move must reveal something, even after the hall art reaches
   // its final painted level. Keep stage count tied to the simulation maximum.
   const environmentStages = Array.from({ length: TOTAL_SETTLEMENT_LEVELS }, () => new THREE.Group());
@@ -367,39 +376,13 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     }
   }
 
-  for (const [district, points] of Object.entries(DISTRICT_PATHS)) {
-    const roadGroup = new THREE.Group();
-    addRoadPath(roadGroup, points, 0.78, 0xb28f5c, -6, roadMeshes);
-    addRoadPath(roadGroup, points, 0.22, 0xe1c78d, -5, roadMeshes);
-    roadGroup.visible = false;
-    districtRoads.set(district, roadGroup);
-    background.add(roadGroup);
-  }
-
-  for (const [buildingId, position] of Object.entries(BUILDING_POSITIONS)) {
-    const connector = new THREE.Group();
-    const spur = createRoadSegment(DISTRICT_JUNCTIONS[BUILDING_DISTRICTS[buildingId]], position, 0.28, 0xd2b57c, -4);
-    roadMeshes.push(spur);
-    connector.add(spur);
-    connector.visible = false;
-    buildingRoads.set(buildingId, connector);
-    background.add(connector);
-  }
-
-  const workflowLinks: Array<[string, string]> = [
-    ["woodcutter", "sawmill"], ["farm", "bakery"], ["farm", "granary"],
-    ["fruit-orchard", "winery"], ["swine-farm", "butchery"],
-    ["quarry", "blacksmith"], ["blacksmith", "weapons-workshop"], ["blacksmith", "barracks"], ["weapons-workshop", "barracks"],
-    ["blacksmith", "stable"], ["weapons-workshop", "stable"],
-    ["baoli", "farm"], ["stable", "gajashala"], ["quarry", "prakara"],
-    ["sawmill", "burj"], ["marketplace", "sarai"], ["marketplace", "koshagar"], ["house", "dharmashala"],
-    ["marketplace", "house"],
-  ];
-  for (const [fromId, toId] of workflowLinks) {
+  // Delivery routes traverse these same branches; never paint them over again.
+  for (const edge of sharedRoadPlan(Object.keys(BUILDING_POSITIONS))) {
     const group = new THREE.Group();
-    addRoadPath(group, getRoadRoute(fromId, toId), 0.16, 0xe0ca99, -3, roadMeshes);
-    group.visible = false;
-    workflowRoads.set(`${fromId}:${toId}`, group);
+    const verge = createRoadSegment(edge.from, edge.to, .62, 0xb28f5c, -6);
+    const tread = createRoadSegment(edge.from, edge.to, .16, 0xe1c78d, -5);
+    group.add(verge, tread); group.visible = false;
+    roadBranches.set(edge.key, { group, meshes: [verge, tread], users: 0 });
     background.add(group);
   }
 
@@ -416,26 +399,14 @@ export function createCityLayout(scene: THREE.Scene): CityLayout {
     placementPad,
     placementMaterial,
     showRoadForBuilding(buildingId: string): void {
-      const district = BUILDING_DISTRICTS[buildingId];
-      if (district) districtRoads.get(district)!.visible = true;
-      const connector = buildingRoads.get(buildingId);
-      if (connector) connector.visible = true;
+      if (!BUILDING_POSITIONS[buildingId]) return;
+      visibleSites.add(buildingId); revealRoads();
     },
-    hideAllRoads(): void {
-      districtRoads.forEach((road) => { road.visible = false; });
-      buildingRoads.forEach((road) => { road.visible = false; });
-      workflowRoads.forEach((road) => { road.visible = false; });
-    },
+    hideAllRoads(): void { visibleSites.clear(); revealRoads(); },
     syncBuiltBuildings(buildingIds: string[]): void {
-      const built = new Set(buildingIds);
-      districtRoads.forEach((road, district) => {
-        road.visible = buildingIds.some((id) => BUILDING_DISTRICTS[id] === district);
-      });
-      buildingRoads.forEach((road, id) => { road.visible = built.has(id); });
-      workflowRoads.forEach((road, key) => {
-        const [fromId, toId] = key.split(":");
-        road.visible = built.has(fromId) && built.has(toId);
-      });
+      visibleSites.clear();
+      for (const id of buildingIds) if (BUILDING_POSITIONS[id]) visibleSites.add(id);
+      revealRoads();
     },
     setCivicLevel(level: number, animate = false): void {
       environmentStages.forEach((stage, index) => { stage.visible = index <= level; });
