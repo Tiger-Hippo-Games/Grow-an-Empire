@@ -190,13 +190,16 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     if (builtBuildingIds === routeSource && builtBuildingIds.length === routeKey) return;
     routeSource = builtBuildingIds;
     routeKey = builtBuildingIds.length;
-    routes = buildFunctionalRoutes(builtBuildingIds);
+    // One permanent representative per completed site. Supply/trade routes
+    // must not spawn additional civilians on top of the site's worker.
+    routes = buildFunctionalRoutes([...new Set(builtBuildingIds)]).filter(route => route.kind === "service");
     routesById = new Map(routes.map(route => [route.id, route]));
   }
 
   function createVillager(index: number): Villager {
     const material = new THREE.SpriteMaterial({ map: characters.getFrame("builder", 0), transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(material);
+    sprite.userData.citizenId = index;
     const scale = 2.15 + (index % 4) * 0.08;
     sprite.scale.set(scale * WALK_CELL_ASPECT, scale, 1);
     sprite.renderOrder = 40 + (index % 4);
@@ -207,6 +210,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
   function setProfession(villager: Villager, profession: CharacterRole): void {
     if (villager.profession === profession) return;
     villager.profession = profession;
+    villager.sprite.userData.profession = profession;
     villager.frame = -1;
     const size = villager.baseSize * (profession === "horseman" ? 1.35 : 1);
     villager.sprite.scale.set(size * WALK_CELL_ASPECT, size, 1);
@@ -227,19 +231,11 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
     }
   }
 
-  const residentialRoles: CharacterRole[] = ["builder", "farmer", "woodcutter", "quarry"];
-  function routeProfession(route: WorkRoute, index: number): CharacterRole {
-    return route.id === "service:house" ? residentialRoles[index % residentialRoles.length] : route.profession;
-  }
-
-  /** Grows the crowd to `targetPopulation` (creating sprites as needed) and hides any extras. */
-  function syncVillagers(targetPopulation: number): void {
-    // Longer campaigns can have hundreds of citizens. A representative crowd
-    // keeps rendering bounded; the simulation and HUD retain the full totals.
-    targetPopulation = Math.min(targetPopulation, 80);
-    targetCivilianCount = targetPopulation;
-    while (villagers.length < targetPopulation) villagers.push(createVillager(villagers.length));
-    villagers.forEach((villager, index) => { villager.sprite.visible = index < targetPopulation; });
+  /** Civilian density follows completed sites, independently of population and army size. */
+  function syncVillagers(builtBuildingIds: string[]): void {
+    targetCivilianCount = new Set(builtBuildingIds).size;
+    while (villagers.length < targetCivilianCount) villagers.push(createVillager(villagers.length));
+    villagers.forEach((villager, index) => { villager.sprite.visible = !combatActive && index < targetCivilianCount; });
   }
 
   function garrisonTarget(role: GarrisonSoldier["role"], index: number, swordsmen: number, archers: number, out = new THREE.Vector2()): THREE.Vector2 {
@@ -263,6 +259,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
       while (currentCount < targetCount) {
         const size = role === "horseman" ? 2.95 : 2.15;
         const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: characters.getFrame(role, 0), transparent: true, depthTest: false }));
+        sprite.userData.armyRole = role;
         const destination = garrisonTarget(role, currentCount, units.swordsmen, units.archers);
         const source = role === "horseman" ? "stable" : builtBuildingIds.includes("barracks") ? "barracks" : role === "archer" ? "weapons-workshop" : "blacksmith";
         const route = [...getServiceRoute(source).reverse(), ...getServiceRoute("prakara").slice(1), destination];
@@ -362,7 +359,7 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
 
   function setCombatActive(value: boolean): void {
     combatActive = value;
-    for (const villager of villagers) villager.sprite.visible = !value;
+    villagers.forEach((villager, index) => { villager.sprite.visible = !value && index < targetCivilianCount; });
     for (const soldier of garrison) soldier.sprite.visible = false;
   }
 
@@ -375,18 +372,24 @@ export function createVillagerField(scene: THREE.Scene, characters: CharacterAss
    * than game speed, so 8× doesn't make the crowd frantic); it defaults to the
    * animation clock.
    */
-  function renderVillagers(animationElapsed: number, builtBuildingIds: string[], crowdElapsed: number = animationElapsed): void {
+  function renderVillagers(animationElapsed: number, builtBuildingIds: string[], crowdElapsed: number = animationElapsed, focusedWorkerBuilding: string | null = null): void {
     if (combatActive) return;
     renderGarrison(crowdElapsed);
     routesFor(builtBuildingIds);
+    syncVillagers(builtBuildingIds);
+    if (!routes.length) { traffic.reset(); lastCrowdElapsed = crowdElapsed; return; }
     traffic.sync(routes, targetCivilianCount);
     traffic.advance(lastCrowdElapsed === null ? 0 : Math.max(0, crowdElapsed - lastCrowdElapsed));
     lastCrowdElapsed = crowdElapsed;
     for (const actor of traffic.actors) {
       const villager = villagers[actor.id];
-      if (!villager.sprite.visible) continue;
       const route = routesById.get(actor.route.id)!;
-      setProfession(villager, routeProfession(route, actor.id));
+      const buildingId = route.id.slice("service:".length);
+      villager.sprite.userData.buildingId = buildingId;
+      // The focused woodcutter already represents that building while harvesting.
+      villager.sprite.visible = buildingId !== focusedWorkerBuilding;
+      if (!villager.sprite.visible) continue;
+      setProfession(villager, route.profession);
       const direction = directionFromVector(actor.dx, actor.dy);
       const size = villager.baseSize * (villager.profession === "horseman" ? 1.35 : 1);
       const stride = strideFrame(actor.stride, size);

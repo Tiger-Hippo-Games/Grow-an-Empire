@@ -1,4 +1,8 @@
 /* Legible UI type; display lettering stays on the map and game title. */
+#app .campaign-star-rules { flex-wrap: wrap; gap: 6px 14px; }
+#app .campaign-star-goals { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 10px; padding: 0; list-style: none; font: 700 .875rem/1.4 var(--reading-font); }
+#app .campaign-star-goals li { display: flex; gap: 5px; align-items: baseline; }
+#app .campaign-star-goals .missed { color: #e5b4a7; }
 :root { --reading-font: "Segoe UI", Inter, system-ui, -apple-system, sans-serif; }
 body, button, input, select, textarea { font-family: var(--reading-font); }
 #app .flow-dialog h2, #app .tutorial-dialog h2, #app .realm-head b, #app .campaign-map-card h3 { font-family: var(--reading-font); font-weight: 750; letter-spacing: normal; line-height: 1.25; }

@@ -29,7 +29,7 @@ import json
 import sys
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = ROOT / "Assets" / "Runtime"
@@ -97,6 +97,29 @@ def pack_walk_atlas(image: Image.Image) -> Image.Image:
     for row in range(8):
         for col in range(8):
             cell = image.crop((round(col * image.width / 8), round(row * image.height / 8), round((col + 1) * image.width / 8), round((row + 1) * image.height / 8)))
+            # Generated packing can leave a clipped fragment from the neighbour
+            # at a cell edge. Keep the principal figure and detached interior
+            # props, excluding only those stray boundary components.
+            w, h = cell.size
+            mask = bytearray(cell.getchannel("A").point(lambda a: 1 if a > 32 else 0).tobytes())
+            components = []
+            for seed, value in enumerate(mask):
+                if not value:
+                    continue
+                stack = [seed]; mask[seed] = 0; pixels = []; boundary = False
+                while stack:
+                    at = stack.pop(); pixels.append(at); x, y = at % w, at // w
+                    boundary |= x == 0 or x == w - 1 or y == 0 or y == h - 1
+                    for neighbour in ([at-1] if x else []) + ([at+1] if x<w-1 else []) + ([at-w] if y else []) + ([at+w] if y<h-1 else []):
+                        if mask[neighbour]: mask[neighbour] = 0; stack.append(neighbour)
+                components.append((pixels, boundary))
+            largest = max((len(pixels) for pixels, _ in components), default=0)
+            keep = bytearray(w*h)
+            for pixels, boundary in components:
+                if not boundary or len(pixels) == largest:
+                    for at in pixels: keep[at] = 255
+            allowed = Image.frombytes("L", (w,h), bytes(keep)).filter(ImageFilter.MaxFilter(3))
+            cell.putalpha(ImageChops.multiply(cell.getchannel("A"), allowed))
             bounds = cell.getchannel("A").point(lambda a: 255 if a > 32 else 0).getbbox()
             if bounds is None:
                 raise ValueError(f"Missing authored walk pose at row {row + 1}, column {col + 1}")

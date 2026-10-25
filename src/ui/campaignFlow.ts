@@ -1,4 +1,5 @@
-import { enemyStrength, playerStrength, resolveBattle, type ArmyCounts, type BattleModifiers, type EnemyArmy, type PlayerArmy, type StarMargins } from "../game/battle";
+import { enemyStrength, playerStrength, resolveBattle, type ArmyCounts, type BattleModifiers, type EnemyArmy, type PlayerArmy } from "../game/battle";
+import { campaignRating, type CampaignHealth } from "../game/campaignRating";
 import { CAMPAIGNS, CHAPTERS, type CampaignDefinition } from "../game/campaigns";
 import { SELLSWORD_COST } from "../game/economy";
 import type { ArmyReport, SellswordHire } from "../game/settlementSimulation";
@@ -67,6 +68,7 @@ function armyChips(army: { archers: number; swordsmen: number; horsemen: number;
 }
 
 export interface MusterView {
+  campaignHealth: CampaignHealth;
   campaign: CampaignDefinition;
   trained: { archers: number; swordsmen: number; horsemen: number };
   militia: number;
@@ -250,8 +252,17 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     }
   }
 
-  function starRules(stars: StarMargins): string {
-    return `<ul class="star-rules" aria-label="One star for a win, two for winning by ${percent(stars.two)}, three for winning by ${percent(stars.three)}"><li><b>★</b><span class="w"> Win</span></li><li><b>★★</b> +${percent(stars.two)}</li><li><b>★★★</b> +${percent(stars.three)}</li></ul>`;
+  function starRules(): string {
+    return `<ul class="star-rules campaign-star-rules" aria-label="Three independent goals; all require victory"><li><b>★</b> Defeat enemy</li><li><b>★</b> No population issues</li><li><b>★</b> No resource issues</li></ul>`;
+  }
+
+  function resultGoals(report: ArmyReport): string {
+    if (!report.starGoals) return `<p class="flow-note">Earlier rating. Replay for the new campaign goals.</p>`;
+    const labels = { victory: "Enemy defeated", population: "No population issues", resources: "No resource issues" };
+    return `<ul class="campaign-star-goals" aria-label="Campaign star goals">${(Object.keys(labels) as Array<keyof typeof labels>).map(key => {
+      const earned = report.starGoals![key];
+      return `<li class="${earned ? "good" : "missed"}" data-star-goal="${key}" data-earned="${earned}"><span aria-hidden="true">${earned ? "★" : "☆"}</span><span>${labels[key]}</span><span class="sr">${earned ? "earned" : "not earned"}</span></li>`;
+    }).join("")}</ul>`;
   }
 
   /** 1. The enemy briefing at the start of a campaign. */
@@ -265,8 +276,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       <div class="army-chips">${armyChips(objective.army, true)}</div>
       ${veteran}
       <p class="flow-counter"><span class="tag w">Counter</span>${counterIcons(objective.army)}<span class="arrive" role="img" aria-label="Arrive after move ${campaign.moveLimit}">${icon("move")}<b>${campaign.moveLimit}</b><span class="w"> moves</span></span></p>
-      ${starRules(campaign.stars)}
-      ${extra(`<p class="flow-sub">${["I", "II", "III", "IV", "V"][campaign.chapter] ?? ""} · ${escapeHtml(CHAPTERS[campaign.chapter]?.name ?? "")}: ${escapeHtml(CHAPTERS[campaign.chapter]?.lore ?? "")}</p>
+      ${starRules()}
+      ${extra(`<p class="flow-hint">Win to earn stars. Population issues mean recruitment stopped for lack of free villagers. Resource issues mean production or recruitment stopped for missing supplies, or army upkeep was unpaid. Low reserves, spending, partial production and spoilage do not remove stars. Your best campaign rating is kept when you replay.</p><p class="flow-sub">${["I", "II", "III", "IV", "V"][campaign.chapter] ?? ""} · ${escapeHtml(CHAPTERS[campaign.chapter]?.name ?? "")}: ${escapeHtml(CHAPTERS[campaign.chapter]?.lore ?? "")}</p>
       <p class="flow-sub">from ${escapeHtml(objective.kingdomName)}</p>
       <p class="flow-lead">${escapeHtml(objective.briefing)}</p>
       <p class="flow-hint">${escapeHtml(objective.counterHint)}</p>
@@ -323,11 +334,12 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       ours.innerHTML = armyChips(army, false);
       const mine = playerStrength(army, enemy, mods);
       const theirs = enemyStrength(enemy, army);
-      const outcome = resolveBattle(army, enemy, campaign.stars, mods);
+      const outcome = resolveBattle(army, enemy, mods);
+      const rating = campaignRating(outcome.win, view.campaignHealth);
       bar.style.width = `${Math.round((mine / Math.max(1e-9, mine + theirs)) * 100)}%`;
       forecast.innerHTML = `<span aria-hidden="true">${strengthLine(mine, theirs)} ${outcome.win
-        ? `<span class="good">Win ${starText(outcome.stars)}</span>`
-        : `<span class="bad">Defeat</span>`}</span><span class="sr">Strength ${mine.toFixed(1)} against ${theirs.toFixed(1)}. Forecast: ${outcome.win ? `victory, ${winText(outcome.margin)}, ${outcome.stars} stars` : "defeat"}</span>`;
+        ? `<span class="good">Win ${starText(rating.stars)}</span>`
+        : `<span class="bad">Defeat</span>`}</span><span class="sr">Strength ${mine.toFixed(1)} against ${theirs.toFixed(1)}. Forecast: ${outcome.win ? `victory, ${winText(outcome.margin)}, ${rating.stars} stars` : "defeat"}</span>`;
       for (const kind of ["archers", "swordsmen"] as const) {
         const count = dialog.querySelector(`[data-count=${kind}]`);
         if (count) count.textContent = String(hire[kind]);
@@ -401,6 +413,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
     lastResult = result;
     const { report, campaign } = result;
     if (!quiet) callbacks.onSound(report.win ? "victory" : "defeat");
+    const replayLabel = report.win ? report.stars < 3 ? "Replay for more stars" : "Replay campaign" : "Try again";
     const next = CAMPAIGNS[campaign.number];
     const nextButton = report.win && next && result.nextUnlocked
       ? `<button type="button" data-primary data-action="next">Next: ${escapeHtml(next.name)}</button>` : "";
@@ -410,6 +423,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       <p class="flow-kicker">CAMPAIGN ${campaign.number} · ${escapeHtml(campaign.name.toUpperCase())}</p>
       <h2 class="${report.win ? "good" : "bad"}">${report.win ? "Victory" : "The city has fallen"}</h2>
       <p class="result-stars" role="img" aria-label="${report.stars} of 3 stars">${starText(report.stars)}</p>
+      ${resultGoals(report)}
       ${result.newRecord && report.stars > 0 ? `<p class="flow-note good">New best!</p>` : result.bestStars > report.stars ? `<p class="flow-note">Best: ${starText(result.bestStars)}</p>` : ""}
       ${result.realm ? realmLine(result.realm) : ""}
       <p class="flow-lead"><span aria-hidden="true">${strengthLine(report.playerStrength, report.enemyStrength)}</span><span class="sr">Your strength ${report.playerStrength.toFixed(1)} against ${report.enemyStrength.toFixed(1)}</span></p>
@@ -420,7 +434,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       <p class="result-order-text"><span>Build order</span> ${result.buildOrder.map(escapeHtml).join(" → ")}</p>${result.realm ? realmDetails(result.realm) : ""}`)}
       ${lockedNote}
       ${result.askClarity && !quiet ? `<div class="clarity" data-clarity><span>Easy to follow?</span><button type="button" data-vote="up" aria-label="Yes, easy to follow" title="Yes">${icon("thumbup")}</button><button type="button" data-vote="down" aria-label="No, hard to follow" title="No">${icon("thumbdown")}</button></div>` : ""}
-      <div class="flow-actions">${nextButton}<button type="button" ${nextButton ? "class=\"quiet icon-button\"" : "data-primary"} data-action="replay" aria-label="${report.win ? "Replay for more stars" : "Try again"}" title="${report.win ? "Replay for more stars" : "Try again"}">${icon("restart")}<span class="${nextButton ? "w" : ""}">${report.win ? "Replay" : "Try again"}</span></button><button type="button" class="quiet icon-button" data-action="map" aria-label="Campaign map" title="Campaign map">${icon("map")}<span class="w">Campaign map</span></button><button type="button" class="quiet icon-button" data-action="city" aria-label="View the city" title="View the city">${icon("eye")}<span class="w">View the city</span></button></div>`);
+      <div class="flow-actions">${nextButton}<button type="button" ${nextButton ? "class=\"quiet icon-button\"" : "data-primary"} data-action="replay" aria-label="${replayLabel}" title="${replayLabel}">${icon("restart")}<span class="${nextButton ? "w" : ""}">${report.win ? "Replay" : "Try again"}</span></button><button type="button" class="quiet icon-button" data-action="map" aria-label="Campaign map" title="Campaign map">${icon("map")}<span class="w">Campaign map</span></button><button type="button" class="quiet icon-button" data-action="city" aria-label="View the city" title="View the city">${icon("eye")}<span class="w">View the city</span></button></div>`);
     if (!quiet) rollRank(dialog);
     dialog.querySelectorAll<HTMLButtonElement>("[data-vote]").forEach((button) => button.addEventListener("click", () => {
       callbacks.onUxEvent?.("ux_clarity_vote", { vote: button.dataset.vote, campaign_number: campaign.number, won: report.win, stars: report.stars });

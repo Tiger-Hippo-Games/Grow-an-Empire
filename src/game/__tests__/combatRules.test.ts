@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enemyStrength, gapToTarget, playerStrength, resolveBattle, starsFor, unitStrengths } from "../battle";
+import { enemyStrength, gapToTarget, playerStrength, resolveBattle, unitStrengths } from "../battle";
 import { CAMPAIGNS, campaignById, isCampaignUnlocked, starsToUnlock, totalStars } from "../campaigns";
 import { MAX_CAMPAIGN_MOVES } from "../content";
 
@@ -20,20 +20,12 @@ describe("battle strength", () => {
 
   it("is decided by strength alone: more wins, a tie loses", () => {
     const enemy = { archers: 0, swordsmen: 2, horsemen: 0, veterancy: 1 };
-    expect(resolveBattle({ ...none, swordsmen: 2, militia: 0 }, enemy, { two: 0.5, three: 1 }).win).toBe(false);
-    expect(resolveBattle({ ...none, swordsmen: 2, militia: 1 }, enemy, { two: 0.5, three: 1 }).win).toBe(true);
-  });
-
-  it("awards stars by winning margin", () => {
-    const margins = { two: 0.2, three: 0.5 };
-    expect(starsFor(0.1, false, margins)).toBe(0);
-    expect(starsFor(0.1, true, margins)).toBe(1);
-    expect(starsFor(0.2, true, margins)).toBe(2);
-    expect(starsFor(0.5, true, margins)).toBe(3);
+    expect(resolveBattle({ ...none, swordsmen: 2, militia: 0 }, enemy).win).toBe(false);
+    expect(resolveBattle({ ...none, swordsmen: 2, militia: 1 }, enemy).win).toBe(true);
   });
 
   it("wipes out the loser across four rounds", () => {
-    const outcome = resolveBattle({ archers: 6, swordsmen: 0, horsemen: 0, militia: 0 }, { archers: 0, swordsmen: 2, horsemen: 0, veterancy: 1 }, { two: 0.5, three: 1 });
+    const outcome = resolveBattle({ archers: 6, swordsmen: 0, horsemen: 0, militia: 0 }, { archers: 0, swordsmen: 2, horsemen: 0, veterancy: 1 });
     expect(outcome.win).toBe(true);
     expect(outcome.rounds).toHaveLength(4);
     expect(outcome.rounds[3].enemy).toMatchObject(none);

@@ -39,7 +39,7 @@ A role can be upgraded on its own; others keep their current sheets.
 ## Dropping them in
 
 1. Save the masters in `Assets/Art/Production/Characters/DirectionalWalk/` (walk64) and `Assets/Art/Production/Characters/WorkLoops/` (work16).
-2. Move that role's old `walk32` / `work8` master out of those folders (for example to `Assets/Art/Masters/Retired/`). The art test fails while both are bundled, so nothing unused ships.
+2. Old walk32 masters can remain in their source folder: the exporter excludes a role's walk32 when its walk64 exists. Keep replaced work8 masters outside the export folders when introducing work16. Nothing unused should ship.
 3. Run `pnpm art:export`, then `pnpm check`.
 4. Play a campaign at 1× and 8×; the role's walk now uses all 8 poses (`getWalkFrame`) and its work loop 16 frames in the same time.
 

@@ -22,7 +22,7 @@ describe("the battle in the city", () => {
     const field = createBattleField(scene, characters);
     const player = { archers: 40, swordsmen: 40, horsemen: 20, militia: 10 };
     const enemy = { archers: 30, swordsmen: 37, horsemen: 15, veterancy: 1 };
-    const { rounds } = resolveBattle(player, enemy, { two: 0.1, three: 0.2 });
+    const { rounds } = resolveBattle(player, enemy);
     let done = false;
     field.play(player, enemy, rounds, { onDone: () => { done = true; } }, 0);
     // The battle HUD bar covers about the top 7% of the frame (y above ~16.5).

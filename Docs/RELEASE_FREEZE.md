@@ -1,4 +1,44 @@
-# Release freeze: v0.13.1
+# Release freeze: v0.15.0
+
+25 October 2026. Campaign mastery stars. Built locally; not uploaded or published.
+
+- Artifact: `release\grow-an-empire-0.15.0.zip`, **18,416,915 bytes**, **159 entries**.
+- SHA-256: `15B16D8A572107E666A71FB536C978270D113F40C0E0257E1469895FB4E01C59`.
+- Victory earns one star, plus independent no-population-issue and no-resource-issue bonuses. Defeat earns zero. Issue history spans the entire campaign; best ratings survive replays. Briefing, forecast and results use the same goals.
+- Schema 7 migrates v4/v5/v6. Legacy completed results and best stars are retained; older unfinished runs require a fresh replay for clean-history bonuses. Army strength, campaign enemies, economy, SDK and leaderboard distinct-win scoring remain unchanged.
+- TypeScript, ESLint and **351 tests / 34 files** pass, including legal three-star routes for all 25 campaigns. Browser scoring, save and responsive result checks and existing phone text budgets pass.
+- All **16 portal bundle checks** pass. Every ZIP entry matches the verified production build. Evidence: `Tools/qa/out/campaign-rating/release.json`, `rating-check.txt`, `rating-browser.txt`, `rating-text-budget.txt` and `rating-package.txt`.
+
+See [QA results](QA_RESULTS.md). Keep this ZIP immutable; further delivered builds require a new version.
+
+## Historical release freeze: v0.14.1
+
+25 October 2026. Visual civilian-density change only. Built locally; not uploaded or published.
+
+- Artifact: `release/grow-an-empire-0.14.1.zip`, **18,415,750 bytes**, **159 entries**.
+- SHA-256: `F18FD07B7BD8A1C09E9F51A2EA5FC0EF19E76C50A71DA6DBD4B143C3BF1C6F94`.
+- One animated civilian representative per completed building; no population-based or additional supply/trade crowds. The focused harvesting woodcutter replaces its site's commuter. Construction retains its single crew at the unfinished site.
+- Army units are explicitly exempt. Existing recruitment, idle garrison representation and final fight remain unchanged. Population, resources, production, campaign balance and saves are unchanged; no game-rule or platform files changed in this follow-up.
+- TypeScript, ESLint and **312 tests / 32 files** pass. Browser review confirms **24 civilians / 24 distinct buildings plus the existing 42-soldier garrison**, with pause/step/resume and clean image requests. Production campaigns pass at 844×390, 390×844 and 1920×1080.
+- All **16 portal bundle checks** pass. Every ZIP entry matches the browser-tested production build byte for byte (`Tools/qa/out/civilian-density/release.json`).
+
+See [QA results](QA_RESULTS.md). Keep this ZIP immutable; further delivered builds require a new version.
+
+## Historical release freeze: v0.14.0
+
+24 October 2026. Applicable city-art and animation polish from Grow a Sanctuary. Built locally; not uploaded or published.
+
+- Artifact: `release/grow-an-empire-0.14.0.zip`, **18,415,687 bytes**, **159 entries**.
+- SHA-256: `7758087E3079D8C34CD97798F50D523C4AC2CF0344C1D5BCBC7CE875B1045D13`.
+- Three new eight-direction/eight-pose civilian walk sheets, registered transparent atlas cells, persistent visual commutes, passing/following, FIFO junction/work-stop waits, shared authored roads and cached sampling for citizens, troops and the construction crew.
+- Full-city camera fit, existing construction/speed controls, campaign/battle rules, SDK v2 and save schema 6 retained. No animal systems, forced activity delay, camera panning or new leaderboard is imported.
+- TypeScript, ESLint and **308 tests / 31 files** pass. Ten-minute virtual traffic stress passes with all 80 citizens completing multiple visits. Atlas and actual-renderer reviews pass; full production campaigns pass at 844×390, 390×844 and 1920×1080.
+- Startup with local nested-path hosting and HTTP gzip: **2.78 s at 10 Mbps**, **9.91 s on Slow 4G / 1.6 Mbps**, **1.86 MB before playable**. These local timings have narrow Slow 4G headroom and do not establish live-host or physical-device performance.
+- All **16 portal bundle checks** pass. Every ZIP entry matches the browser-tested production build byte for byte (`Tools/qa/out/city-polish/release.json`).
+
+See [applicable changes and exclusions](SANCTUARY_POLISH.md), [art provenance/prompts](../Assets/Art/Production/Characters/POLISH_0_14_0.md) and [QA results](QA_RESULTS.md). Keep this ZIP immutable; further delivered builds require a new version.
+
+## Historical release freeze: v0.13.1
 
 2026-10-22. Complete city and interface fit for portal iframes. Built locally; not uploaded or published.
 

@@ -62,13 +62,14 @@ describe("persistent visual traffic", () => {
   it("lets the full representative workforce complete visits without a permanent junction/gate lock", () => {
     const traffic = createCityTraffic(hallStop), plan = buildFunctionalRoutes(Object.keys(BUILDINGS));
     traffic.sync(plan, 80);
-    let waits = 0;
+    let waits = 0, slidingWaits = 0;
     for (let i = 0; i < 600 * 30; i++) {
       const strides = traffic.actors.map(a => a.stride);
       traffic.advance(1 / 30);
-      for (const actor of traffic.actors) if (actor.waiting) { waits++; expect(actor.stride).toBe(strides[actor.id]); }
+      for (const actor of traffic.actors) if (actor.waiting) { waits++; if (actor.stride !== strides[actor.id]) slidingWaits++; }
     }
     expect(waits).toBeGreaterThan(0);
+    expect(slidingWaits).toBe(0);
     expect(traffic.actors.filter(a => a.visits < 2).map(a => ({ id: a.id, route: a.route.id, visits: a.visits, x: a.x, y: a.y, waiting: a.waiting, outbound: a.outbound, distance: a.distance, dwell: a.dwell }))).toEqual([]);
     expect(traffic.actors.every(a => Number.isFinite(a.x) && Number.isFinite(a.y))).toBe(true);
   }, 60_000);

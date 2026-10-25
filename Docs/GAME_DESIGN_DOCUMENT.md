@@ -1,8 +1,8 @@
 # Grow an Empire: complete game design and the GROW framework
 
-**Document version:** 1.2  
-**Date:** 22 October 2026  
-**Implementation baseline:** Grow an Empire 0.13.1  
+**Document version:** 1.5  
+**Date:** 25 October 2026  
+**Implementation baseline:** Grow an Empire 0.15.0  
 **Purpose:** a complete design reference for this game and a worked example for future GROW games.  
 **Companion:** [Reusable GROW game design template](GROW_GAME_TEMPLATE.md).
 
@@ -429,7 +429,9 @@ Elephants count as four swordsmen when computing the player's effective composit
 
 Prakara removes approximately 25% of the enemy before these calculations: the total removed is rounded, and losses are allocated proportionally across unit kinds using largest remainders. The strength forecast, hiring search, actual battle and balance tools must use the same adjusted enemy and modifiers.
 
-The player wins only when player strength is **strictly greater** than enemy strength; a tie loses. Margin is `player strength / enemy strength - 1` when the enemy has positive strength. A defeat earns 0 stars. A win earns 1, 2 or 3 according to that campaign's margin thresholds.
+The player wins only when player strength is **strictly greater** than enemy strength; a tie loses. Margin is `player strength / enemy strength - 1` when the enemy has positive strength. A defeat earns 0 stars. Victory earns one star, plus one independently for no population issues and one for no resource issues during the entire campaign. Even a narrow victory can earn three stars.
+
+A population issue means a training building recruits nobody because no free villagers are available. A resource issue means a processor produces nothing or a trainer recruits nobody because required supplies are missing, or army upkeep cannot be paid in full. One move may affect both goals. Counters retain each affected move and the first occurrence, before camp supplies replenish stock. Spending, low reserves, unsuccessful card clicks, partial production/recruitment, spoilage and having nothing to sell do not count. Fresh replays reset this history; loading a save does not.
 
 ### 7.4 Battle presentation and casualties
 
@@ -439,7 +441,7 @@ The animation shows approach, strikes, impacts and shrinking formations. It cann
 
 ### 7.5 Result as a learning surface
 
-The result connects final strength to trained troops, militia, hired troops, elephants, defensive modifiers and Gather use. It shows stars and standings, supports replay and city inspection, and can identify an additional quantity of a trainable troop that would have won or reached the next star threshold.
+The result connects final strength to trained troops, militia, hired troops, elephants, defensive modifiers and Gather use. It shows stars and standings, supports replay and city inspection, and shows the three earned/missed goals. Defeat guidance can identify additional troops needed to win; victory guidance identifies population/resource shortages and their first affected move so a replay can improve the rating.
 
 That hint is a counterfactual final-army requirement, not a proof that the same build sequence could have afforded those troops. Future GROW games should similarly explain a causal deficit without pretending to supply a fully validated winning plan.
 
@@ -455,13 +457,13 @@ That hint is a counterfactual final-army requirement, not a proof that the same 
 | Himavat | 16–20 | Mountain passes, fens and celestial woods | 16 |
 | Dharmakshetra | 21–25 | The final road to Durjaya | 18, 18, 20, 20, 25 |
 
-Every campaign currently offers the same 24-building ruleset and starting stockpile. Enemy composition, veterancy, star thresholds, narrative framing and preparation horizon distinguish its problem. A whitelist exists in the campaign data model for future restrictions, but current campaigns do not use separate faction tech trees.
+Every campaign currently offers the same 24-building ruleset and starting stockpile. Enemy composition, veterancy, narrative framing and preparation horizon distinguish its problem. A whitelist exists in the campaign data model for future restrictions, but current campaigns do not use separate faction tech trees.
 
 ### 8.2 Complete campaign specification
 
-`S/A/H` means swordsmen/archers/horsemen. Star margins are percentages above enemy strength for two and three stars. “Reference win share” is a calibration target under the declared build-first search policy, **not a prediction of real player success**.
+`S/A/H` means swordsmen/archers/horsemen. Legacy AI bands are historical strength percentages retained for seeded Rival Realm calibration only. Player stars use the same three campaign goals for every campaign. “Reference win share” is a calibration target under the declared build-first search policy, **not a prediction of real player success**.
 
-| # | Campaign | Enemy | Moves | S/A/H | Veterancy | 2★ / 3★ margin | Reference win share |
+| # | Campaign | Enemy | Moves | S/A/H | Veterancy | Legacy AI bands | Reference win share |
 |---:|---|---|---:|---|---:|---|---:|
 | 1 | The First Fire | The Nagadanta Scout | 12 | 1/0/0 | 1 | 50% / 100% | 100% |
 | 2 | Kusha Marsh | The Kantaka Bowmen | 12 | 0/10/0 | 1.06 | 50% / 100% | 88% |
@@ -587,11 +589,15 @@ The game uses painted 2D sprites and terrain composed in a Three.js scene, with 
 
 ### 11.2 Growth as a visual record
 
+Civilian density is one representative per completed building, independent of population. Each representative stays assigned to that building's service route; supply/trade relationships never add extra civilian actors. The focused harvesting woodcutter replaces that site's commuter while visible. Active construction has its one crew at the unfinished site. Army recruitment is exempt: trained soldiers retain their existing idle garrison representation (up to 14 per trained kind), and the final battle keeps the real army counts and existing presentation.
+
 Buildings progress through foundation, frame, late construction and completion art. The civic center advances with each completed move, including Gather. Civic names span levels 0–25, while mature civic art remains at the level-8 appearance. Names begin with Founding Campsite and progress through village/council/hall identities to Seat of Dharma at 25; higher numerical civic levels do not imply 26 unique civic paintings.
 
 Plots are keyed by building identity. Roads, sprites, construction and commuter routes must agree across different build orders and restored saves. Current spacing places Dharmashala behind the Town Hall at plan point (1000, 270), House at (700, 625) and Bazaar at (1200, 650), protecting the mature center's readability.
 
 Service routes connect completed buildings to the civic hub; supply/trade routes make completed economic relationships visible. Roads widen by a factor of 1.05 per civic level, capped at 1.6, with eased visual transitions. This is visual growth, not a production multiplier.
+
+From v0.14.0, authored branches are drawn once and shared trunks gain a modest width hierarchy by built-site usage. Citizens keep persistent visual trips, accelerate and slow, pass in direction-relative lanes, follow on shared edges and yield through FIFO junction queues and occupied work stops. The traffic model advances at 30 Hz on the crowd clock and never affects the economy. Cached arc-length sampling serves civilians, the construction crew and garrison. Builder, farmer and woodcutter ship eight poses in each of eight directions; remaining roles retain four-pose walks and existing work/battle loops. See [applicability and verification](SANCTUARY_POLISH.md) and [art provenance/prompts](../Assets/Art/Production/Characters/POLISH_0_14_0.md).
 
 ### 11.3 Citizens and soldiers
 
@@ -619,7 +625,7 @@ Audio unlocks on a user gesture, supports saved mute preference, suspends with h
 
 A save contains the versioned settlement snapshot, run ID, campaign ID, current resources and mode, buildings and ages, construction state, exact population/army, last summary, completed battle report when present, tutorial/mute settings, best stars, completion history, leaderboard metadata, owner identity when known and Realm state.
 
-Settlement schema is 6, with migrations for v4 and v5. Campaign IDs/slugs and building IDs are persistent identifiers. A higher-schema save is protected from overwrite. Any future snapshot-shape change requires an explicit schema/migration decision and regression tests, including the unchanged v4 mid-construction fixture.
+Settlement schema is 7, with migrations for v4, v5 and v6. Schema 7 persists campaign-wide issue history. An older unfinished run has unknown history and can earn the victory star; a fresh replay enables clean-run bonuses. Old completed reports and best campaign ratings remain intact. Campaign IDs/slugs and building IDs are persistent identifiers. A higher-schema save is protected from overwrite. Any future snapshot-shape change requires an explicit schema/migration decision and regression tests, including the unchanged v4 mid-construction fixture.
 
 ### 12.2 Local/cloud reconciliation
 
@@ -692,9 +698,9 @@ Existing playtest targets are at least 80% positive clarity votes, median first 
 |---|---|
 | Rules | Cost payment, completion once, resolution order, maturity, safe reserves and recruitment limits |
 | Choice graph | Eligibility, distinct offers, reachable branches, whitelists, Burj gate and no empty-set softlock |
-| Endings | Win/tie/defeat, all counters/modifiers, hire cap, star thresholds and exact round counts |
+| Endings | Win/tie/defeat, all counters/modifiers, hire cap, independent star goals, legal three-star routes for all 25 campaigns and exact round counts |
 | Campaign progression | Variable move limits, unlocks, replay-best stars and 25-move all-buildings/Gather ending |
-| Persistence | Mid-build/report/muster/result restore, v4/v5 migration, ownership, uncertain saves and newer-schema protection |
+| Persistence | Mid-build/report/muster/result restore, v4/v5/v6 migration, ownership, uncertain saves and newer-schema protection |
 | Input/UX | Report gate, double-click safety, shortcuts, focus trap/return, touch and reduced motion |
 | Presentation | Stage fit, tray/HUD separation, mature-city spacing, readable survivors and map navigation |
 | Assets/audio | Bundled references, decodes, font readiness, export freshness, mute and gesture unlock |
@@ -754,7 +760,8 @@ This document records the current design after checking the implementation. It d
 | Costs, yields, food, prices and bonuses | [`src/game/economy.ts`](../src/game/economy.ts) |
 | Buildings, eligibility, offer families, population and civic names | [`src/game/content.ts`](../src/game/content.ts) |
 | Move resolution, hiring, battle setup and snapshot ownership | [`src/game/settlementSimulation.ts`](../src/game/settlementSimulation.ts) |
-| Strength, casualties, rounds and stars | [`src/game/battle.ts`](../src/game/battle.ts) |
+| Strength, casualties and rounds | [`src/game/battle.ts`](../src/game/battle.ts) |
+| Campaign issue history and stars | [`src/game/campaignRating.ts`](../src/game/campaignRating.ts) |
 | Campaign roster, unlocks and reference difficulty | [`src/game/campaigns.ts`](../src/game/campaigns.ts) |
 | Search-policy implementation | [`src/game/balance.ts`](../src/game/balance.ts) |
 | AI field and seasons | [`src/game/realm.ts`](../src/game/realm.ts) |

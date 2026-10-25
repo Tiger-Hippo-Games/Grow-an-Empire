@@ -165,7 +165,7 @@
     "sha256": "e37ad34d22ab3d7f4f0ef8b22b427d5909bd613a09a5f3b9f827982a93627ac6",
     "exportRevision": 3,
     "sourceBytes": 2315906,
-    "bytes": 491558
+    "bytes": 483356
   },
   "builder-work8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/WorkLoops/builder-work8-master-v1.png",
@@ -368,7 +368,7 @@
     "sha256": "bec34e108e50932a1fdc5f251f6956e20d17b890e6406a832915315cc73b3708",
     "exportRevision": 3,
     "sourceBytes": 2660052,
-    "bytes": 521734
+    "bytes": 515834
   },
   "farmer-work8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/WorkLoops/farmer-work8-master-v1.png",
@@ -1047,7 +1047,7 @@
     "sha256": "e6af9c69ac7ed85e1e5896b69d03708d2cb05aeaae7adcf47c436321441d7fe4",
     "exportRevision": 3,
     "sourceBytes": 2400800,
-    "bytes": 459822
+    "bytes": 468788
   },
   "woodcutter-work8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/WorkLoops/woodcutter-work8-master-v1.png",

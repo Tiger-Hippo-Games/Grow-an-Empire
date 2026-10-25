@@ -1,5 +1,33 @@
 # QA results
 
+## v0.15.0 (2026-10-25): victory and campaign care stars
+
+- TypeScript, ESLint and **351 tests / 34 files** pass. Coverage includes independent bonus combinations, defeat gating, narrow and overwhelming victories, blocked production/recruitment, unpaid upkeep before camp supplies, excluded low reserves/spending/partial output, resets, reloads and v4/v5/v6 migrations. The protected v4 fixture is unchanged. Log: `Tools/qa/out/rating-check.txt`.
+- Real simulation witnesses verify legal shortage-free three-star paths for **all 25 campaigns**, including every longer move limit. Existing army strengths and reference calibration remain unchanged. Witnesses: `src/game/__tests__/fixtures/three-star-routes.json`; search evidence: `Tools/qa/out/clean-route-search.txt`.
+- `Tools/qa/campaign_rating.py`: actual clean campaign plus isolated population-only, resource-only, both-issue, migrated unfinished and defeat cases all pass. Checks include 3/2/2/1/1/0 result stars, each earned/missed goal, forecast, keeping a previous best of three, schema 7 persistence and on-screen goal bounds at 1280×720, 844×390, 390×844, 375×667 and 960×540. No uncaught page errors. Screenshots and results: `Tools/qa/out/campaign-rating/`.
+- Existing phone word budgets pass at 390×844 and 844×390, including visible result criteria: **24/28** and **21/28** words. Evidence: `Tools/qa/out/rating-text-budget.txt`.
+- Legacy completed reports and best ratings remain intact. Older unfinished runs lack full history and receive only the victory star until a fresh replay. Portal SDK, leaderboard distinct-win scoring, civilian cap and army representation are unchanged.
+
+
+- `pnpm package`: **16 bundle checks pass**, **18,416,915 bytes**, **159 entries**. ZIP matches the verified production build byte for byte. SHA-256 `15B16D8A572107E666A71FB536C978270D113F40C0E0257E1469895FB4E01C59`. Evidence: `Tools/qa/out/rating-package.txt`, `Tools/qa/out/campaign-rating/release.json`.
+
+## v0.14.1 (2026-10-25): one civilian per completed building; army exempt
+
+- `pnpm check`: **312 tests / 32 files**, TypeScript and ESLint pass. Four new renderer tests cover empty/growing/all-24 cities, duplicate building IDs, restart/combat visibility, a focused woodcutter replacing its site's commuter, and **42 retained garrison soldiers with only two civilian building workers**. Log: `Tools/qa/out/density-check.txt`.
+- `Tools/qa/city_motion.py`: real all-catalog art-review scene shows **24 civilians assigned to 24 distinct completed buildings**, with **42 army sprites retained**. All 24 civilians move during the one-second step; pause/step/resume, image loads and requests pass with no page errors. Evidence: `Tools/qa/out/civilian-density/browser-results.json`, `city-before.png`, `city-after.png`.
+- Civilian density no longer follows population, and extra supply/trade actors no longer spawn. The active construction site keeps its single crew; the focused harvesting woodcutter replaces the commuter for that same building. No simulation, recruitment, army strength, save or battle rule changes.
+- Production-preview campaigns pass at **844×390, 390×844 and 1920×1080**, through all moves, reports, muster, fight and results, without uncaught errors. `pnpm package`: **16 bundle checks pass**, **18,415,750 bytes**, **159 entries**. SHA-256 `F18FD07B7BD8A1C09E9F51A2EA5FC0EF19E76C50A71DA6DBD4B143C3BF1C6F94`. Every ZIP entry matches the tested build. Evidence: `Tools/qa/out/density-package.txt`, `Tools/qa/out/civilian-density/release.json`, `Tools/qa/out/ui-tray/`.
+
+## v0.14.0 (2026-10-24): applicable Sanctuary-inspired city polish
+
+- `pnpm check`: **308 tests / 31 files**, TypeScript and ESLint pass. Includes unchanged campaign calibration and new shared-road coverage/deduplication, cached polyline sampling, persistent trips, fixed-step pause behavior and a **ten-minute virtual run with all 80 citizens completing multiple visits**. Waiting never advances stride. Log: `Tools/qa/out/city-polish-check.txt`.
+- `Tools/qa/character_atlases.py`: three runtime sheets decode at **1024×1360**, with **eight directions × eight distinct authored pose images each** (192 total), transparent gutters and registered feet. Contact/GIF evidence and results: `Tools/qa/out/city-polish/`. Merchant draft grids were rejected and are excluded from the build. Technical export removes clipped neighboring-cell fragments; accepted PNG masters remain unchanged.
+- `Tools/qa/city_motion.py`: actual all-catalog renderer with **80 citizens and 42 soldiers**, pause/step/resume, **78 citizens visibly moving during a one-second step**, loaded images, no failed requests and no uncaught errors. This isolated art-review fixture never reads/writes saves. Evidence: `Tools/qa/out/city-polish/browser-results.json`, `city-before.png`, `city-after.png`, `motion-*.png`.
+- `Tools/qa/ui_tray.py`: real production-preview campaigns complete at **844×390, 390×844 and 1920×1080**, through choices, reports, muster, animated fight and results. All pass with no uncaught errors; screenshot evidence: `Tools/qa/out/ui-tray/`.
+- `Tools/qa/load_time.py` against the final production build at the nested portal path, with local SDK stand-in and HTTP gzip: first playable **2.78 s at 10 Mbps**, **9.91 s at Slow 4G / 1.6 Mbps**, **1.86 MB / 13 requests**. Log: `Tools/qa/out/city-polish-load.txt`. Slow-network headroom is narrow; these are local measurements, not a live portal or physical-device guarantee.
+- Scope: [SANCTUARY_POLISH.md](SANCTUARY_POLISH.md). Existing full-city camera, choice tray, simulation construction/speed, economy, campaign/battle rules, SDK contract and save schema 6 remain. This pass does not establish live portal publication or real-device frame rate.
+- `pnpm package`: **16 portal bundle checks pass**, **18,415,687 bytes**, **159 entries**. SHA-256 `7758087E3079D8C34CD97798F50D523C4AC2CF0344C1D5BCBC7CE875B1045D13`. All ZIP entries match the tested production build. Evidence: `Tools/qa/out/city-polish-package.txt`, `Tools/qa/out/city-polish/release.json`.
+
 ## v0.13.1 (2026-10-22): complete city and iframe UI fit
 
 - `pnpm check`: **302 tests / 30 files**, TypeScript and ESLint pass. New camera tests cover contain-fit at ten frame sizes and the complete 24-building layout. Log: `Tools/qa/out/frame-check.txt`.

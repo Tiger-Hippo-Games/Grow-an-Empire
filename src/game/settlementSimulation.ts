@@ -1,4 +1,5 @@
 import { CAMPAIGN_1, type CampaignDefinition } from "./campaigns";
+import { campaignRating, freshCampaignHealth, isCampaignHealth, recordCampaignIssues, type CampaignHealth, type CampaignStarGoals } from "./campaignRating";
 import { enemyHeadCount, gapToTarget, MILITIA_CAP, resolveBattle, watchtowerVolley, type ArmyCounts, type BattleModifiers, type BattleRound, type EnemyArmy } from "./battle";
 import {
   CONSTRUCTION_DURATION_SECONDS,
@@ -44,7 +45,7 @@ export type CampaignOutcome = "Victory" | "Settlement Lost";
 /** Stockpile of every resource. Always contains every key (missing keys from old saves are filled with 0). */
 export type ResourceLedger = Record<ResourceName, number>;
 /** Bump this when `SettlementState`'s shape changes incompatibly, and add a migration in `migrateSnapshot`. */
-export const SAVE_SCHEMA_VERSION = 6 as const;
+export const SAVE_SCHEMA_VERSION = 7 as const;
 
 export interface TrainedUnits { archers: number; swordsmen: number; horsemen: number; }
 
@@ -58,6 +59,8 @@ export interface ArmyReport {
   outcome: CampaignOutcome;
   win: boolean;
   stars: 0 | 1 | 2 | 3;
+  /** Absent on completed results from the older strength-margin rating system. */
+  starGoals?: CampaignStarGoals;
   playerStrength: number;
   enemyStrength: number;
   /** yours ÷ theirs − 1; negative on a defeat. */
@@ -161,6 +164,7 @@ export type SimulationEvent =
  * - every building id is a known catalog id and is never built twice.
  */
 export interface SettlementState {
+  campaignHealth: CampaignHealth;
   mode: SimulationMode; move: number; civicLevel: number; population: number; resources: ResourceLedger;
   builtBuildingIds: string[]; availableBuildingIds: string[]; selectedBuildingId: string | null;
   activePlotIndex: number | null; constructionElapsed: number; buildingMaturity: Record<string, number>;
@@ -191,6 +195,7 @@ export interface SettlementSnapshot {
 }
 
 const createInitialState = (): SettlementState => ({
+  campaignHealth: freshCampaignHealth(),
   mode: "awaiting-choice", move: 1, civicLevel: 0, population: 1, resources: startingStockpile(),
   builtBuildingIds: [], availableBuildingIds: [...OPENING_BUILD_OPTIONS], selectedBuildingId: null,
   activePlotIndex: null, constructionElapsed: 0, buildingMaturity: {}, armyReport: null,
@@ -225,6 +230,12 @@ function isValidReport(value: unknown): value is ArmyReport {
   if (!win && value.outcome !== "Settlement Lost") return false;
   if (value.win !== win) return false;
   if (![0, 1, 2, 3].includes(value.stars as number) || (win && value.stars === 0) || (!win && value.stars !== 0)) return false;
+  if (value.starGoals !== undefined) {
+    const goals = value.starGoals;
+    if (!isPlainObject(goals) || !["victory", "population", "resources"].every(key => typeof goals[key] === "boolean")) return false;
+    if (goals.victory !== win || (!win && (goals.population || goals.resources))) return false;
+    if (Number(goals.victory) + Number(goals.population) + Number(goals.resources) !== value.stars) return false;
+  }
   if (!["playerStrength", "enemyStrength", "margin", "goldAvailable", "goldSpent"].every((key) => Number.isFinite(value[key]))) return false;
   if (!isCount(value.totalUnits) || !isCount(value.enemyCount)) return false;
   if (!hasCounts(value.units, ARMY_UNIT_KEYS) || !hasCounts(value.sellswords, ["archers", "swordsmen"])) return false;
@@ -267,6 +278,7 @@ export function describeSnapshotProblem(value: unknown): string | null {
   if (typeof value.savedAt !== "string" || typeof value.campaignId !== "string") return "missing savedAt or campaignId";
   const state = value.state;
   if (!isPlainObject(state)) return "missing state";
+  if (!isCampaignHealth(state.campaignHealth, MAX_CAMPAIGN_MOVES)) return "invalid campaign health";
   if (!MODES.includes(state.mode as SimulationMode)) return `unknown mode ${String(state.mode)}`;
   if (!Number.isInteger(state.move) || (state.move as number) < 1 || (state.move as number) > MAX_CAMPAIGN_MOVES) return "invalid move";
   if (!Number.isInteger(state.civicLevel) || (state.civicLevel as number) < 0 || (state.civicLevel as number) >= TOTAL_SETTLEMENT_LEVELS) return "invalid civic level";
@@ -313,6 +325,15 @@ export function isValidSnapshot(value: unknown): value is SettlementSnapshot {
 export function migrateSnapshot(value: unknown): SettlementSnapshot | null {
   if (!isPlainObject(value)) return null;
   if (value.schemaVersion === SAVE_SCHEMA_VERSION) return isValidSnapshot(value) ? value : null;
+  if (value.schemaVersion === 6 && isPlainObject(value.state)) {
+    const migrated = structuredClone(value);
+    migrated.schemaVersion = SAVE_SCHEMA_VERSION;
+    const state = migrated.state as Record<string, unknown>;
+    // Completed legacy results/best stars survive. Earlier untracked moves
+    // cannot honestly earn new clean-city bonuses; a fresh replay can.
+    state.campaignHealth = freshCampaignHealth(state.civicLevel === 0);
+    return isValidSnapshot(migrated) ? migrated : null;
+  }
   if ((value.schemaVersion !== 4 && value.schemaVersion !== 5) || !isPlainObject(value.state)) return null;
   const migrated = structuredClone(value) as Record<string, unknown>;
   const state = migrated.state as Record<string, unknown>;
@@ -334,6 +355,7 @@ export function migrateSnapshot(value: unknown): SettlementSnapshot | null {
   state.gatherMoves = 0;
   state.swaps = 0;
   state.lastSummary = null;
+  state.campaignHealth = freshCampaignHealth(state.civicLevel === 0);
   migrated.schemaVersion = SAVE_SCHEMA_VERSION;
   return isValidSnapshot(migrated) ? (migrated as unknown as SettlementSnapshot) : null;
 }
@@ -601,6 +623,7 @@ export class SettlementSimulation {
    *   7. grain above the cap spoils without a Granary; camp supplies restore basic reserves.
    */
   private resolveMoveEconomy(builtThisMove: string | null): MoveSummary {
+    let populationIssue = false, resourceIssue = false;
     const built = new Set(this.state.builtBuildingIds);
     const resources = this.state.resources;
     const produced: ResourceBag = {};
@@ -650,7 +673,7 @@ export class SettlementSimulation {
         for (const [name, amount] of Object.entries(processor.output) as Array<[ResourceName, number]>) { resources[name] += amount; addTo(produced, name, amount); addTo(line(processor.id).made, name, amount); }
         cycles += 1;
       }
-      if (cycles === 0) { stalled.push({ buildingId: processor.id, reason: `needs ${formatBag(processor.input)}` }); line(processor.id).idle = `needs ${formatBag(processor.input)}`; }
+      if (cycles === 0) { resourceIssue = true; stalled.push({ buildingId: processor.id, reason: `needs ${formatBag(processor.input)}` }); line(processor.id).idle = `needs ${formatBag(processor.input)}`; }
     }
 
     const trained: TrainedUnits = { archers: 0, swordsmen: 0, horsemen: 0 };
@@ -668,6 +691,8 @@ export class SettlementSimulation {
       }
       if (count > 0) { const entry = line(soldier.building); entry.trained = { ...entry.trained, [type]: count }; }
       if (count === 0) {
+        populationIssue ||= this.freeVillagers === 0;
+        resourceIssue ||= !canAfford(resources, soldier.cost) || !canFeedRecruit();
         const reason = this.freeVillagers === 0 ? "no free villagers" : !canFeedRecruit() ? "needs rations for new recruits" : `needs ${formatBag(soldier.cost)} per ${soldier.singular}`;
         stalled.push({ buildingId: soldier.building, reason });
         line(soldier.building).idle = reason;
@@ -705,7 +730,7 @@ export class SettlementSimulation {
       resources.rations -= paid;
       addTo(consumed, "rations", paid);
       if (paid > 0) addTo(line("army").used, "rations", paid);
-      if (paid < upkeep) warnings.push("Food shortage: existing soldiers stay; new training needs more rations.");
+      if (paid < upkeep) { resourceIssue = true; warnings.push("Food shortage: existing soldiers stay; new training needs more rations."); }
     }
 
     if (!built.has("granary") && resources.grain > GRAIN_SPOIL_CAP) {
@@ -729,6 +754,7 @@ export class SettlementSimulation {
       if (resources.rations <= nextUpkeep * 3) warnings.push("Low food reserves: a Royal Kitchen or Ghee House improves army growth. Existing soldiers stay.");
     }
 
+    recordCampaignIssues(this.state.campaignHealth, this.state.civicLevel, populationIssue, resourceIssue);
     return {
       move: this.state.civicLevel, buildingId: builtThisMove, civicLevel: this.state.civicLevel, population: this.state.population,
       produced, consumed, trained, ...(elephants ? { elephants } : {}), upkeep, deserted, stalled, warnings: warnings.slice(0, 2), sold, ledger, before,
@@ -792,7 +818,7 @@ export class SettlementSimulation {
     const { enemy, mods } = this.battleSetup();
     for (let archers = 0; archers <= budget; archers += 1) {
       const hire = { archers, swordsmen: budget - archers };
-      const outcome = resolveBattle(this.armyWith(hire), enemy, this.campaign.stars, mods);
+      const outcome = resolveBattle(this.armyWith(hire), enemy, mods);
       if (outcome.margin > bestMargin + 1e-12) { bestMargin = outcome.margin; best = hire; }
     }
     return best;
@@ -814,7 +840,8 @@ export class SettlementSimulation {
     const { enemy, felled, mods } = this.battleSetup();
     const bonus = mods.bonus ?? 0;
     const army = this.armyWith(hire);
-    const outcome = resolveBattle(army, enemy, this.campaign.stars, mods);
+    const outcome = resolveBattle(army, enemy, mods);
+    const rating = campaignRating(outcome.win, this.state.campaignHealth);
     const units: ArmyUnits = {
       militia: army.militia, spearmen: 0,
       archers: army.archers, swordsmen: army.swordsmen, horsemen: army.horsemen,
@@ -838,7 +865,7 @@ export class SettlementSimulation {
     if (this.state.deserted) explanations.push(`${this.state.deserted} ${this.state.deserted === 1 ? "soldier" : "soldiers"} deserted for lack of rations: a Royal Kitchen or Ghee House feeds the army.`);
     if (this.state.gatherMoves) explanations.push(`${this.state.gatherMoves} move${this.state.gatherMoves === 1 ? " was" : "s were"} spent gathering.`);
     let gap: string | null = null;
-    const nextTarget = !outcome.win ? 0 : outcome.stars === 1 ? this.campaign.stars.two : outcome.stars === 2 ? this.campaign.stars.three : null;
+    const nextTarget = !outcome.win ? 0 : null;
     if (nextTarget !== null) {
       // Suggest soldiers this city could train: ones whose building stands; if
       // none does, ones whose building this campaign offers (and say which).
@@ -851,12 +878,17 @@ export class SettlementSimulation {
         const label = needed.count === 1 ? SOLDIERS[needed.type].singular : SOLDIERS[needed.type].label;
         const building = SOLDIERS[needed.type].building;
         const via = built.includes(building) ? "" : ` (from a ${BUILDINGS[building]?.name ?? building})`;
-        gap = outcome.win ? `${needed.count} more ${label}${via} would have earned ${outcome.stars + 1} stars.` : `${needed.count} more ${label}${via} would have won.`;
+        gap = `${needed.count} more ${label}${via} would have won.`;
       }
     }
+    const health = this.state.campaignHealth;
+    if (!health.historyKnown) explanations.push("Earlier moves in this save were not tracked. Replay from the start to earn the population and resource stars. Your previous best rating is kept.");
+    if (health.populationIssueMoves) explanations.push(`Population issues on ${health.populationIssueMoves} move(s), first on Move ${health.firstPopulationMove}: recruitment had no free villagers. Grow housing before adding more trainers.`);
+    if (health.resourceIssueMoves) explanations.push(`Resource issues on ${health.resourceIssueMoves} move(s), first on Move ${health.firstResourceMove}: production or training stopped for missing supplies, or army upkeep could not be paid.`);
+    if (outcome.win && rating.stars < 3) gap = !health.historyKnown ? "Replay this campaign from the start to earn the two clean-city stars." : `Replay without ${[!rating.goals.population ? "population shortages" : "", !rating.goals.resources ? "resource shortages" : ""].filter(Boolean).join(" and ")} to earn the missing stars.`;
     return {
       outcome: outcome.win ? "Victory" : "Settlement Lost",
-      win: outcome.win, stars: outcome.stars, playerStrength: outcome.playerStrength, enemyStrength: outcome.enemyStrength, margin: outcome.margin,
+      win: outcome.win, stars: rating.stars, starGoals: rating.goals, playerStrength: outcome.playerStrength, enemyStrength: outcome.enemyStrength, margin: outcome.margin,
       units, totalUnits, sellswords: { ...hire }, enemy: { ...enemy }, enemyCount: enemyHeadCount(enemy),
       rounds: outcome.rounds, goldAvailable: this.musterGold, goldSpent, explanations, gap,
       ...(felled ? { felled } : {}), ...(bonus ? { strengthBonus: bonus } : {}),

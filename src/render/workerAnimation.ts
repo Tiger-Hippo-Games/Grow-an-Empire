@@ -84,8 +84,8 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
   }
 
   /** Shows one of a profession's four walking poses in its current direction. */
-  function useCharacter(role: CharacterRole, frame = 0): void {
-    const texture = characters.getFrame(role, frame, facing);
+  function useCharacter(role: CharacterRole, frame = 0, cycle?: number): void {
+    const texture = cycle === undefined ? characters.getFrame(role, frame, facing) : characters.getWalkFrame(role, cycle, facing);
     worker.scale.x = worker.scale.y * WALK_CELL_ASPECT;
     if (workerMaterial.map === texture) return;
     workerMaterial.map = texture;
@@ -126,10 +126,12 @@ export function createWorkerAnimation(scene: THREE.Scene, characters: CharacterA
   const roadPosition = new THREE.Vector2(), roadTangent = new THREE.Vector2();
 
   /** Moves the construction crew along the same road polyline revealed for the chosen plot. */
-  function moveWorkerAlong(points: THREE.Vector2[], progress: number): void {
-    sampleRoute(points, THREE.MathUtils.clamp(progress, 0, 1) * routeLength(points), roadPosition, roadTangent);
+  function moveWorkerAlong(points: THREE.Vector2[], progress: number): number {
+    const distance = THREE.MathUtils.clamp(progress, 0, 1) * routeLength(points);
+    sampleRoute(points, distance, roadPosition, roadTangent);
     facing = directionFromVector(roadTangent.x, roadTangent.y);
     placeWorker(roadPosition);
+    return distance;
   }
 
   return { worker, loadClips, useClip, useCharacter, useWork, frameFor, placeWorker, moveWorker, moveWorkerAlong };

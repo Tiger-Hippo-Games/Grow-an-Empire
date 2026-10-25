@@ -443,6 +443,7 @@ function openMuster(): void {
   sound.play("warning");
   const setup = simulation.battleSetup();
   flow.showMuster({
+    campaignHealth: { ...simulation.state.campaignHealth },
     campaign: simulation.campaign,
     trained: { ...simulation.state.trainedUnits },
     militia: simulation.militia,
@@ -713,7 +714,7 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
     } else if (event.type === "economy-resolved") {
       for (const buildingId of event.activeBuildingIds) constructionView.markProduced(buildingId, animationElapsed);
     } else if (event.type === "population-changed") {
-      villagerField.syncVillagers(Math.max(0, event.total - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
+      villagerField.syncVillagers(simulation.state.builtBuildingIds);
     } else if (event.type === "unit-trained") {
       villagerField.syncGarrison(event.units, crowdElapsed, simulation.state.builtBuildingIds);
       sound.play("trained");
@@ -789,7 +790,7 @@ function resetSettlement(): void {
   hud.updateHud(stateSnapshot());
   villagerField.clearArmyMuster();
   document.getElementById("app")?.classList.remove("fighting");
-  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
+  villagerField.syncVillagers(simulation.state.builtBuildingIds);
   villagerField.syncGarrison(simulation.state.trainedUnits);
   workerAnimation.worker.visible = true;
   workerAnimation.placeWorker(civicGround);
@@ -828,7 +829,7 @@ function hydrateFromLoadedState(): void {
   villagerField.setRoadScale(cityLayout.roadScale);
   hud.setCivicLevel(simulation.state.civicLevel);
   hud.updateHud(stateSnapshot());
-  villagerField.syncVillagers(Math.max(0, simulation.state.population - simulation.state.trainedUnits.archers - simulation.state.trainedUnits.swordsmen - simulation.state.trainedUnits.horsemen));
+  villagerField.syncVillagers(simulation.state.builtBuildingIds);
   villagerField.syncGarrison(simulation.state.trainedUnits);
 
   const { selectedBuildingId: buildingId, activePlotIndex: plotIndex } = simulation.state;
@@ -1147,7 +1148,8 @@ function frame(): void {
   } else if (mode !== "complete") {
     constructionView.renderWoodcutterActivity(animationElapsed, simulation.state.builtBuildingIds);
   }
-  villagerField.renderVillagers(animationElapsed, simulation.state.builtBuildingIds, crowdElapsed);
+  const focusedWorkerBuilding = workerAnimation.worker.visible && typeof workerAnimation.worker.userData.buildingId === "string" ? workerAnimation.worker.userData.buildingId as string : null;
+  villagerField.renderVillagers(animationElapsed, simulation.state.builtBuildingIds, crowdElapsed, focusedWorkerBuilding);
   hud.updateMilestoneVisibility(animationElapsed);
   constructionView.renderProductionPulses(animationElapsed);
 }

@@ -89,15 +89,8 @@ export function watchtowerVolley(enemy: EnemyArmy, share: number): { remaining: 
   return { remaining, felled };
 }
 
-/** Star thresholds: the strength margin needed for two and three stars (0.35 = win by 35%). */
+/** Historical strength bands retained for the seeded AI Realm calibration, not player stars. */
 export interface StarMargins { two: number; three: number }
-
-export function starsFor(margin: number, win: boolean, margins: StarMargins): 0 | 1 | 2 | 3 {
-  if (!win) return 0;
-  if (margin >= margins.three - 1e-9) return 3;
-  if (margin >= margins.two - 1e-9) return 2;
-  return 1;
-}
 
 export interface BattleRound { player: ArmyCounts & { militia: number; elephants?: number }; enemy: ArmyCounts }
 export interface BattleOutcome {
@@ -106,7 +99,6 @@ export interface BattleOutcome {
   enemyStrength: number;
   /** yours ÷ theirs − 1 (0.17 = "won by 17%"); negative on a defeat. */
   margin: number;
-  stars: 0 | 1 | 2 | 3;
   /** Units still standing after each of the four rounds (for the unit strip). */
   rounds: BattleRound[];
 }
@@ -136,7 +128,7 @@ function applyLosses<T extends ArmyCounts & { militia?: number; elephants?: numb
  * Fights the battle. `enemy` is the army that reaches the field (after any
  * Prakara volley); `mods` are the city's battle modifiers.
  */
-export function resolveBattle(army: PlayerArmy, enemy: EnemyArmy, margins: StarMargins, mods: BattleModifiers = {}): BattleOutcome {
+export function resolveBattle(army: PlayerArmy, enemy: EnemyArmy, mods: BattleModifiers = {}): BattleOutcome {
   const ours = playerStrength(army, enemy, mods);
   const theirs = enemyStrength(enemy, army);
   const win = ours > theirs;
@@ -157,7 +149,7 @@ export function resolveBattle(army: PlayerArmy, enemy: EnemyArmy, margins: StarM
     const enemyLeft = applyLosses({ archers: enemy.archers, swordsmen: enemy.swordsmen, horsemen: enemy.horsemen }, theirCount - theirsLeft);
     rounds.push({ player, enemy: enemyLeft });
   }
-  return { win, playerStrength: ours, enemyStrength: theirs, margin, stars: starsFor(margin, win, margins), rounds };
+  return { win, playerStrength: ours, enemyStrength: theirs, margin, rounds };
 }
 
 /**

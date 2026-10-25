@@ -19,7 +19,7 @@ describe("save compatibility", () => {
     expect(saved, "the v4 fixture must stay loadable").not.toBeNull();
     expect(saved?.runId).toBe("fixture-run");
     expect(saved?.settings.tutorialComplete).toBe(true);
-    expect(saved?.schemaVersion).toBe(6);
+    expect(saved?.schemaVersion).toBe(7);
     expect(saved?.state.resources.gold).toBeGreaterThanOrEqual(0);
     expect(saved?.state.trainedUnits.horsemen).toBe(0);
 

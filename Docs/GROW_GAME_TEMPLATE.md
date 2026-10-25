@@ -265,3 +265,7 @@ Release records should contain a unique version, immutable artifact, checksum, c
 **Approval/open decisions:** `<owner, date, decision and evidence>`  
 **Source map:** `<current rules, data, design references, art pipeline, platform kit and QA records>`  
 **Change policy:** `<who updates this document when rules, content or platform contracts change>`
+
+## Campaign mastery example
+
+Grow an Empire awards zero stars on defeat. Victory earns one star, with independent additional stars for no population issues and no resource issues across all preparation moves. Define an issue by an actual blocked action or unpaid upkeep, rather than merely a low balance; successful partial output and spending need not be failures. Persist counts and first occurrences with the run, reset on a fresh replay, display each goal at briefing and results, and retain the best earned rating. Do not invent clean history for old saves. Regression-test a legal three-star route for every campaign while keeping combat difficulty independent of mastery scoring.

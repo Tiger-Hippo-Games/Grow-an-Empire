@@ -2,6 +2,8 @@
 
 Automated Playwright checks behind `Docs/QA_RESULTS.md`. They drive a real Chromium and fail loudly (`ALL PASS` / `pass: false`, console errors listed).
 
+`character_atlases.py` uses Pillow to validate the selected walk64 runtime sheets and produce contact/GIF proof under `out/city-polish/`. `city_motion.py` uses the isolated all-catalog art-review page with real roads, one worker for each of 24 completed buildings and 42 exempt garrison soldiers; it checks unique building assignments, army retention and pause/step/resume without touching game saves. Current motion evidence is under `out/civilian-density/`.
+
 `frame_fit.py` checks 15 real iframe sizes, including 870×668 and portal frames with header space. It checks all 24 production building sprites and all card groups with learner words on/off, plus information dialogs and Controls. Its isolated browser substitutes `Tools/dev/frame-fit-review.ts` for the entry module, uses the real HUD/renderer, and never reads or writes game saves. Results and screenshots: `Tools/qa/out/frame-fit/`.
 
 ## Setup (once)
@@ -51,3 +53,7 @@ All scripts share `flow.py` (campaign map → briefing → city, play a move, pl
 ### Guided tutorial and character polish
 
 `python Tools/qa/tutorial_polish.py` uses `GAE_URL` (default dev port 4173) and checks the real three-lesson flow at desktop, portrait and landscape sizes, keyboard choice, Gather first, report acknowledgement, coach/tray separation, reading size and replay/skip. Screenshots and results are saved under `out/tutorial-polish/`.
+
+### Campaign ratings (0.15.0)
+
+`campaign_rating.py` plays a real clean campaign and checks all rating combinations, victory gating, best-rating preservation and schema-6 migration in isolated browser storage across desktop and phone frames. Evidence: `out/campaign-rating/`. `Tools/balance/clean_campaign_routes.ts` searches legal build/Gather witnesses without changing balance; `threeStarRoutes.test.ts` replays committed witnesses for all 25 campaigns through the real simulation.

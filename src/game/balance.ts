@@ -79,7 +79,9 @@ function cloneInto(state: SettlementState, campaign: CampaignDefinition): Settle
 }
 
 function keyOf(state: SettlementState): string {
-  const { lastSummary: _ignored, ...rest } = state;
+  // This search calibrates army strength, not clean-city goals. Rating history
+  // never changes future resources or armies, so do not multiply equivalent states.
+  const { lastSummary: _ignored, campaignHealth: _rating, ...rest } = state;
   return JSON.stringify(rest);
 }
 

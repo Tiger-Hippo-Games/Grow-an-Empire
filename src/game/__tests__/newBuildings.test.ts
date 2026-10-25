@@ -101,7 +101,7 @@ describe("Gajashala (war elephants)", () => {
   });
 
   it("keeps elephants in the battle rounds until the end", () => {
-    const outcome = resolveBattle({ archers: 0, swordsmen: 4, horsemen: 0, militia: 0, elephants: 2 }, { archers: 4, swordsmen: 0, horsemen: 0, veterancy: 1 }, { two: 0.5, three: 1 });
+    const outcome = resolveBattle({ archers: 0, swordsmen: 4, horsemen: 0, militia: 0, elephants: 2 }, { archers: 4, swordsmen: 0, horsemen: 0, veterancy: 1 });
     expect(outcome.win).toBe(true);
     expect(outcome.rounds[0].player.elephants).toBe(2);
     expect(outcome.rounds.at(-1)!.player.elephants).toBeGreaterThan(0);

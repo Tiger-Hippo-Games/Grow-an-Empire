@@ -171,14 +171,15 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
   }
 
   function renderConstruction(buildingId: string, plotIndex: number, progress: number, constructionElapsed: number, animationElapsed: number): void {
+    workerAnimation.worker.userData.buildingId = buildingId;
     const plot = getBuildingPosition(buildingId);
     cityLayout.placementMaterial.opacity = 0.13 + Math.sin(animationElapsed * Math.PI * 2 * CITY_ANIMATION.construction.placementPulseHz) * 0.05;
     workerAnimation.worker.visible = true;
 
     if (progress < CITY_ANIMATION.construction.surveyEnd) {
       setStatus(statusFor(buildingId, 0), progress);
-      workerAnimation.moveWorkerAlong(serviceRoute(buildingId), progress / CITY_ANIMATION.construction.surveyEnd);
-      workerAnimation.useCharacter(roleForBuilding(buildingId), Math.floor(constructionElapsed * 8));
+      const walked = workerAnimation.moveWorkerAlong(serviceRoute(buildingId), progress / CITY_ANIMATION.construction.surveyEnd);
+      workerAnimation.useCharacter(roleForBuilding(buildingId), 0, walked / 1.25);
       showPlotStage(plotIndex, "foundation");
     } else if (progress < CITY_ANIMATION.construction.foundationEnd) {
       setStatus(statusFor(buildingId, 1), progress);
@@ -208,6 +209,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
 
   /** The Woodcutter's frame-animated travel -> chop -> pickup -> carry -> deposit loop. */
   function renderWoodcutterActivity(animationElapsed: number, builtBuildingIds: string[]): void {
+    workerAnimation.worker.userData.buildingId = "woodcutter";
     const plotIndex = builtBuildingIds.indexOf("woodcutter");
     if (plotIndex < 0) {
       workerAnimation.worker.visible = false;

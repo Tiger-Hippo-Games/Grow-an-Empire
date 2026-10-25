@@ -2,7 +2,11 @@
 
 `common/MOBILE_PERFORMANCE.md` §5: "Every game must have an explicit budget." This is Grow an Empire's. Re-measure after any change to art, boot order or the render loop. The **how to measure** notes are below.
 
-## Current release: 0.10.8 (2026-10-12)
+## Current visual release: 0.14.0 (2026-10-24)
+
+New three-role walk64 art, cached polyline sampling and visual traffic remain bounded at 80 citizens / 14 garrison sprites per trained kind. All-catalog browser review passes, but is not a physical-device frame-rate benchmark. First playable with compressed text delivery on the nested portal path measures **2.78 s at 10 Mbps** (budget 5 s), **9.91 s on Slow 4G / 1.6 Mbps** (budget 10 s), **1.86 MB / 13 requests** (budget 3 MB). Slow-network headroom is narrow and actual hosting must retain text compression. JavaScript gzip is **208.59 KB** (budget 250 KB). Details: `Tools/qa/out/city-polish-load.txt`, `Docs/QA_RESULTS.md`.
+
+## Historical release: 0.10.8 (2026-10-12)
 
 | Metric | Budget | Fresh measurement |
 |---|---|---|

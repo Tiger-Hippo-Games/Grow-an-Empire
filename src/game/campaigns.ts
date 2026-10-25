@@ -42,7 +42,7 @@ export interface CampaignDefinition {
   moveLimit: number;
   availableBuildingIds: string[];
   objective: CampaignObjective;
-  /** Win margins for two and three stars (0.35 = win by 35%). */
+  /** Historical strength bands used by AI Realm calibration; player stars use campaignRating.ts. */
   stars: StarMargins;
 }
 
