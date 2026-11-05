@@ -26,3 +26,28 @@ describe("complete city contain-fit", () => {
     }
   });
 });
+
+describe("growing-city camera (0.16.0)", () => {
+  it("frames a young village closely and the finished city completely", async () => {
+    const { growingCityBounds, MIN_CITY_FRAME } = await import("../cameraFit");
+    const { cityContentBounds } = await import("../cityLayout");
+    const young = growingCityBounds(cityContentBounds([], false));
+    expect(young.right - young.left).toBeCloseTo(MIN_CITY_FRAME.width);
+    expect(young.top - young.bottom).toBeCloseTo(MIN_CITY_FRAME.height);
+    const all = cityContentBounds(Object.keys(BUILDINGS), true);
+    const full = growingCityBounds(all);
+    for (const id of Object.keys(BUILDINGS)) {
+      const p = getBuildingPosition(id);
+      expect(p.x).toBeGreaterThan(full.left);
+      expect(p.x).toBeLessThan(full.right);
+      expect(p.y).toBeGreaterThanOrEqual(full.bottom);
+      expect(p.y + 6).toBeLessThan(full.top);
+    }
+    expect(full.left).toBeGreaterThanOrEqual(CITY_WORLD.left);
+    expect(full.right).toBeLessThanOrEqual(CITY_WORLD.right);
+    // An outlying plot slides the frame without leaving the footprint.
+    const edge = growingCityBounds(cityContentBounds(["gajashala"], false));
+    expect(edge.right).toBeLessThanOrEqual(CITY_WORLD.right);
+    expect(edge.bottom).toBeGreaterThanOrEqual(CITY_WORLD.bottom);
+  });
+});

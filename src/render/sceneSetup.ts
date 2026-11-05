@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { fitCityCamera, type ScreenArea } from "./cameraFit";
+import { blendCamera, CITY_WORLD, fitCityCamera, focusCityCamera, growingCityBounds, type ScreenArea, type WorldBounds } from "./cameraFit";
 
 /**
  * Owns the renderer, scene, and camera. This is intentionally minimal: it
@@ -67,6 +67,34 @@ export function createSceneSetup(viewport: HTMLElement) {
   const camera = new THREE.OrthographicCamera(-7, 7, 4, -4, 0.1, 100);
   camera.position.set(0, 0, 10);
 
+  /**
+   * 0.16.0 camera: frames the growing city (`setCityBounds`), optionally closes
+   * in on one plot (`setFocus`), and eases between views instead of jumping.
+   */
+  let focus: { x: number; y: number; zoom: number } | null = null;
+  let cityBounds: WorldBounds = CITY_WORLD;
+  let current: { width: number; height: number; x: number; y: number } | null = null;
+  let target: { width: number; height: number; x: number; y: number } | null = null;
+  const reducedMotion = (): boolean => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function computeTarget(): boolean {
+    const width = viewport.clientWidth;
+    const height = viewport.clientHeight;
+    if (width === 0 || height === 0) return false;
+    const area = freeArea(width, height);
+    target = focus ? focusCityCamera(width, height, area, focus, focus.zoom, cityBounds) : fitCityCamera(width, height, area, cityBounds);
+    return true;
+  }
+  function applyView(view: { width: number; height: number; x: number; y: number }): void {
+    camera.position.x = view.x;
+    camera.position.y = view.y;
+    camera.left = -view.width / 2;
+    camera.right = view.width / 2;
+    camera.top = view.height / 2;
+    camera.bottom = -view.height / 2;
+    camera.updateProjectionMatrix();
+  }
+
   /** Matches the canvas and camera to the viewport's current size. Call on window resize. */
   function resize(): void {
     const width = viewport.clientWidth;
@@ -76,14 +104,39 @@ export function createSceneSetup(viewport: HTMLElement) {
     if (width === 0 || height === 0) return;
     quality.set(quality.tier); // The stage scale may have changed with the window.
     renderer.setSize(width, height, false);
-    const fit = fitCityCamera(width, height, freeArea(width, height));
-    camera.position.x = fit.x;
-    camera.position.y = fit.y;
-    camera.left = -fit.width / 2;
-    camera.right = fit.width / 2;
-    camera.top = fit.height / 2;
-    camera.bottom = -fit.height / 2;
-    camera.updateProjectionMatrix();
+    if (!computeTarget() || !target) return;
+    current = { ...target }; // A resize snaps: the layout itself changed.
+    applyView(current);
+  }
+
+  /** Eases the camera toward a plot (`point` in world units) or back to the whole city (null). */
+  function setFocus(point: { x: number; y: number } | null, zoom = 1.7): void {
+    focus = point ? { x: point.x, y: point.y, zoom } : null;
+    retarget();
+  }
+  /** Frames the city's current content (null: the complete footprint). */
+  function setCityBounds(content: WorldBounds | null): void {
+    cityBounds = content ? growingCityBounds(content) : CITY_WORLD;
+    retarget();
+  }
+  function retarget(): void {
+    if (!computeTarget() || !target) return;
+    if (!current || reducedMotion()) { current = { ...target }; applyView(current); }
+  }
+
+  /** Advances the ease; returns true while the camera moved (the caller redraws and refits the terrain). */
+  function updateCamera(realDelta: number): boolean {
+    if (!current || !target) return false;
+    const close = Math.abs(current.x - target.x) < 0.01 && Math.abs(current.y - target.y) < 0.01 && Math.abs(current.width - target.width) < 0.01;
+    if (close) {
+      if (current.x === target.x && current.width === target.width && current.y === target.y) return false;
+      current = { ...target };
+    } else {
+      const k = 1 - Math.pow(0.02, Math.min(0.1, Math.max(0, realDelta)) / 0.9); // ~90% of the way in 0.55 s.
+      current = blendCamera(current, target, k, false);
+    }
+    applyView(current);
+    return true;
   }
 
   /** The world-space rectangle the camera currently shows. */
@@ -91,5 +144,5 @@ export function createSceneSetup(viewport: HTMLElement) {
     return { width: camera.right - camera.left, height: camera.top - camera.bottom, centerX: camera.position.x, centerY: camera.position.y };
   }
 
-  return { renderer, scene, camera, resize, quality, viewBounds };
+  return { renderer, scene, camera, resize, quality, viewBounds, setFocus, setCityBounds, updateCamera };
 }

@@ -427,6 +427,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
   let lastHeight = 0;
   const refit = (): void => {
     if (map.classList.contains("hidden")) return;
+    placeBadgeChip();
     // Mid-scroll, the panels can re-flow for a frame as the chapter in view changes; re-centring
     // then would cancel the scroll the player started. Check again once it has finished.
     const wait = smoothUntil - performance.now();
@@ -477,20 +478,56 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       return;
     }
     for (const child of Array.from(app.children) as HTMLElement[]) {
-      if (child === map || child.inert || child.matches(".persistent-hud, .resource-drawer, .speed-control, .realm-scrim, .flow-scrim, .tutorial-scrim, .loading")) continue;
+      if (child === map || child.inert || child.matches(".persistent-hud, .resource-drawer, .speed-control, .realm-scrim, .flow-scrim, .tutorial-scrim, .badge-scrim, .loading")) continue;
       child.inert = true;
       madeInert.add(child);
     }
   }
 
+  // 0.16.0: the badge chip (count of earned medals) opens the gallery.
+  let badgeChip: HTMLButtonElement | null = null;
+  let badgeOpen: (() => void) | null = null;
+  function setBadges(ids: readonly string[], total?: number, onOpen?: () => void): void {
+    if (onOpen) badgeOpen = onOpen;
+    if (!badgeChip) {
+      badgeChip = document.createElement("button");
+      badgeChip.type = "button";
+      badgeChip.id = "campaign-badges";
+      badgeChip.className = "campaign-badges";
+      badgeChip.addEventListener("click", () => badgeOpen?.());
+      map.appendChild(badgeChip);
+    }
+    const of = total ?? Number(badgeChip.dataset.total ?? 0);
+    badgeChip.dataset.total = String(of);
+    badgeChip.innerHTML = `<span class="campaign-badges-medal" aria-hidden="true">🏅</span><b>${ids.length}</b><span>/ ${of}</span><span class="campaign-badges-word">Badges</span>`;
+    badgeChip.setAttribute("aria-label", `Badges: ${ids.length} of ${of} earned`);
+    placeBadgeChip();
+  }
+  /** Keeps the badge chip beside the realm rank chip (above it when that sits low, below it when high), in every layout. */
+  function placeBadgeChip(): void {
+    if (!badgeChip || !realmButton || map.classList.contains("hidden")) return;
+    const box = map.getBoundingClientRect();
+    const rank = realmButton.getBoundingClientRect();
+    if (!box.width || !rank.width) return;
+    const scale = box.width / map.offsetWidth || 1;
+    const chipHeight = badgeChip.offsetHeight || 44;
+    const right = (box.right - rank.right) / scale;
+    const low = rank.top - box.top > box.height / 2;
+    const top = low ? (rank.top - box.top) / scale - chipHeight - 8 : (rank.bottom - box.top) / scale + 8;
+    badgeChip.style.right = `${Math.max(8, right)}px`;
+    badgeChip.style.top = `${Math.max(8, top)}px`;
+    badgeChip.style.bottom = "auto";
+  }
+
   return {
+    setBadges,
     /** First-screen artwork loaded, or its playable fallback is ready. */
     ready,
     /** The rival realm's counts, banners and the player's rank. */
     setRealm(view: MapRealmView) {
       realm = view;
       renderRealm();
-      if (!map.classList.contains("hidden")) { render(); requestAnimationFrame(refit); }
+      if (!map.classList.contains("hidden")) { render(); requestAnimationFrame(refit); requestAnimationFrame(placeBadgeChip); }
     },
     show(activeCampaignId: string, campaignStars: Readonly<Record<string, number>>, runComplete: boolean, move: number) {
       activeId = activeCampaignId;
@@ -512,7 +549,8 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
       // The card can settle a frame later (or when the display font arrives) and
       // land back on a size the observer already reported, so check once more.
       requestAnimationFrame(refit);
-      void document.fonts?.ready.then(refit).catch(() => undefined);
+      requestAnimationFrame(placeBadgeChip);
+      void document.fonts?.ready.then(refit).then(placeBadgeChip).catch(() => undefined);
     },
     hide() {
       const hadFocus = map.contains(document.activeElement);

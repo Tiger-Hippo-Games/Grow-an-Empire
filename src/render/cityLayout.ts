@@ -15,7 +15,7 @@ const planPoint = (x: number, y: number): THREE.Vector2 => new THREE.Vector2((x 
 /** Ground point of the Town Hall; the hub every cross-district route passes through. */
 export const civicGround = planPoint(938, 548);
 /** Ground point of the tree the Woodcutter harvests. */
-export const treeGround = planPoint(1760, 263);
+export const treeGround = planPoint(1770, 265);
 /** Vertical offset from a ground point to the worker sprite's center, so its feet sit on the point. */
 export const workerFootOffset = 0.95;
 
@@ -69,48 +69,73 @@ export async function loadEmptyTerrain(scene: THREE.Scene): Promise<TerrainHandl
  * These vectors are shared: treat them as read-only (clone before mutating).
  */
 const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
-  marketplace: planPoint(1200, 650),
-  house: planPoint(700, 625),
-  woodcutter: planPoint(1639, 292),
-  sawmill: planPoint(1466, 454),
-  farm: planPoint(208, 294),
-  bakery: planPoint(499, 476),
-  // On the approach from the farm district junction to the fields.
-  granary: planPoint(398, 335),
-  "fruit-orchard": planPoint(221, 609),
-  winery: planPoint(424, 657),
-  "swine-farm": planPoint(206, 767),
-  butchery: planPoint(441, 820),
-  quarry: planPoint(1634, 611),
-  blacksmith: planPoint(1433, 657),
-  "weapons-workshop": planPoint(1447, 797),
-  barracks: planPoint(1693, 820),
-  stable: planPoint(1240, 900),
-  // 0.10.4: the stepwell north of the fields, the watchtower on the south-west approach (clear of the garrison),
-  // the elephant stables beside the forge yard, the pillar on the open ground toward the forest road.
-  baoli: planPoint(650, 270),
-  prakara: planPoint(700, 880),
-  gajashala: planPoint(1170, 765),
-  "dharma-stambha": planPoint(1180, 330),
-  // 0.10.5: the bastion on the north approach, the caravanserai between the fields and the grove,
-  // the treasury between the Bazaar and the forge, the rest house behind the Town Hall on the north approach.
-  burj: planPoint(820, 200),
-  sarai: planPoint(300, 450),
-  koshagar: planPoint(1290, 520),
-  dharmashala: planPoint(1000, 270),
+  // 0.16.0 city plan: every quarter sits where its work happens. See Docs/CITY_PLAN.md.
+  // Fields (north-west): paddy, its granary, the Baoli stepwell that waters fields, grove and herd, and the kitchen.
+  farm: planPoint(220, 300),
+  granary: planPoint(410, 300),
+  baoli: planPoint(330, 480),
+  bakery: planPoint(545, 465),
+  // Orchards and pasture (west, among the fruit trees): grove beside its press, herd beside its ghee house.
+  "fruit-orchard": planPoint(190, 640),
+  winery: planPoint(410, 660),
+  "swine-farm": planPoint(200, 830),
+  butchery: planPoint(420, 850),
+  // Civic core around the Town Hall: homes to the west, the treasury guarded behind the hall,
+  // the Bazaar on the east trade road and the Dharma Stambha on the square before the hall steps.
+  house: planPoint(690, 620),
+  dharmashala: planPoint(720, 330),
+  koshagar: planPoint(1000, 270),
+  "dharma-stambha": planPoint(960, 720),
+  marketplace: planPoint(1200, 640),
+  // Forest road (north-east): woodcutter at the tree line, carpenters beside it, the Sarai where caravans arrive.
+  woodcutter: planPoint(1650, 290),
+  sawmill: planPoint(1440, 300),
+  sarai: planPoint(1420, 490),
+  // Stone and iron (east, on the rocks): quarry, forge and bow hall share the quarry road.
+  quarry: planPoint(1660, 600),
+  blacksmith: planPoint(1460, 700),
+  "weapons-workshop": planPoint(1700, 830),
+  // Southern frontier, facing the enemy road: bastion and gate tower on the wall, the parade ground
+  // beside the gate (the garrison musters there), then the akhara, horse and elephant stables.
+  burj: planPoint(500, 1000),
+  prakara: planPoint(700, 920),
+  barracks: planPoint(1300, 900),
+  stable: planPoint(1500, 990),
+  gajashala: planPoint(1740, 1010),
 };
 
-export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry";
+export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry" | "frontier";
 
 const BUILDING_DISTRICTS: Record<string, CityDistrict> = {
-  marketplace: "civic", house: "civic",
-  woodcutter: "forest", sawmill: "forest",
-  farm: "farms", bakery: "farms", granary: "farms",
+  marketplace: "civic", house: "civic", koshagar: "civic", dharmashala: "civic", "dharma-stambha": "civic",
+  woodcutter: "forest", sawmill: "forest", sarai: "forest",
+  farm: "farms", bakery: "farms", granary: "farms", baoli: "farms",
   "fruit-orchard": "provisions", winery: "provisions", "swine-farm": "provisions", butchery: "provisions",
-  quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry", barracks: "industry", stable: "industry",
-  baoli: "farms", prakara: "civic", gajashala: "industry", "dharma-stambha": "civic",
-  burj: "civic", sarai: "farms", koshagar: "civic", dharmashala: "civic",
+  quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry",
+  prakara: "frontier", burj: "frontier", barracks: "frontier", stable: "frontier", gajashala: "frontier",
 };
+
+/**
+ * 0.16.0: the world rectangle the growing-city camera should frame: the Town
+ * Hall, every plot in `buildingIds` (with its painted roof), the harvest tree
+ * once the Woodcutter stands, and the parade ground once soldiers muster.
+ */
+export function cityContentBounds(buildingIds: readonly string[], hasGarrison: boolean): { left: number; right: number; bottom: number; top: number } {
+  let left = civicGround.x - 7, right = civicGround.x + 7, bottom = civicGround.y - 2.5, top = civicGround.y + 10.5;
+  const include = (x0: number, x1: number, y0: number, y1: number): void => {
+    left = Math.min(left, x0); right = Math.max(right, x1); bottom = Math.min(bottom, y0); top = Math.max(top, y1);
+  };
+  for (const id of buildingIds) {
+    const p = BUILDING_POSITIONS[id];
+    if (p) include(p.x - 5, p.x + 5, p.y - 1.8, p.y + 7.6);
+  }
+  if (buildingIds.includes("woodcutter")) include(treeGround.x - 3, treeGround.x + 3, treeGround.y - 1, treeGround.y + 5.5);
+  if (hasGarrison) {
+    const tower = BUILDING_POSITIONS.prakara;
+    include(tower.x + 3.5, tower.x + 18, tower.y + 0.5, tower.y + 10);
+  }
+  return { left, right, bottom, top };
+}
 
 /** Ground position of a building (falls back to the civic center for unknown ids). Read-only. */
 export function getBuildingPosition(buildingId: string): THREE.Vector2 {
@@ -125,18 +150,21 @@ export function getBuildingDistrict(buildingId: string): CityDistrict {
 /** Where each district's road meets its buildings' connector paths. */
 export const DISTRICT_JUNCTIONS: Record<CityDistrict, THREE.Vector2> = {
   civic: civicGround,
-  forest: planPoint(1350, 350),
-  farms: planPoint(572, 365),
-  provisions: planPoint(560, 663),
-  industry: planPoint(1361, 661),
+  forest: planPoint(1330, 400),
+  farms: planPoint(450, 400),
+  provisions: planPoint(310, 745),
+  industry: planPoint(1560, 715),
+  frontier: planPoint(960, 960),
 };
 
 const DISTRICT_PATHS: Record<CityDistrict, THREE.Vector2[]> = {
   civic: [civicGround],
   forest: [civicGround, planPoint(1140, 455), DISTRICT_JUNCTIONS.forest],
-  farms: [civicGround, planPoint(754, 455), DISTRICT_JUNCTIONS.farms],
-  provisions: [civicGround, planPoint(749, 581), DISTRICT_JUNCTIONS.provisions],
-  industry: [civicGround, planPoint(1159, 576), DISTRICT_JUNCTIONS.industry],
+  farms: [civicGround, planPoint(760, 470), DISTRICT_JUNCTIONS.farms],
+  provisions: [civicGround, planPoint(770, 700), DISTRICT_JUNCTIONS.provisions],
+  industry: [civicGround, planPoint(1180, 560), DISTRICT_JUNCTIONS.industry],
+  // The main south road: Town Hall steps, past the Dharma Stambha, through the parade ground to the gate.
+  frontier: [civicGround, planPoint(940, 760), DISTRICT_JUNCTIONS.frontier],
 };
 
 /** Center-to-entrance route using the same points that draw the main road and building spur. */
@@ -226,7 +254,7 @@ export async function loadForest(scene: THREE.Scene): Promise<void> {
   const forestTreePositions = [
     planPoint(1520, 170), planPoint(1605, 196), planPoint(1695, 150),
     planPoint(1790, 183), planPoint(1850, 323), planPoint(1730, 376),
-    planPoint(1510, 327), planPoint(1840, 434),
+    planPoint(1580, 415), planPoint(1840, 434),
   ];
   forestTreePositions.forEach((position, index) => {
     const forestTree = treeSprite.clone();

@@ -1,3 +1,4 @@
+import { mergeBadges, readBadges } from "../game/badges";
 import { migrateSnapshot, type SettlementSnapshot } from "../game/settlementSimulation";
 import { clearSavedSnapshot, hasNewerLocalSave, isFromNewerVersion, loadSavedSnapshot, saveSnapshot } from "../game/saveGame";
 import { readLeaderboardEntry, type LeaderboardEntry } from "../game/leaderboard";
@@ -50,6 +51,8 @@ export type SavedGame = SettlementSnapshot & {
   leaderboard?: LeaderboardEntry;
   /** The rival realm's seasons and the player's last rank (game/realm.ts). Optional: older saves start a fresh realm. */
   realm?: RealmState;
+  /** 0.16.0 achievement badges earned (game/badges.ts). Optional; merged as a union across copies, like stars. */
+  badges?: string[];
 };
 
 export const DEFAULT_SETTINGS: SavedSettings = { tutorialComplete: false, muted: false };
@@ -89,6 +92,8 @@ export function toSavedGame(raw: unknown, campaignId: string | null): SavedGame 
   else delete game.leaderboard;
   if (snapshot.realm !== undefined) game.realm = readRealmState(snapshot.realm);
   else delete game.realm;
+  if (snapshot.badges !== undefined) game.badges = readBadges(snapshot.badges);
+  else delete game.badges;
   return game;
 }
 
@@ -157,6 +162,7 @@ export function chooseSave(local: SavedGame | null, cloud: SavedGame | null): Sa
     completedCampaignIds: [...new Set([...(local.completedCampaignIds ?? []), ...(cloud.completedCampaignIds ?? [])])],
     campaignStars: mergeStars(local.campaignStars, cloud.campaignStars),
     ...(local.realm || cloud.realm ? { realm: mergeRealmStates(local.realm, cloud.realm) } : {}),
+    ...(local.badges || cloud.badges ? { badges: mergeBadges(local.badges, cloud.badges) } : {}),
   };
 }
 
@@ -211,8 +217,8 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
    * cloud, conflict re-reads). Each save is merged with it, so a stale tab or
    * a conflict can never take stars away.
    */
-  let known: Pick<SavedGame, "campaignStars" | "completedCampaignIds"> & { tutorialComplete: boolean } =
-    { campaignStars: {}, completedCampaignIds: [], tutorialComplete: false };
+  let known: Pick<SavedGame, "campaignStars" | "completedCampaignIds"> & { tutorialComplete: boolean; badges: string[] } =
+    { campaignStars: {}, completedCampaignIds: [], tutorialComplete: false, badges: [] };
   let failedWrites = 0;
   let lastCloudWrite = -Infinity;
   const warned = new Set<string>();
@@ -236,6 +242,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
       campaignStars: mergeStars(known.campaignStars, game.campaignStars),
       completedCampaignIds: [...new Set([...(known.completedCampaignIds ?? []), ...(game.completedCampaignIds ?? [])])],
       tutorialComplete: known.tutorialComplete || game.settings.tutorialComplete,
+      badges: mergeBadges(known.badges, game.badges),
     };
   };
   const withKnown = (game: SavedGame): SavedGame => {
@@ -245,6 +252,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
       campaignStars: { ...known.campaignStars },
       completedCampaignIds: [...(known.completedCampaignIds ?? [])],
       settings: { ...game.settings, tutorialComplete: game.settings.tutorialComplete || known.tutorialComplete },
+      ...(known.badges.length ? { badges: [...known.badges] } : {}),
     };
   };
 

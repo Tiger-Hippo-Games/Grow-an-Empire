@@ -139,6 +139,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
     plotSprites.clear();
     plotBuildingIds.clear();
     productionPulseUntil.clear();
+    celebrations.clear();
   }
 
   /** Starts a short scale "pulse" on a completed building to show it produced this move. */
@@ -242,8 +243,30 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
     }
   }
 
-  /** Per-frame: applies the production pulse scale to completed buildings. */
+  // 0.16.0 completion celebration: the finished building pops up from its base (squash and stretch)
+  // while two golden rings ripple out across the ground. Real time, so it reads the same at 1× and 8×.
+  const CELEBRATION_SECONDS = 1.1;
+  const celebrations = new Map<string, number>();
+  const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xf3c95a, transparent: true, opacity: 0, depthTest: false });
+  const rings = [0, 1].map(() => {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40), ringMaterial.clone());
+    ring.renderOrder = 18;
+    ring.visible = false;
+    scene.add(ring);
+    return ring;
+  });
+  const reducedMotion = (): boolean => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  /** Starts the completion pop and ground ripple on a newly finished building. */
+  function celebrate(buildingId: string, _animationElapsed?: number): void {
+    if (reducedMotion()) return;
+    celebrations.set(buildingId, performance.now() / 1000);
+  }
+
+  /** Per-frame: applies the production pulse and completion pop to completed buildings. */
   function renderProductionPulses(animationElapsed: number): void {
+    const now = performance.now() / 1000;
+    let ringOwner: string | null = null;
+    let ringAge = 0;
     for (const [plotIndex, buildingId] of plotBuildingIds) {
       const sprite = plotSprites.get(plotIndex)?.complete;
       if (!sprite?.visible) continue;
@@ -251,9 +274,40 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
       const active = (productionPulseUntil.get(buildingId) ?? 0) > animationElapsed;
       const until = productionPulseUntil.get(buildingId) ?? 0;
       const bump = active ? 1 + Math.sin((until - animationElapsed) * Math.PI * 4) * 0.025 : 1;
-      sprite.scale.set(base.x * bump, base.y * bump, 1);
+      let sx = bump, sy = bump;
+      const started = celebrations.get(buildingId);
+      if (started !== undefined) {
+        const age = now - started;
+        if (age >= CELEBRATION_SECONDS) celebrations.delete(buildingId);
+        else {
+          const decay = 1 - age / CELEBRATION_SECONDS;
+          const wave = Math.sin(age * Math.PI * 3.2) * decay;
+          sy *= 1 + wave * 0.14;
+          sx *= 1 - wave * 0.06;
+          ringOwner = buildingId;
+          ringAge = age;
+        }
+      }
+      sprite.scale.set(base.x * sx, base.y * sy, 1);
+      // Scale from the ground line, not the sprite centre, so the building never sinks into its plot.
+      const plot = getBuildingPosition(buildingId);
+      sprite.position.y = plot.y + sprite.scale.y / 2;
     }
+    rings.forEach((ring, index) => {
+      if (!ringOwner) { ring.visible = false; return; }
+      const age = ringAge - index * 0.22;
+      if (age < 0) { ring.visible = false; return; }
+      const plot = getBuildingPosition(ringOwner);
+      const grow = 1.2 + age * 4.2;
+      ring.visible = true;
+      ring.position.set(plot.x, plot.y + 0.3, 0.6);
+      ring.scale.set(grow, grow * 0.48, 1);
+      (ring.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.85 * (1 - age / (CELEBRATION_SECONDS - index * 0.22)));
+    });
   }
+
+  /** True while a completion celebration is still playing (the loop keeps drawing). */
+  function celebrating(): boolean { return celebrations.size > 0; }
 
   return {
     loadBuildingAssets,
@@ -266,5 +320,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
     renderConstruction,
     renderWoodcutterActivity,
     renderProductionPulses,
+    celebrate,
+    celebrating,
   };
 }

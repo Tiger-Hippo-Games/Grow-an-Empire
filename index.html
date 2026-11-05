@@ -125,15 +125,15 @@
 
       <div id="tutorial-scrim" class="tutorial-scrim hidden">
         <section class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
-          <span class="tutorial-kicker">A village is counting on you</span>
-          <h2 id="tutorial-title">Build. Grow. Defend.</h2>
-          <p class="tutorial-lead">An enemy arrives after <strong><span data-move-limit>12</span> moves</strong>. Prepare your army.</p>
+          <div class="tutorial-hero"><span class="advisor" aria-hidden="true"></span><div><span class="tutorial-kicker">Your royal Mantri (advisor) says</span>
+          <h2 id="tutorial-title">Build. Grow. Defend.</h2></div></div>
+          <p class="tutorial-lead">An enemy arrives after <strong><span data-move-limit>12</span> moves</strong>. Build, train, win.</p>
           <div class="tutorial-rules">
-            <div><b data-icons="build"></b><strong>1. Choose</strong><span>Build once.</span></div>
-            <div><b data-icons="wood grain"></b><strong>2. Grow</strong><span>Buildings work automatically.</span></div>
-            <div><b data-icons="swordsmen star"></b><strong>3. Defend</strong><span>Train an army.</span></div>
+            <div><b data-icons="build"></b><strong>1. Choose</strong><span>One building a move.</span></div>
+            <div><b data-icons="wood grain"></b><strong>2. Grow</strong><span>Buildings work every move.</span></div>
+            <div><b data-icons="swordsmen star"></b><strong>3. Defend</strong><span>Win the battle: up to 3 stars.</span></div>
           </div>
-          <p class="tutorial-reassurance">Let’s play one move together.</p>
+          <p class="tutorial-reassurance">Five quick lessons, played for real.</p>
           <div class="tutorial-actions">
             <button id="tutorial-start" type="button">Show me how</button>
             <button id="tutorial-skip" type="button">Skip tutorial</button>
@@ -142,11 +142,17 @@
       </div>
 
       <aside id="tutorial-coach" class="tutorial-coach hidden" aria-live="polite">
-        <span id="tutorial-step">LESSON 1 OF 3</span>
-        <strong id="tutorial-coach-title">Your first decision</strong>
-        <p id="tutorial-coach-copy">Choose one of the three building icons. There is no immediate wrong answer—the order creates the strategy.</p>
-        <button id="tutorial-next" class="hidden" type="button">Got it</button>
-        <button id="tutorial-coach-skip" type="button">I’ll explore</button>
+        <span class="advisor" aria-hidden="true"></span>
+        <div class="coach-body">
+          <span id="tutorial-step">LESSON 1 OF 5</span>
+          <span class="coach-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <strong id="tutorial-coach-title">Your first decision</strong>
+          <p id="tutorial-coach-copy">Choose one of the three building icons. There is no immediate wrong answer—the order creates the strategy.</p>
+          <div class="coach-actions">
+            <button id="tutorial-next" class="hidden" type="button">Got it</button>
+            <button id="tutorial-coach-skip" type="button">I’ll explore</button>
+          </div>
+        </div>
       </aside>
 
       <div id="loading" class="loading" role="status">

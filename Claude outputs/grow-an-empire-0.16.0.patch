@@ -1,0 +1,1957 @@
+From 0438158c4a11596859f3eedefb42a7647bfcfe9c Mon Sep 17 00:00:00 2001
+From: Ravi <ravi@hyperhippo.com>
+Date: Thu, 5 Nov 2026 13:30:58 +0000
+Subject: [PATCH] 0.16.0: logical city plan, growing camera, clearer popups,
+ five-lesson tutorial, badges
+
+- City quarters by function with a new southern frontier district and parade ground
+- Eased growing-city camera, construction close-up, completion pop and ripple
+- Muster verdict, result banner with stars/confetti, Built! card, report headline
+- Five-lesson advisor tutorial, one-time tips
+- 18 royal badges saved beside stars, gallery and result reveal
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015fxHfDgNtbAcxAkNQ5tKLH
+---
+ AGENTS.md                                   |   6 +-
+ CHANGELOG.md                                |   1 +
+ Docs/CITY_PLAN.md                           |  14 ++
+ Docs/QA_RESULTS.md                          |   8 +
+ Tools/qa/tutorial_polish.py                 |  10 +-
+ index.html                                  |  30 +--
+ package.json                                |   2 +-
+ src/game/__tests__/badges.test.ts           |  52 +++++
+ src/game/badges.ts                          | 116 +++++++++++
+ src/main.ts                                 |  68 ++++++-
+ src/platform/__tests__/badgeSave.test.ts    |  17 ++
+ src/platform/progressStore.ts               |  12 +-
+ src/render/__tests__/cameraFit.test.ts      |  25 +++
+ src/render/__tests__/functionalCity.test.ts |  39 +++-
+ src/render/cameraFit.ts                     |  66 ++++++-
+ src/render/cityLayout.ts                    | 118 +++++++-----
+ src/render/constructionView.ts              |  60 +++++-
+ src/render/sceneSetup.ts                    |  73 ++++++-
+ src/ui/badges.ts                            | 101 ++++++++++
+ src/ui/campaignFlow.ts                      |  30 ++-
+ src/ui/campaignMap.ts                       |  44 ++++-
+ src/ui/enhance.css                          | 202 ++++++++++++++++++++
+ src/ui/hud.ts                               | 134 +++++++++++--
+ 23 files changed, 1111 insertions(+), 117 deletions(-)
+ create mode 100644 Docs/CITY_PLAN.md
+ create mode 100644 src/game/__tests__/badges.test.ts
+ create mode 100644 src/game/badges.ts
+ create mode 100644 src/platform/__tests__/badgeSave.test.ts
+ create mode 100644 src/ui/badges.ts
+ create mode 100644 src/ui/enhance.css
+
+diff --git a/AGENTS.md b/AGENTS.md
+index 97127bb..56369f2 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -73,6 +73,10 @@ Useful URLs on the dev server: `?reset` (discard the save), `?platform=mock` (fa
+ 
+ - **Script policy 0.12.3:** the live portal blocks inline scripts. Keep index.html script tags external only. Ordered classic boot-stage.js / boot-watchdog.js files under public/ run before the SDK and module entry; Vite copies them unchanged and adds version queries. Do not turn them into deferred modules (fit/watchdog must run early). The validator rejects inline blocks; portal_iframe.py and boot_csp.py enforce script-src without unsafe-inline/unsafe-eval in local QA.
+ 
+-- **City spacing 0.12.4:** Dharmashala is behind the Town Hall at planPoint(1000, 270), House at (700, 625), Bazaar at (1200, 650). Keep their positions identity-keyed in cityLayout.ts so restored saves, roads, building sprites and commuter routes agree.
++- **City spacing 0.12.4 (superseded by 0.16.0):** positions stay identity-keyed in cityLayout.ts so restored saves, roads, building sprites and commuter routes agree.
++
++- **City plan 0.16.0:** quarters by function (`Docs/CITY_PLAN.md`): fields NW (farm, granary, baoli, kitchen), orchards/pasture W, civic core (house, dharmashala W; koshagar behind the hall; dharma-stambha on the square before the steps; bazaar E), forest road NE (woodcutter, sawmill, sarai), stone and iron E (quarry, forge, bow hall), and the `frontier` district S (burj, prakara gate, akhara, ashvashala, gajashala) with the garrison parade ground right of the Prakara. `functionalCity.test.ts` enforces the logic (Baoli near what it waters, processors by producers, war quarter south, plots ≥165 plan px apart). Check placement with `Tools/dev/art-review.html`.
++- **Camera 0.16.0:** `sceneSetup` eases between views. `setCityBounds(cityContentBounds(...))` frames what exists (`growingCityBounds`: at least `MIN_CITY_FRAME`, never beyond `CITY_WORLD`); `setFocus(point)` closes in on a plot during construction and main.ts releases it 1.3 s after completion. main.ts calls `frameCity()` on build start/complete, training, muster, reset and restore. Reduced motion snaps. Resize snaps.
++- **Popups/tutorial/badges 0.16.0:** styles in `src/ui/enhance.css` (loaded last; the panel theme uses `!important`, so parchment cards override with it). Pops animate the `scale` property, never `transform`, so layout transforms survive. Tutorial has five lessons (`setLesson`; steps choice → build → report → growth → goal); `Tools/qa/tutorial_polish.py` checks them. Advisor tips (`hud.showTip`) are one-time per browser (localStorage, a convenience). Badges: `game/badges.ts` (pure), `ui/badges.ts` (medals, gallery, reveal); saved as `SavedGame.badges` beside the snapshot and union-merged like stars; no schema bump.
+ 
+ - **Campaign ratings 0.15.0:** defeat earns zero; victory earns one star plus independent bonuses for no population issues and no resource issues across the entire run. `campaignRating.ts` owns the rating; `SettlementState.campaignHealth` records affected moves and first occurrences. Zero recruitment from no free villagers is a population issue; zero production/recruitment from missing inputs or unpaid army upkeep is a resource issue. Low reserves, spending and partial output do not count. Record before camp supplies. Preserve best stars. Migrated unfinished older runs have unknown history and require a fresh replay for clean-run bonuses; completed legacy results remain intact. Legal three-star witnesses for all 25 campaigns are regression-tested. Battle strength margins remain relevant to combat and historical AI Realm bands, not player stars.
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 35a77ab..45bd4a3 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -4,6 +4,7 @@ Every build handed over gets a new version and its own ZIP in `release/` (never
+ 
+ | Version | Date | What changed |
+ |---|---|---|
++| 0.16.0 | 2026-11-05 | UX and placement pass. **Logical city plan:** every quarter where its work happens: fields, granary, Baoli stepwell and Royal Kitchen together in the north-west; mango grove, Soma Press, Goshala and Ghee House among the western fruit trees; homes and Dharmashala west of the Town Hall, the Koshagar treasury guarded behind it, the Bazaar and Sarai on the east trade road; woodcutter and carpenters at the forest edge; quarry, forge and Bow Hall on the eastern rocks; a southern frontier facing the enemy road with the Burj, the Prakara gate tower, the parade ground before the Dharma Stambha, the Akhara, Ashvashala and Gajashala (new `frontier` district and south road). **Camera:** frames the growing city (close for a young village, easing out as it spreads, never beyond the full footprint), eases in on each new plot during construction and back afterwards; completed buildings pop with a golden ground ripple. **Popups:** one big muster verdict (Victory likely / A close fight / Outmatched with advice) and a large Fight button; a result banner with popping stars and confetti; a parchment “Built!” card with the building picture and its benefit; a move-report headline (goods made, soldiers, things to fix); urgent countdown for the last 3 moves, shown under the HUD and never over dialogs. **Tutorial:** five lessons with a royal advisor (choose, watch it rise, read the report, plan your city, win the battle), progress dots, celebration on completion; one-time advisor tips for first soldiers, first elephant, first warning and the Bazaar. **Badges:** 18 royal badges (progress from stars, battle feats), revealed on the result, a gallery from the map chip and result, saved beside the stars (`badges`, union-merged; old saves earn their progress badges). Save schema 7 unchanged; economy, balance and campaigns unchanged. |
+ | 0.15.0 | 2026-10-25 | Campaign mastery stars: victory, no population shortages and no resource shortages; bonuses require victory. Whole-run tracking, independent result goals, replay guidance and best-rating retention. Save schema 7 migrates older saves. Legal three-star routes verified for all 25 campaigns. |
+ | 0.14.1 | 2026-10-25 | One civilian representative per completed building, independent of population; no extra supply/trade crowds and no duplicate while the focused woodcutter harvests. New construction retains its single crew. Army recruitment, visible garrison and final combat remain unchanged. |
+ | 0.14.1 | 2026-10-25 | One civilian representative per completed building, independent of population; no extra supply/trade crowds and no duplicate while the focused woodcutter harvests. New construction retains its single crew. Army recruitment, visible garrison and final combat remain unchanged. |
+diff --git a/Docs/CITY_PLAN.md b/Docs/CITY_PLAN.md
+new file mode 100644
+index 0000000..6fac6ea
+--- /dev/null
++++ b/Docs/CITY_PLAN.md
+@@ -0,0 +1,14 @@
++# City plan (0.16.0)
++
++Plot positions are in the 1920 × 1080 plan (`planPoint` in `src/render/cityLayout.ts`). The Town Hall stands at (938, 548). Each quarter sits where its work happens on the painted terrain, and the road network follows the quarters.
++
++| Quarter | Where | Buildings | Why |
++|---|---|---|---|
++| Fields | north-west meadow | Farm (220,300), Granary (410,300), Baoli (330,480), Royal Kitchen (545,465) | Grain is stored and cooked beside the paddy; the stepwell sits between the fields, grove and herd it waters. |
++| Orchards and pasture | west, among the fruit trees | Mango Grove (190,640), Soma Press (410,660), Goshala (200,830), Ghee House (420,850) | Each processor stands next to its producer. |
++| Civic core | around the Town Hall | House (690,620), Dharmashala (720,330), Koshagar (1000,270), Dharma Stambha (960,720), Bazaar (1200,640) | Homes together; treasury guarded behind the hall; the pillar on the square before the hall steps, above the parade ground. |
++| Forest road | north-east tree line | Woodcutter (1650,290), Carpenter's Yard (1440,300), Sarai (1420,490) | Timber is cut and sawn at the forest edge; caravans arrive on the east road beside the Bazaar. |
++| Stone and iron | eastern rocks | Quarry (1660,600), Lohar Forge (1460,700), Bow Hall (1700,830) | Stone and metal work on the rocky ground. |
++| Southern frontier | facing the enemy road | Burj (500,1000), Prakara (700,920), Akhara (1300,900), Ashvashala (1500,990), Gajashala (1740,1010) | Bastion and gate tower on the wall; soldiers drill on the parade ground right of the Prakara; stables beside it. |
++
++District roads (`DISTRICT_PATHS`) run from the hall to each quarter's junction; the `frontier` road runs south past the Dharma Stambha through the parade ground to the gate. Tests: `src/render/__tests__/functionalCity.test.ts`.
+diff --git a/Docs/QA_RESULTS.md b/Docs/QA_RESULTS.md
+index c1e1eec..a2fe4f2 100644
+--- a/Docs/QA_RESULTS.md
++++ b/Docs/QA_RESULTS.md
+@@ -1,5 +1,13 @@
+ # QA results
+ 
++## v0.16.0 (2026-11-05): logical city plan, growing camera, clearer popups, five-lesson tutorial, badges
++
++- TypeScript, ESLint and **359 tests / 36 files** pass. New: city-quarter logic and spacing (`functionalCity.test.ts`), growing-city camera bounds (`cameraFit.test.ts`), badge rules (`badges.test.ts`), badge save read/merge (`badgeSave.test.ts`).
++- Browser (Chromium, software GL): `gameplay.py` **ALL PASS** (full Campaign 1 with tutorial, reloads, battle, 3 stars, badges revealed, Campaign 2 opened, no console errors); `tutorial_polish.py` pass at 1280×720, 390×844, 844×390 and 375×667 (five lessons, coach inside the stage, beside or above the tray, ≥14 px text); `ui_tray.py` pass; `text_budget.py` all screens within budget (tutorial 35/44 in both phone orientations).
++- `viewports.py`: all sizes pass except **667×375 map**, a 3 px `#resource-hud × .campaign-map-heading` overlap that is identical on 0.15.0 (pre-existing, not introduced here).
++- All 24 plots checked in the real renderer with `Tools/dev/art-review.html` (no overlaps; garrison on the parade ground).
++- `pnpm package`: all bundle checks pass, **18,428,482 bytes**, **159 entries**, SHA-256 `31D18702302A50F36DCDB3F877570C841DDBEB8819CBCC1AA6E15C611FB1D5F7`.
++
+ ## v0.15.0 (2026-10-25): victory and campaign care stars
+ 
+ - TypeScript, ESLint and **351 tests / 34 files** pass. Coverage includes independent bonus combinations, defeat gating, narrow and overwhelming victories, blocked production/recruitment, unpaid upkeep before camp supplies, excluded low reserves/spending/partial output, resets, reloads and v4/v5/v6 migrations. The protected v4 fixture is unchanged. Log: `Tools/qa/out/rating-check.txt`.
+diff --git a/Tools/qa/tutorial_polish.py b/Tools/qa/tutorial_polish.py
+index e58baaa..395653e 100644
+--- a/Tools/qa/tutorial_polish.py
++++ b/Tools/qa/tutorial_polish.py
+@@ -20,7 +20,7 @@ with sync_playwright() as p:
+         page.wait_for_selector('#tutorial-scrim:not(.hidden)')
+         page.screenshot(path=str(OUT/f'{width}-welcome.png'))
+         page.click('#tutorial-start')
+-        assert 'LESSON 1' in page.inner_text('#tutorial-step')
++        assert 'LESSON 1 OF 5' in page.inner_text('#tutorial-step')
+         assert page.locator('.tutorial-pick').count() == 1
+         page.screenshot(path=str(OUT/f'{width}-choice.png'))
+         page.locator('#speed-slider').evaluate("e=>{e.value='3';e.dispatchEvent(new Event('input',{bubbles:true}))}")
+@@ -30,14 +30,17 @@ with sync_playwright() as p:
+             page.keyboard.press('1')
+         else:
+             page.click('.tutorial-pick')
++        # Lesson 2 follows the builders (or the Gather) without blocking the city.
++        page.wait_for_selector('#tutorial-coach[data-step=build]:not(.hidden), #tutorial-coach[data-step=report]:not(.hidden)', timeout=30000)
+         page.wait_for_selector('#tutorial-coach[data-step=report]:not(.hidden)', timeout=30000)
++        assert 'LESSON 3 OF 5' in page.inner_text('#tutorial-step')
+         assert page.is_visible('.report-continue')
+         assert page.is_visible('.move-report')
+         page.screenshot(path=str(OUT/f'{width}-report.png'))
+         if gather:
+             assert 'Gather move complete' in page.inner_text('#tutorial-coach-title')
+         page.click('.report-continue')
+-        assert 'LESSON 3' in page.inner_text('#tutorial-step')
++        assert 'LESSON 4 OF 5' in page.inner_text('#tutorial-step')
+         page.screenshot(path=str(OUT/f'{width}-roadmap.png'))
+         # Every coach is contained in the stage and leaves the choice/report tray accessible.
+         bounds = page.locator('#tutorial-coach').evaluate("""e=>{const r=e.getBoundingClientRect(),t=document.getElementById('build-panel').getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,trayTop:t.top,trayLeft:t.left,font:parseFloat(getComputedStyle(e.querySelector('p')).fontSize)}}""")
+@@ -45,6 +48,9 @@ with sync_playwright() as p:
+         assert bounds['top'] >= 0 and (bounds['bottom'] <= bounds['trayTop']+1 or bounds['right'] <= bounds['trayLeft']+1), bounds
+         assert bounds['font'] >= 14, bounds
+         page.click('#tutorial-next')
++        assert 'LESSON 5 OF 5' in page.inner_text('#tutorial-step')
++        page.screenshot(path=str(OUT/f'{width}-goal.png'))
++        page.click('#tutorial-next')
+         assert not page.is_visible('#tutorial-coach')
+         assert not page.is_visible('#tutorial-scrim')
+         assert not page.locator('.tutorial-pick').count()
+diff --git a/index.html b/index.html
+index 2c8ba3d..314a4d3 100644
+--- a/index.html
++++ b/index.html
+@@ -125,15 +125,15 @@
+ 
+       <div id="tutorial-scrim" class="tutorial-scrim hidden">
+         <section class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+-          <span class="tutorial-kicker">A village is counting on you</span>
+-          <h2 id="tutorial-title">Build. Grow. Defend.</h2>
+-          <p class="tutorial-lead">An enemy arrives after <strong><span data-move-limit>12</span> moves</strong>. Prepare your army.</p>
++          <div class="tutorial-hero"><span class="advisor" aria-hidden="true"></span><div><span class="tutorial-kicker">Your royal Mantri (advisor) says</span>
++          <h2 id="tutorial-title">Build. Grow. Defend.</h2></div></div>
++          <p class="tutorial-lead">An enemy arrives after <strong><span data-move-limit>12</span> moves</strong>. Build, train, win.</p>
+           <div class="tutorial-rules">
+-            <div><b data-icons="build"></b><strong>1. Choose</strong><span>Build once.</span></div>
+-            <div><b data-icons="wood grain"></b><strong>2. Grow</strong><span>Buildings work automatically.</span></div>
+-            <div><b data-icons="swordsmen star"></b><strong>3. Defend</strong><span>Train an army.</span></div>
++            <div><b data-icons="build"></b><strong>1. Choose</strong><span>One building a move.</span></div>
++            <div><b data-icons="wood grain"></b><strong>2. Grow</strong><span>Buildings work every move.</span></div>
++            <div><b data-icons="swordsmen star"></b><strong>3. Defend</strong><span>Win the battle: up to 3 stars.</span></div>
+           </div>
+-          <p class="tutorial-reassurance">Let’s play one move together.</p>
++          <p class="tutorial-reassurance">Five quick lessons, played for real.</p>
+           <div class="tutorial-actions">
+             <button id="tutorial-start" type="button">Show me how</button>
+             <button id="tutorial-skip" type="button">Skip tutorial</button>
+@@ -142,11 +142,17 @@
+       </div>
+ 
+       <aside id="tutorial-coach" class="tutorial-coach hidden" aria-live="polite">
+-        <span id="tutorial-step">LESSON 1 OF 3</span>
+-        <strong id="tutorial-coach-title">Your first decision</strong>
+-        <p id="tutorial-coach-copy">Choose one of the three building icons. There is no immediate wrong answer—the order creates the strategy.</p>
+-        <button id="tutorial-next" class="hidden" type="button">Got it</button>
+-        <button id="tutorial-coach-skip" type="button">I’ll explore</button>
++        <span class="advisor" aria-hidden="true"></span>
++        <div class="coach-body">
++          <span id="tutorial-step">LESSON 1 OF 5</span>
++          <span class="coach-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
++          <strong id="tutorial-coach-title">Your first decision</strong>
++          <p id="tutorial-coach-copy">Choose one of the three building icons. There is no immediate wrong answer—the order creates the strategy.</p>
++          <div class="coach-actions">
++            <button id="tutorial-next" class="hidden" type="button">Got it</button>
++            <button id="tutorial-coach-skip" type="button">I’ll explore</button>
++          </div>
++        </div>
+       </aside>
+ 
+       <div id="loading" class="loading" role="status">
+diff --git a/package.json b/package.json
+index a07c9a5..1233fe5 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "grow-an-empire",
+   "private": true,
+-  "version": "0.15.0",
++  "version": "0.16.0",
+   "type": "module",
+   "engines": {
+     "node": "^20.19.0 || >=22.12.0"
+diff --git a/src/game/__tests__/badges.test.ts b/src/game/__tests__/badges.test.ts
+new file mode 100644
+index 0000000..a107357
+--- /dev/null
++++ b/src/game/__tests__/badges.test.ts
+@@ -0,0 +1,52 @@
++import { describe, expect, it } from "vitest";
++import { awardBadges, BADGES, featBadges, mergeBadges, progressBadges, readBadges } from "../badges";
++import { CAMPAIGNS } from "../campaigns";
++import type { ArmyReport } from "../settlementSimulation";
++
++const report = (overrides: Partial<ArmyReport> = {}): ArmyReport => ({
++  outcome: "Victory", win: true, stars: 3, playerStrength: 30, enemyStrength: 10, margin: 2,
++  units: { militia: 0, spearmen: 0, archers: 4, swordsmen: 4, horsemen: 0, mercenaries: 0 }, totalUnits: 8,
++  sellswords: { archers: 0, swordsmen: 0 }, enemy: { archers: 1, swordsmen: 1, horsemen: 0, veterancy: 1 }, enemyCount: 2,
++  rounds: [], goldAvailable: 0, goldSpent: 0, explanations: [], gap: null, ...overrides,
++} as ArmyReport);
++
++describe("badges", () => {
++  it("has unique ids, names and an earning rule for every medal", () => {
++    expect(new Set(BADGES.map((badge) => badge.id)).size).toBe(BADGES.length);
++    expect(new Set(BADGES.map((badge) => badge.name)).size).toBe(BADGES.length);
++    for (const badge of BADGES) expect(badge.how.length).toBeGreaterThan(8);
++  });
++
++  it("derives progress badges from the star table alone", () => {
++    expect(progressBadges({})).toEqual([]);
++    const first = CAMPAIGNS[0].id;
++    expect(progressBadges({ [first]: 1 })).toEqual(["first-victory"]);
++    expect(progressBadges({ [first]: 3 })).toContain("three-stars");
++    const chapterOne = Object.fromEntries(CAMPAIGNS.filter((c) => c.chapter === 0).map((c) => [c.id, 2]));
++    expect(progressBadges(chapterOne)).toContain("chapter-1");
++    const all = Object.fromEntries(CAMPAIGNS.map((c) => [c.id, 3]));
++    expect(progressBadges(all)).toEqual(expect.arrayContaining(["stars-25", "stars-50", "stars-75", "chapter-5", "hard-win"]));
++  });
++
++  it("awards feats only for victories", () => {
++    const campaign = CAMPAIGNS[7];
++    const won = report({ margin: 0.1, units: { militia: 0, spearmen: 0, archers: 0, swordsmen: 2, horsemen: 6, mercenaries: 0, elephants: 1 }, felled: { archers: 1, swordsmen: 0, horsemen: 0 } });
++    const built = ["farm", "woodcutter", "quarry", "sawmill", "granary", "bakery", "house", "blacksmith", "weapons-workshop", "barracks", "stable", "gajashala", "dharma-stambha", "quarry", "marketplace", "koshagar", "sarai", "prakara"];
++    expect(featBadges({ campaign, report: won, builtBuildingIds: built }).sort()).toEqual(["ashvapati", "close-call", "dharma", "gajapati", "master-builder", "no-sellswords", "watchtower"].sort());
++    expect(featBadges({ campaign, report: report({ win: false, outcome: "Settlement Lost", margin: -0.2 }), builtBuildingIds: built })).toEqual([]);
++    // Early campaigns don't count for Self-Reliant; sellswords disqualify it.
++    expect(featBadges({ campaign: CAMPAIGNS[0], report: report(), builtBuildingIds: [] })).not.toContain("no-sellswords");
++    expect(featBadges({ campaign, report: report({ sellswords: { archers: 1, swordsmen: 0 } }), builtBuildingIds: [] })).not.toContain("no-sellswords");
++  });
++
++  it("cleans, merges and reports only new badges", () => {
++    expect(readBadges(["dharma", "nope", 3, "first-victory", "dharma"])).toEqual(["first-victory", "dharma"]);
++    expect(readBadges("x")).toEqual([]);
++    expect(mergeBadges(["dharma"], undefined, ["first-victory"])).toEqual(["first-victory", "dharma"]);
++    const first = CAMPAIGNS[0];
++    const award = awardBadges(["first-victory"], { [first.id]: 3 }, { campaign: first, report: report(), builtBuildingIds: [] });
++    expect(award.all).toEqual(expect.arrayContaining(["first-victory", "three-stars"]));
++    expect(award.fresh).not.toContain("first-victory");
++    expect(award.fresh).toContain("three-stars");
++  });
++});
+diff --git a/src/game/badges.ts b/src/game/badges.ts
+new file mode 100644
+index 0000000..939ac30
+--- /dev/null
++++ b/src/game/badges.ts
+@@ -0,0 +1,116 @@
++import { CAMPAIGNS, CAMPAIGNS_PER_CHAPTER, CHAPTERS, type CampaignDefinition } from "./campaigns";
++import type { ArmyReport } from "./settlementSimulation";
++
++/**
++ * 0.16.0 achievement badges. Pure rules: no DOM, no saves. main.ts evaluates
++ * them after every battle and keeps the earned ids in the save (`badges`,
++ * beside the snapshot, merged as a union across copies like stars).
++ *
++ * Two kinds:
++ * - progress badges come from the star table alone, so a returning player
++ *   gets every one they have already earned (`progressBadges`);
++ * - feat badges come from one battle's report (`featBadges`).
++ */
++
++export type BadgeTier = "bronze" | "silver" | "gold";
++/** Which drawing the medal shows (ui/badgeArt.ts). */
++export type BadgeEmblem = "fire" | "star" | "crown" | "chakra" | "elephant" | "horse" | "tower" | "hammer" | "scales" | "shield" | "lotus" | "sword";
++
++export interface BadgeDefinition {
++  id: string;
++  name: string;
++  /** How to earn it, shown on locked medals too. */
++  how: string;
++  tier: BadgeTier;
++  emblem: BadgeEmblem;
++}
++
++const CHAPTER_EMBLEMS: BadgeEmblem[] = ["fire", "lotus", "sword", "tower", "chakra"];
++
++export const BADGES: readonly BadgeDefinition[] = [
++  { id: "first-victory", name: "First Victory", how: "Win any campaign.", tier: "bronze", emblem: "fire" },
++  { id: "three-stars", name: "Flawless Raja", how: "Earn ★★★ in a campaign.", tier: "silver", emblem: "star" },
++  ...CHAPTERS.map((chapter, index): BadgeDefinition => ({
++    id: `chapter-${index + 1}`,
++    name: `Lord of ${chapter.name}`,
++    how: `Win all ${CAMPAIGNS_PER_CHAPTER} campaigns of chapter ${["I", "II", "III", "IV", "V"][index]}.`,
++    tier: index < 2 ? "bronze" : index < 4 ? "silver" : "gold",
++    emblem: CHAPTER_EMBLEMS[index] ?? "crown",
++  })),
++  { id: "stars-25", name: "Star Gatherer", how: "Collect 25 stars.", tier: "bronze", emblem: "star" },
++  { id: "stars-50", name: "Star Keeper", how: "Collect 50 stars.", tier: "silver", emblem: "star" },
++  { id: "stars-75", name: "Chakravartin", how: "Collect all 75 stars.", tier: "gold", emblem: "crown" },
++  { id: "hard-win", name: "Unbowed", how: "Win a hard campaign.", tier: "silver", emblem: "shield" },
++  { id: "close-call", name: "Against the Odds", how: "Win by less than 15% strength.", tier: "silver", emblem: "scales" },
++  { id: "gajapati", name: "Gajapati", how: "Win with a war elephant in your army.", tier: "silver", emblem: "elephant" },
++  { id: "ashvapati", name: "Ashvapati", how: "Win with 5 or more horsemen.", tier: "bronze", emblem: "horse" },
++  { id: "no-sellswords", name: "Self-Reliant", how: "Win campaign 6 or later without sellswords.", tier: "bronze", emblem: "sword" },
++  { id: "watchtower", name: "Eyes on the Wall", how: "Win after your Prakara fells the enemy.", tier: "bronze", emblem: "tower" },
++  { id: "master-builder", name: "Master Builder", how: "Win with 16 or more buildings.", tier: "silver", emblem: "hammer" },
++  { id: "dharma", name: "Defender of Dharma", how: "Win with the Dharma Stambha raised.", tier: "gold", emblem: "chakra" },
++];
++
++const BY_ID = new Map(BADGES.map((badge) => [badge.id, badge]));
++export function badgeById(id: string): BadgeDefinition | undefined { return BY_ID.get(id); }
++
++/** Badges earned from the best-stars table (campaign id → 1–3). */
++export function progressBadges(stars: Record<string, number>): string[] {
++  const earned: string[] = [];
++  const won = (campaign: CampaignDefinition): boolean => (stars[campaign.id] ?? 0) > 0;
++  const total = CAMPAIGNS.reduce((sum, campaign) => sum + Math.min(3, Math.max(0, stars[campaign.id] ?? 0)), 0);
++  if (CAMPAIGNS.some(won)) earned.push("first-victory");
++  if (CAMPAIGNS.some((campaign) => (stars[campaign.id] ?? 0) >= 3)) earned.push("three-stars");
++  CHAPTERS.forEach((_chapter, index) => {
++    const inChapter = CAMPAIGNS.filter((campaign) => campaign.chapter === index);
++    if (inChapter.length && inChapter.every(won)) earned.push(`chapter-${index + 1}`);
++  });
++  if (total >= 25) earned.push("stars-25");
++  if (total >= 50) earned.push("stars-50");
++  if (total >= CAMPAIGNS.length * 3) earned.push("stars-75");
++  if (CAMPAIGNS.some((campaign) => campaign.tier === "hard" && won(campaign))) earned.push("hard-win");
++  return earned;
++}
++
++export interface BattleFacts {
++  campaign: CampaignDefinition;
++  report: ArmyReport;
++  builtBuildingIds: readonly string[];
++}
++
++/** Badges one battle earns on its own (only victories earn feats). */
++export function featBadges({ campaign, report, builtBuildingIds }: BattleFacts): string[] {
++  if (!report.win) return [];
++  const earned: string[] = [];
++  const built = new Set(builtBuildingIds);
++  if (report.margin < 0.15) earned.push("close-call");
++  if ((report.units.elephants ?? 0) > 0) earned.push("gajapati");
++  if (report.units.horsemen >= 5) earned.push("ashvapati");
++  if (campaign.number >= 6 && report.sellswords.archers + report.sellswords.swordsmen === 0) earned.push("no-sellswords");
++  const felled = report.felled ? report.felled.archers + report.felled.swordsmen + report.felled.horsemen : 0;
++  if (felled > 0) earned.push("watchtower");
++  if (built.size >= 16) earned.push("master-builder");
++  if (built.has("dharma-stambha")) earned.push("dharma");
++  return earned;
++}
++
++/** Cleans a stored badge list: known ids only, once each, in catalog order. */
++export function readBadges(raw: unknown): string[] {
++  if (!Array.isArray(raw)) return [];
++  const ids = new Set(raw.filter((id): id is string => typeof id === "string" && BY_ID.has(id)));
++  return BADGES.map((badge) => badge.id).filter((id) => ids.has(id));
++}
++
++/** Union of two badge lists, in catalog order. */
++export function mergeBadges(...lists: Array<readonly string[] | undefined>): string[] {
++  return readBadges(lists.flatMap((list) => list ?? []));
++}
++
++/**
++ * Everything earned after a battle: the previous list plus progress and feat
++ * badges. `fresh` lists the ones that are new, in catalog order, for the reveal.
++ */
++export function awardBadges(previous: readonly string[], stars: Record<string, number>, facts: BattleFacts | null): { all: string[]; fresh: string[] } {
++  const before = new Set(readBadges(previous));
++  const all = mergeBadges([...before], progressBadges(stars), facts ? featBadges(facts) : []);
++  return { all, fresh: all.filter((id) => !before.has(id)) };
++}
+diff --git a/src/main.ts b/src/main.ts
+index bc145a8..5f1f4dd 100644
+--- a/src/main.ts
++++ b/src/main.ts
+@@ -5,6 +5,8 @@ import { CAMPAIGNS, campaignById, isCampaignUnlocked, totalStars, type CampaignD
+ import { missingFor, SettlementSimulation, type SellswordHire, type SettlementSnapshot, type SimulationEvent } from "./game/settlementSimulation";
+ import { isRegisteredPlayer, leaderboardEntry, type LeaderboardEntry } from "./game/leaderboard";
+ import { AiRealmSource, campedAt, conquerorsByCampaign, newRealmState, realmStanding, readRealmState, recordBattle, standingFromStars, visitRealm, type RealmState } from "./game/realm";
++import { awardBadges, BADGES, mergeBadges, progressBadges, readBadges } from "./game/badges";
++import { createBadgeGallery } from "./ui/badges";
+ import { createPlatform } from "./platform/adapters";
+ import { createScoreSubmission } from "./platform/scoreSubmission";
+ import type { PlayerInfo } from "./platform/types";
+@@ -14,7 +16,7 @@ import { isGameError, isGameRejection } from "./platform/errorFilter";
+ import { hasDebugFlag } from "./platform/debugFlags";
+ import { checkFont, onAssetProblem, recordImageFailed } from "./platform/assetHealth";
+ import { createSceneSetup } from "./render/sceneSetup";
+-import { civicGround, createCityLayout, getBuildingPosition, loadEmptyTerrain, loadForest, type TerrainHandle } from "./render/cityLayout";
++import { cityContentBounds, civicGround, createCityLayout, getBuildingPosition, loadEmptyTerrain, loadForest, type TerrainHandle } from "./render/cityLayout";
+ import { createCivicCenter } from "./render/civicCenter";
+ import { createWorkerAnimation } from "./render/workerAnimation";
+ import { createConstructionView } from "./render/constructionView";
+@@ -28,6 +30,7 @@ import { createRealmBoard } from "./ui/realmBoard";
+ import { createSound } from "./ui/sound";
+ import "./styles.css";
+ import "./ui/polish.css";
++import "./ui/enhance.css";
+ 
+ // This file is the orchestrator: it owns nothing about *how* to draw a
+ // building, animate a villager, or lay out a road — that lives in
+@@ -94,6 +97,8 @@ let simulation = new SettlementSimulation();
+ let completedCampaignIds: string[] = [];
+ /** Best stars per campaign id (saved; unlocks later campaigns). */
+ let campaignStars: Record<string, number> = {};
++/** 0.16.0 achievement badges earned (game/badges.ts), saved beside the stars. */
++let badges: string[] = [];
+ /** The signed-in portal player (null offline), for the leaderboard. */
+ let player: PlayerInfo | null = null;
+ /** Last leaderboard entry saved or reported (keeps its time when nothing improved). */
+@@ -324,6 +329,7 @@ const flow = createCampaignFlow(document.getElementById("app")!, {
+     hud.setStatus(simulation.state.armyReport?.win ? "Victory: the city stands. Open the campaign map to go on." : "The city fell. Replay from the campaign map.", 1);
+   },
+   onSound: (name) => { sound.play(name); requestRender(); },
++  onBadges: () => openBadges(),
+   onModalChange: (open) => setModalPause(open),
+   isPlaybackPaused: () => pausedByPortal || contextLost || loopFailed || renderFailed,
+   onUxEvent: (name, properties) => {
+@@ -385,6 +391,9 @@ function openRealmBoard(): void {
+   realmBoard.show({ source: realmSource, state: realm, player: standingFromStars(campaignStars, playerName()) });
+ }
+ const campaignMap = createCampaignMap(selectCampaign, openRealmBoard);
++const badgeGallery = createBadgeGallery(document.getElementById("app") ?? document.body, () => sound.play("click"));
++const openBadges = (): void => { badgeGallery.open(badges); track("ux_badges_opened", { earned: badges.length }); };
++campaignMap.setBadges([], BADGES.length, openBadges);
+ document.getElementById("realm-toggle")?.addEventListener("click", openRealmBoard);
+ /** Pushes the realm's counts, camps and the player's rank to the map. */
+ function refreshRealm(): void {
+@@ -420,7 +429,17 @@ function createSceneOrExplain(): ReturnType<typeof createSceneSetup> {
+     throw error;
+   }
+ }
+-const { renderer, scene, camera, resize: resizeCamera, quality, viewBounds } = createSceneOrExplain();
++const { renderer, scene, camera, resize: resizeCamera, quality, viewBounds, setFocus: setCameraFocus, setCityBounds, updateCamera } = createSceneOrExplain();
++/** 0.16.0: frames the city that exists now (plus a plot under construction and the parade ground). */
++function frameCity(): void {
++  const ids = [...simulation.state.builtBuildingIds];
++  const building = simulation.state.selectedBuildingId;
++  if (simulation.state.mode === "construction" && building) ids.push(building);
++  const units = simulation.state.trainedUnits;
++  setCityBounds(cityContentBounds(ids, units.swordsmen + units.archers + units.horsemen > 0));
++}
++/** Real time (ms) when the construction close-up returns to the whole city; 0 = none pending. */
++let focusReleaseAt = 0;
+ let terrain: TerrainHandle | null = null;
+ /** Resizes the canvas and camera, and stretches the terrain to cover the new view. */
+ function resize(): void {
+@@ -500,6 +519,11 @@ function presentBattle(animate: boolean): void {
+     track("realm_rank", { rank: result.after.rank, of: result.after.of, before: result.before, overtaken: result.overtaken, season: realm.season, campaign_number: simulation.campaign.number });
+   }
+   if (report.win && !completedCampaignIds.includes(id)) completedCampaignIds.push(id);
++  // Badges: only a fought battle reveals new ones (a reopened result shows the gallery state).
++  const award = awardBadges(badges, campaignStars, { campaign: simulation.campaign, report, builtBuildingIds: simulation.state.builtBuildingIds });
++  const freshBadges = animate ? award.fresh : [];
++  badges = award.all;
++  for (const badgeId of freshBadges) track("badge_earned", { badge: badgeId, campaign_number: simulation.campaign.number });
+   if (report.stars > previousBest) reportLeaderboard("improved");
+   if (animate) scoreSubmission.submit(leaderboardEntry(campaignStars, leaderboard), player);
+   const next = CAMPAIGNS[simulation.campaign.number];
+@@ -513,7 +537,10 @@ function presentBattle(animate: boolean): void {
+     newRecord: report.stars > previousBest,
+     askClarity: animate && !clarityAsked(),
+     realm: realmView,
++    newBadges: freshBadges,
++    badgeCount: badges.length,
+   };
++  campaignMap.setBadges(badges);
+   if (view.askClarity) rememberClarityAsked();
+   hud.setReportAvailable(true);
+   hud.setStatus(`Campaign complete: ${report.win ? `victory ${"★".repeat(report.stars)}` : "the city fell"}`, 1);
+@@ -568,7 +595,7 @@ function buildPanelView(): BuildPanelView {
+ /** The current run as a save (snapshot + run id + settings + stars + leaderboard standing). */
+ function currentSave(): SavedGame {
+   leaderboard = leaderboardEntry(campaignStars, leaderboard);
+-  return { ...simulation.serialize(), runId: saveRunId, settings, completedCampaignIds, campaignStars, leaderboard, realm };
++  return { ...simulation.serialize(), runId: saveRunId, settings, completedCampaignIds, campaignStars, leaderboard, realm, ...(badges.length ? { badges } : {}) };
+ }
+ 
+ /**
+@@ -661,6 +688,10 @@ async function beginConstruction(buildingId: string, options: { swap?: boolean }
+   cityLayout.placementPad.position.set(plot.x, plot.y + 0.12, 0.5);
+   cityLayout.placementPad.visible = true;
+   hud.hideBuildPanel();
++  // 0.16.0: the camera eases in on the new plot so the player sees where it went and watches it rise.
++  focusReleaseAt = 0;
++  frameCity();
++  setCameraFocus({ x: plot.x, y: plot.y + 2.4 }, 1.4);
+   hud.hideMilestone();
+   workerAnimation.worker.visible = true;
+   workerAnimation.placeWorker(civicGround);
+@@ -690,6 +721,9 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
+       cityLayout.syncBuiltBuildings(simulation.state.builtBuildingIds);
+       sound.play("complete");
+       hud.showBuiltMilestone(event.buildingId, animationElapsed);
++      constructionView.celebrate(event.buildingId, animationElapsed);
++      focusReleaseAt = performance.now() + 1300; // Hold the close-up on the finished building, then show the whole city.
++      frameCity();
+     } else if (event.type === "gathered") {
+       sound.play("gather");
+       hud.showMilestone("Gathering", "Nothing built; every building worked.", animationElapsed);
+@@ -707,9 +741,15 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
+       // requirement.
+       constructionView.loadBuildingAssets(event.options).catch((error: unknown) => console.error(error));
+       hud.renderBuildPanel(buildPanelView());
+-      if (simulation.state.lastSummary?.warnings.length) sound.play("warning");
++      if (simulation.state.lastSummary?.warnings.length) {
++        sound.play("warning");
++        hud.showTip("first-warning", "Something stopped working", "A ⚠ in the report means a building lacked supplies or people. Fix it to keep the ★ for no resource or population issues.");
++      }
++      if (simulation.state.lastSummary?.buildingId === "marketplace") hud.showTip("bazaar", "The Bazaar is open", "Before the battle you can hire sellswords with gold. If a card is short of goods, the Bazaar can swap spare goods for it.");
+     } else if (event.type === "muster-ready") {
+-      hud.showMovesLeft(0);
++      focusReleaseAt = 0;
++      setCameraFocus(null);
++      frameCity();
+       openMuster();
+     } else if (event.type === "economy-resolved") {
+       for (const buildingId of event.activeBuildingIds) constructionView.markProduced(buildingId, animationElapsed);
+@@ -718,6 +758,9 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
+     } else if (event.type === "unit-trained") {
+       villagerField.syncGarrison(event.units, crowdElapsed, simulation.state.builtBuildingIds);
+       sound.play("trained");
++      frameCity();
++      if (event.newElephants) hud.showTip("elephant", "A war elephant joins you!", "Each elephant fights like four swordsmen, but eats 2 rations a move. Keep the kitchens busy.");
++      else hud.showTip("first-soldiers", "Your first soldiers!", "They march to the parade ground by the south gate. Keep their trainers supplied and more will join every move.");
+       const trained = [
+         event.newSwordsmen && `${event.newSwordsmen} swordsm${event.newSwordsmen === 1 ? "a" : "e"}n`,
+         event.newArchers && `${event.newArchers} archer${event.newArchers === 1 ? "" : "s"}`,
+@@ -770,6 +813,8 @@ function buildOrderNames(): string[] {
+ /** Starts a brand-new run and resets every render/UI object to match (also used when a save can't be restored). */
+ function resetSettlement(): void {
+   runId += 1;
++  focusReleaseAt = 0;
++  setCameraFocus(null);
+   selectionPending = false;
+   loopFailed = false;
+   sound.setPaused(pausedByPortal);
+@@ -792,10 +837,14 @@ function resetSettlement(): void {
+   document.getElementById("app")?.classList.remove("fighting");
+   villagerField.syncVillagers(simulation.state.builtBuildingIds);
+   villagerField.syncGarrison(simulation.state.trainedUnits);
++  focusReleaseAt = 0;
++  setCameraFocus(null);
++  frameCity();
+   workerAnimation.worker.visible = true;
+   workerAnimation.placeWorker(civicGround);
+   workerAnimation.useCharacter("builder");
+   hud.renderBuildPanel(buildPanelView());
++  frameCity();
+   requestRender();
+ }
+ 
+@@ -831,6 +880,9 @@ function hydrateFromLoadedState(): void {
+   hud.updateHud(stateSnapshot());
+   villagerField.syncVillagers(simulation.state.builtBuildingIds);
+   villagerField.syncGarrison(simulation.state.trainedUnits);
++  focusReleaseAt = 0;
++  setCameraFocus(null);
++  frameCity();
+ 
+   const { selectedBuildingId: buildingId, activePlotIndex: plotIndex } = simulation.state;
+   if (simulation.state.mode === "construction" && buildingId !== null && plotIndex !== null) {
+@@ -980,6 +1032,7 @@ function applyTestingUrlFlags(): boolean {
+   progress.clear();
+   completedCampaignIds = [];
+   campaignStars = {};
++  badges = [];
+   try { window.localStorage.removeItem("grow-an-empire:tutorial:v1"); } catch { /* Storage unavailable. */ }
+   url.searchParams.delete("reset");
+   try {
+@@ -1047,6 +1100,9 @@ async function initialize(): Promise<void> {
+     campaignStars = { ...saved.campaignStars };
+     leaderboard = saved.leaderboard ?? null;
+     realm = readRealmState(saved.realm);
++    // Returning players keep every progress badge their stars already earned.
++    badges = mergeBadges(readBadges(saved.badges), progressBadges(campaignStars));
++    campaignMap.setBadges(badges);
+     const report = saved.state.mode === "complete" ? saved.state.armyReport : null;
+     if (report?.win) {
+       if (!completedCampaignIds.includes(saved.campaignId)) completedCampaignIds.push(saved.campaignId);
+@@ -1135,6 +1191,8 @@ function frame(): void {
+   animationElapsed += delta;
+   crowdElapsed += realDelta * Math.sqrt(speed);
+   if (cityLayout.update(realDelta)) villagerField.setRoadScale(cityLayout.roadScale);
++  if (focusReleaseAt && performance.now() >= focusReleaseAt) { focusReleaseAt = 0; setCameraFocus(null); }
++  if (updateCamera(realDelta)) { const view = viewBounds(); terrain?.fit(view.width, view.height, view.centerX, view.centerY); }
+   handleSimulationEvents(simulation.update(delta));
+   const { mode, selectedBuildingId, activePlotIndex } = simulation.state;
+   if (mode === "construction" && selectedBuildingId !== null && activePlotIndex !== null) {
+diff --git a/src/platform/__tests__/badgeSave.test.ts b/src/platform/__tests__/badgeSave.test.ts
+new file mode 100644
+index 0000000..a547a52
+--- /dev/null
++++ b/src/platform/__tests__/badgeSave.test.ts
+@@ -0,0 +1,17 @@
++import { describe, expect, it } from "vitest";
++import { chooseSave, toSavedGame } from "../progressStore";
++import { SettlementSimulation } from "../../game/settlementSimulation";
++
++const save = (runId: string, badges?: unknown) => ({ ...new SettlementSimulation().serialize(), runId, settings: { tutorialComplete: true }, ...(badges === undefined ? {} : { badges }) });
++
++describe("badges in the save (0.16.0)", () => {
++  it("reads, cleans and keeps older saves without badges loading", () => {
++    expect(toSavedGame(save("a"), null)?.badges).toBeUndefined();
++    expect(toSavedGame(save("a", ["dharma", "bogus", "first-victory"]), null)?.badges).toEqual(["first-victory", "dharma"]);
++  });
++  it("merges badges from both copies, whichever run wins", () => {
++    const local = toSavedGame(save("a", ["first-victory"]), null);
++    const cloud = toSavedGame(save("b", ["gajapati"]), null);
++    expect(chooseSave(local, cloud)?.badges).toEqual(["first-victory", "gajapati"]);
++  });
++});
+diff --git a/src/platform/progressStore.ts b/src/platform/progressStore.ts
+index 5a43f52..f4dee41 100644
+--- a/src/platform/progressStore.ts
++++ b/src/platform/progressStore.ts
+@@ -1,3 +1,4 @@
++import { mergeBadges, readBadges } from "../game/badges";
+ import { migrateSnapshot, type SettlementSnapshot } from "../game/settlementSimulation";
+ import { clearSavedSnapshot, hasNewerLocalSave, isFromNewerVersion, loadSavedSnapshot, saveSnapshot } from "../game/saveGame";
+ import { readLeaderboardEntry, type LeaderboardEntry } from "../game/leaderboard";
+@@ -50,6 +51,8 @@ export type SavedGame = SettlementSnapshot & {
+   leaderboard?: LeaderboardEntry;
+   /** The rival realm's seasons and the player's last rank (game/realm.ts). Optional: older saves start a fresh realm. */
+   realm?: RealmState;
++  /** 0.16.0 achievement badges earned (game/badges.ts). Optional; merged as a union across copies, like stars. */
++  badges?: string[];
+ };
+ 
+ export const DEFAULT_SETTINGS: SavedSettings = { tutorialComplete: false, muted: false };
+@@ -89,6 +92,8 @@ export function toSavedGame(raw: unknown, campaignId: string | null): SavedGame
+   else delete game.leaderboard;
+   if (snapshot.realm !== undefined) game.realm = readRealmState(snapshot.realm);
+   else delete game.realm;
++  if (snapshot.badges !== undefined) game.badges = readBadges(snapshot.badges);
++  else delete game.badges;
+   return game;
+ }
+ 
+@@ -157,6 +162,7 @@ export function chooseSave(local: SavedGame | null, cloud: SavedGame | null): Sa
+     completedCampaignIds: [...new Set([...(local.completedCampaignIds ?? []), ...(cloud.completedCampaignIds ?? [])])],
+     campaignStars: mergeStars(local.campaignStars, cloud.campaignStars),
+     ...(local.realm || cloud.realm ? { realm: mergeRealmStates(local.realm, cloud.realm) } : {}),
++    ...(local.badges || cloud.badges ? { badges: mergeBadges(local.badges, cloud.badges) } : {}),
+   };
+ }
+ 
+@@ -211,8 +217,8 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
+    * cloud, conflict re-reads). Each save is merged with it, so a stale tab or
+    * a conflict can never take stars away.
+    */
+-  let known: Pick<SavedGame, "campaignStars" | "completedCampaignIds"> & { tutorialComplete: boolean } =
+-    { campaignStars: {}, completedCampaignIds: [], tutorialComplete: false };
++  let known: Pick<SavedGame, "campaignStars" | "completedCampaignIds"> & { tutorialComplete: boolean; badges: string[] } =
++    { campaignStars: {}, completedCampaignIds: [], tutorialComplete: false, badges: [] };
+   let failedWrites = 0;
+   let lastCloudWrite = -Infinity;
+   const warned = new Set<string>();
+@@ -236,6 +242,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
+       campaignStars: mergeStars(known.campaignStars, game.campaignStars),
+       completedCampaignIds: [...new Set([...(known.completedCampaignIds ?? []), ...(game.completedCampaignIds ?? [])])],
+       tutorialComplete: known.tutorialComplete || game.settings.tutorialComplete,
++      badges: mergeBadges(known.badges, game.badges),
+     };
+   };
+   const withKnown = (game: SavedGame): SavedGame => {
+@@ -245,6 +252,7 @@ export function createProgressStore(platform: PlatformAdapter, campaignId: strin
+       campaignStars: { ...known.campaignStars },
+       completedCampaignIds: [...(known.completedCampaignIds ?? [])],
+       settings: { ...game.settings, tutorialComplete: game.settings.tutorialComplete || known.tutorialComplete },
++      ...(known.badges.length ? { badges: [...known.badges] } : {}),
+     };
+   };
+ 
+diff --git a/src/render/__tests__/cameraFit.test.ts b/src/render/__tests__/cameraFit.test.ts
+index 203e3b3..3649e9d 100644
+--- a/src/render/__tests__/cameraFit.test.ts
++++ b/src/render/__tests__/cameraFit.test.ts
+@@ -26,3 +26,28 @@ describe("complete city contain-fit", () => {
+     }
+   });
+ });
++
++describe("growing-city camera (0.16.0)", () => {
++  it("frames a young village closely and the finished city completely", async () => {
++    const { growingCityBounds, MIN_CITY_FRAME } = await import("../cameraFit");
++    const { cityContentBounds } = await import("../cityLayout");
++    const young = growingCityBounds(cityContentBounds([], false));
++    expect(young.right - young.left).toBeCloseTo(MIN_CITY_FRAME.width);
++    expect(young.top - young.bottom).toBeCloseTo(MIN_CITY_FRAME.height);
++    const all = cityContentBounds(Object.keys(BUILDINGS), true);
++    const full = growingCityBounds(all);
++    for (const id of Object.keys(BUILDINGS)) {
++      const p = getBuildingPosition(id);
++      expect(p.x).toBeGreaterThan(full.left);
++      expect(p.x).toBeLessThan(full.right);
++      expect(p.y).toBeGreaterThanOrEqual(full.bottom);
++      expect(p.y + 6).toBeLessThan(full.top);
++    }
++    expect(full.left).toBeGreaterThanOrEqual(CITY_WORLD.left);
++    expect(full.right).toBeLessThanOrEqual(CITY_WORLD.right);
++    // An outlying plot slides the frame without leaving the footprint.
++    const edge = growingCityBounds(cityContentBounds(["gajashala"], false));
++    expect(edge.right).toBeLessThanOrEqual(CITY_WORLD.right);
++    expect(edge.bottom).toBeGreaterThanOrEqual(CITY_WORLD.bottom);
++  });
++});
+diff --git a/src/render/__tests__/functionalCity.test.ts b/src/render/__tests__/functionalCity.test.ts
+index 887abde..b688a4c 100644
+--- a/src/render/__tests__/functionalCity.test.ts
++++ b/src/render/__tests__/functionalCity.test.ts
+@@ -7,16 +7,12 @@ import { CHARACTER_FILES, directionFromVector, roleForBuilding, walkAtlasIndex,
+ describe("functional city routes", () => {
+   it("places every building at its reserved anchor in the 1920 × 1080 plan", () => {
+     const anchors: Record<string, [number, number]> = {
+-      marketplace: [1200, 650], house: [700, 625],
+-      woodcutter: [1639, 292], sawmill: [1466, 454],
+-      farm: [208, 294], bakery: [499, 476], granary: [398, 335],
+-      "fruit-orchard": [221, 609], winery: [424, 657],
+-      "swine-farm": [206, 767], butchery: [441, 820],
+-      quarry: [1634, 611], blacksmith: [1433, 657],
+-      "weapons-workshop": [1447, 797], barracks: [1693, 820],
+-      stable: [1240, 900],
+-      baoli: [650, 270], prakara: [700, 880], gajashala: [1170, 765], "dharma-stambha": [1180, 330],
+-      burj: [820, 200], sarai: [300, 450], koshagar: [1290, 520], dharmashala: [1000, 270],
++      farm: [220, 300], granary: [410, 300], baoli: [330, 480], bakery: [545, 465],
++      "fruit-orchard": [190, 640], winery: [410, 660], "swine-farm": [200, 830], butchery: [420, 850],
++      house: [690, 620], dharmashala: [720, 330], koshagar: [1000, 270], "dharma-stambha": [960, 720], marketplace: [1200, 640],
++      woodcutter: [1650, 290], sawmill: [1440, 300], sarai: [1420, 490],
++      quarry: [1660, 600], blacksmith: [1460, 700], "weapons-workshop": [1700, 830],
++      burj: [500, 1000], prakara: [700, 920], barracks: [1300, 900], stable: [1500, 990], gajashala: [1740, 1010],
+     };
+     const distinct = new Set<string>();
+     expect(Object.keys(anchors).sort()).toEqual(Object.keys(BUILDINGS).sort());
+@@ -29,6 +25,29 @@ describe("functional city routes", () => {
+     expect(distinct.size).toBe(Object.keys(anchors).length);
+   });
+ 
++  it("keeps every quarter logical: fields by water, war on the southern frontier, plots apart", () => {
++    const plan = (id: string) => { const p = getBuildingPosition(id); return { x: p.x * 27 + 960, y: 540 - p.y * 27 }; };
++    const gap = (a: string, b: string) => Math.hypot(plan(a).x - plan(b).x, plan(a).y - plan(b).y);
++    // The Baoli waters the Farm, Mango Grove and Goshala, so it sits among them.
++    for (const watered of ["farm", "fruit-orchard", "swine-farm"]) expect(gap("baoli", watered)).toBeLessThan(400);
++    // Processors stand beside their producers.
++    expect(gap("granary", "farm")).toBeLessThan(220);
++    expect(gap("winery", "fruit-orchard")).toBeLessThan(240);
++    expect(gap("butchery", "swine-farm")).toBeLessThan(240);
++    expect(gap("sawmill", "woodcutter")).toBeLessThan(240);
++    expect(gap("blacksmith", "quarry")).toBeLessThan(240);
++    // Trade and treasury stay with the Bazaar; the Dharmashala with the House.
++    expect(gap("sarai", "marketplace")).toBeLessThan(300);
++    expect(gap("koshagar", "marketplace")).toBeLessThan(450);
++    expect(gap("dharmashala", "house")).toBeLessThan(300);
++    // Every war-quarter building faces the enemy road south of the Town Hall.
++    const hallY = 540 - civicGround.y * 27;
++    for (const id of ["prakara", "burj", "barracks", "stable", "gajashala"]) expect(plan(id).y).toBeGreaterThan(hallY + 300);
++    // No two plots crowd each other.
++    const ids = Object.keys(BUILDINGS);
++    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) expect(gap(ids[i], ids[j]), `${ids[i]} / ${ids[j]}`).toBeGreaterThan(165);
++  });
++
+   it("connects buildings in one district without detouring through the Town Hall", () => {
+     const route = getRoadRoute("farm", "bakery");
+     expect(route[0]).toEqual(getBuildingPosition("farm"));
+diff --git a/src/render/cameraFit.ts b/src/render/cameraFit.ts
+index e2623f4..c26b7a0 100644
+--- a/src/render/cameraFit.ts
++++ b/src/render/cameraFit.ts
+@@ -3,15 +3,73 @@ export const CITY_WORLD = { left: -38, right: 38, bottom: -20, top: 24 } as cons
+ export interface ScreenArea { left: number; right: number; top: number; bottom: number }
+ 
+ /** Orthographic contain-fit: every city edge lands inside the available screen rectangle. */
+-export function fitCityCamera(width: number, height: number, area: ScreenArea) {
++export function fitCityCamera(width: number, height: number, area: ScreenArea, bounds: WorldBounds = CITY_WORLD) {
+   const availableWidth = Math.max(1, area.right - area.left);
+   const availableHeight = Math.max(1, area.bottom - area.top);
+-  const unitsPerPixel = Math.max((CITY_WORLD.right - CITY_WORLD.left) / availableWidth, (CITY_WORLD.top - CITY_WORLD.bottom) / availableHeight);
++  const unitsPerPixel = Math.max((bounds.right - bounds.left) / availableWidth, (bounds.top - bounds.bottom) / availableHeight);
+   const viewWidth = width * unitsPerPixel;
+   const viewHeight = height * unitsPerPixel;
+   return {
+     width: viewWidth, height: viewHeight,
+-    x: (CITY_WORLD.left + CITY_WORLD.right) / 2 - ((area.left + area.right) / 2 - width / 2) * unitsPerPixel,
+-    y: (CITY_WORLD.top + CITY_WORLD.bottom) / 2 + ((area.top + area.bottom) / 2 - height / 2) * unitsPerPixel,
++    x: (bounds.left + bounds.right) / 2 - ((area.left + area.right) / 2 - width / 2) * unitsPerPixel,
++    y: (bounds.top + bounds.bottom) / 2 + ((area.top + area.bottom) / 2 - height / 2) * unitsPerPixel,
+   };
+ }
++
++export interface WorldBounds { left: number; right: number; bottom: number; top: number }
++
++/** Smallest framing the growing-city camera uses (world units), so a young village is close but not cramped. */
++export const MIN_CITY_FRAME = { width: 34, height: 19 } as const;
++
++/**
++ * 0.16.0 growing-city camera: frame what exists (padded), never smaller than
++ * MIN_CITY_FRAME and never beyond the complete footprint (CITY_WORLD). As the
++ * city spreads the camera eases out, so every building stays on screen.
++ */
++export function growingCityBounds(content: WorldBounds): WorldBounds {
++  let { left, right, bottom, top } = content;
++  const grow = (lo: number, hi: number, min: number): [number, number] => {
++    if (hi - lo >= min) return [lo, hi];
++    const centre = (lo + hi) / 2;
++    return [centre - min / 2, centre + min / 2];
++  };
++  [left, right] = grow(left, right, MIN_CITY_FRAME.width);
++  [bottom, top] = grow(bottom, top, MIN_CITY_FRAME.height);
++  // Slide inside the full footprint, then clip to it.
++  const shift = (lo: number, hi: number, min: number, max: number): [number, number] => {
++    if (lo < min) { hi += min - lo; lo = min; }
++    if (hi > max) { lo -= hi - max; hi = max; }
++    return [Math.max(min, lo), Math.min(max, hi)];
++  };
++  [left, right] = shift(left, right, CITY_WORLD.left, CITY_WORLD.right);
++  [bottom, top] = shift(bottom, top, CITY_WORLD.bottom, CITY_WORLD.top);
++  return { left, right, bottom, top };
++}
++
++/**
++ * 0.16.0 construction focus: a closer view centred on one plot inside the same
++ * free screen area. `zoom` > 1 shows the plot larger; the view never shows
++ * beyond the complete city footprint, so the terrain and city stay framed.
++ */
++export function focusCityCamera(width: number, height: number, area: ScreenArea, point: { x: number; y: number }, zoom: number, bounds: WorldBounds = CITY_WORLD) {
++  const base = fitCityCamera(width, height, area, bounds);
++  const z = Math.max(1, zoom);
++  const viewWidth = base.width / z;
++  const viewHeight = base.height / z;
++  const unitsPerPixel = viewWidth / width;
++  // Camera centre that puts `point` at the centre of the free area.
++  let x = point.x - ((area.left + area.right) / 2 - width / 2) * unitsPerPixel;
++  let y = point.y + ((area.top + area.bottom) / 2 - height / 2) * unitsPerPixel;
++  // Keep the zoomed view inside the base (whole-city) view, so nothing beyond it ever shows.
++  const clamp = (value: number, baseCentre: number, baseSize: number, size: number) => Math.min(baseCentre + (baseSize - size) / 2, Math.max(baseCentre - (baseSize - size) / 2, value));
++  x = clamp(x, base.x, base.width, viewWidth);
++  y = clamp(y, base.y, base.height, viewHeight);
++  return { width: viewWidth, height: viewHeight, x, y };
++}
++
++/** Blend between two camera views (t in 0..1; smoothstep unless `smooth` is false). */
++export function blendCamera(a: { width: number; height: number; x: number; y: number }, b: { width: number; height: number; x: number; y: number }, t: number, smooth = true) {
++  const k = Math.max(0, Math.min(1, t));
++  const s = smooth ? k * k * (3 - 2 * k) : k;
++  return { width: a.width + (b.width - a.width) * s, height: a.height + (b.height - a.height) * s, x: a.x + (b.x - a.x) * s, y: a.y + (b.y - a.y) * s };
++}
+diff --git a/src/render/cityLayout.ts b/src/render/cityLayout.ts
+index 0bc00ff..b03ec79 100644
+--- a/src/render/cityLayout.ts
++++ b/src/render/cityLayout.ts
+@@ -15,7 +15,7 @@ const planPoint = (x: number, y: number): THREE.Vector2 => new THREE.Vector2((x
+ /** Ground point of the Town Hall; the hub every cross-district route passes through. */
+ export const civicGround = planPoint(938, 548);
+ /** Ground point of the tree the Woodcutter harvests. */
+-export const treeGround = planPoint(1760, 263);
++export const treeGround = planPoint(1770, 265);
+ /** Vertical offset from a ground point to the worker sprite's center, so its feet sit on the point. */
+ export const workerFootOffset = 0.95;
+ 
+@@ -69,49 +69,74 @@ export async function loadEmptyTerrain(scene: THREE.Scene): Promise<TerrainHandl
+  * These vectors are shared: treat them as read-only (clone before mutating).
+  */
+ const BUILDING_POSITIONS: Record<string, THREE.Vector2> = {
+-  marketplace: planPoint(1200, 650),
+-  house: planPoint(700, 625),
+-  woodcutter: planPoint(1639, 292),
+-  sawmill: planPoint(1466, 454),
+-  farm: planPoint(208, 294),
+-  bakery: planPoint(499, 476),
+-  // On the approach from the farm district junction to the fields.
+-  granary: planPoint(398, 335),
+-  "fruit-orchard": planPoint(221, 609),
+-  winery: planPoint(424, 657),
+-  "swine-farm": planPoint(206, 767),
+-  butchery: planPoint(441, 820),
+-  quarry: planPoint(1634, 611),
+-  blacksmith: planPoint(1433, 657),
+-  "weapons-workshop": planPoint(1447, 797),
+-  barracks: planPoint(1693, 820),
+-  stable: planPoint(1240, 900),
+-  // 0.10.4: the stepwell north of the fields, the watchtower on the south-west approach (clear of the garrison),
+-  // the elephant stables beside the forge yard, the pillar on the open ground toward the forest road.
+-  baoli: planPoint(650, 270),
+-  prakara: planPoint(700, 880),
+-  gajashala: planPoint(1170, 765),
+-  "dharma-stambha": planPoint(1180, 330),
+-  // 0.10.5: the bastion on the north approach, the caravanserai between the fields and the grove,
+-  // the treasury between the Bazaar and the forge, the rest house behind the Town Hall on the north approach.
+-  burj: planPoint(820, 200),
+-  sarai: planPoint(300, 450),
+-  koshagar: planPoint(1290, 520),
+-  dharmashala: planPoint(1000, 270),
++  // 0.16.0 city plan: every quarter sits where its work happens. See Docs/CITY_PLAN.md.
++  // Fields (north-west): paddy, its granary, the Baoli stepwell that waters fields, grove and herd, and the kitchen.
++  farm: planPoint(220, 300),
++  granary: planPoint(410, 300),
++  baoli: planPoint(330, 480),
++  bakery: planPoint(545, 465),
++  // Orchards and pasture (west, among the fruit trees): grove beside its press, herd beside its ghee house.
++  "fruit-orchard": planPoint(190, 640),
++  winery: planPoint(410, 660),
++  "swine-farm": planPoint(200, 830),
++  butchery: planPoint(420, 850),
++  // Civic core around the Town Hall: homes to the west, the treasury guarded behind the hall,
++  // the Bazaar on the east trade road and the Dharma Stambha on the square before the hall steps.
++  house: planPoint(690, 620),
++  dharmashala: planPoint(720, 330),
++  koshagar: planPoint(1000, 270),
++  "dharma-stambha": planPoint(960, 720),
++  marketplace: planPoint(1200, 640),
++  // Forest road (north-east): woodcutter at the tree line, carpenters beside it, the Sarai where caravans arrive.
++  woodcutter: planPoint(1650, 290),
++  sawmill: planPoint(1440, 300),
++  sarai: planPoint(1420, 490),
++  // Stone and iron (east, on the rocks): quarry, forge and bow hall share the quarry road.
++  quarry: planPoint(1660, 600),
++  blacksmith: planPoint(1460, 700),
++  "weapons-workshop": planPoint(1700, 830),
++  // Southern frontier, facing the enemy road: bastion and gate tower on the wall, the parade ground
++  // beside the gate (the garrison musters there), then the akhara, horse and elephant stables.
++  burj: planPoint(500, 1000),
++  prakara: planPoint(700, 920),
++  barracks: planPoint(1300, 900),
++  stable: planPoint(1500, 990),
++  gajashala: planPoint(1740, 1010),
+ };
+ 
+-export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry";
++export type CityDistrict = "civic" | "forest" | "farms" | "provisions" | "industry" | "frontier";
+ 
+ const BUILDING_DISTRICTS: Record<string, CityDistrict> = {
+-  marketplace: "civic", house: "civic",
+-  woodcutter: "forest", sawmill: "forest",
+-  farm: "farms", bakery: "farms", granary: "farms",
++  marketplace: "civic", house: "civic", koshagar: "civic", dharmashala: "civic", "dharma-stambha": "civic",
++  woodcutter: "forest", sawmill: "forest", sarai: "forest",
++  farm: "farms", bakery: "farms", granary: "farms", baoli: "farms",
+   "fruit-orchard": "provisions", winery: "provisions", "swine-farm": "provisions", butchery: "provisions",
+-  quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry", barracks: "industry", stable: "industry",
+-  baoli: "farms", prakara: "civic", gajashala: "industry", "dharma-stambha": "civic",
+-  burj: "civic", sarai: "farms", koshagar: "civic", dharmashala: "civic",
++  quarry: "industry", blacksmith: "industry", "weapons-workshop": "industry",
++  prakara: "frontier", burj: "frontier", barracks: "frontier", stable: "frontier", gajashala: "frontier",
+ };
+ 
++/**
++ * 0.16.0: the world rectangle the growing-city camera should frame: the Town
++ * Hall, every plot in `buildingIds` (with its painted roof), the harvest tree
++ * once the Woodcutter stands, and the parade ground once soldiers muster.
++ */
++export function cityContentBounds(buildingIds: readonly string[], hasGarrison: boolean): { left: number; right: number; bottom: number; top: number } {
++  let left = civicGround.x - 7, right = civicGround.x + 7, bottom = civicGround.y - 2.5, top = civicGround.y + 10.5;
++  const include = (x0: number, x1: number, y0: number, y1: number): void => {
++    left = Math.min(left, x0); right = Math.max(right, x1); bottom = Math.min(bottom, y0); top = Math.max(top, y1);
++  };
++  for (const id of buildingIds) {
++    const p = BUILDING_POSITIONS[id];
++    if (p) include(p.x - 5, p.x + 5, p.y - 1.8, p.y + 7.6);
++  }
++  if (buildingIds.includes("woodcutter")) include(treeGround.x - 3, treeGround.x + 3, treeGround.y - 1, treeGround.y + 5.5);
++  if (hasGarrison) {
++    const tower = BUILDING_POSITIONS.prakara;
++    include(tower.x + 3.5, tower.x + 18, tower.y + 0.5, tower.y + 10);
++  }
++  return { left, right, bottom, top };
++}
++
+ /** Ground position of a building (falls back to the civic center for unknown ids). Read-only. */
+ export function getBuildingPosition(buildingId: string): THREE.Vector2 {
+   return BUILDING_POSITIONS[buildingId] ?? civicGround;
+@@ -125,18 +150,21 @@ export function getBuildingDistrict(buildingId: string): CityDistrict {
+ /** Where each district's road meets its buildings' connector paths. */
+ export const DISTRICT_JUNCTIONS: Record<CityDistrict, THREE.Vector2> = {
+   civic: civicGround,
+-  forest: planPoint(1350, 350),
+-  farms: planPoint(572, 365),
+-  provisions: planPoint(560, 663),
+-  industry: planPoint(1361, 661),
++  forest: planPoint(1330, 400),
++  farms: planPoint(450, 400),
++  provisions: planPoint(310, 745),
++  industry: planPoint(1560, 715),
++  frontier: planPoint(960, 960),
+ };
+ 
+ const DISTRICT_PATHS: Record<CityDistrict, THREE.Vector2[]> = {
+   civic: [civicGround],
+   forest: [civicGround, planPoint(1140, 455), DISTRICT_JUNCTIONS.forest],
+-  farms: [civicGround, planPoint(754, 455), DISTRICT_JUNCTIONS.farms],
+-  provisions: [civicGround, planPoint(749, 581), DISTRICT_JUNCTIONS.provisions],
+-  industry: [civicGround, planPoint(1159, 576), DISTRICT_JUNCTIONS.industry],
++  farms: [civicGround, planPoint(760, 470), DISTRICT_JUNCTIONS.farms],
++  provisions: [civicGround, planPoint(770, 700), DISTRICT_JUNCTIONS.provisions],
++  industry: [civicGround, planPoint(1180, 560), DISTRICT_JUNCTIONS.industry],
++  // The main south road: Town Hall steps, past the Dharma Stambha, through the parade ground to the gate.
++  frontier: [civicGround, planPoint(940, 760), DISTRICT_JUNCTIONS.frontier],
+ };
+ 
+ /** Center-to-entrance route using the same points that draw the main road and building spur. */
+@@ -226,7 +254,7 @@ export async function loadForest(scene: THREE.Scene): Promise<void> {
+   const forestTreePositions = [
+     planPoint(1520, 170), planPoint(1605, 196), planPoint(1695, 150),
+     planPoint(1790, 183), planPoint(1850, 323), planPoint(1730, 376),
+-    planPoint(1510, 327), planPoint(1840, 434),
++    planPoint(1580, 415), planPoint(1840, 434),
+   ];
+   forestTreePositions.forEach((position, index) => {
+     const forestTree = treeSprite.clone();
+diff --git a/src/render/constructionView.ts b/src/render/constructionView.ts
+index 442e129..959b0eb 100644
+--- a/src/render/constructionView.ts
++++ b/src/render/constructionView.ts
+@@ -139,6 +139,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
+     plotSprites.clear();
+     plotBuildingIds.clear();
+     productionPulseUntil.clear();
++    celebrations.clear();
+   }
+ 
+   /** Starts a short scale "pulse" on a completed building to show it produced this move. */
+@@ -242,8 +243,30 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
+     }
+   }
+ 
+-  /** Per-frame: applies the production pulse scale to completed buildings. */
++  // 0.16.0 completion celebration: the finished building pops up from its base (squash and stretch)
++  // while two golden rings ripple out across the ground. Real time, so it reads the same at 1× and 8×.
++  const CELEBRATION_SECONDS = 1.1;
++  const celebrations = new Map<string, number>();
++  const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xf3c95a, transparent: true, opacity: 0, depthTest: false });
++  const rings = [0, 1].map(() => {
++    const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40), ringMaterial.clone());
++    ring.renderOrder = 18;
++    ring.visible = false;
++    scene.add(ring);
++    return ring;
++  });
++  const reducedMotion = (): boolean => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
++  /** Starts the completion pop and ground ripple on a newly finished building. */
++  function celebrate(buildingId: string, _animationElapsed?: number): void {
++    if (reducedMotion()) return;
++    celebrations.set(buildingId, performance.now() / 1000);
++  }
++
++  /** Per-frame: applies the production pulse and completion pop to completed buildings. */
+   function renderProductionPulses(animationElapsed: number): void {
++    const now = performance.now() / 1000;
++    let ringOwner: string | null = null;
++    let ringAge = 0;
+     for (const [plotIndex, buildingId] of plotBuildingIds) {
+       const sprite = plotSprites.get(plotIndex)?.complete;
+       if (!sprite?.visible) continue;
+@@ -251,10 +274,41 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
+       const active = (productionPulseUntil.get(buildingId) ?? 0) > animationElapsed;
+       const until = productionPulseUntil.get(buildingId) ?? 0;
+       const bump = active ? 1 + Math.sin((until - animationElapsed) * Math.PI * 4) * 0.025 : 1;
+-      sprite.scale.set(base.x * bump, base.y * bump, 1);
++      let sx = bump, sy = bump;
++      const started = celebrations.get(buildingId);
++      if (started !== undefined) {
++        const age = now - started;
++        if (age >= CELEBRATION_SECONDS) celebrations.delete(buildingId);
++        else {
++          const decay = 1 - age / CELEBRATION_SECONDS;
++          const wave = Math.sin(age * Math.PI * 3.2) * decay;
++          sy *= 1 + wave * 0.14;
++          sx *= 1 - wave * 0.06;
++          ringOwner = buildingId;
++          ringAge = age;
++        }
++      }
++      sprite.scale.set(base.x * sx, base.y * sy, 1);
++      // Scale from the ground line, not the sprite centre, so the building never sinks into its plot.
++      const plot = getBuildingPosition(buildingId);
++      sprite.position.y = plot.y + sprite.scale.y / 2;
+     }
++    rings.forEach((ring, index) => {
++      if (!ringOwner) { ring.visible = false; return; }
++      const age = ringAge - index * 0.22;
++      if (age < 0) { ring.visible = false; return; }
++      const plot = getBuildingPosition(ringOwner);
++      const grow = 1.2 + age * 4.2;
++      ring.visible = true;
++      ring.position.set(plot.x, plot.y + 0.3, 0.6);
++      ring.scale.set(grow, grow * 0.48, 1);
++      (ring.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.85 * (1 - age / (CELEBRATION_SECONDS - index * 0.22)));
++    });
+   }
+ 
++  /** True while a completion celebration is still playing (the loop keeps drawing). */
++  function celebrating(): boolean { return celebrations.size > 0; }
++
+   return {
+     loadBuildingAssets,
+     ensureBuildingAssetsLoaded,
+@@ -266,5 +320,7 @@ export function createConstructionView(scene: THREE.Scene, workerAnimation: Work
+     renderConstruction,
+     renderWoodcutterActivity,
+     renderProductionPulses,
++    celebrate,
++    celebrating,
+   };
+ }
+diff --git a/src/render/sceneSetup.ts b/src/render/sceneSetup.ts
+index 9ce617c..901fa4b 100644
+--- a/src/render/sceneSetup.ts
++++ b/src/render/sceneSetup.ts
+@@ -1,5 +1,5 @@
+ import * as THREE from "three";
+-import { fitCityCamera, type ScreenArea } from "./cameraFit";
++import { blendCamera, CITY_WORLD, fitCityCamera, focusCityCamera, growingCityBounds, type ScreenArea, type WorldBounds } from "./cameraFit";
+ 
+ /**
+  * Owns the renderer, scene, and camera. This is intentionally minimal: it
+@@ -67,6 +67,34 @@ export function createSceneSetup(viewport: HTMLElement) {
+   const camera = new THREE.OrthographicCamera(-7, 7, 4, -4, 0.1, 100);
+   camera.position.set(0, 0, 10);
+ 
++  /**
++   * 0.16.0 camera: frames the growing city (`setCityBounds`), optionally closes
++   * in on one plot (`setFocus`), and eases between views instead of jumping.
++   */
++  let focus: { x: number; y: number; zoom: number } | null = null;
++  let cityBounds: WorldBounds = CITY_WORLD;
++  let current: { width: number; height: number; x: number; y: number } | null = null;
++  let target: { width: number; height: number; x: number; y: number } | null = null;
++  const reducedMotion = (): boolean => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
++
++  function computeTarget(): boolean {
++    const width = viewport.clientWidth;
++    const height = viewport.clientHeight;
++    if (width === 0 || height === 0) return false;
++    const area = freeArea(width, height);
++    target = focus ? focusCityCamera(width, height, area, focus, focus.zoom, cityBounds) : fitCityCamera(width, height, area, cityBounds);
++    return true;
++  }
++  function applyView(view: { width: number; height: number; x: number; y: number }): void {
++    camera.position.x = view.x;
++    camera.position.y = view.y;
++    camera.left = -view.width / 2;
++    camera.right = view.width / 2;
++    camera.top = view.height / 2;
++    camera.bottom = -view.height / 2;
++    camera.updateProjectionMatrix();
++  }
++
+   /** Matches the canvas and camera to the viewport's current size. Call on window resize. */
+   function resize(): void {
+     const width = viewport.clientWidth;
+@@ -76,14 +104,39 @@ export function createSceneSetup(viewport: HTMLElement) {
+     if (width === 0 || height === 0) return;
+     quality.set(quality.tier); // The stage scale may have changed with the window.
+     renderer.setSize(width, height, false);
+-    const fit = fitCityCamera(width, height, freeArea(width, height));
+-    camera.position.x = fit.x;
+-    camera.position.y = fit.y;
+-    camera.left = -fit.width / 2;
+-    camera.right = fit.width / 2;
+-    camera.top = fit.height / 2;
+-    camera.bottom = -fit.height / 2;
+-    camera.updateProjectionMatrix();
++    if (!computeTarget() || !target) return;
++    current = { ...target }; // A resize snaps: the layout itself changed.
++    applyView(current);
++  }
++
++  /** Eases the camera toward a plot (`point` in world units) or back to the whole city (null). */
++  function setFocus(point: { x: number; y: number } | null, zoom = 1.7): void {
++    focus = point ? { x: point.x, y: point.y, zoom } : null;
++    retarget();
++  }
++  /** Frames the city's current content (null: the complete footprint). */
++  function setCityBounds(content: WorldBounds | null): void {
++    cityBounds = content ? growingCityBounds(content) : CITY_WORLD;
++    retarget();
++  }
++  function retarget(): void {
++    if (!computeTarget() || !target) return;
++    if (!current || reducedMotion()) { current = { ...target }; applyView(current); }
++  }
++
++  /** Advances the ease; returns true while the camera moved (the caller redraws and refits the terrain). */
++  function updateCamera(realDelta: number): boolean {
++    if (!current || !target) return false;
++    const close = Math.abs(current.x - target.x) < 0.01 && Math.abs(current.y - target.y) < 0.01 && Math.abs(current.width - target.width) < 0.01;
++    if (close) {
++      if (current.x === target.x && current.width === target.width && current.y === target.y) return false;
++      current = { ...target };
++    } else {
++      const k = 1 - Math.pow(0.02, Math.min(0.1, Math.max(0, realDelta)) / 0.9); // ~90% of the way in 0.55 s.
++      current = blendCamera(current, target, k, false);
++    }
++    applyView(current);
++    return true;
+   }
+ 
+   /** The world-space rectangle the camera currently shows. */
+@@ -91,5 +144,5 @@ export function createSceneSetup(viewport: HTMLElement) {
+     return { width: camera.right - camera.left, height: camera.top - camera.bottom, centerX: camera.position.x, centerY: camera.position.y };
+   }
+ 
+-  return { renderer, scene, camera, resize, quality, viewBounds };
++  return { renderer, scene, camera, resize, quality, viewBounds, setFocus, setCityBounds, updateCamera };
+ }
+diff --git a/src/ui/badges.ts b/src/ui/badges.ts
+new file mode 100644
+index 0000000..cad0ff0
+--- /dev/null
++++ b/src/ui/badges.ts
+@@ -0,0 +1,101 @@
++import { BADGES, badgeById, type BadgeDefinition, type BadgeEmblem } from "../game/badges";
++import { escapeHtml, focusFirst, trapTab } from "./dom";
++
++/**
++ * 0.16.0 medals: inline SVG (no downloads, sharp at any scale), a gallery
++ * dialog and the "new badge" reveal used by the result popup.
++ */
++
++const EMBLEMS: Record<BadgeEmblem, string> = {
++  fire: `<path d="M24 11c4 5 9 8 9 15a9 9 0 0 1-18 0c0-4 2-6 4-8 0 3 1 5 3 6-1-5 0-9 2-13z" fill="#ffd36b"/><path d="M24 22c2 2 4 4 4 7a4 4 0 0 1-8 0c0-2 2-4 4-7z" fill="#e8742a"/>`,
++  star: `<path d="m24 11 3.8 8 8.7 1.1-6.4 6 1.7 8.6L24 30.4l-7.8 4.3 1.7-8.6-6.4-6 8.7-1.1z" fill="#fff0bd" stroke="#8a5a17" stroke-width="1.2"/>`,
++  crown: `<path d="M13 31 11 17l7 6 6-10 6 10 7-6-2 14z" fill="#ffe08a" stroke="#8a5a17" stroke-width="1.2" stroke-linejoin="round"/><rect x="13" y="31" width="22" height="4" rx="1" fill="#e9b93a"/><circle cx="24" cy="24" r="2" fill="#c9452f"/>`,
++  chakra: `<circle cx="24" cy="24" r="10" fill="none" stroke="#1f4f9a" stroke-width="2.2"/><circle cx="24" cy="24" r="2.4" fill="#1f4f9a"/><g stroke="#1f4f9a" stroke-width="1.3">${Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * Math.PI * 2; return `<path d="M${(24 + Math.cos(a) * 2.6).toFixed(1)} ${(24 + Math.sin(a) * 2.6).toFixed(1)}L${(24 + Math.cos(a) * 9.6).toFixed(1)} ${(24 + Math.sin(a) * 9.6).toFixed(1)}"/>`; }).join("")}</g>`,
++  elephant: `<ellipse cx="26" cy="25" rx="9" ry="6.5" fill="#8e8a88"/><circle cx="17" cy="22" r="5" fill="#8e8a88"/><path d="M13.5 24c-1.5 3-1.5 6 .5 9" stroke="#8e8a88" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="M19 31v4M23 31v4M29 31v4M33 30v5" stroke="#6f6b69" stroke-width="3" stroke-linecap="round"/><path d="M21 18h9l1 4H20z" fill="#c9452f"/><circle cx="16" cy="21" r="1" fill="#2b2420"/>`,
++  horse: `<path d="M18 36c-.5-4 .5-7 3-9.5L17.5 24c-2 1-3.8.5-4.5-1-.5-1 0-2 1-2.8L20 13c1.6-1.8 4-2.5 6.3-2l1.3-2.2 1.5 2.8c3.4 2 5 6.3 4.5 10.6L32 36z" fill="#9a6235"/><path d="M26 11c3 .5 5.8 2.8 6.8 6.2 1 3.3.5 7.8-.8 18.8h-2.5c1.3-8.5 1.5-12.5.5-15.8-.8-2.6-2.4-4.6-4-5.6z" fill="#3a2a1d"/><circle cx="22.5" cy="16" r="1.2" fill="#1e1a16"/>`,
++  tower: `<path d="M17 36V18h14v18z" fill="#b5624a"/><path d="M24 18h7v18h-7z" fill="#934a37"/><path d="M16 18v-4h3v2h3v-2h4v2h3v-2h3v4z" fill="#c6745a"/><path d="M22.5 23h3v5h-3z" fill="#2b2420"/><path d="M24 14V9" stroke="#6b4423" stroke-width="1.2"/><path d="M24 9l5 1.8-5 1.7z" fill="#e88828"/>`,
++  hammer: `<path d="M26 22 14 34l2.5 2.5L28.5 24.5" stroke="#b4743f" stroke-width="3.2" stroke-linecap="round"/><path d="M23 15l5.5-2 7.5 7.5-3.5 3.5-2.8-2.8-3.4 3.4-4.2-4.2 3.4-3.4z" fill="#c3c8cc"/>`,
++  scales: `<path d="M24 12v22M16 35h16" stroke="#8a5a17" stroke-width="2" stroke-linecap="round"/><path d="M14 17h20" stroke="#8a5a17" stroke-width="1.8" stroke-linecap="round"/><path d="M14 17l-4 8h8zM34 17l-4 8h8z" fill="none" stroke="#8a5a17" stroke-width="1.3"/><path d="M10 25a4 2 0 0 0 8 0zM30 25a4 2 0 0 0 8 0z" fill="#ffd36b"/>`,
++  shield: `<path d="M24 11 34 15v8c0 6.5-4.4 11-10 13-5.6-2-10-6.5-10-13v-8z" fill="#3f6fb5"/><path d="M24 11 34 15v8c0 6.5-4.4 11-10 13z" fill="#2f568f"/><path d="M19.5 23l3 3 6-6.5" stroke="#f6e7c1" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
++  lotus: `<path d="M24 14c3 3 4 7 0 14-4-7-3-11 0-14z" fill="#f29bb4"/><path d="M24 28c-6-1-10-5-11-10 5 0 9 3 11 10zM24 28c6-1 10-5 11-10-5 0-9 3-11 10z" fill="#e8749a"/><path d="M14 31c6 2 14 2 20 0" stroke="#4f9a45" stroke-width="2" fill="none" stroke-linecap="round"/>`,
++  sword: `<path d="M31 11h5v5L21 31l-5-5z" fill="#d3d6d8"/><path d="M36 11 21 26" stroke="#8c9194" stroke-width="1"/><path d="M13 25l10 10M15.5 30.5 11 35l2 2 4.5-4.5" stroke="#c4911c" stroke-width="2.6" stroke-linecap="round"/>`,
++};
++
++const TIER_COLOURS: Record<BadgeDefinition["tier"], [string, string, string]> = {
++  bronze: ["#e3a36b", "#a8622f", "#6e3c18"],
++  silver: ["#f1f3f5", "#aab2b9", "#5d666e"],
++  gold: ["#ffe9a3", "#e2a92b", "#8a5a17"],
++};
++
++/** One medal as inline SVG. Locked medals are drawn grey with a lock ring. */
++export function medal(badge: BadgeDefinition, earned: boolean, size = 64): string {
++  const [light, mid, dark] = earned ? TIER_COLOURS[badge.tier] : ["#7b7f86", "#565a61", "#3a3d42"];
++  const id = `m-${badge.id}-${earned ? "on" : "off"}`;
++  return `<svg class="medal ${earned ? "earned" : "locked"} tier-${badge.tier}" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
++    <defs><radialGradient id="${id}" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="${light}"/><stop offset=".65" stop-color="${mid}"/><stop offset="1" stop-color="${dark}"/></radialGradient></defs>
++    <path d="M15 2h7l2 9-6 2zM33 2h-7l-2 9 6 2z" fill="${earned ? "#c9452f" : "#4b4f55"}"/>
++    <circle cx="24" cy="25" r="20" fill="url(#${id})" stroke="${dark}" stroke-width="1.5"/>
++    <circle cx="24" cy="25" r="15.5" fill="none" stroke="${light}" stroke-opacity=".7" stroke-width="1" stroke-dasharray="2 2"/>
++    <g transform="translate(0 1)" ${earned ? "" : `opacity=".45" filter="grayscale(1)"`}>${EMBLEMS[badge.emblem]}</g>
++  </svg>`;
++}
++
++/** The "new badge" strip for the result popup. */
++export function badgeRevealHtml(ids: readonly string[]): string {
++  const badges = ids.map((id) => badgeById(id)).filter((badge): badge is BadgeDefinition => Boolean(badge));
++  if (!badges.length) return "";
++  return `<div class="badge-reveal" role="group" aria-label="New badge${badges.length > 1 ? "s" : ""} earned">
++    <p class="badge-reveal-title">${badges.length > 1 ? `${badges.length} new badges!` : "New badge!"}</p>
++    <ul>${badges.map((badge, index) => `<li style="--i:${index}">${medal(badge, true, 72)}<span><b>${escapeHtml(badge.name)}</b><small>${escapeHtml(badge.how)}</small></span></li>`).join("")}</ul>
++  </div>`;
++}
++
++/** The badge gallery: every medal, earned in colour, the rest grey with how to earn it. */
++export function createBadgeGallery(root: HTMLElement, onSound?: () => void) {
++  const scrim = document.createElement("div");
++  scrim.className = "badge-scrim hidden";
++  const dialog = document.createElement("section");
++  dialog.className = "badge-dialog";
++  dialog.setAttribute("role", "dialog");
++  dialog.setAttribute("aria-modal", "true");
++  dialog.setAttribute("aria-labelledby", "badge-title");
++  scrim.appendChild(dialog);
++  root.appendChild(scrim);
++  let returnFocus: HTMLElement | null = null;
++  const isOpen = (): boolean => !scrim.classList.contains("hidden");
++  document.addEventListener("keydown", (event) => {
++    if (!isOpen()) return;
++    trapTab(event, dialog);
++    if (event.key === "Escape") { event.preventDefault(); close(); }
++  });
++  scrim.addEventListener("click", (event) => { if (event.target === scrim) close(); });
++
++  function open(earnedIds: readonly string[]): void {
++    const earned = new Set(earnedIds);
++    const count = BADGES.filter((badge) => earned.has(badge.id)).length;
++    dialog.innerHTML = `<header class="badge-head"><div><p class="flow-kicker">ACHIEVEMENTS</p><h2 id="badge-title">Royal Badges</h2><p class="badge-count"><b>${count}</b> of ${BADGES.length} earned</p></div>
++      <button type="button" class="badge-close" data-action="close" aria-label="Close badges">✕</button></header>
++      <div class="badge-progress" role="meter" aria-valuemin="0" aria-valuemax="${BADGES.length}" aria-valuenow="${count}" aria-label="Badges earned"><i style="width:${Math.round((count / BADGES.length) * 100)}%"></i></div>
++      <ul class="badge-grid">${BADGES.map((badge) => {
++        const has = earned.has(badge.id);
++        return `<li class="${has ? "earned" : "locked"}" aria-label="${escapeHtml(`${badge.name}: ${has ? "earned" : "locked"}. ${badge.how}`)}">${medal(badge, has, 60)}<b>${escapeHtml(badge.name)}</b><small>${escapeHtml(badge.how)}</small></li>`;
++      }).join("")}</ul>`;
++    dialog.querySelector("[data-action=close]")!.addEventListener("click", close);
++    const active = document.activeElement;
++    returnFocus = active instanceof HTMLElement && active !== document.body ? active : null;
++    scrim.classList.remove("hidden");
++    onSound?.();
++    dialog.querySelector<HTMLButtonElement>("[data-action=close]")?.focus({ preventScroll: true });
++  }
++
++  function close(): void {
++    if (!isOpen()) return;
++    scrim.classList.add("hidden");
++    focusFirst(returnFocus, "#campaign-launch", "#city-ui-toggle");
++    returnFocus = null;
++  }
++
++  return { open, close, get isOpen() { return isOpen(); } };
++}
++
++export type BadgeGallery = ReturnType<typeof createBadgeGallery>;
+diff --git a/src/ui/campaignFlow.ts b/src/ui/campaignFlow.ts
+index e80dc07..49a1f23 100644
+--- a/src/ui/campaignFlow.ts
++++ b/src/ui/campaignFlow.ts
+@@ -10,6 +10,7 @@ import { assetUrl } from "../render/assetCatalog";
+ import { BUILDINGS } from "../game/content";
+ import { escapeHtml, focusFirst, trapTab } from "./dom";
+ import { amount, icon } from "./icons";
++import { badgeRevealHtml } from "./badges";
+ 
+ /**
+  * The campaign's story screens, all modal dialogs over the city:
+@@ -102,6 +103,9 @@ export interface ResultView {
+   newRecord: boolean;
+   /** The realm standing after this battle (absent on an old result reopened from a save). */
+   realm?: RealmView;
++  /** 0.16.0: badges this battle earned (revealed with a fanfare) and the total now held. */
++  newBadges?: string[];
++  badgeCount?: number;
+ }
+ 
+ /** The player's place in the realm after a result (game/realm.ts). */
+@@ -171,6 +175,8 @@ export interface FlowCallbacks {
+   isPlaybackPaused?(): boolean;
+   /** UX analytics (Docs/PLAYTEST_PORTAL.md): Details opened, the clarity vote. */
+   onUxEvent?(name: string, properties: Record<string, unknown>): void;
++  /** 0.16.0: open the badge gallery over the result. */
++  onBadges?(): void;
+ }
+ 
+ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) {
+@@ -319,10 +325,12 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks)
+       ${mods.militiaStrength && view.militia ? `<p class="flow-note defences"><span aria-hidden="true">${amount("militia", view.militia)}${amount("strength", "×2", {})}</span><span class="ws"> The Burj: militia fight at full strength</span></p>` : ""}
+       ${bonus ? `<p class="flow-note defences"><span aria-hidden="true">${amount("strength", `${Math.round(bonus * 100)}%`, { sign: "+" })}</span><span class="ws"> The Dharma Stambha: the army fights ${Math.round(bonus * 100)}% stronger</span></p>` : ""}
+       ${view.deserted ? `<p class="flow-note deserted"><span aria-hidden="true">${icon("warning")}${amount("people", view.deserted, { sign: "−", className: "loss" })}${icon("rations")}</span><span class="ws"> ${view.deserted} soldiers deserted for lack of rations (an older save)</span></p>` : ""}
+-      <div class="forecast"><div class="forecast-bar"><i data-bar></i></div><p data-forecast aria-live="polite"></p></div>
++      <div class="verdict" data-verdict aria-live="polite"></div>
++      <div class="forecast"><div class="forecast-labels" aria-hidden="true"><span>${icon("strength")} You</span><span>Enemy</span></div><div class="forecast-bar"><i data-bar></i></div><p data-forecast></p></div>
+       ${market}
+-      <div class="flow-actions"><button type="button" data-primary data-action="fight">Fight</button></div>`);
++      <div class="flow-actions"><button type="button" class="fight-button" data-primary data-action="fight">${icon("swordsmen")}<span>Fight!</span></button></div>`);
+     const ours = dialog.querySelector<HTMLElement>("[data-ours]")!;
++    const verdict = dialog.querySelector<HTMLElement>("[data-verdict]")!;
+     const forecast = dialog.querySelector<HTMLElement>("[data-forecast]")!;
+     const bar = dialog.querySelector<HTMLElement>("[data-bar]")!;
+     const budget = Math.min(view.cap, Math.floor(view.gold / SELLSWORD_COST));
+@@ -337,6 +345,14 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks)
+       const outcome = resolveBattle(army, enemy, mods);
+       const rating = campaignRating(outcome.win, view.campaignHealth);
+       bar.style.width = `${Math.round((mine / Math.max(1e-9, mine + theirs)) * 100)}%`;
++      // 0.16.0: one big, plain verdict before the numbers.
++      const tone = !outcome.win ? "bad" : outcome.margin < 0.3 ? "close" : "good";
++      const headline = tone === "good" ? "Victory likely" : tone === "close" ? "A close fight" : "Outmatched";
++      const advice = tone === "good" ? "Your army is stronger. Fight when ready."
++        : tone === "close" ? (view.hasMarketplace && budget > 0 ? "You should win, but barely. Sellswords make it safer." : "You should win, but barely.")
++        : view.hasMarketplace && budget > 0 ? "Hire sellswords below, or fight and learn." : "Fight and learn, then replay with more soldiers.";
++      verdict.className = `verdict ${tone}`;
++      verdict.innerHTML = `<span class="verdict-stars" aria-hidden="true">${outcome.win ? `${"★".repeat(rating.stars)}<i>${"☆".repeat(3 - rating.stars)}</i>` : "✕"}</span><span class="verdict-text"><strong>${headline}</strong><small>${advice}</small></span>`;
+       forecast.innerHTML = `<span aria-hidden="true">${strengthLine(mine, theirs)} ${outcome.win
+         ? `<span class="good">Win ${starText(rating.stars)}</span>`
+         : `<span class="bad">Defeat</span>`}</span><span class="sr">Strength ${mine.toFixed(1)} against ${theirs.toFixed(1)}. Forecast: ${outcome.win ? `victory, ${winText(outcome.margin)}, ${rating.stars} stars` : "defeat"}</span>`;
+@@ -421,8 +437,11 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks)
+       ? `<p class="flow-note">${icon("lock")} More ★ open ${escapeHtml(next.name)}: replay for stars.</p>` : "";
+     show("result", `
+       <p class="flow-kicker">CAMPAIGN ${campaign.number} · ${escapeHtml(campaign.name.toUpperCase())}</p>
+-      <h2 class="${report.win ? "good" : "bad"}">${report.win ? "Victory" : "The city has fallen"}</h2>
+-      <p class="result-stars" role="img" aria-label="${report.stars} of 3 stars">${starText(report.stars)}</p>
++      <div class="result-banner ${report.win ? "won" : "lost"}">${report.win && !quiet ? `<div class="confetti" aria-hidden="true">${Array.from({ length: 18 }, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>` : ""}
++        <h2 class="${report.win ? "good" : "bad"}">${report.win ? "Victory!" : "The city has fallen"}</h2>
++        <p class="result-stars${quiet ? " quiet" : ""}" role="img" aria-label="${report.stars} of 3 stars">${[0, 1, 2].map((i) => `<span class="${i < report.stars ? "on" : "off"}" style="--i:${i}">${i < report.stars ? "★" : "☆"}</span>`).join("")}</p>
++      </div>
++      ${badgeRevealHtml(result.newBadges ?? [])}
+       ${resultGoals(report)}
+       ${result.newRecord && report.stars > 0 ? `<p class="flow-note good">New best!</p>` : result.bestStars > report.stars ? `<p class="flow-note">Best: ${starText(result.bestStars)}</p>` : ""}
+       ${result.realm ? realmLine(result.realm) : ""}
+@@ -434,7 +453,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks)
+       <p class="result-order-text"><span>Build order</span> ${result.buildOrder.map(escapeHtml).join(" → ")}</p>${result.realm ? realmDetails(result.realm) : ""}`)}
+       ${lockedNote}
+       ${result.askClarity && !quiet ? `<div class="clarity" data-clarity><span>Easy to follow?</span><button type="button" data-vote="up" aria-label="Yes, easy to follow" title="Yes">${icon("thumbup")}</button><button type="button" data-vote="down" aria-label="No, hard to follow" title="No">${icon("thumbdown")}</button></div>` : ""}
+-      <div class="flow-actions">${nextButton}<button type="button" ${nextButton ? "class=\"quiet icon-button\"" : "data-primary"} data-action="replay" aria-label="${replayLabel}" title="${replayLabel}">${icon("restart")}<span class="${nextButton ? "w" : ""}">${report.win ? "Replay" : "Try again"}</span></button><button type="button" class="quiet icon-button" data-action="map" aria-label="Campaign map" title="Campaign map">${icon("map")}<span class="w">Campaign map</span></button><button type="button" class="quiet icon-button" data-action="city" aria-label="View the city" title="View the city">${icon("eye")}<span class="w">View the city</span></button></div>`);
++      <div class="flow-actions">${nextButton}<button type="button" ${nextButton ? "class=\"quiet icon-button\"" : "data-primary"} data-action="replay" aria-label="${replayLabel}" title="${replayLabel}">${icon("restart")}<span class="${nextButton ? "w" : ""}">${report.win ? "Replay" : "Try again"}</span></button><button type="button" class="quiet icon-button" data-action="map" aria-label="Campaign map" title="Campaign map">${icon("map")}<span class="w">Campaign map</span></button><button type="button" class="quiet icon-button" data-action="city" aria-label="View the city" title="View the city">${icon("eye")}<span class="w">View the city</span></button>${callbacks.onBadges ? `<button type="button" class="quiet icon-button badge-button" data-action="badges" aria-label="Badges: ${result.badgeCount ?? 0} earned" title="Badges">🏅<b>${result.badgeCount ?? 0}</b></button>` : ""}</div>`);
++    dialog.querySelector("[data-action=badges]")?.addEventListener("click", () => callbacks.onBadges?.());
+     if (!quiet) rollRank(dialog);
+     dialog.querySelectorAll<HTMLButtonElement>("[data-vote]").forEach((button) => button.addEventListener("click", () => {
+       callbacks.onUxEvent?.("ux_clarity_vote", { vote: button.dataset.vote, campaign_number: campaign.number, won: report.win, stars: report.stars });
+diff --git a/src/ui/campaignMap.ts b/src/ui/campaignMap.ts
+index c572008..e2d32e3 100644
+--- a/src/ui/campaignMap.ts
++++ b/src/ui/campaignMap.ts
+@@ -427,6 +427,7 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
+   let lastHeight = 0;
+   const refit = (): void => {
+     if (map.classList.contains("hidden")) return;
++    placeBadgeChip();
+     // Mid-scroll, the panels can re-flow for a frame as the chapter in view changes; re-centring
+     // then would cancel the scroll the player started. Check again once it has finished.
+     const wait = smoothUntil - performance.now();
+@@ -477,20 +478,56 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
+       return;
+     }
+     for (const child of Array.from(app.children) as HTMLElement[]) {
+-      if (child === map || child.inert || child.matches(".persistent-hud, .resource-drawer, .speed-control, .realm-scrim, .flow-scrim, .tutorial-scrim, .loading")) continue;
++      if (child === map || child.inert || child.matches(".persistent-hud, .resource-drawer, .speed-control, .realm-scrim, .flow-scrim, .tutorial-scrim, .badge-scrim, .loading")) continue;
+       child.inert = true;
+       madeInert.add(child);
+     }
+   }
+ 
++  // 0.16.0: the badge chip (count of earned medals) opens the gallery.
++  let badgeChip: HTMLButtonElement | null = null;
++  let badgeOpen: (() => void) | null = null;
++  function setBadges(ids: readonly string[], total?: number, onOpen?: () => void): void {
++    if (onOpen) badgeOpen = onOpen;
++    if (!badgeChip) {
++      badgeChip = document.createElement("button");
++      badgeChip.type = "button";
++      badgeChip.id = "campaign-badges";
++      badgeChip.className = "campaign-badges";
++      badgeChip.addEventListener("click", () => badgeOpen?.());
++      map.appendChild(badgeChip);
++    }
++    const of = total ?? Number(badgeChip.dataset.total ?? 0);
++    badgeChip.dataset.total = String(of);
++    badgeChip.innerHTML = `<span class="campaign-badges-medal" aria-hidden="true">🏅</span><b>${ids.length}</b><span>/ ${of}</span><span class="campaign-badges-word">Badges</span>`;
++    badgeChip.setAttribute("aria-label", `Badges: ${ids.length} of ${of} earned`);
++    placeBadgeChip();
++  }
++  /** Keeps the badge chip beside the realm rank chip (above it when that sits low, below it when high), in every layout. */
++  function placeBadgeChip(): void {
++    if (!badgeChip || !realmButton || map.classList.contains("hidden")) return;
++    const box = map.getBoundingClientRect();
++    const rank = realmButton.getBoundingClientRect();
++    if (!box.width || !rank.width) return;
++    const scale = box.width / map.offsetWidth || 1;
++    const chipHeight = badgeChip.offsetHeight || 44;
++    const right = (box.right - rank.right) / scale;
++    const low = rank.top - box.top > box.height / 2;
++    const top = low ? (rank.top - box.top) / scale - chipHeight - 8 : (rank.bottom - box.top) / scale + 8;
++    badgeChip.style.right = `${Math.max(8, right)}px`;
++    badgeChip.style.top = `${Math.max(8, top)}px`;
++    badgeChip.style.bottom = "auto";
++  }
++
+   return {
++    setBadges,
+     /** First-screen artwork loaded, or its playable fallback is ready. */
+     ready,
+     /** The rival realm's counts, banners and the player's rank. */
+     setRealm(view: MapRealmView) {
+       realm = view;
+       renderRealm();
+-      if (!map.classList.contains("hidden")) { render(); requestAnimationFrame(refit); }
++      if (!map.classList.contains("hidden")) { render(); requestAnimationFrame(refit); requestAnimationFrame(placeBadgeChip); }
+     },
+     show(activeCampaignId: string, campaignStars: Readonly<Record<string, number>>, runComplete: boolean, move: number) {
+       activeId = activeCampaignId;
+@@ -512,7 +549,8 @@ export function createCampaignMap(onLaunch: (campaign: CampaignDefinition) => vo
+       // The card can settle a frame later (or when the display font arrives) and
+       // land back on a size the observer already reported, so check once more.
+       requestAnimationFrame(refit);
+-      void document.fonts?.ready.then(refit).catch(() => undefined);
++      requestAnimationFrame(placeBadgeChip);
++      void document.fonts?.ready.then(refit).then(placeBadgeChip).catch(() => undefined);
+     },
+     hide() {
+       const hadFocus = map.contains(document.activeElement);
+diff --git a/src/ui/enhance.css b/src/ui/enhance.css
+new file mode 100644
+index 0000000..4735972
+--- /dev/null
++++ b/src/ui/enhance.css
+@@ -0,0 +1,202 @@
++/* 0.16.0 enhancement pass: bigger, clearer popups; the five-lesson tutorial with its advisor;
++   badges; celebrations. Loaded last, so it refines styles.css and polish.css. Stage pixels throughout. */
++:root { --advisor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22b%22%20cx%3D%2250%25%22%20cy%3D%2240%25%22%20r%3D%2260%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%232f6f9e%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%2316244f%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%2231%22%20fill%3D%22url%28%23b%29%22/%3E%3Cpath%20d%3D%22M12%2064c1-12%209-18%2020-18s19%206%2020%2018z%22%20fill%3D%22%23f4e9d3%22/%3E%3Cpath%20d%3D%22M26%2046l6%208%206-8%22%20fill%3D%22%23e0a526%22/%3E%3Cellipse%20cx%3D%2232%22%20cy%3D%2234%22%20rx%3D%2210.5%22%20ry%3D%2212%22%20fill%3D%22%23c98a5a%22/%3E%3Cpath%20d%3D%22M22%2036c1%209%205%2014%2010%2014s9-5%2010-14c-2%203-5%204-10%204s-8-1-10-4z%22%20fill%3D%22%23ece6dc%22/%3E%3Cpath%20d%3D%22M27%2039c2%201.4%208%201.4%2010%200%22%20stroke%3D%22%237a4a2c%22%20stroke-width%3D%221.3%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2228%22%20cy%3D%2232%22%20r%3D%221.4%22%20fill%3D%22%232b1d14%22/%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%2232%22%20r%3D%221.4%22%20fill%3D%22%232b1d14%22/%3E%3Cpath%20d%3D%22M25.5%2029c1.5-1%203.5-1%205%200M33.5%2029c1.5-1%203.5-1%205%200%22%20stroke%3D%22%23ece6dc%22%20stroke-width%3D%221.4%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M19%2027c0-10%206-15%2013-15s13%205%2013%2015c-3-3-8-4-13-4s-10%201-13%204z%22%20fill%3D%22%23b3261e%22/%3E%3Cpath%20d%3D%22M20%2024c4-5%2020-5%2024%200%22%20stroke%3D%22%23e0a526%22%20stroke-width%3D%222%22%20fill%3D%22none%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2217%22%20r%3D%222.6%22%20fill%3D%22%23f3cf6b%22/%3E%3Cpath%20d%3D%22M32%2014.5c-1-4%201-7%204-8-1%203-2%205-4%208z%22%20fill%3D%22%23f4e9d3%22/%3E%3Cpath%20d%3D%22M31%2031v3%22%20stroke%3D%22%23e0a526%22%20stroke-width%3D%220%22/%3E%3Cpath%20d%3D%22M31%2023.5h2v3h-2z%22%20fill%3D%22%23e0a526%22/%3E%3C/svg%3E"); --parchment: linear-gradient(170deg, #fff8e6, #f3e2b9); --parchment-ink: #3a2412; }
++
++/* ---------- The advisor portrait ---------- */
++#app .advisor { display: inline-block; flex: none; width: 56px; height: 56px; border-radius: 50%; background: var(--advisor) center / cover no-repeat; box-shadow: 0 0 0 3px var(--haldi, #e0a526), 0 6px 16px #0006; }
++
++/* ---------- Tutorial welcome ---------- */
++#app .tutorial-dialog { width: min(640px,100%); border: 2px solid var(--haldi, #e0a526); box-shadow: 0 0 0 6px #e0a52622, 0 32px 100px rgba(1,8,4,.65); }
++#app .tutorial-hero { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
++#app .tutorial-hero .advisor { width: 76px; height: 76px; }
++#app .tutorial-dialog h2 { margin: 2px 0 0; font-family: var(--display); font-weight: 400; font-size: 2.2rem; color: #ffe7a6; }
++#app .tutorial-kicker { font-size: .85rem; letter-spacing: .08em; }
++#app .tutorial-dialog > p { font-size: 1.08rem; }
++#app .tutorial-rules strong { font-size: 1.1rem; }
++#app .tutorial-rules span { font-size: 1rem; }
++#app #tutorial-start { min-height: 52px; padding: 0 26px; font-size: 1.08rem; color: #fff; background: linear-gradient(180deg, #d2372b, #8d1b14); box-shadow: inset 0 0 0 2px #f3cf6b, 0 6px 16px #0006; animation: gae-breathe 1.8s ease-in-out infinite; }
++
++/* ---------- Coach: parchment card with the advisor ---------- */
++#app .tutorial-coach[data-step] { display: flex; gap: 14px; align-items: flex-start; width: min(520px,calc(100% - 24px)); padding: 16px 18px; color: var(--parchment-ink); background: var(--parchment); border: 2px solid #c9952b; border-radius: 18px; box-shadow: 0 18px 50px #0008; animation: gae-pop .35s cubic-bezier(.2,1.4,.4,1) both; }
++#app .tutorial-coach.tutorial-coach { background: var(--parchment) !important; border: 2px solid #c9952b !important; box-shadow: 0 18px 50px #0008 !important; }
++#app .tutorial-coach .coach-body { min-width: 0; flex: 1; }
++/* Lesson 2 sits low (the tray is away while builders work), so the camera's close-up stays clear. */
++#app .tutorial-coach[data-step="build"] { top: auto; bottom: 76px; }
++#app .tutorial-coach > .advisor { width: 60px; height: 60px; }
++#app .tutorial-coach #tutorial-step { display: inline-block; color: #9a2a1c; font-size: .8rem; font-weight: 900; letter-spacing: .08em; }
++#app .tutorial-coach .coach-dots { display: inline-flex; gap: 5px; margin-left: 8px; vertical-align: middle; }
++#app .tutorial-coach .coach-dots i { width: 9px; height: 9px; border-radius: 50%; background: #d9c39a; }
++#app .tutorial-coach .coach-dots i.done { background: #4f9a45; }
++#app .tutorial-coach .coach-dots i.now { background: #b3261e; box-shadow: 0 0 0 3px #b3261e33; }
++#app .tutorial-coach > .coach-body > strong { display: block; margin: 6px 0; font-size: 1.32rem; line-height: 1.25; color: #2a1608; font-weight: 800; }
++#app .tutorial-coach p { font-size: 1.04rem; line-height: 1.5; color: var(--parchment-ink); }
++#app .tutorial-coach p strong { color: #8d1b14; font-weight: 800; }
++#app .tutorial-coach .coach-hint { color: #5a3a1a; font-size: .98rem; }
++#app .tutorial-coach .coach-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
++#app .tutorial-coach .coach-actions button { margin: 0; min-height: 44px; font-size: 1rem; }
++#app .tutorial-coach #tutorial-next { color: #fff; background: linear-gradient(180deg, #d2372b, #8d1b14); box-shadow: inset 0 0 0 2px #f3cf6b; }
++#app .tutorial-coach #tutorial-coach-skip { color: #6b4a2a; background: transparent; box-shadow: inset 0 0 0 1px #c9a46a; }
++#app .persistent-hud.tutorial-glow, #app #resource-hud.tutorial-glow { animation: gae-glow 1.2s ease-in-out infinite; }
++#app .build-card.tutorial-pick { animation: gae-glow 1.2s ease-in-out infinite; }
++
++/* ---------- Moves left: under the HUD, never over a dialog; urgent near the end ---------- */
++#app .move-countdown { top: calc(var(--hud-bottom, 64px) + 10px); transform: translateX(-50%); padding: 8px 20px; font-size: clamp(1.25rem, 2.6cqw, 1.9rem); animation: gae-drop .4s cubic-bezier(.2,1.4,.4,1) both; }
++#app .move-countdown.urgent { color: #fff; border-color: #ffd36b; background: linear-gradient(180deg, #c3311f, #7d1712); animation: gae-drop .4s cubic-bezier(.2,1.4,.4,1) both, gae-pulse .9s ease-in-out .4s 2; }
++#app:has(.flow-scrim:not(.hidden)) .move-countdown, #app:has(.tutorial-scrim:not(.hidden)) .move-countdown,
++#app:has(#tutorial-coach:not(.hidden)) .move-countdown, #app:has(#tutorial-coach:not(.hidden)) .milestone { visibility: hidden; }
++
++/* ---------- "Built!" toast: picture, effect and plain benefit ---------- */
++#app .milestone[data-kind="built"] { top: calc(var(--hud-bottom, 64px) + 66px); left: 16px; right: auto; transform: none; display: grid; grid-template-columns: 84px minmax(0,1fr); grid-template-rows: auto auto auto; column-gap: 14px; align-items: center; width: min(460px, calc(100% - 24px)); padding: 12px 18px 12px 12px; color: var(--parchment-ink); background: var(--parchment); border: 2px solid #c9952b; border-radius: 18px; box-shadow: 0 16px 40px #0008; }
++#app .milestone[data-kind="built"]::before { content: ""; grid-row: 1 / 4; width: 84px; height: 84px; background: var(--milestone-art) center / contain no-repeat; filter: drop-shadow(0 4px 6px #0005); }
++#app .milestone[data-kind="built"].visible { animation: gae-pop .45s cubic-bezier(.2,1.5,.4,1) both; }
++#app .milestone[data-kind="built"] #milestone-kicker { display: flex; align-items: center; gap: 6px; color: #2f7d32; font-size: .85rem; font-weight: 900; letter-spacing: .1em; }
++#app .milestone[data-kind="built"] #milestone-title { margin: 2px 0; font-size: 1.45rem; line-height: 1.2; color: #2a1608; }
++#app .milestone[data-kind="built"] #milestone-copy { margin: 0; color: var(--parchment-ink); font-size: 1rem; }
++#app .milestone[data-kind="built"] .milestone-effect { display: inline-flex; margin-right: 8px; font-size: 1.05rem; font-weight: 800; }
++#app .milestone[data-kind="built"] .milestone-benefit { display: block; margin-top: 2px; font-size: .98rem; line-height: 1.35; color: var(--parchment-ink); text-transform: none; letter-spacing: normal; font-weight: 600; }
++#app .milestone[data-kind="built"] .milestone-effect span { text-transform: none; letter-spacing: normal; color: inherit; }
++#app .milestone[data-kind="built"] .qty b { color: #1f6b25; }
++
++/* ---------- Move report: a headline and bigger rows ---------- */
++#app .report-headline { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 4px 0 8px; font-size: 1.08rem; font-weight: 700; color: #f4e9d3; }
++#app .report-headline span { display: inline-flex; align-items: center; gap: 6px; }
++#app .report-headline b { font-size: 1.35rem; color: #9fe39a; }
++#app .report-headline .hl-warn b { color: #ffb066; }
++#app .report-headline .gi { width: 26px; height: 26px; }
++#app .move-report .ledger { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
++#app .move-report .ledger-line { min-height: 46px; font-size: 1rem; }
++#app .move-report .ledger-line .gi { width: 24px; height: 24px; }
++#app .move-report .ledger-line b { font-size: 1.08rem; }
++#app .move-report .ledger-art img { width: 46px; height: auto; }
++#app .move-report .net-good { font-size: 1.05rem; }
++
++/* ---------- Muster: one big verdict, a big Fight ---------- */
++#app .verdict { display: flex; align-items: center; gap: 16px; margin: 14px 0 6px; padding: 12px 18px; border-radius: 16px; border: 2px solid transparent; }
++#app .verdict.good { background: linear-gradient(90deg, #1f5f2a, #17402099); border-color: #7fd17a; }
++#app .verdict.close { background: linear-gradient(90deg, #7a5a12, #4a370b99); border-color: #f3cf6b; }
++#app .verdict.bad { background: linear-gradient(90deg, #7d1712, #4a0e0b99); border-color: #ff9a80; }
++#app .verdict-stars { font-size: 2.1rem; line-height: 1; color: #ffd75e; text-shadow: 0 2px 6px #0008; white-space: nowrap; }
++#app .verdict-stars i { font-style: normal; color: #ffffff55; }
++#app .verdict.bad .verdict-stars { color: #ffb49c; }
++#app .verdict-text { display: grid; gap: 2px; }
++#app .verdict-text strong { font-size: 1.6rem; line-height: 1.15; color: #fff; }
++#app .verdict-text small { font-size: 1.02rem; line-height: 1.35; color: #f4e9d3; }
++#app .forecast-labels { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: .9rem; font-weight: 800; color: #f4e9d3; }
++#app .forecast-labels .gi { width: 18px; height: 18px; vertical-align: -4px; }
++#app .forecast-bar { height: 14px; border-radius: 999px; }
++#app .flow-dialog[data-kind="muster"] .flow-actions { justify-content: center; }
++#app .flow-dialog .fight-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 260px; min-height: 58px; font-size: 1.4rem; font-weight: 900; letter-spacing: .04em; color: #fff; background: linear-gradient(180deg, #d2372b, #8d1b14); box-shadow: inset 0 0 0 2px #f3cf6b, 0 8px 22px #0007; animation: gae-breathe 1.8s ease-in-out infinite; }
++#app .flow-dialog .fight-button .gi { width: 30px; height: 30px; }
++#app .flow-dialog h2 { font-size: 1.95rem; }
++#app .flow-dialog .army-chips .qty b, #app .flow-dialog .army-chips b { font-size: 1.15rem; }
++
++/* ---------- Result: banner, popping stars, confetti, badges ---------- */
++#app .result-banner { position: relative; margin: 4px -8px 6px; padding: 10px 8px 4px; text-align: center; border-radius: 16px; overflow: hidden; }
++#app .result-banner.won { background: radial-gradient(ellipse at 50% 0%, #f3cf6b44, transparent 70%); }
++#app .result-banner.lost { background: radial-gradient(ellipse at 50% 0%, #b3261e44, transparent 70%); }
++#app .result-banner h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 3rem; line-height: 1.1; text-shadow: 0 3px 10px #000a; }
++#app .result-banner.won h2 { color: #ffe08a; }
++#app .result-stars { display: flex; justify-content: center; gap: 10px; margin: 4px 0 0; font-size: 3.2rem; line-height: 1; letter-spacing: 0; }
++#app .result-stars span.on { color: #ffd75e; text-shadow: 0 0 18px #ffcf4d99, 0 3px 6px #0009; animation: gae-star .55s cubic-bezier(.2,1.6,.4,1) both; animation-delay: calc(.35s + var(--i) * .32s); }
++#app .result-stars span.off { color: #ffffff3a; }
++#app .result-stars.quiet span { animation: none; }
++#app .flow-dialog[data-kind="result"] .campaign-star-goals { justify-content: center; font-size: 1rem; }
++#app .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
++#app .confetti i { position: absolute; top: -12px; left: calc(2% + var(--i) * 4.4%); width: 9px; height: 14px; border-radius: 2px; background: hsl(calc(var(--i) * 47), 85%, 60%); animation: gae-confetti 2.2s cubic-bezier(.3,.6,.5,1) both; animation-delay: calc(var(--i) * 45ms); }
++#app .badge-reveal { margin: 10px 0; padding: 12px 14px; border-radius: 16px; background: linear-gradient(135deg, #3a2a08, #1d1606); border: 2px solid #e0a526; animation: gae-pop .5s cubic-bezier(.2,1.5,.4,1) 1.2s both; }
++#app .badge-reveal-title { margin: 0 0 8px; color: #ffe08a; font-size: 1.25rem; font-weight: 900; letter-spacing: .04em; text-align: center; }
++#app .badge-reveal ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 18px; margin: 0; padding: 0; list-style: none; }
++#app .badge-reveal li { display: flex; align-items: center; gap: 10px; max-width: 300px; animation: gae-star .6s cubic-bezier(.2,1.6,.4,1) both; animation-delay: calc(1.4s + var(--i) * .25s); }
++#app .badge-reveal li b { display: block; font-size: 1.1rem; color: #fff1c4; }
++#app .badge-reveal li small { display: block; font-size: .92rem; color: #e8dcc0; line-height: 1.3; }
++#app .badge-button { display: inline-flex; align-items: center; gap: 4px; font-size: 1.1rem; }
++
++/* ---------- Badge gallery ---------- */
++#app .badge-scrim { position: absolute; z-index: 60; inset: 0; display: grid; place-items: center; padding: 16px; background: #050a10b0; backdrop-filter: blur(3px); }
++#app .badge-scrim.hidden { display: none; }
++#app .badge-dialog { width: min(860px, 100%); max-height: 100%; overflow-y: auto; padding: 20px 24px; color: var(--parchment-ink); background: var(--parchment); border: 2px solid #c9952b; border-radius: 22px; box-shadow: 0 30px 90px #000a; animation: gae-pop .35s cubic-bezier(.2,1.4,.4,1) both; }
++#app .badge-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
++#app .badge-head .flow-kicker { margin: 0; color: #9a2a1c; font-weight: 900; letter-spacing: .1em; font-size: .85rem; }
++#app .badge-head h2 { margin: 2px 0; font-family: var(--display); font-weight: 400; font-size: 2.1rem; color: #2a1608; }
++#app .badge-count { margin: 0; font-size: 1.05rem; }
++#app .badge-count b { font-size: 1.3rem; color: #8d1b14; }
++#app .badge-close { min-width: 44px; min-height: 44px; border: 0; border-radius: 12px; font-size: 1.3rem; cursor: pointer; color: #fff; background: #8d1b14; }
++#app .badge-progress { height: 10px; margin: 10px 0 14px; border-radius: 999px; background: #d9c39a; overflow: hidden; }
++#app .badge-progress i { display: block; height: 100%; background: linear-gradient(90deg, #e0a526, #b3261e); }
++#app .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
++#app .badge-grid li { display: grid; justify-items: center; gap: 4px; padding: 12px 8px; text-align: center; border-radius: 14px; background: #fffdf5; box-shadow: inset 0 0 0 1px #e2cfa4; }
++#app .badge-grid li.locked { background: #efe6d2; }
++#app .badge-grid li b { font-size: 1rem; color: #2a1608; }
++#app .badge-grid li small { font-size: .88rem; line-height: 1.3; color: #5a3a1a; }
++#app .badge-grid li.locked b { color: #6d5c47; }
++#app .medal.earned { filter: drop-shadow(0 4px 6px #0005); }
++#app .campaign-badges { position: absolute; z-index: 4; right: 20px; bottom: 192px; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 16px 4px 10px; border: 0; border-radius: 999px; cursor: pointer; color: #fff4e0; font-weight: 800; background: linear-gradient(160deg, #6e2a14, #3a1408); box-shadow: inset 0 0 0 1px var(--haldi, #e0a526), 0 4px 14px #0007; }
++#app .campaign-badges b { font-family: var(--display); font-weight: 400; font-size: 20px; }
++#app .campaign-badges-medal { font-size: 20px; }
++#app .campaign-badges-word { margin-left: 4px; color: var(--haldi-soft, #f3cf6b); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
++
++/* ---------- Advisor tips and celebrations ---------- */
++#app .advisor-tip { position: absolute; z-index: 30; right: 16px; top: calc(var(--hud-bottom, 64px) + 14px); display: flex; gap: 12px; align-items: flex-start; width: min(400px, calc(100% - 32px)); padding: 12px 14px; color: var(--parchment-ink); background: var(--parchment); border: 2px solid #c9952b; border-radius: 16px; box-shadow: 0 14px 36px #0008; animation: gae-slide .45s cubic-bezier(.2,1.3,.4,1) both; }
++#app .advisor-tip.hidden { display: none; }
++#app .advisor-tip .advisor { width: 48px; height: 48px; }
++#app .advisor-tip .tip-kicker { color: #9a2a1c; font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
++#app .advisor-tip strong { display: block; margin: 2px 0; font-size: 1.12rem; color: #2a1608; }
++#app .advisor-tip p { margin: 0; font-size: .98rem; line-height: 1.4; }
++#app .advisor-tip button { flex: none; min-width: 44px; min-height: 44px; border: 0; border-radius: 10px; color: #6b4a2a; background: transparent; cursor: pointer; font-size: 1.1rem; }
++#app .cheer { position: absolute; z-index: 45; left: 50%; top: 38%; display: grid; justify-items: center; gap: 6px; min-width: min(520px, calc(100% - 32px)); padding: 22px 30px; text-align: center; transform: translate(-50%, -50%); border-radius: 22px; background: radial-gradient(ellipse at 50% 0%, #3a2a08, #1d1606); border: 3px solid #e0a526; box-shadow: 0 30px 80px #000b; pointer-events: none; animation: gae-pop .5s cubic-bezier(.2,1.5,.4,1) both; overflow: hidden; }
++#app .cheer.hidden { display: none; }
++#app .cheer strong { font-family: var(--display); font-weight: 400; font-size: 2.4rem; color: #ffe08a; text-shadow: 0 3px 10px #000a; }
++#app .cheer span { font-size: 1.12rem; color: #f4e9d3; }
++
++/* ---------- Motion ---------- */
++/* Pops animate the separate "scale" property, so each element keeps its own layout transform. */
++@keyframes gae-pop { from { opacity: 0; scale: .86; } to { opacity: 1; scale: 1; } }
++@keyframes gae-drop { from { opacity: 0; transform: translate(-50%, -14px); } to { opacity: 1; transform: translate(-50%, 0); } }
++@keyframes gae-slide { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
++@keyframes gae-pulse { 50% { transform: translate(-50%, 0) scale(1.08); } }
++@keyframes gae-breathe { 50% { box-shadow: inset 0 0 0 2px #f3cf6b, 0 0 0 6px #f3cf6b44, 0 8px 22px #0007; } }
++@keyframes gae-glow { 50% { box-shadow: 0 0 0 4px #f3cf6b, 0 0 24px 6px #f3cf6b88; } }
++@keyframes gae-star { from { opacity: 0; transform: scale(.2) rotate(-40deg); } 70% { opacity: 1; transform: scale(1.25) rotate(8deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
++@keyframes gae-confetti { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 0; transform: translateY(420px) rotate(calc(var(--i) * 97deg)); } }
++@media (prefers-reduced-motion: reduce) {
++  #app .tutorial-coach[data-step], #app .milestone[data-kind="built"].visible, #app .move-countdown, #app .move-countdown.urgent, #app .result-stars span.on, #app .badge-reveal, #app .badge-reveal li, #app .advisor-tip, #app .cheer, #app .badge-dialog, #app .fight-button, #app #tutorial-start, #app .tutorial-glow, #app .build-card.tutorial-pick { animation: none !important; }
++  #app .confetti { display: none; }
++}
++
++/* ---------- Phones and small frames ---------- */
++@container app (max-width: 700px) {
++  #app .tutorial-coach[data-step] { gap: 10px; padding: 12px 14px; }
++  #app .tutorial-coach > .advisor { width: 44px; height: 44px; }
++  #app .tutorial-coach > .coach-body > strong { font-size: 1.12rem; }
++  #app .tutorial-coach p { font-size: .95rem; }
++  #app .move-countdown { top: auto; bottom: calc(var(--build-panel-reach, 250px) + 12px); }
++  #app .tutorial-hero .advisor { width: 56px; height: 56px; }
++  #app .tutorial-dialog h2 { font-size: 1.6rem; }
++  #app .result-banner h2 { font-size: 2.2rem; }
++  #app .result-stars { font-size: 2.4rem; }
++  #app .verdict { gap: 10px; padding: 10px 12px; }
++  #app .verdict-stars { font-size: 1.5rem; }
++  #app .verdict-text strong { font-size: 1.25rem; }
++  #app .verdict-text small { font-size: .92rem; }
++  #app .flow-dialog .fight-button { min-width: 200px; min-height: 52px; font-size: 1.2rem; }
++  #app .milestone[data-kind="built"] { grid-template-columns: 60px minmax(0,1fr); }
++  #app .milestone[data-kind="built"]::before { width: 60px; height: 60px; }
++  #app .milestone[data-kind="built"] #milestone-title { font-size: 1.15rem; }
++  #app .move-report .ledger { grid-template-columns: minmax(0, 1fr); }
++  #app .campaign-badges-word { display: none; }
++  #app .cheer strong { font-size: 1.8rem; }
++  #app .advisor-tip { top: auto; bottom: calc(var(--build-panel-reach, 250px) + 12px); left: 12px; right: 12px; width: auto; }
++  #app .milestone[data-kind="built"] { left: 50%; transform: translateX(-50%); }
++  #app .tutorial-kicker, #app .tutorial-reassurance { display: none; }
++}
++
++/* Short landscape frames: coach and cards side by side (as before 0.16.0), lean welcome. */
++@container app (orientation: landscape) and (max-height: 540px) {
++  #app .tutorial-coach[data-step] { width: calc(42% - 24px); left: 12px; transform: none; gap: 10px; padding: 10px 12px; }
++  #app .tutorial-coach > .advisor { width: 40px; height: 40px; }
++  #app .tutorial-coach > .coach-body > strong { font-size: 1.08rem; }
++  #app .tutorial-coach p { font-size: .92rem; line-height: 1.4; }
++  #app .tutorial-kicker, #app .tutorial-reassurance { display: none; }
++  #app .tutorial-hero .advisor { width: 48px; height: 48px; }
++  #app .milestone[data-kind="built"] { left: 12px; transform: none; }
++}
+diff --git a/src/ui/hud.ts b/src/ui/hud.ts
+index f037205..b58487a 100644
+--- a/src/ui/hud.ts
++++ b/src/ui/hud.ts
+@@ -107,7 +107,8 @@ export function createHud(callbacks: HudCallbacks) {
+   let countdownTimer = 0;
+   function showMovesLeft(left: number): void {
+     window.clearTimeout(countdownTimer);
+-    moveCountdown.textContent = `${left} ${left === 1 ? "move" : "moves"} left`;
++    moveCountdown.classList.toggle("urgent", left > 0 && left <= 3);
++    moveCountdown.textContent = left === 0 ? "The enemy is here!" : left <= 3 ? `Only ${left} ${left === 1 ? "move" : "moves"} left!` : `${left} moves left`;
+     moveCountdown.classList.remove("hidden");
+     countdownTimer = window.setTimeout(() => moveCountdown.classList.add("hidden"), 2200);
+   }
+@@ -490,9 +491,21 @@ export function createHud(callbacks: HudCallbacks) {
+       return `<span class="net-good ${delta > 0 ? "gain" : "loss"}" role="img" aria-label="${iconWord(name, to)}: ${from} to ${to}">${icon(name)}<s>${from}</s><b>${to}</b><small>${delta > 0 ? "+" : "−"}${Math.abs(delta)}</small></span>`;
+     }).join("");
+     const built = summary.buildingId ? `<span class="report-built" title="${escapeHtml(BUILDINGS[summary.buildingId]?.name ?? "")}"><img src="${assetUrl(buildingFilename(summary.buildingId, "complete"))}" alt="" />${icon("build")}</span>` : `<span class="report-built">${icon("stockpile")}<span class="tag">Gather</span></span>`;
++    // 0.16.0 headline: what the move achieved in one big line.
++    const madeTotal = ledger.filter((entry) => entry.source !== "camp").reduce((sum, entry) => sum + Object.values(entry.made ?? {}).reduce((a, b) => a + Math.max(0, Math.floor(b ?? 0)), 0), 0);
++    const soldiers = ledger.reduce((sum, entry) => sum + (entry.trained?.archers ?? 0) + (entry.trained?.swordsmen ?? 0) + (entry.trained?.horsemen ?? 0), 0);
++    const elephantsNew = ledger.reduce((sum, entry) => sum + (entry.elephants ?? 0), 0);
++    const headlineBits = [
++      madeTotal ? `<span class="hl-made">${icon("stockpile")}<b>+${madeTotal}</b> goods made</span>` : "",
++      soldiers ? `<span class="hl-army">${icon("swordsmen")}<b>+${soldiers}</b> soldier${soldiers === 1 ? "" : "s"}</span>` : "",
++      elephantsNew ? `<span class="hl-army">${icon("elephants")}<b>+${elephantsNew}</b> elephant${elephantsNew === 1 ? "" : "s"}</span>` : "",
++      summary.warnings.length ? `<span class="hl-warn">${icon("warning")}<b>${summary.warnings.length}</b> to fix</span>` : "",
++    ].filter(Boolean).join("");
++    const headline = headlineBits ? `<p class="report-headline">${headlineBits}</p>` : "";
+     const warnings = summary.warnings.map((text) => `<p class="summary-warning">${icon("warning")}<span>${withIcons(escapeHtml(text))}</span></p>`).join("");
+     buildOptions.innerHTML = `<section class="move-report" aria-labelledby="report-title-${summary.move}">
+       <p class="report-head" id="report-title-${summary.move}"><span class="summary-move" aria-label="Move ${summary.move}">${icon("move")}${summary.move}</span><span class="report-title">${icon("report")}<span class="w">Move report</span></span>${built}</p>
++      ${headline}
+       <p class="report-coach w">What your city did last move. Read it, then Choose.</p>
+       ${lines ? `<ul class="ledger">${lines}</ul>` : `<p class="report-empty w">Nothing worked yet: build producers first.</p>`}
+       ${net ? `<div class="report-net" role="group" aria-label="Stockpile after the move">${net}</div>` : ""}
+@@ -624,9 +637,11 @@ export function createHud(callbacks: HudCallbacks) {
+           ux("ux_choice", { move: view.move, building_id: card.id, seconds: Math.round((performance.now() - choiceShownAt) / 100) / 10, info_opened: choiceInfoOpens, unaffordable_taps: choiceBlockedTaps, swap: state === "swappable" });
+         }
+         if (tutorialActive) {
+-          if (tutorialCoach.dataset.step === "growth") finishTutorial(false);
++          const step = tutorialCoach.dataset.step;
++          if (step === "growth" || step === "goal") finishTutorial(false);
+           tutorialCoach.classList.add("hidden");
+           buildPanel.classList.remove("tutorial-focus");
++          if (step === "choice") showBuildCoach(card.id);
+         }
+         if (state === "affordable") callbacks.onSelectBuilding(card.id);
+         else callbacks.onSwapBuild(card.id);
+@@ -674,9 +689,11 @@ export function createHud(callbacks: HudCallbacks) {
+       gather.setAttribute("aria-label", "Gather: build nothing this move; your buildings still work and the army still eats. Press G");
+       gather.addEventListener("click", () => {
+         if (tutorialActive) {
+-          if (tutorialCoach.dataset.step === "growth") finishTutorial(false);
++          const step = tutorialCoach.dataset.step;
++          if (step === "growth" || step === "goal") finishTutorial(false);
+           tutorialCoach.classList.add("hidden");
+           buildPanel.classList.remove("tutorial-focus");
++          if (step === "choice") showBuildCoach(null);
+         }
+         callbacks.onGather();
+       });
+@@ -751,6 +768,9 @@ export function createHud(callbacks: HudCallbacks) {
+     milestoneTitle.textContent = title;
+     milestoneCopy.textContent = copy;
+     milestoneCopy.removeAttribute("aria-label");
++    delete milestone.dataset.kind;
++    milestone.classList.remove("visible");
++    void milestone.offsetWidth; // Restart the entrance animation.
+     milestone.classList.add("visible");
+     milestoneUntil = animationElapsed + (final ? 6 : 3.5);
+   }
+@@ -759,8 +779,10 @@ export function createHud(callbacks: HudCallbacks) {
+   function showBuiltMilestone(buildingId: string, animationElapsed: number): void {
+     const building = BUILDINGS[buildingId];
+     showMilestone(building?.name ?? buildingId, "", animationElapsed);
+-    milestoneKicker.innerHTML = `${icon("build")}<span class="w">BUILT</span>`;
+-    milestoneCopy.innerHTML = `<span class="milestone-effect">${effectHtml(buildingId)}</span>`;
++    milestoneKicker.innerHTML = `${icon("build")}<span>BUILT!</span>`;
++    milestoneCopy.innerHTML = `<span class="milestone-effect">${effectHtml(buildingId)}</span><span class="milestone-benefit">${escapeHtml(building?.benefit ?? "")}</span>`;
++    milestone.dataset.kind = "built";
++    milestone.style.setProperty("--milestone-art", `url("${assetUrl(buildingFilename(buildingId, "complete"))}")`);
+     milestoneCopy.setAttribute("aria-label", building?.benefit ?? "");
+   }
+ 
+@@ -888,6 +910,7 @@ export function createHud(callbacks: HudCallbacks) {
+     syncWords();
+     tutorialScrim.classList.add("hidden");
+     tutorialCoach.classList.add("hidden");
++    persistentHud.classList.remove("tutorial-glow");
+     buildPanel.classList.remove("tutorial-focus");
+     buildPanel.querySelectorAll(".tutorial-pick").forEach((card) => card.classList.remove("tutorial-pick"));
+     callbacks.onTutorialModalChange(false);
+@@ -912,11 +935,90 @@ export function createHud(callbacks: HudCallbacks) {
+     tutorialStart.focus(); // Move focus into the dialog (QA_CHECKLIST §13: focus handling).
+   }
+ 
++  const TUTORIAL_LESSONS = 5;
++  /** Sets the coach's lesson label and progress dots. */
++  function setLesson(index: number, label: string): void {
++    tutorialStepsSeen = Math.max(tutorialStepsSeen, index);
++    tutorialStep.textContent = `LESSON ${index} OF ${TUTORIAL_LESSONS} · ${label}`;
++    tutorialCoach.querySelectorAll<HTMLElement>(".coach-dots i").forEach((dot, dotIndex) => {
++      dot.classList.toggle("done", dotIndex < index - 1);
++      dot.classList.toggle("now", dotIndex === index - 1);
++    });
++  }
++
++  /** Lesson 2: the move is being played; the camera follows the builders. Non-blocking. */
++  function showBuildCoach(buildingId: string | null): void {
++    const building = buildingId ? BUILDINGS[buildingId] : null;
++    setLesson(2, building ? "WATCH IT RISE" : "THE CITY WORKS");
++    tutorialCoachTitle.textContent = building ? `Builders are raising your ${building.name}` : "Your city works while you gather";
++    tutorialCoachCopy.innerHTML = building
++      ? `Watch the builders walk from the Town Hall to its plot. Every building has its own place in the city: fields to the west, forest to the north-east, the army to the south.<br><span class="coach-hint">In a hurry? Drag <strong>Game speed</strong> (top left) to 8×.</span>`
++      : `No new building this move, but every building still works and your stockpile grows.<br><span class="coach-hint">In a hurry? Drag <strong>Game speed</strong> (top left) to 8×.</span>`;
++    tutorialNext.classList.add("hidden");
++    tutorialCoach.dataset.step = "build";
++    tutorialCoach.classList.remove("hidden");
++    buildPanel.classList.remove("tutorial-focus");
++    ux("ux_tutorial_step", { step: "build" });
++  }
++
++  /** Lesson 5: the goal, stars and badges; finishing celebrates. */
++  function showGoalCoach(): void {
++    setLesson(5, "WIN THE BATTLE");
++    tutorialCoachTitle.textContent = `After move ${campaignMoveLimit}, the enemy attacks`;
++    tutorialCoachCopy.innerHTML = `Your army fights in a battle popup. You see who is stronger before you press <strong>Fight</strong>.<br>Win to earn <strong>★★★</strong>: one for the victory, one for never running out of people, one for never running out of supplies. Special wins earn <strong>royal badges</strong> 🏅.<br><span class="coach-hint">Tap <strong>Resources</strong> at the top any time to see your stockpile and army.</span>`;
++    tutorialNext.textContent = "Let’s build my city!";
++    tutorialNext.classList.remove("hidden");
++    tutorialCoach.dataset.step = "goal";
++    tutorialCoach.classList.remove("hidden");
++    persistentHud.classList.add("tutorial-glow");
++    ux("ux_tutorial_step", { step: "goal" });
++  }
++
++  // A short centre celebration (tutorial done, a tip): big words, a burst of confetti.
++  const cheer = document.createElement("div");
++  cheer.className = "cheer hidden";
++  cheer.setAttribute("role", "status");
++  cheer.setAttribute("aria-live", "polite");
++  app.appendChild(cheer);
++  let cheerTimer = 0;
++  function celebrate(title: string, copy = ""): void {
++    window.clearTimeout(cheerTimer);
++    cheer.innerHTML = `${reducedMotion() ? "" : `<div class="confetti" aria-hidden="true">${Array.from({ length: 22 }, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>`}<strong>${escapeHtml(title)}</strong>${copy ? `<span>${escapeHtml(copy)}</span>` : ""}`;
++    cheer.classList.remove("hidden");
++    cheerTimer = window.setTimeout(() => cheer.classList.add("hidden"), 2600);
++  }
++
++  // One-time advisor tips after the tutorial (per browser: a convenience, not progress).
++  const TIP_KEY = "grow-an-empire:tips:v1";
++  const tip = document.createElement("aside");
++  tip.className = "advisor-tip hidden";
++  tip.setAttribute("role", "status");
++  tip.setAttribute("aria-live", "polite");
++  app.appendChild(tip);
++  let tipTimer = 0;
++  function tipsSeen(): Set<string> {
++    try { return new Set(JSON.parse(window.localStorage.getItem(TIP_KEY) ?? "[]") as string[]); } catch { return new Set(); }
++  }
++  /** Shows an advisor tip once per browser; returns false if it was already seen or the tutorial is running. */
++  function showTip(id: string, title: string, copy: string): boolean {
++    if (tutorialActive) return false;
++    const seen = tipsSeen();
++    if (seen.has(id)) return false;
++    seen.add(id);
++    try { window.localStorage.setItem(TIP_KEY, JSON.stringify([...seen])); } catch { /* Storage unavailable: the tip may show again. */ }
++    window.clearTimeout(tipTimer);
++    tip.innerHTML = `<span class="advisor" aria-hidden="true"></span><div><span class="tip-kicker">Mantri’s tip</span><strong>${escapeHtml(title)}</strong><p>${escapeHtml(copy)}</p></div><button type="button" aria-label="Close tip">✕</button>`;
++    tip.querySelector("button")!.addEventListener("click", () => tip.classList.add("hidden"));
++    tip.classList.remove("hidden");
++    tipTimer = window.setTimeout(() => tip.classList.add("hidden"), 9000);
++    ux("ux_tip_shown", { tip: id });
++    return true;
++  }
++
+   function showChoiceCoach(): void {
+     tutorialScrim.classList.add("hidden");
+     callbacks.onTutorialModalChange(false);
+-    tutorialStepsSeen = Math.max(tutorialStepsSeen, 1);
+-    tutorialStep.textContent = "LESSON 1 OF 3 · CHOOSE";
++    setLesson(1, "CHOOSE");
+     tutorialCoachTitle.textContent = "Choose your first building";
+     const suggested = suggestedFirstChoice();
+     const building = suggested ? BUILDINGS[suggested] : null;
+@@ -938,10 +1040,9 @@ export function createHud(callbacks: HudCallbacks) {
+   function showResultCoach(): void {
+     const summary = lastPanelView?.summary;
+     if (!summary || !lastPanelView) return;
+-    tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
+-    tutorialStep.textContent = "LESSON 2 OF 3 · SEE IT WORK";
++    setLesson(3, "READ THE REPORT");
+     tutorialCoachTitle.textContent = summary.buildingId ? `${BUILDINGS[summary.buildingId]?.name ?? "Your building"} is ready!` : "Gather move complete";
+-    tutorialCoachCopy.innerHTML = "This is your move report. Each row shows what a building used and made. The totals show your supplies <strong>before → after</strong>.<br><span class=\"coach-hint\">Read it, then press <strong>Choose</strong> below. You’ll see this report after every move.</span>";
++    tutorialCoachCopy.innerHTML = "This is your move report. Each row shows what a building used and made. The totals show your supplies <strong>before → after</strong>.<br><span class=\"coach-hint\">Green numbers are gains. A ⚠ row means something stopped: fix it to keep your stars. Press <strong>Choose</strong> below.</span>";
+     tutorialCoach.dataset.step = "report";
+     tutorialNext.classList.add("hidden");
+     tutorialCoach.classList.remove("hidden");
+@@ -952,11 +1053,10 @@ export function createHud(callbacks: HudCallbacks) {
+   function showGrowthCoach(): void {
+     tutorialScrim.classList.add("hidden");
+     callbacks.onTutorialModalChange(false);
+-    tutorialStepsSeen = Math.max(tutorialStepsSeen, 3);
+-    tutorialStep.textContent = "LESSON 3 OF 3 · PREPARE TO DEFEND";
++    setLesson(4, "PLAN YOUR CITY");
+     tutorialCoachTitle.textContent = "Build a supply chain, then an army";
+-    tutorialCoachCopy.innerHTML = `<strong>Wood → ${escapeHtml(BUILDINGS.sawmill.name)} → planks.</strong> Add a ${escapeHtml(BUILDINGS.quarry.name)} for stone.<br><strong>Grain → ${escapeHtml(BUILDINGS.bakery.name)} → rations</strong> to feed soldiers.<br>${escapeHtml(BUILDINGS["weapons-workshop"].name)} and ${escapeHtml(BUILDINGS.blacksmith.name)} train automatically when supplied. A ${escapeHtml(BUILDINGS.house.name)} brings more people.<br><span class="coach-hint">Battle comes after move <strong>${campaignMoveLimit}</strong>. Compare armies in the muster before you Fight. Win to unlock the next campaign!</span>`;
+-    tutorialNext.textContent = "I’m ready to grow my city";
++    tutorialCoachCopy.innerHTML = `<strong>Wood → ${escapeHtml(BUILDINGS.sawmill.name)} → planks.</strong> Add a ${escapeHtml(BUILDINGS.quarry.name)} for stone.<br><strong>Grain → ${escapeHtml(BUILDINGS.bakery.name)} → rations</strong> to feed soldiers.<br>${escapeHtml(BUILDINGS["weapons-workshop"].name)} and ${escapeHtml(BUILDINGS.blacksmith.name)} train automatically when supplied. A ${escapeHtml(BUILDINGS.house.name)} brings more people.<br><span class="coach-hint">Build producers first, then trainers. Soldiers gather on the parade ground by the south gate.</span>`;
++    tutorialNext.textContent = "Next lesson";
+     tutorialNext.classList.remove("hidden");
+     tutorialCoach.dataset.step = "growth";
+     tutorialCoach.classList.remove("hidden");
+@@ -969,7 +1069,7 @@ export function createHud(callbacks: HudCallbacks) {
+   }
+ 
+   function handleTutorialEvent(event: "first-move-complete"): void {
+-    if (event === "first-move-complete" && tutorialActive && tutorialCoach.dataset.step === "choice") showResultCoach();
++    if (event === "first-move-complete" && tutorialActive && (tutorialCoach.dataset.step === "choice" || tutorialCoach.dataset.step === "build")) showResultCoach();
+   }
+ 
+   playToggle.addEventListener("click", callbacks.onPlayToggle);
+@@ -1067,8 +1167,10 @@ export function createHud(callbacks: HudCallbacks) {
+     }
+   });
+   tutorialNext.addEventListener("click", () => {
++    if (tutorialCoach.dataset.step === "growth") { showGoalCoach(); tutorialNext.focus({ preventScroll: true }); return; }
+     const hadFocus = document.activeElement === tutorialNext;
+     finishTutorial(false);
++    celebrate("You’re ready, Raja!", "Tutorial complete. Grow your empire.");
+     if (hadFocus) focusFirst(helpToggle, buildPanel.querySelector<HTMLElement>("button:not([disabled])"), cityUiToggle);
+   });
+   musterToggle.addEventListener("click", callbacks.onReportToggle);
+@@ -1145,6 +1247,8 @@ export function createHud(callbacks: HudCallbacks) {
+ 
+   return {
+     showMovesLeft,
++    showTip,
++    celebrate,
+     viewport,
+     loading,
+     setLoadingProgress,
+-- 
+2.43.0
+

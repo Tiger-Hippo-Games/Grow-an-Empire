@@ -1,0 +1,202 @@
+/* 0.16.0 enhancement pass: bigger, clearer popups; the five-lesson tutorial with its advisor;
+   badges; celebrations. Loaded last, so it refines styles.css and polish.css. Stage pixels throughout. */
+:root { --advisor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22b%22%20cx%3D%2250%25%22%20cy%3D%2240%25%22%20r%3D%2260%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%232f6f9e%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%2316244f%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%2231%22%20fill%3D%22url%28%23b%29%22/%3E%3Cpath%20d%3D%22M12%2064c1-12%209-18%2020-18s19%206%2020%2018z%22%20fill%3D%22%23f4e9d3%22/%3E%3Cpath%20d%3D%22M26%2046l6%208%206-8%22%20fill%3D%22%23e0a526%22/%3E%3Cellipse%20cx%3D%2232%22%20cy%3D%2234%22%20rx%3D%2210.5%22%20ry%3D%2212%22%20fill%3D%22%23c98a5a%22/%3E%3Cpath%20d%3D%22M22%2036c1%209%205%2014%2010%2014s9-5%2010-14c-2%203-5%204-10%204s-8-1-10-4z%22%20fill%3D%22%23ece6dc%22/%3E%3Cpath%20d%3D%22M27%2039c2%201.4%208%201.4%2010%200%22%20stroke%3D%22%237a4a2c%22%20stroke-width%3D%221.3%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2228%22%20cy%3D%2232%22%20r%3D%221.4%22%20fill%3D%22%232b1d14%22/%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%2232%22%20r%3D%221.4%22%20fill%3D%22%232b1d14%22/%3E%3Cpath%20d%3D%22M25.5%2029c1.5-1%203.5-1%205%200M33.5%2029c1.5-1%203.5-1%205%200%22%20stroke%3D%22%23ece6dc%22%20stroke-width%3D%221.4%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M19%2027c0-10%206-15%2013-15s13%205%2013%2015c-3-3-8-4-13-4s-10%201-13%204z%22%20fill%3D%22%23b3261e%22/%3E%3Cpath%20d%3D%22M20%2024c4-5%2020-5%2024%200%22%20stroke%3D%22%23e0a526%22%20stroke-width%3D%222%22%20fill%3D%22none%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2217%22%20r%3D%222.6%22%20fill%3D%22%23f3cf6b%22/%3E%3Cpath%20d%3D%22M32%2014.5c-1-4%201-7%204-8-1%203-2%205-4%208z%22%20fill%3D%22%23f4e9d3%22/%3E%3Cpath%20d%3D%22M31%2031v3%22%20stroke%3D%22%23e0a526%22%20stroke-width%3D%220%22/%3E%3Cpath%20d%3D%22M31%2023.5h2v3h-2z%22%20fill%3D%22%23e0a526%22/%3E%3C/svg%3E"); --parchment: linear-gradient(170deg, #fff8e6, #f3e2b9); --parchment-ink: #3a2412; }
+
+/* ---------- The advisor portrait ---------- */
+#app .advisor { display: inline-block; flex: none; width: 56px; height: 56px; border-radius: 50%; background: var(--advisor) center / cover no-repeat; box-shadow: 0 0 0 3px var(--haldi, #e0a526), 0 6px 16px #0006; }
+
+/* ---------- Tutorial welcome ---------- */
+#app .tutorial-dialog { width: min(640px,100%); border: 2px solid var(--haldi, #e0a526); box-shadow: 0 0 0 6px #e0a52622, 0 32px 100px rgba(1,8,4,.65); }
+#app .tutorial-hero { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
+#app .tutorial-hero .advisor { width: 76px; height: 76px; }
+#app .tutorial-dialog h2 { margin: 2px 0 0; font-family: var(--display); font-weight: 400; font-size: 2.2rem; color: #ffe7a6; }
+#app .tutorial-kicker { font-size: .85rem; letter-spacing: .08em; }
+#app .tutorial-dialog > p { font-size: 1.08rem; }
+#app .tutorial-rules strong { font-size: 1.1rem; }
+#app .tutorial-rules span { font-size: 1rem; }
+#app #tutorial-start { min-height: 52px; padding: 0 26px; font-size: 1.08rem; color: #fff; background: linear-gradient(180deg, #d2372b, #8d1b14); box-shadow: inset 0 0 0 2px #f3cf6b, 0 6px 16px #0006; animation: gae-breathe 1.8s ease-in-out infinite; }
+
+/* ---------- Coach: parchment card with the advisor ---------- */
+#app .tutorial-coach[data-step] { display: flex; gap: 14px; align-items: flex-start; width: min(520px,calc(100% - 24px)); padding: 16px 18px; color: var(--parchment-ink); background: var(--parchment); border: 2px solid #c9952b; border-radius: 18px; box-shadow: 0 18px 50px #0008; animation: gae-pop .35s cubic-bezier(.2,1.4,.4,1) both; }
+#app .tutorial-coach.tutorial-coach { background: var(--parchment) !important; border: 2px solid #c9952b !important; box-shadow: 0 18px 50px #0008 !important; }
+#app .tutorial-coach .coach-body { min-width: 0; flex: 1; }
+/* Lesson 2 sits low (the tray is away while builders work), so the camera's close-up stays clear. */
+#app .tutorial-coach[data-step="build"] { top: auto; bottom: 76px; }
+#app .tutorial-coach > .advisor { width: 60px; height: 60px; }
+#app .tutorial-coach #tutorial-step { display: inline-block; color: #9a2a1c; font-size: .8rem; font-weight: 900; letter-spacing: .08em; }
+#app .tutorial-coach .coach-dots { display: inline-flex; gap: 5px; margin-left: 8px; vertical-align: middle; }
+#app .tutorial-coach .coach-dots i { width: 9px; height: 9px; border-radius: 50%; background: #d9c39a; }
+#app .tutorial-coach .coach-dots i.done { background: #4f9a45; }
+#app .tutorial-coach .coach-dots i.now { background: #b3261e; box-shadow: 0 0 0 3px #b3261e33; }
+#app .tutorial-coach > .coach-body > strong { display: block; margin: 6px 0; font-size: 1.32rem; line-height: 1.25; color: #2a1608; font-weight: 800; }
+#app .tutorial-coach p { font-size: 1.04rem; line-height: 1.5; color: var(--parchment-ink); }
+#app .tutorial-coach p strong { color: #8d1b14; font-weight: 800; }
+#app .tutorial-coach .coach-hint { color: #5a3a1a; font-size: .98rem; }
+#app .tutorial-coach .coach-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#app .tutorial-coach .coach-actions button { margin: 0; min-height: 44px; font-size: 1rem; }
+#app .tutorial-coach #tutorial-next { color: #fff; background: linear-gradient(180deg, #d2372b, #8d1b14); box-shadow: inset 0 0 0 2px #f3cf6b; }
+#app .tutorial-coach #tutorial-coach-skip { color: #6b4a2a; background: transparent; box-shadow: inset 0 0 0 1px #c9a46a; }
+#app .persistent-hud.tutorial-glow, #app #resource-hud.tutorial-glow { animation: gae-glow 1.2s ease-in-out infinite; }
+#app .build-card.tutorial-pick { animation: gae-glow 1.2s ease-in-out infinite; }
+
+/* ---------- Moves left: under the HUD, never over a dialog; urgent near the end ---------- */
+#app .move-countdown { top: calc(var(--hud-bottom, 64px) + 10px); transform: translateX(-50%); padding: 8px 20px; font-size: clamp(1.25rem, 2.6cqw, 1.9rem); animation: gae-drop .4s cubic-bezier(.2,1.4,.4,1) both; }
+#app .move-countdown.urgent { color: #fff; border-color: #ffd36b; background: linear-gradient(180deg, #c3311f, #7d1712); animation: gae-drop .4s cubic-bezier(.2,1.4,.4,1) both, gae-pulse .9s ease-in-out .4s 2; }
+#app:has(.flow-scrim:not(.hidden)) .move-countdown, #app:has(.tutorial-scrim:not(.hidden)) .move-countdown,
+#app:has(#tutorial-coach:not(.hidden)) .move-countdown, #app:has(#tutorial-coach:not(.hidden)) .milestone { visibility: hidden; }
+
+/* ---------- "Built!" toast: picture, effect and plain benefit ---------- */
+#app .milestone[data-kind="built"] { top: calc(var(--hud-bottom, 64px) + 66px); left: 16px; right: auto; transform: none; display: grid; grid-template-columns: 84px minmax(0,1fr); grid-template-rows: auto auto auto; column-gap: 14px; align-items: center; width: min(460px, calc(100% - 24px)); padding: 12px 18px 12px 12px; color: var(--parchment-ink); background: var(--parchment); border: 2px solid #c9952b; border-radius: 18px; box-shadow: 0 16px 40px #0008; }
+#app .milestone[data-kind="built"]::before { content: ""; grid-row: 1 / 4; width: 84px; height: 84px; background: var(--milestone-art) center / contain no-repeat; filter: drop-shadow(0 4px 6px #0005); }
+#app .milestone[data-kind="built"].visible { animation: gae-pop .45s cubic-bezier(.2,1.5,.4,1) both; }
+#app .milestone[data-kind="built"] #milestone-kicker { display: flex; align-items: center; gap: 6px; color: #2f7d32; font-size: .85rem; font-weight: 900; letter-spacing: .1em; }
+#app .milestone[data-kind="built"] #milestone-title { margin: 2px 0; font-size: 1.45rem; line-height: 1.2; color: #2a1608; }
+#app .milestone[data-kind="built"] #milestone-copy { margin: 0; color: var(--parchment-ink); font-size: 1rem; }
+#app .milestone[data-kind="built"] .milestone-effect { display: inline-flex; margin-right: 8px; font-size: 1.05rem; font-weight: 800; }
+#app .milestone[data-kind="built"] .milestone-benefit { display: block; margin-top: 2px; font-size: .98rem; line-height: 1.35; color: var(--parchment-ink); text-transform: none; letter-spacing: normal; font-weight: 600; }
+#app .milestone[data-kind="built"] .milestone-effect span { text-transform: none; letter-spacing: normal; color: inherit; }
+#app .milestone[data-kind="built"] .qty b { color: #1f6b25; }
+
+/* ---------- Move report: a headline and bigger rows ---------- */
+#app .report-headline { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 4px 0 8px; font-size: 1.08rem; font-weight: 700; color: #f4e9d3; }
+#app .report-headline span { display: inline-flex; align-items: center; gap: 6px; }
+#app .report-headline b { font-size: 1.35rem; color: #9fe39a; }
+#app .report-headline .hl-warn b { color: #ffb066; }
+#app .report-headline .gi { width: 26px; height: 26px; }
+#app .move-report .ledger { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
+#app .move-report .ledger-line { min-height: 46px; font-size: 1rem; }
+#app .move-report .ledger-line .gi { width: 24px; height: 24px; }
+#app .move-report .ledger-line b { font-size: 1.08rem; }
+#app .move-report .ledger-art img { width: 46px; height: auto; }
+#app .move-report .net-good { font-size: 1.05rem; }
+
+/* ---------- Muster: one big verdict, a big Fight ---------- */
+#app .verdict { display: flex; align-items: center; gap: 16px; margin: 14px 0 6px; padding: 12px 18px; border-radius: 16px; border: 2px solid transparent; }
+#app .verdict.good { background: linear-gradient(90deg, #1f5f2a, #17402099); border-color: #7fd17a; }
+#app .verdict.close { background: linear-gradient(90deg, #7a5a12, #4a370b99); border-color: #f3cf6b; }
+#app .verdict.bad { background: linear-gradient(90deg, #7d1712, #4a0e0b99); border-color: #ff9a80; }
+#app .verdict-stars { font-size: 2.1rem; line-height: 1; color: #ffd75e; text-shadow: 0 2px 6px #0008; white-space: nowrap; }
+#app .verdict-stars i { font-style: normal; color: #ffffff55; }
+#app .verdict.bad .verdict-stars { color: #ffb49c; }
+#app .verdict-text { display: grid; gap: 2px; }
+#app .verdict-text strong { font-size: 1.6rem; line-height: 1.15; color: #fff; }
+#app .verdict-text small { font-size: 1.02rem; line-height: 1.35; color: #f4e9d3; }
+#app .forecast-labels { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: .9rem; font-weight: 800; color: #f4e9d3; }
+#app .forecast-labels .gi { width: 18px; height: 18px; vertical-align: -4px; }
+#app .forecast-bar { height: 14px; border-radius: 999px; }
+#app .flow-dialog[data-kind="muster"] .flow-actions { justify-content: center; }
+#app .flow-dialog .fight-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 260px; min-height: 58px; font-size: 1.4rem; font-weight: 900; letter-spacing: .04em; color: #fff; background: linear-gradient(180deg, #d2372b, #8d1b14); box-shadow: inset 0 0 0 2px #f3cf6b, 0 8px 22px #0007; animation: gae-breathe 1.8s ease-in-out infinite; }
+#app .flow-dialog .fight-button .gi { width: 30px; height: 30px; }
+#app .flow-dialog h2 { font-size: 1.95rem; }
+#app .flow-dialog .army-chips .qty b, #app .flow-dialog .army-chips b { font-size: 1.15rem; }
+
+/* ---------- Result: banner, popping stars, confetti, badges ---------- */
+#app .result-banner { position: relative; margin: 4px -8px 6px; padding: 10px 8px 4px; text-align: center; border-radius: 16px; overflow: hidden; }
+#app .result-banner.won { background: radial-gradient(ellipse at 50% 0%, #f3cf6b44, transparent 70%); }
+#app .result-banner.lost { background: radial-gradient(ellipse at 50% 0%, #b3261e44, transparent 70%); }
+#app .result-banner h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 3rem; line-height: 1.1; text-shadow: 0 3px 10px #000a; }
+#app .result-banner.won h2 { color: #ffe08a; }
+#app .result-stars { display: flex; justify-content: center; gap: 10px; margin: 4px 0 0; font-size: 3.2rem; line-height: 1; letter-spacing: 0; }
+#app .result-stars span.on { color: #ffd75e; text-shadow: 0 0 18px #ffcf4d99, 0 3px 6px #0009; animation: gae-star .55s cubic-bezier(.2,1.6,.4,1) both; animation-delay: calc(.35s + var(--i) * .32s); }
+#app .result-stars span.off { color: #ffffff3a; }
+#app .result-stars.quiet span { animation: none; }
+#app .flow-dialog[data-kind="result"] .campaign-star-goals { justify-content: center; font-size: 1rem; }
+#app .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#app .confetti i { position: absolute; top: -12px; left: calc(2% + var(--i) * 4.4%); width: 9px; height: 14px; border-radius: 2px; background: hsl(calc(var(--i) * 47), 85%, 60%); animation: gae-confetti 2.2s cubic-bezier(.3,.6,.5,1) both; animation-delay: calc(var(--i) * 45ms); }
+#app .badge-reveal { margin: 10px 0; padding: 12px 14px; border-radius: 16px; background: linear-gradient(135deg, #3a2a08, #1d1606); border: 2px solid #e0a526; animation: gae-pop .5s cubic-bezier(.2,1.5,.4,1) 1.2s both; }
+#app .badge-reveal-title { margin: 0 0 8px; color: #ffe08a; font-size: 1.25rem; font-weight: 900; letter-spacing: .04em; text-align: center; }
+#app .badge-reveal ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 18px; margin: 0; padding: 0; list-style: none; }
+#app .badge-reveal li { display: flex; align-items: center; gap: 10px; max-width: 300px; animation: gae-star .6s cubic-bezier(.2,1.6,.4,1) both; animation-delay: calc(1.4s + var(--i) * .25s); }
+#app .badge-reveal li b { display: block; font-size: 1.1rem; color: #fff1c4; }
+#app .badge-reveal li small { display: block; font-size: .92rem; color: #e8dcc0; line-height: 1.3; }
+#app .badge-button { display: inline-flex; align-items: center; gap: 4px; font-size: 1.1rem; }
+
+/* ---------- Badge gallery ---------- */
+#app .badge-scrim { position: absolute; z-index: 60; inset: 0; display: grid; place-items: center; padding: 16px; background: #050a10b0; backdrop-filter: blur(3px); }
+#app .badge-scrim.hidden { display: none; }
+#app .badge-dialog { width: min(860px, 100%); max-height: 100%; overflow-y: auto; padding: 20px 24px; color: var(--parchment-ink); background: var(--parchment); border: 2px solid #c9952b; border-radius: 22px; box-shadow: 0 30px 90px #000a; animation: gae-pop .35s cubic-bezier(.2,1.4,.4,1) both; }
+#app .badge-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+#app .badge-head .flow-kicker { margin: 0; color: #9a2a1c; font-weight: 900; letter-spacing: .1em; font-size: .85rem; }
+#app .badge-head h2 { margin: 2px 0; font-family: var(--display); font-weight: 400; font-size: 2.1rem; color: #2a1608; }
+#app .badge-count { margin: 0; font-size: 1.05rem; }
+#app .badge-count b { font-size: 1.3rem; color: #8d1b14; }
+#app .badge-close { min-width: 44px; min-height: 44px; border: 0; border-radius: 12px; font-size: 1.3rem; cursor: pointer; color: #fff; background: #8d1b14; }
+#app .badge-progress { height: 10px; margin: 10px 0 14px; border-radius: 999px; background: #d9c39a; overflow: hidden; }
+#app .badge-progress i { display: block; height: 100%; background: linear-gradient(90deg, #e0a526, #b3261e); }
+#app .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+#app .badge-grid li { display: grid; justify-items: center; gap: 4px; padding: 12px 8px; text-align: center; border-radius: 14px; background: #fffdf5; box-shadow: inset 0 0 0 1px #e2cfa4; }
+#app .badge-grid li.locked { background: #efe6d2; }
+#app .badge-grid li b { font-size: 1rem; color: #2a1608; }
+#app .badge-grid li small { font-size: .88rem; line-height: 1.3; color: #5a3a1a; }
+#app .badge-grid li.locked b { color: #6d5c47; }
+#app .medal.earned { filter: drop-shadow(0 4px 6px #0005); }
+#app .campaign-badges { position: absolute; z-index: 4; right: 20px; bottom: 192px; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 16px 4px 10px; border: 0; border-radius: 999px; cursor: pointer; color: #fff4e0; font-weight: 800; background: linear-gradient(160deg, #6e2a14, #3a1408); box-shadow: inset 0 0 0 1px var(--haldi, #e0a526), 0 4px 14px #0007; }
+#app .campaign-badges b { font-family: var(--display); font-weight: 400; font-size: 20px; }
+#app .campaign-badges-medal { font-size: 20px; }
+#app .campaign-badges-word { margin-left: 4px; color: var(--haldi-soft, #f3cf6b); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
+
+/* ---------- Advisor tips and celebrations ---------- */
+#app .advisor-tip { position: absolute; z-index: 30; right: 16px; top: calc(var(--hud-bottom, 64px) + 14px); display: flex; gap: 12px; align-items: flex-start; width: min(400px, calc(100% - 32px)); padding: 12px 14px; color: var(--parchment-ink); background: var(--parchment); border: 2px solid #c9952b; border-radius: 16px; box-shadow: 0 14px 36px #0008; animation: gae-slide .45s cubic-bezier(.2,1.3,.4,1) both; }
+#app .advisor-tip.hidden { display: none; }
+#app .advisor-tip .advisor { width: 48px; height: 48px; }
+#app .advisor-tip .tip-kicker { color: #9a2a1c; font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+#app .advisor-tip strong { display: block; margin: 2px 0; font-size: 1.12rem; color: #2a1608; }
+#app .advisor-tip p { margin: 0; font-size: .98rem; line-height: 1.4; }
+#app .advisor-tip button { flex: none; min-width: 44px; min-height: 44px; border: 0; border-radius: 10px; color: #6b4a2a; background: transparent; cursor: pointer; font-size: 1.1rem; }
+#app .cheer { position: absolute; z-index: 45; left: 50%; top: 38%; display: grid; justify-items: center; gap: 6px; min-width: min(520px, calc(100% - 32px)); padding: 22px 30px; text-align: center; transform: translate(-50%, -50%); border-radius: 22px; background: radial-gradient(ellipse at 50% 0%, #3a2a08, #1d1606); border: 3px solid #e0a526; box-shadow: 0 30px 80px #000b; pointer-events: none; animation: gae-pop .5s cubic-bezier(.2,1.5,.4,1) both; overflow: hidden; }
+#app .cheer.hidden { display: none; }
+#app .cheer strong { font-family: var(--display); font-weight: 400; font-size: 2.4rem; color: #ffe08a; text-shadow: 0 3px 10px #000a; }
+#app .cheer span { font-size: 1.12rem; color: #f4e9d3; }
+
+/* ---------- Motion ---------- */
+/* Pops animate the separate "scale" property, so each element keeps its own layout transform. */
+@keyframes gae-pop { from { opacity: 0; scale: .86; } to { opacity: 1; scale: 1; } }
+@keyframes gae-drop { from { opacity: 0; transform: translate(-50%, -14px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes gae-slide { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@keyframes gae-pulse { 50% { transform: translate(-50%, 0) scale(1.08); } }
+@keyframes gae-breathe { 50% { box-shadow: inset 0 0 0 2px #f3cf6b, 0 0 0 6px #f3cf6b44, 0 8px 22px #0007; } }
+@keyframes gae-glow { 50% { box-shadow: 0 0 0 4px #f3cf6b, 0 0 24px 6px #f3cf6b88; } }
+@keyframes gae-star { from { opacity: 0; transform: scale(.2) rotate(-40deg); } 70% { opacity: 1; transform: scale(1.25) rotate(8deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes gae-confetti { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 0; transform: translateY(420px) rotate(calc(var(--i) * 97deg)); } }
+@media (prefers-reduced-motion: reduce) {
+  #app .tutorial-coach[data-step], #app .milestone[data-kind="built"].visible, #app .move-countdown, #app .move-countdown.urgent, #app .result-stars span.on, #app .badge-reveal, #app .badge-reveal li, #app .advisor-tip, #app .cheer, #app .badge-dialog, #app .fight-button, #app #tutorial-start, #app .tutorial-glow, #app .build-card.tutorial-pick { animation: none !important; }
+  #app .confetti { display: none; }
+}
+
+/* ---------- Phones and small frames ---------- */
+@container app (max-width: 700px) {
+  #app .tutorial-coach[data-step] { gap: 10px; padding: 12px 14px; }
+  #app .tutorial-coach > .advisor { width: 44px; height: 44px; }
+  #app .tutorial-coach > .coach-body > strong { font-size: 1.12rem; }
+  #app .tutorial-coach p { font-size: .95rem; }
+  #app .move-countdown { top: auto; bottom: calc(var(--build-panel-reach, 250px) + 12px); }
+  #app .tutorial-hero .advisor { width: 56px; height: 56px; }
+  #app .tutorial-dialog h2 { font-size: 1.6rem; }
+  #app .result-banner h2 { font-size: 2.2rem; }
+  #app .result-stars { font-size: 2.4rem; }
+  #app .verdict { gap: 10px; padding: 10px 12px; }
+  #app .verdict-stars { font-size: 1.5rem; }
+  #app .verdict-text strong { font-size: 1.25rem; }
+  #app .verdict-text small { font-size: .92rem; }
+  #app .flow-dialog .fight-button { min-width: 200px; min-height: 52px; font-size: 1.2rem; }
+  #app .milestone[data-kind="built"] { grid-template-columns: 60px minmax(0,1fr); }
+  #app .milestone[data-kind="built"]::before { width: 60px; height: 60px; }
+  #app .milestone[data-kind="built"] #milestone-title { font-size: 1.15rem; }
+  #app .move-report .ledger { grid-template-columns: minmax(0, 1fr); }
+  #app .campaign-badges-word { display: none; }
+  #app .cheer strong { font-size: 1.8rem; }
+  #app .advisor-tip { top: auto; bottom: calc(var(--build-panel-reach, 250px) + 12px); left: 12px; right: 12px; width: auto; }
+  #app .milestone[data-kind="built"] { left: 50%; transform: translateX(-50%); }
+  #app .tutorial-kicker, #app .tutorial-reassurance { display: none; }
+}
+
+/* Short landscape frames: coach and cards side by side (as before 0.16.0), lean welcome. */
+@container app (orientation: landscape) and (max-height: 540px) {
+  #app .tutorial-coach[data-step] { width: calc(42% - 24px); left: 12px; transform: none; gap: 10px; padding: 10px 12px; }
+  #app .tutorial-coach > .advisor { width: 40px; height: 40px; }
+  #app .tutorial-coach > .coach-body > strong { font-size: 1.08rem; }
+  #app .tutorial-coach p { font-size: .92rem; line-height: 1.4; }
+  #app .tutorial-kicker, #app .tutorial-reassurance { display: none; }
+  #app .tutorial-hero .advisor { width: 48px; height: 48px; }
+  #app .milestone[data-kind="built"] { left: 12px; transform: none; }
+}

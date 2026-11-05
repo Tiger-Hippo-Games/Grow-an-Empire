@@ -107,7 +107,8 @@ export function createHud(callbacks: HudCallbacks) {
   let countdownTimer = 0;
   function showMovesLeft(left: number): void {
     window.clearTimeout(countdownTimer);
-    moveCountdown.textContent = `${left} ${left === 1 ? "move" : "moves"} left`;
+    moveCountdown.classList.toggle("urgent", left > 0 && left <= 3);
+    moveCountdown.textContent = left === 0 ? "The enemy is here!" : left <= 3 ? `Only ${left} ${left === 1 ? "move" : "moves"} left!` : `${left} moves left`;
     moveCountdown.classList.remove("hidden");
     countdownTimer = window.setTimeout(() => moveCountdown.classList.add("hidden"), 2200);
   }
@@ -490,9 +491,21 @@ export function createHud(callbacks: HudCallbacks) {
       return `<span class="net-good ${delta > 0 ? "gain" : "loss"}" role="img" aria-label="${iconWord(name, to)}: ${from} to ${to}">${icon(name)}<s>${from}</s><b>${to}</b><small>${delta > 0 ? "+" : "−"}${Math.abs(delta)}</small></span>`;
     }).join("");
     const built = summary.buildingId ? `<span class="report-built" title="${escapeHtml(BUILDINGS[summary.buildingId]?.name ?? "")}"><img src="${assetUrl(buildingFilename(summary.buildingId, "complete"))}" alt="" />${icon("build")}</span>` : `<span class="report-built">${icon("stockpile")}<span class="tag">Gather</span></span>`;
+    // 0.16.0 headline: what the move achieved in one big line.
+    const madeTotal = ledger.filter((entry) => entry.source !== "camp").reduce((sum, entry) => sum + Object.values(entry.made ?? {}).reduce((a, b) => a + Math.max(0, Math.floor(b ?? 0)), 0), 0);
+    const soldiers = ledger.reduce((sum, entry) => sum + (entry.trained?.archers ?? 0) + (entry.trained?.swordsmen ?? 0) + (entry.trained?.horsemen ?? 0), 0);
+    const elephantsNew = ledger.reduce((sum, entry) => sum + (entry.elephants ?? 0), 0);
+    const headlineBits = [
+      madeTotal ? `<span class="hl-made">${icon("stockpile")}<b>+${madeTotal}</b> goods made</span>` : "",
+      soldiers ? `<span class="hl-army">${icon("swordsmen")}<b>+${soldiers}</b> soldier${soldiers === 1 ? "" : "s"}</span>` : "",
+      elephantsNew ? `<span class="hl-army">${icon("elephants")}<b>+${elephantsNew}</b> elephant${elephantsNew === 1 ? "" : "s"}</span>` : "",
+      summary.warnings.length ? `<span class="hl-warn">${icon("warning")}<b>${summary.warnings.length}</b> to fix</span>` : "",
+    ].filter(Boolean).join("");
+    const headline = headlineBits ? `<p class="report-headline">${headlineBits}</p>` : "";
     const warnings = summary.warnings.map((text) => `<p class="summary-warning">${icon("warning")}<span>${withIcons(escapeHtml(text))}</span></p>`).join("");
     buildOptions.innerHTML = `<section class="move-report" aria-labelledby="report-title-${summary.move}">
       <p class="report-head" id="report-title-${summary.move}"><span class="summary-move" aria-label="Move ${summary.move}">${icon("move")}${summary.move}</span><span class="report-title">${icon("report")}<span class="w">Move report</span></span>${built}</p>
+      ${headline}
       <p class="report-coach w">What your city did last move. Read it, then Choose.</p>
       ${lines ? `<ul class="ledger">${lines}</ul>` : `<p class="report-empty w">Nothing worked yet: build producers first.</p>`}
       ${net ? `<div class="report-net" role="group" aria-label="Stockpile after the move">${net}</div>` : ""}
@@ -624,9 +637,11 @@ export function createHud(callbacks: HudCallbacks) {
           ux("ux_choice", { move: view.move, building_id: card.id, seconds: Math.round((performance.now() - choiceShownAt) / 100) / 10, info_opened: choiceInfoOpens, unaffordable_taps: choiceBlockedTaps, swap: state === "swappable" });
         }
         if (tutorialActive) {
-          if (tutorialCoach.dataset.step === "growth") finishTutorial(false);
+          const step = tutorialCoach.dataset.step;
+          if (step === "growth" || step === "goal") finishTutorial(false);
           tutorialCoach.classList.add("hidden");
           buildPanel.classList.remove("tutorial-focus");
+          if (step === "choice") showBuildCoach(card.id);
         }
         if (state === "affordable") callbacks.onSelectBuilding(card.id);
         else callbacks.onSwapBuild(card.id);
@@ -674,9 +689,11 @@ export function createHud(callbacks: HudCallbacks) {
       gather.setAttribute("aria-label", "Gather: build nothing this move; your buildings still work and the army still eats. Press G");
       gather.addEventListener("click", () => {
         if (tutorialActive) {
-          if (tutorialCoach.dataset.step === "growth") finishTutorial(false);
+          const step = tutorialCoach.dataset.step;
+          if (step === "growth" || step === "goal") finishTutorial(false);
           tutorialCoach.classList.add("hidden");
           buildPanel.classList.remove("tutorial-focus");
+          if (step === "choice") showBuildCoach(null);
         }
         callbacks.onGather();
       });
@@ -751,6 +768,9 @@ export function createHud(callbacks: HudCallbacks) {
     milestoneTitle.textContent = title;
     milestoneCopy.textContent = copy;
     milestoneCopy.removeAttribute("aria-label");
+    delete milestone.dataset.kind;
+    milestone.classList.remove("visible");
+    void milestone.offsetWidth; // Restart the entrance animation.
     milestone.classList.add("visible");
     milestoneUntil = animationElapsed + (final ? 6 : 3.5);
   }
@@ -759,8 +779,10 @@ export function createHud(callbacks: HudCallbacks) {
   function showBuiltMilestone(buildingId: string, animationElapsed: number): void {
     const building = BUILDINGS[buildingId];
     showMilestone(building?.name ?? buildingId, "", animationElapsed);
-    milestoneKicker.innerHTML = `${icon("build")}<span class="w">BUILT</span>`;
-    milestoneCopy.innerHTML = `<span class="milestone-effect">${effectHtml(buildingId)}</span>`;
+    milestoneKicker.innerHTML = `${icon("build")}<span>BUILT!</span>`;
+    milestoneCopy.innerHTML = `<span class="milestone-effect">${effectHtml(buildingId)}</span><span class="milestone-benefit">${escapeHtml(building?.benefit ?? "")}</span>`;
+    milestone.dataset.kind = "built";
+    milestone.style.setProperty("--milestone-art", `url("${assetUrl(buildingFilename(buildingId, "complete"))}")`);
     milestoneCopy.setAttribute("aria-label", building?.benefit ?? "");
   }
 
@@ -888,6 +910,7 @@ export function createHud(callbacks: HudCallbacks) {
     syncWords();
     tutorialScrim.classList.add("hidden");
     tutorialCoach.classList.add("hidden");
+    persistentHud.classList.remove("tutorial-glow");
     buildPanel.classList.remove("tutorial-focus");
     buildPanel.querySelectorAll(".tutorial-pick").forEach((card) => card.classList.remove("tutorial-pick"));
     callbacks.onTutorialModalChange(false);
@@ -912,11 +935,90 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialStart.focus(); // Move focus into the dialog (QA_CHECKLIST §13: focus handling).
   }
 
+  const TUTORIAL_LESSONS = 5;
+  /** Sets the coach's lesson label and progress dots. */
+  function setLesson(index: number, label: string): void {
+    tutorialStepsSeen = Math.max(tutorialStepsSeen, index);
+    tutorialStep.textContent = `LESSON ${index} OF ${TUTORIAL_LESSONS} · ${label}`;
+    tutorialCoach.querySelectorAll<HTMLElement>(".coach-dots i").forEach((dot, dotIndex) => {
+      dot.classList.toggle("done", dotIndex < index - 1);
+      dot.classList.toggle("now", dotIndex === index - 1);
+    });
+  }
+
+  /** Lesson 2: the move is being played; the camera follows the builders. Non-blocking. */
+  function showBuildCoach(buildingId: string | null): void {
+    const building = buildingId ? BUILDINGS[buildingId] : null;
+    setLesson(2, building ? "WATCH IT RISE" : "THE CITY WORKS");
+    tutorialCoachTitle.textContent = building ? `Builders are raising your ${building.name}` : "Your city works while you gather";
+    tutorialCoachCopy.innerHTML = building
+      ? `Watch the builders walk from the Town Hall to its plot. Every building has its own place in the city: fields to the west, forest to the north-east, the army to the south.<br><span class="coach-hint">In a hurry? Drag <strong>Game speed</strong> (top left) to 8×.</span>`
+      : `No new building this move, but every building still works and your stockpile grows.<br><span class="coach-hint">In a hurry? Drag <strong>Game speed</strong> (top left) to 8×.</span>`;
+    tutorialNext.classList.add("hidden");
+    tutorialCoach.dataset.step = "build";
+    tutorialCoach.classList.remove("hidden");
+    buildPanel.classList.remove("tutorial-focus");
+    ux("ux_tutorial_step", { step: "build" });
+  }
+
+  /** Lesson 5: the goal, stars and badges; finishing celebrates. */
+  function showGoalCoach(): void {
+    setLesson(5, "WIN THE BATTLE");
+    tutorialCoachTitle.textContent = `After move ${campaignMoveLimit}, the enemy attacks`;
+    tutorialCoachCopy.innerHTML = `Your army fights in a battle popup. You see who is stronger before you press <strong>Fight</strong>.<br>Win to earn <strong>★★★</strong>: one for the victory, one for never running out of people, one for never running out of supplies. Special wins earn <strong>royal badges</strong> 🏅.<br><span class="coach-hint">Tap <strong>Resources</strong> at the top any time to see your stockpile and army.</span>`;
+    tutorialNext.textContent = "Let’s build my city!";
+    tutorialNext.classList.remove("hidden");
+    tutorialCoach.dataset.step = "goal";
+    tutorialCoach.classList.remove("hidden");
+    persistentHud.classList.add("tutorial-glow");
+    ux("ux_tutorial_step", { step: "goal" });
+  }
+
+  // A short centre celebration (tutorial done, a tip): big words, a burst of confetti.
+  const cheer = document.createElement("div");
+  cheer.className = "cheer hidden";
+  cheer.setAttribute("role", "status");
+  cheer.setAttribute("aria-live", "polite");
+  app.appendChild(cheer);
+  let cheerTimer = 0;
+  function celebrate(title: string, copy = ""): void {
+    window.clearTimeout(cheerTimer);
+    cheer.innerHTML = `${reducedMotion() ? "" : `<div class="confetti" aria-hidden="true">${Array.from({ length: 22 }, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>`}<strong>${escapeHtml(title)}</strong>${copy ? `<span>${escapeHtml(copy)}</span>` : ""}`;
+    cheer.classList.remove("hidden");
+    cheerTimer = window.setTimeout(() => cheer.classList.add("hidden"), 2600);
+  }
+
+  // One-time advisor tips after the tutorial (per browser: a convenience, not progress).
+  const TIP_KEY = "grow-an-empire:tips:v1";
+  const tip = document.createElement("aside");
+  tip.className = "advisor-tip hidden";
+  tip.setAttribute("role", "status");
+  tip.setAttribute("aria-live", "polite");
+  app.appendChild(tip);
+  let tipTimer = 0;
+  function tipsSeen(): Set<string> {
+    try { return new Set(JSON.parse(window.localStorage.getItem(TIP_KEY) ?? "[]") as string[]); } catch { return new Set(); }
+  }
+  /** Shows an advisor tip once per browser; returns false if it was already seen or the tutorial is running. */
+  function showTip(id: string, title: string, copy: string): boolean {
+    if (tutorialActive) return false;
+    const seen = tipsSeen();
+    if (seen.has(id)) return false;
+    seen.add(id);
+    try { window.localStorage.setItem(TIP_KEY, JSON.stringify([...seen])); } catch { /* Storage unavailable: the tip may show again. */ }
+    window.clearTimeout(tipTimer);
+    tip.innerHTML = `<span class="advisor" aria-hidden="true"></span><div><span class="tip-kicker">Mantri’s tip</span><strong>${escapeHtml(title)}</strong><p>${escapeHtml(copy)}</p></div><button type="button" aria-label="Close tip">✕</button>`;
+    tip.querySelector("button")!.addEventListener("click", () => tip.classList.add("hidden"));
+    tip.classList.remove("hidden");
+    tipTimer = window.setTimeout(() => tip.classList.add("hidden"), 9000);
+    ux("ux_tip_shown", { tip: id });
+    return true;
+  }
+
   function showChoiceCoach(): void {
     tutorialScrim.classList.add("hidden");
     callbacks.onTutorialModalChange(false);
-    tutorialStepsSeen = Math.max(tutorialStepsSeen, 1);
-    tutorialStep.textContent = "LESSON 1 OF 3 · CHOOSE";
+    setLesson(1, "CHOOSE");
     tutorialCoachTitle.textContent = "Choose your first building";
     const suggested = suggestedFirstChoice();
     const building = suggested ? BUILDINGS[suggested] : null;
@@ -938,10 +1040,9 @@ export function createHud(callbacks: HudCallbacks) {
   function showResultCoach(): void {
     const summary = lastPanelView?.summary;
     if (!summary || !lastPanelView) return;
-    tutorialStepsSeen = Math.max(tutorialStepsSeen, 2);
-    tutorialStep.textContent = "LESSON 2 OF 3 · SEE IT WORK";
+    setLesson(3, "READ THE REPORT");
     tutorialCoachTitle.textContent = summary.buildingId ? `${BUILDINGS[summary.buildingId]?.name ?? "Your building"} is ready!` : "Gather move complete";
-    tutorialCoachCopy.innerHTML = "This is your move report. Each row shows what a building used and made. The totals show your supplies <strong>before → after</strong>.<br><span class=\"coach-hint\">Read it, then press <strong>Choose</strong> below. You’ll see this report after every move.</span>";
+    tutorialCoachCopy.innerHTML = "This is your move report. Each row shows what a building used and made. The totals show your supplies <strong>before → after</strong>.<br><span class=\"coach-hint\">Green numbers are gains. A ⚠ row means something stopped: fix it to keep your stars. Press <strong>Choose</strong> below.</span>";
     tutorialCoach.dataset.step = "report";
     tutorialNext.classList.add("hidden");
     tutorialCoach.classList.remove("hidden");
@@ -952,11 +1053,10 @@ export function createHud(callbacks: HudCallbacks) {
   function showGrowthCoach(): void {
     tutorialScrim.classList.add("hidden");
     callbacks.onTutorialModalChange(false);
-    tutorialStepsSeen = Math.max(tutorialStepsSeen, 3);
-    tutorialStep.textContent = "LESSON 3 OF 3 · PREPARE TO DEFEND";
+    setLesson(4, "PLAN YOUR CITY");
     tutorialCoachTitle.textContent = "Build a supply chain, then an army";
-    tutorialCoachCopy.innerHTML = `<strong>Wood → ${escapeHtml(BUILDINGS.sawmill.name)} → planks.</strong> Add a ${escapeHtml(BUILDINGS.quarry.name)} for stone.<br><strong>Grain → ${escapeHtml(BUILDINGS.bakery.name)} → rations</strong> to feed soldiers.<br>${escapeHtml(BUILDINGS["weapons-workshop"].name)} and ${escapeHtml(BUILDINGS.blacksmith.name)} train automatically when supplied. A ${escapeHtml(BUILDINGS.house.name)} brings more people.<br><span class="coach-hint">Battle comes after move <strong>${campaignMoveLimit}</strong>. Compare armies in the muster before you Fight. Win to unlock the next campaign!</span>`;
-    tutorialNext.textContent = "I’m ready to grow my city";
+    tutorialCoachCopy.innerHTML = `<strong>Wood → ${escapeHtml(BUILDINGS.sawmill.name)} → planks.</strong> Add a ${escapeHtml(BUILDINGS.quarry.name)} for stone.<br><strong>Grain → ${escapeHtml(BUILDINGS.bakery.name)} → rations</strong> to feed soldiers.<br>${escapeHtml(BUILDINGS["weapons-workshop"].name)} and ${escapeHtml(BUILDINGS.blacksmith.name)} train automatically when supplied. A ${escapeHtml(BUILDINGS.house.name)} brings more people.<br><span class="coach-hint">Build producers first, then trainers. Soldiers gather on the parade ground by the south gate.</span>`;
+    tutorialNext.textContent = "Next lesson";
     tutorialNext.classList.remove("hidden");
     tutorialCoach.dataset.step = "growth";
     tutorialCoach.classList.remove("hidden");
@@ -969,7 +1069,7 @@ export function createHud(callbacks: HudCallbacks) {
   }
 
   function handleTutorialEvent(event: "first-move-complete"): void {
-    if (event === "first-move-complete" && tutorialActive && tutorialCoach.dataset.step === "choice") showResultCoach();
+    if (event === "first-move-complete" && tutorialActive && (tutorialCoach.dataset.step === "choice" || tutorialCoach.dataset.step === "build")) showResultCoach();
   }
 
   playToggle.addEventListener("click", callbacks.onPlayToggle);
@@ -1067,8 +1167,10 @@ export function createHud(callbacks: HudCallbacks) {
     }
   });
   tutorialNext.addEventListener("click", () => {
+    if (tutorialCoach.dataset.step === "growth") { showGoalCoach(); tutorialNext.focus({ preventScroll: true }); return; }
     const hadFocus = document.activeElement === tutorialNext;
     finishTutorial(false);
+    celebrate("You’re ready, Raja!", "Tutorial complete. Grow your empire.");
     if (hadFocus) focusFirst(helpToggle, buildPanel.querySelector<HTMLElement>("button:not([disabled])"), cityUiToggle);
   });
   musterToggle.addEventListener("click", callbacks.onReportToggle);
@@ -1145,6 +1247,8 @@ export function createHud(callbacks: HudCallbacks) {
 
   return {
     showMovesLeft,
+    showTip,
+    celebrate,
     viewport,
     loading,
     setLoadingProgress,

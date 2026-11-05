@@ -1,5 +1,13 @@
 # QA results
 
+## v0.16.0 (2026-11-05): logical city plan, growing camera, clearer popups, five-lesson tutorial, badges
+
+- TypeScript, ESLint and **359 tests / 36 files** pass. New: city-quarter logic and spacing (`functionalCity.test.ts`), growing-city camera bounds (`cameraFit.test.ts`), badge rules (`badges.test.ts`), badge save read/merge (`badgeSave.test.ts`).
+- Browser (Chromium, software GL): `gameplay.py` **ALL PASS** (full Campaign 1 with tutorial, reloads, battle, 3 stars, badges revealed, Campaign 2 opened, no console errors); `tutorial_polish.py` pass at 1280×720, 390×844, 844×390 and 375×667 (five lessons, coach inside the stage, beside or above the tray, ≥14 px text); `ui_tray.py` pass; `text_budget.py` all screens within budget (tutorial 35/44 in both phone orientations).
+- `viewports.py`: all sizes pass except **667×375 map**, a 3 px `#resource-hud × .campaign-map-heading` overlap that is identical on 0.15.0 (pre-existing, not introduced here).
+- All 24 plots checked in the real renderer with `Tools/dev/art-review.html` (no overlaps; garrison on the parade ground).
+- `pnpm package`: all bundle checks pass, **18,428,482 bytes**, **159 entries**, SHA-256 `31D18702302A50F36DCDB3F877570C841DDBEB8819CBCC1AA6E15C611FB1D5F7`.
+
 ## v0.15.0 (2026-10-25): victory and campaign care stars
 
 - TypeScript, ESLint and **351 tests / 34 files** pass. Coverage includes independent bonus combinations, defeat gating, narrow and overwhelming victories, blocked production/recruitment, unpaid upkeep before camp supplies, excluded low reserves/spending/partial output, resets, reloads and v4/v5/v6 migrations. The protected v4 fixture is unchanged. Log: `Tools/qa/out/rating-check.txt`.

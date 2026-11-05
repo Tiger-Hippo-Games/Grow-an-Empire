@@ -5,6 +5,8 @@ import { CAMPAIGNS, campaignById, isCampaignUnlocked, totalStars, type CampaignD
 import { missingFor, SettlementSimulation, type SellswordHire, type SettlementSnapshot, type SimulationEvent } from "./game/settlementSimulation";
 import { isRegisteredPlayer, leaderboardEntry, type LeaderboardEntry } from "./game/leaderboard";
 import { AiRealmSource, campedAt, conquerorsByCampaign, newRealmState, realmStanding, readRealmState, recordBattle, standingFromStars, visitRealm, type RealmState } from "./game/realm";
+import { awardBadges, BADGES, mergeBadges, progressBadges, readBadges } from "./game/badges";
+import { createBadgeGallery } from "./ui/badges";
 import { createPlatform } from "./platform/adapters";
 import { createScoreSubmission } from "./platform/scoreSubmission";
 import type { PlayerInfo } from "./platform/types";
@@ -14,7 +16,7 @@ import { isGameError, isGameRejection } from "./platform/errorFilter";
 import { hasDebugFlag } from "./platform/debugFlags";
 import { checkFont, onAssetProblem, recordImageFailed } from "./platform/assetHealth";
 import { createSceneSetup } from "./render/sceneSetup";
-import { civicGround, createCityLayout, getBuildingPosition, loadEmptyTerrain, loadForest, type TerrainHandle } from "./render/cityLayout";
+import { cityContentBounds, civicGround, createCityLayout, getBuildingPosition, loadEmptyTerrain, loadForest, type TerrainHandle } from "./render/cityLayout";
 import { createCivicCenter } from "./render/civicCenter";
 import { createWorkerAnimation } from "./render/workerAnimation";
 import { createConstructionView } from "./render/constructionView";
@@ -28,6 +30,7 @@ import { createRealmBoard } from "./ui/realmBoard";
 import { createSound } from "./ui/sound";
 import "./styles.css";
 import "./ui/polish.css";
+import "./ui/enhance.css";
 
 // This file is the orchestrator: it owns nothing about *how* to draw a
 // building, animate a villager, or lay out a road — that lives in
@@ -94,6 +97,8 @@ let simulation = new SettlementSimulation();
 let completedCampaignIds: string[] = [];
 /** Best stars per campaign id (saved; unlocks later campaigns). */
 let campaignStars: Record<string, number> = {};
+/** 0.16.0 achievement badges earned (game/badges.ts), saved beside the stars. */
+let badges: string[] = [];
 /** The signed-in portal player (null offline), for the leaderboard. */
 let player: PlayerInfo | null = null;
 /** Last leaderboard entry saved or reported (keeps its time when nothing improved). */
@@ -324,6 +329,7 @@ const flow = createCampaignFlow(document.getElementById("app")!, {
     hud.setStatus(simulation.state.armyReport?.win ? "Victory: the city stands. Open the campaign map to go on." : "The city fell. Replay from the campaign map.", 1);
   },
   onSound: (name) => { sound.play(name); requestRender(); },
+  onBadges: () => openBadges(),
   onModalChange: (open) => setModalPause(open),
   isPlaybackPaused: () => pausedByPortal || contextLost || loopFailed || renderFailed,
   onUxEvent: (name, properties) => {
@@ -385,6 +391,9 @@ function openRealmBoard(): void {
   realmBoard.show({ source: realmSource, state: realm, player: standingFromStars(campaignStars, playerName()) });
 }
 const campaignMap = createCampaignMap(selectCampaign, openRealmBoard);
+const badgeGallery = createBadgeGallery(document.getElementById("app") ?? document.body, () => sound.play("click"));
+const openBadges = (): void => { badgeGallery.open(badges); track("ux_badges_opened", { earned: badges.length }); };
+campaignMap.setBadges([], BADGES.length, openBadges);
 document.getElementById("realm-toggle")?.addEventListener("click", openRealmBoard);
 /** Pushes the realm's counts, camps and the player's rank to the map. */
 function refreshRealm(): void {
@@ -420,7 +429,17 @@ function createSceneOrExplain(): ReturnType<typeof createSceneSetup> {
     throw error;
   }
 }
-const { renderer, scene, camera, resize: resizeCamera, quality, viewBounds } = createSceneOrExplain();
+const { renderer, scene, camera, resize: resizeCamera, quality, viewBounds, setFocus: setCameraFocus, setCityBounds, updateCamera } = createSceneOrExplain();
+/** 0.16.0: frames the city that exists now (plus a plot under construction and the parade ground). */
+function frameCity(): void {
+  const ids = [...simulation.state.builtBuildingIds];
+  const building = simulation.state.selectedBuildingId;
+  if (simulation.state.mode === "construction" && building) ids.push(building);
+  const units = simulation.state.trainedUnits;
+  setCityBounds(cityContentBounds(ids, units.swordsmen + units.archers + units.horsemen > 0));
+}
+/** Real time (ms) when the construction close-up returns to the whole city; 0 = none pending. */
+let focusReleaseAt = 0;
 let terrain: TerrainHandle | null = null;
 /** Resizes the canvas and camera, and stretches the terrain to cover the new view. */
 function resize(): void {
@@ -500,6 +519,11 @@ function presentBattle(animate: boolean): void {
     track("realm_rank", { rank: result.after.rank, of: result.after.of, before: result.before, overtaken: result.overtaken, season: realm.season, campaign_number: simulation.campaign.number });
   }
   if (report.win && !completedCampaignIds.includes(id)) completedCampaignIds.push(id);
+  // Badges: only a fought battle reveals new ones (a reopened result shows the gallery state).
+  const award = awardBadges(badges, campaignStars, { campaign: simulation.campaign, report, builtBuildingIds: simulation.state.builtBuildingIds });
+  const freshBadges = animate ? award.fresh : [];
+  badges = award.all;
+  for (const badgeId of freshBadges) track("badge_earned", { badge: badgeId, campaign_number: simulation.campaign.number });
   if (report.stars > previousBest) reportLeaderboard("improved");
   if (animate) scoreSubmission.submit(leaderboardEntry(campaignStars, leaderboard), player);
   const next = CAMPAIGNS[simulation.campaign.number];
@@ -513,7 +537,10 @@ function presentBattle(animate: boolean): void {
     newRecord: report.stars > previousBest,
     askClarity: animate && !clarityAsked(),
     realm: realmView,
+    newBadges: freshBadges,
+    badgeCount: badges.length,
   };
+  campaignMap.setBadges(badges);
   if (view.askClarity) rememberClarityAsked();
   hud.setReportAvailable(true);
   hud.setStatus(`Campaign complete: ${report.win ? `victory ${"★".repeat(report.stars)}` : "the city fell"}`, 1);
@@ -568,7 +595,7 @@ function buildPanelView(): BuildPanelView {
 /** The current run as a save (snapshot + run id + settings + stars + leaderboard standing). */
 function currentSave(): SavedGame {
   leaderboard = leaderboardEntry(campaignStars, leaderboard);
-  return { ...simulation.serialize(), runId: saveRunId, settings, completedCampaignIds, campaignStars, leaderboard, realm };
+  return { ...simulation.serialize(), runId: saveRunId, settings, completedCampaignIds, campaignStars, leaderboard, realm, ...(badges.length ? { badges } : {}) };
 }
 
 /**
@@ -661,6 +688,10 @@ async function beginConstruction(buildingId: string, options: { swap?: boolean }
   cityLayout.placementPad.position.set(plot.x, plot.y + 0.12, 0.5);
   cityLayout.placementPad.visible = true;
   hud.hideBuildPanel();
+  // 0.16.0: the camera eases in on the new plot so the player sees where it went and watches it rise.
+  focusReleaseAt = 0;
+  frameCity();
+  setCameraFocus({ x: plot.x, y: plot.y + 2.4 }, 1.4);
   hud.hideMilestone();
   workerAnimation.worker.visible = true;
   workerAnimation.placeWorker(civicGround);
@@ -690,6 +721,9 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       cityLayout.syncBuiltBuildings(simulation.state.builtBuildingIds);
       sound.play("complete");
       hud.showBuiltMilestone(event.buildingId, animationElapsed);
+      constructionView.celebrate(event.buildingId, animationElapsed);
+      focusReleaseAt = performance.now() + 1300; // Hold the close-up on the finished building, then show the whole city.
+      frameCity();
     } else if (event.type === "gathered") {
       sound.play("gather");
       hud.showMilestone("Gathering", "Nothing built; every building worked.", animationElapsed);
@@ -707,9 +741,15 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
       // requirement.
       constructionView.loadBuildingAssets(event.options).catch((error: unknown) => console.error(error));
       hud.renderBuildPanel(buildPanelView());
-      if (simulation.state.lastSummary?.warnings.length) sound.play("warning");
+      if (simulation.state.lastSummary?.warnings.length) {
+        sound.play("warning");
+        hud.showTip("first-warning", "Something stopped working", "A ⚠ in the report means a building lacked supplies or people. Fix it to keep the ★ for no resource or population issues.");
+      }
+      if (simulation.state.lastSummary?.buildingId === "marketplace") hud.showTip("bazaar", "The Bazaar is open", "Before the battle you can hire sellswords with gold. If a card is short of goods, the Bazaar can swap spare goods for it.");
     } else if (event.type === "muster-ready") {
-      hud.showMovesLeft(0);
+      focusReleaseAt = 0;
+      setCameraFocus(null);
+      frameCity();
       openMuster();
     } else if (event.type === "economy-resolved") {
       for (const buildingId of event.activeBuildingIds) constructionView.markProduced(buildingId, animationElapsed);
@@ -718,6 +758,9 @@ function handleSimulationEvents(events: SimulationEvent[]): void {
     } else if (event.type === "unit-trained") {
       villagerField.syncGarrison(event.units, crowdElapsed, simulation.state.builtBuildingIds);
       sound.play("trained");
+      frameCity();
+      if (event.newElephants) hud.showTip("elephant", "A war elephant joins you!", "Each elephant fights like four swordsmen, but eats 2 rations a move. Keep the kitchens busy.");
+      else hud.showTip("first-soldiers", "Your first soldiers!", "They march to the parade ground by the south gate. Keep their trainers supplied and more will join every move.");
       const trained = [
         event.newSwordsmen && `${event.newSwordsmen} swordsm${event.newSwordsmen === 1 ? "a" : "e"}n`,
         event.newArchers && `${event.newArchers} archer${event.newArchers === 1 ? "" : "s"}`,
@@ -770,6 +813,8 @@ function buildOrderNames(): string[] {
 /** Starts a brand-new run and resets every render/UI object to match (also used when a save can't be restored). */
 function resetSettlement(): void {
   runId += 1;
+  focusReleaseAt = 0;
+  setCameraFocus(null);
   selectionPending = false;
   loopFailed = false;
   sound.setPaused(pausedByPortal);
@@ -792,10 +837,14 @@ function resetSettlement(): void {
   document.getElementById("app")?.classList.remove("fighting");
   villagerField.syncVillagers(simulation.state.builtBuildingIds);
   villagerField.syncGarrison(simulation.state.trainedUnits);
+  focusReleaseAt = 0;
+  setCameraFocus(null);
+  frameCity();
   workerAnimation.worker.visible = true;
   workerAnimation.placeWorker(civicGround);
   workerAnimation.useCharacter("builder");
   hud.renderBuildPanel(buildPanelView());
+  frameCity();
   requestRender();
 }
 
@@ -831,6 +880,9 @@ function hydrateFromLoadedState(): void {
   hud.updateHud(stateSnapshot());
   villagerField.syncVillagers(simulation.state.builtBuildingIds);
   villagerField.syncGarrison(simulation.state.trainedUnits);
+  focusReleaseAt = 0;
+  setCameraFocus(null);
+  frameCity();
 
   const { selectedBuildingId: buildingId, activePlotIndex: plotIndex } = simulation.state;
   if (simulation.state.mode === "construction" && buildingId !== null && plotIndex !== null) {
@@ -980,6 +1032,7 @@ function applyTestingUrlFlags(): boolean {
   progress.clear();
   completedCampaignIds = [];
   campaignStars = {};
+  badges = [];
   try { window.localStorage.removeItem("grow-an-empire:tutorial:v1"); } catch { /* Storage unavailable. */ }
   url.searchParams.delete("reset");
   try {
@@ -1047,6 +1100,9 @@ async function initialize(): Promise<void> {
     campaignStars = { ...saved.campaignStars };
     leaderboard = saved.leaderboard ?? null;
     realm = readRealmState(saved.realm);
+    // Returning players keep every progress badge their stars already earned.
+    badges = mergeBadges(readBadges(saved.badges), progressBadges(campaignStars));
+    campaignMap.setBadges(badges);
     const report = saved.state.mode === "complete" ? saved.state.armyReport : null;
     if (report?.win) {
       if (!completedCampaignIds.includes(saved.campaignId)) completedCampaignIds.push(saved.campaignId);
@@ -1135,6 +1191,8 @@ function frame(): void {
   animationElapsed += delta;
   crowdElapsed += realDelta * Math.sqrt(speed);
   if (cityLayout.update(realDelta)) villagerField.setRoadScale(cityLayout.roadScale);
+  if (focusReleaseAt && performance.now() >= focusReleaseAt) { focusReleaseAt = 0; setCameraFocus(null); }
+  if (updateCamera(realDelta)) { const view = viewBounds(); terrain?.fit(view.width, view.height, view.centerX, view.centerY); }
   handleSimulationEvents(simulation.update(delta));
   const { mode, selectedBuildingId, activePlotIndex } = simulation.state;
   if (mode === "construction" && selectedBuildingId !== null && activePlotIndex !== null) {

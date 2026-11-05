@@ -10,6 +10,7 @@ import { assetUrl } from "../render/assetCatalog";
 import { BUILDINGS } from "../game/content";
 import { escapeHtml, focusFirst, trapTab } from "./dom";
 import { amount, icon } from "./icons";
+import { badgeRevealHtml } from "./badges";
 
 /**
  * The campaign's story screens, all modal dialogs over the city:
@@ -102,6 +103,9 @@ export interface ResultView {
   newRecord: boolean;
   /** The realm standing after this battle (absent on an old result reopened from a save). */
   realm?: RealmView;
+  /** 0.16.0: badges this battle earned (revealed with a fanfare) and the total now held. */
+  newBadges?: string[];
+  badgeCount?: number;
 }
 
 /** The player's place in the realm after a result (game/realm.ts). */
@@ -171,6 +175,8 @@ export interface FlowCallbacks {
   isPlaybackPaused?(): boolean;
   /** UX analytics (Docs/PLAYTEST_PORTAL.md): Details opened, the clarity vote. */
   onUxEvent?(name: string, properties: Record<string, unknown>): void;
+  /** 0.16.0: open the badge gallery over the result. */
+  onBadges?(): void;
 }
 
 export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) {
@@ -319,10 +325,12 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       ${mods.militiaStrength && view.militia ? `<p class="flow-note defences"><span aria-hidden="true">${amount("militia", view.militia)}${amount("strength", "×2", {})}</span><span class="ws"> The Burj: militia fight at full strength</span></p>` : ""}
       ${bonus ? `<p class="flow-note defences"><span aria-hidden="true">${amount("strength", `${Math.round(bonus * 100)}%`, { sign: "+" })}</span><span class="ws"> The Dharma Stambha: the army fights ${Math.round(bonus * 100)}% stronger</span></p>` : ""}
       ${view.deserted ? `<p class="flow-note deserted"><span aria-hidden="true">${icon("warning")}${amount("people", view.deserted, { sign: "−", className: "loss" })}${icon("rations")}</span><span class="ws"> ${view.deserted} soldiers deserted for lack of rations (an older save)</span></p>` : ""}
-      <div class="forecast"><div class="forecast-bar"><i data-bar></i></div><p data-forecast aria-live="polite"></p></div>
+      <div class="verdict" data-verdict aria-live="polite"></div>
+      <div class="forecast"><div class="forecast-labels" aria-hidden="true"><span>${icon("strength")} You</span><span>Enemy</span></div><div class="forecast-bar"><i data-bar></i></div><p data-forecast></p></div>
       ${market}
-      <div class="flow-actions"><button type="button" data-primary data-action="fight">Fight</button></div>`);
+      <div class="flow-actions"><button type="button" class="fight-button" data-primary data-action="fight">${icon("swordsmen")}<span>Fight!</span></button></div>`);
     const ours = dialog.querySelector<HTMLElement>("[data-ours]")!;
+    const verdict = dialog.querySelector<HTMLElement>("[data-verdict]")!;
     const forecast = dialog.querySelector<HTMLElement>("[data-forecast]")!;
     const bar = dialog.querySelector<HTMLElement>("[data-bar]")!;
     const budget = Math.min(view.cap, Math.floor(view.gold / SELLSWORD_COST));
@@ -337,6 +345,14 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       const outcome = resolveBattle(army, enemy, mods);
       const rating = campaignRating(outcome.win, view.campaignHealth);
       bar.style.width = `${Math.round((mine / Math.max(1e-9, mine + theirs)) * 100)}%`;
+      // 0.16.0: one big, plain verdict before the numbers.
+      const tone = !outcome.win ? "bad" : outcome.margin < 0.3 ? "close" : "good";
+      const headline = tone === "good" ? "Victory likely" : tone === "close" ? "A close fight" : "Outmatched";
+      const advice = tone === "good" ? "Your army is stronger. Fight when ready."
+        : tone === "close" ? (view.hasMarketplace && budget > 0 ? "You should win, but barely. Sellswords make it safer." : "You should win, but barely.")
+        : view.hasMarketplace && budget > 0 ? "Hire sellswords below, or fight and learn." : "Fight and learn, then replay with more soldiers.";
+      verdict.className = `verdict ${tone}`;
+      verdict.innerHTML = `<span class="verdict-stars" aria-hidden="true">${outcome.win ? `${"★".repeat(rating.stars)}<i>${"☆".repeat(3 - rating.stars)}</i>` : "✕"}</span><span class="verdict-text"><strong>${headline}</strong><small>${advice}</small></span>`;
       forecast.innerHTML = `<span aria-hidden="true">${strengthLine(mine, theirs)} ${outcome.win
         ? `<span class="good">Win ${starText(rating.stars)}</span>`
         : `<span class="bad">Defeat</span>`}</span><span class="sr">Strength ${mine.toFixed(1)} against ${theirs.toFixed(1)}. Forecast: ${outcome.win ? `victory, ${winText(outcome.margin)}, ${rating.stars} stars` : "defeat"}</span>`;
@@ -421,8 +437,11 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       ? `<p class="flow-note">${icon("lock")} More ★ open ${escapeHtml(next.name)}: replay for stars.</p>` : "";
     show("result", `
       <p class="flow-kicker">CAMPAIGN ${campaign.number} · ${escapeHtml(campaign.name.toUpperCase())}</p>
-      <h2 class="${report.win ? "good" : "bad"}">${report.win ? "Victory" : "The city has fallen"}</h2>
-      <p class="result-stars" role="img" aria-label="${report.stars} of 3 stars">${starText(report.stars)}</p>
+      <div class="result-banner ${report.win ? "won" : "lost"}">${report.win && !quiet ? `<div class="confetti" aria-hidden="true">${Array.from({ length: 18 }, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>` : ""}
+        <h2 class="${report.win ? "good" : "bad"}">${report.win ? "Victory!" : "The city has fallen"}</h2>
+        <p class="result-stars${quiet ? " quiet" : ""}" role="img" aria-label="${report.stars} of 3 stars">${[0, 1, 2].map((i) => `<span class="${i < report.stars ? "on" : "off"}" style="--i:${i}">${i < report.stars ? "★" : "☆"}</span>`).join("")}</p>
+      </div>
+      ${badgeRevealHtml(result.newBadges ?? [])}
       ${resultGoals(report)}
       ${result.newRecord && report.stars > 0 ? `<p class="flow-note good">New best!</p>` : result.bestStars > report.stars ? `<p class="flow-note">Best: ${starText(result.bestStars)}</p>` : ""}
       ${result.realm ? realmLine(result.realm) : ""}
@@ -434,7 +453,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       <p class="result-order-text"><span>Build order</span> ${result.buildOrder.map(escapeHtml).join(" → ")}</p>${result.realm ? realmDetails(result.realm) : ""}`)}
       ${lockedNote}
       ${result.askClarity && !quiet ? `<div class="clarity" data-clarity><span>Easy to follow?</span><button type="button" data-vote="up" aria-label="Yes, easy to follow" title="Yes">${icon("thumbup")}</button><button type="button" data-vote="down" aria-label="No, hard to follow" title="No">${icon("thumbdown")}</button></div>` : ""}
-      <div class="flow-actions">${nextButton}<button type="button" ${nextButton ? "class=\"quiet icon-button\"" : "data-primary"} data-action="replay" aria-label="${replayLabel}" title="${replayLabel}">${icon("restart")}<span class="${nextButton ? "w" : ""}">${report.win ? "Replay" : "Try again"}</span></button><button type="button" class="quiet icon-button" data-action="map" aria-label="Campaign map" title="Campaign map">${icon("map")}<span class="w">Campaign map</span></button><button type="button" class="quiet icon-button" data-action="city" aria-label="View the city" title="View the city">${icon("eye")}<span class="w">View the city</span></button></div>`);
+      <div class="flow-actions">${nextButton}<button type="button" ${nextButton ? "class=\"quiet icon-button\"" : "data-primary"} data-action="replay" aria-label="${replayLabel}" title="${replayLabel}">${icon("restart")}<span class="${nextButton ? "w" : ""}">${report.win ? "Replay" : "Try again"}</span></button><button type="button" class="quiet icon-button" data-action="map" aria-label="Campaign map" title="Campaign map">${icon("map")}<span class="w">Campaign map</span></button><button type="button" class="quiet icon-button" data-action="city" aria-label="View the city" title="View the city">${icon("eye")}<span class="w">View the city</span></button>${callbacks.onBadges ? `<button type="button" class="quiet icon-button badge-button" data-action="badges" aria-label="Badges: ${result.badgeCount ?? 0} earned" title="Badges">🏅<b>${result.badgeCount ?? 0}</b></button>` : ""}</div>`);
+    dialog.querySelector("[data-action=badges]")?.addEventListener("click", () => callbacks.onBadges?.());
     if (!quiet) rollRank(dialog);
     dialog.querySelectorAll<HTMLButtonElement>("[data-vote]").forEach((button) => button.addEventListener("click", () => {
       callbacks.onUxEvent?.("ux_clarity_vote", { vote: button.dataset.vote, campaign_number: campaign.number, won: report.win, stars: report.stars });

@@ -7,16 +7,12 @@ import { CHARACTER_FILES, directionFromVector, roleForBuilding, walkAtlasIndex, 
 describe("functional city routes", () => {
   it("places every building at its reserved anchor in the 1920 × 1080 plan", () => {
     const anchors: Record<string, [number, number]> = {
-      marketplace: [1200, 650], house: [700, 625],
-      woodcutter: [1639, 292], sawmill: [1466, 454],
-      farm: [208, 294], bakery: [499, 476], granary: [398, 335],
-      "fruit-orchard": [221, 609], winery: [424, 657],
-      "swine-farm": [206, 767], butchery: [441, 820],
-      quarry: [1634, 611], blacksmith: [1433, 657],
-      "weapons-workshop": [1447, 797], barracks: [1693, 820],
-      stable: [1240, 900],
-      baoli: [650, 270], prakara: [700, 880], gajashala: [1170, 765], "dharma-stambha": [1180, 330],
-      burj: [820, 200], sarai: [300, 450], koshagar: [1290, 520], dharmashala: [1000, 270],
+      farm: [220, 300], granary: [410, 300], baoli: [330, 480], bakery: [545, 465],
+      "fruit-orchard": [190, 640], winery: [410, 660], "swine-farm": [200, 830], butchery: [420, 850],
+      house: [690, 620], dharmashala: [720, 330], koshagar: [1000, 270], "dharma-stambha": [960, 720], marketplace: [1200, 640],
+      woodcutter: [1650, 290], sawmill: [1440, 300], sarai: [1420, 490],
+      quarry: [1660, 600], blacksmith: [1460, 700], "weapons-workshop": [1700, 830],
+      burj: [500, 1000], prakara: [700, 920], barracks: [1300, 900], stable: [1500, 990], gajashala: [1740, 1010],
     };
     const distinct = new Set<string>();
     expect(Object.keys(anchors).sort()).toEqual(Object.keys(BUILDINGS).sort());
@@ -27,6 +23,29 @@ describe("functional city routes", () => {
       distinct.add(`${point.x},${point.y}`);
     }
     expect(distinct.size).toBe(Object.keys(anchors).length);
+  });
+
+  it("keeps every quarter logical: fields by water, war on the southern frontier, plots apart", () => {
+    const plan = (id: string) => { const p = getBuildingPosition(id); return { x: p.x * 27 + 960, y: 540 - p.y * 27 }; };
+    const gap = (a: string, b: string) => Math.hypot(plan(a).x - plan(b).x, plan(a).y - plan(b).y);
+    // The Baoli waters the Farm, Mango Grove and Goshala, so it sits among them.
+    for (const watered of ["farm", "fruit-orchard", "swine-farm"]) expect(gap("baoli", watered)).toBeLessThan(400);
+    // Processors stand beside their producers.
+    expect(gap("granary", "farm")).toBeLessThan(220);
+    expect(gap("winery", "fruit-orchard")).toBeLessThan(240);
+    expect(gap("butchery", "swine-farm")).toBeLessThan(240);
+    expect(gap("sawmill", "woodcutter")).toBeLessThan(240);
+    expect(gap("blacksmith", "quarry")).toBeLessThan(240);
+    // Trade and treasury stay with the Bazaar; the Dharmashala with the House.
+    expect(gap("sarai", "marketplace")).toBeLessThan(300);
+    expect(gap("koshagar", "marketplace")).toBeLessThan(450);
+    expect(gap("dharmashala", "house")).toBeLessThan(300);
+    // Every war-quarter building faces the enemy road south of the Town Hall.
+    const hallY = 540 - civicGround.y * 27;
+    for (const id of ["prakara", "burj", "barracks", "stable", "gajashala"]) expect(plan(id).y).toBeGreaterThan(hallY + 300);
+    // No two plots crowd each other.
+    const ids = Object.keys(BUILDINGS);
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) expect(gap(ids[i], ids[j]), `${ids[i]} / ${ids[j]}`).toBeGreaterThan(165);
   });
 
   it("connects buildings in one district without detouring through the Town Hall", () => {

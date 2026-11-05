@@ -20,7 +20,7 @@ with sync_playwright() as p:
         page.wait_for_selector('#tutorial-scrim:not(.hidden)')
         page.screenshot(path=str(OUT/f'{width}-welcome.png'))
         page.click('#tutorial-start')
-        assert 'LESSON 1' in page.inner_text('#tutorial-step')
+        assert 'LESSON 1 OF 5' in page.inner_text('#tutorial-step')
         assert page.locator('.tutorial-pick').count() == 1
         page.screenshot(path=str(OUT/f'{width}-choice.png'))
         page.locator('#speed-slider').evaluate("e=>{e.value='3';e.dispatchEvent(new Event('input',{bubbles:true}))}")
@@ -30,20 +30,26 @@ with sync_playwright() as p:
             page.keyboard.press('1')
         else:
             page.click('.tutorial-pick')
+        # Lesson 2 follows the builders (or the Gather) without blocking the city.
+        page.wait_for_selector('#tutorial-coach[data-step=build]:not(.hidden), #tutorial-coach[data-step=report]:not(.hidden)', timeout=30000)
         page.wait_for_selector('#tutorial-coach[data-step=report]:not(.hidden)', timeout=30000)
+        assert 'LESSON 3 OF 5' in page.inner_text('#tutorial-step')
         assert page.is_visible('.report-continue')
         assert page.is_visible('.move-report')
         page.screenshot(path=str(OUT/f'{width}-report.png'))
         if gather:
             assert 'Gather move complete' in page.inner_text('#tutorial-coach-title')
         page.click('.report-continue')
-        assert 'LESSON 3' in page.inner_text('#tutorial-step')
+        assert 'LESSON 4 OF 5' in page.inner_text('#tutorial-step')
         page.screenshot(path=str(OUT/f'{width}-roadmap.png'))
         # Every coach is contained in the stage and leaves the choice/report tray accessible.
         bounds = page.locator('#tutorial-coach').evaluate("""e=>{const r=e.getBoundingClientRect(),t=document.getElementById('build-panel').getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,trayTop:t.top,trayLeft:t.left,font:parseFloat(getComputedStyle(e.querySelector('p')).fontSize)}}""")
         assert bounds['left'] >= 0 and bounds['right'] <= width+1, bounds
         assert bounds['top'] >= 0 and (bounds['bottom'] <= bounds['trayTop']+1 or bounds['right'] <= bounds['trayLeft']+1), bounds
         assert bounds['font'] >= 14, bounds
+        page.click('#tutorial-next')
+        assert 'LESSON 5 OF 5' in page.inner_text('#tutorial-step')
+        page.screenshot(path=str(OUT/f'{width}-goal.png'))
         page.click('#tutorial-next')
         assert not page.is_visible('#tutorial-coach')
         assert not page.is_visible('#tutorial-scrim')
