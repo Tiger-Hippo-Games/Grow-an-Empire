@@ -276,7 +276,7 @@
 #app:has(.badge-scrim:not(.hidden)) .city-zoom { visibility:hidden; }
 /* Real formation sizes: every soldier occupies a slot, rather than a token plus +N. */
 #app .popup-battlefield { height:360px;container-type:inline-size;--army-height:140px; }
-#app .battle-formation { inset:32px 12px 52%;display:flex;flex-direction:column-reverse;align-items:center;justify-content:flex-start;gap:0;transition:translate 900ms ease;--unit-size:min(40px,calc((100cqw - 48px) / 16),calc(var(--army-height) / var(--army-depth))); }
+#app .battle-formation { inset:32px 12px 52%;display:flex;flex-direction:column-reverse;align-items:center;justify-content:flex-start;gap:0;transition:translate 900ms ease;--unit-size:min(40px,calc((100cqw - 48px) / var(--battle-columns)),calc(var(--army-height) / var(--army-depth))); }
 #app .battle-formation.enemy { inset:52% 12px 32px;flex-direction:column; }
 #app .battle-rank, #app .battle-formation.enemy .battle-rank { position:relative;top:auto;left:auto;width:auto;display:grid;grid-template-columns:repeat(var(--columns),var(--unit-size));gap:0;transform:none!important; }
 #app .battle-actor { position:relative;width:var(--unit-size);height:var(--unit-size);transition:opacity 350ms,filter 350ms,transform 350ms;animation:none!important; }
@@ -286,8 +286,8 @@
 #app .battle-rank .unit-more { display:none; }
 #app .approaching .battle-formation { translate:0 -24px; }
 #app .approaching .battle-formation.enemy { translate:0 24px; }
-#app .striking .battle-actor:not(.fallen) { translate:0 3px; }
-#app .striking .battle-formation.enemy .battle-actor:not(.fallen) { translate:0 -3px; }
+#app .striking .battle-actor.attacking:not(.fallen) { translate:0 3px; }
+#app .striking .battle-formation.enemy .battle-actor.attacking:not(.fallen) { translate:0 -3px; }
 #app .striking .actor-archers:not(.fallen) { translate:0 0; }
 #app .battle-actor.fallen { opacity:.15;translate:0 0;transform:rotate(65deg) scale(.8); }
 #app .enemy-volley { rotate:180deg; }

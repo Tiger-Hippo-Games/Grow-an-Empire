@@ -14,7 +14,7 @@ function formation(side: BattleSide, enemy: boolean, columns: number) {
   const element = document.createElement("section");
   element.className = `battle-formation${enemy ? " enemy" : ""}`;
   element.setAttribute("aria-label", side.title);
-  const rows = new Map<IconKind, { icons: HTMLElement[]; sprites: HTMLElement[]; more: HTMLElement; row: HTMLElement }>();
+  const rows = new Map<IconKind, { icons: HTMLElement[]; sprites: HTMLElement[]; standing: number; more: HTMLElement; row: HTMLElement }>();
   for (const kind of ORDER) {
     const count = side.start[kind] ?? 0;
     if (!count) continue;
@@ -45,9 +45,9 @@ function formation(side: BattleSide, enemy: boolean, columns: number) {
     more.setAttribute("aria-hidden", "true");
     row.appendChild(more);
     element.appendChild(row);
-    rows.set(kind, { icons, sprites, more, row });
+    rows.set(kind, { icons, sprites, standing: count, more, row });
   }
-  return { element, start: side.start, rows };
+  return { element, start: side.start, rows, enemy };
 }
 
 /**
@@ -60,7 +60,9 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
   arena.className = "popup-battlefield approaching";
   arena.style.backgroundImage = `linear-gradient(#12152a66, #30211666), url("${assetUrl("village-empty-terrain-16x9-v2.png")}")`;
   arena.setAttribute("aria-label", "The two armies approach and fight round by round");
-  const columns = Math.min(16, Math.max(1, ...Object.values(player.start), ...Object.values(enemy.start)));
+  const largestArmy = Math.max(Object.values(player.start).reduce((a,b) => a+b, 0), Object.values(enemy.start).reduce((a,b) => a+b, 0));
+  const columns = Math.min(40, Math.max(4, Math.ceil(Math.sqrt(largestArmy * 4))));
+  arena.style.setProperty("--battle-columns", String(columns));
   arena.style.setProperty("--army-depth", String(Math.max(formationDepth(player.start, columns), formationDepth(enemy.start, columns))));
   const sides = [formation(player, false, columns), formation(enemy, true, columns)];
   sides.forEach(side => arena.appendChild(side.element));
@@ -122,6 +124,7 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
           for (const [kind, row] of side.rows) {
             const left = counts[sideIndex][kind];
             const standing = Math.min(left, row.icons.length);
+            row.standing = standing;
             row.icons.forEach((actor, index) => actor.classList.toggle("fallen", index >= standing));
             row.more.textContent = "";
             row.row.setAttribute("aria-label", `${kind}: ${left} of ${side.start[kind]} standing`);
@@ -147,7 +150,10 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
       const phase = ((elapsed - approach) % step) / step;
       arena.classList.toggle("striking", fighting && phase >= .35 && phase < .65);
       for (const side of sides) for (const [kind, row] of side.rows) row.sprites.forEach((sprite, index) => {
-        const pose = fighting && !row.icons[index].classList.contains("fallen") ? combatFrame(kind, phase) : 0;
+        const front = kind === "archers" || (side.enemy ? index < columns : index >= Math.max(0, row.standing - columns));
+        const attacking = fighting && front && index < row.standing;
+        row.icons[index].classList.toggle("attacking", attacking);
+        const pose = attacking ? combatFrame(kind, phase) : 0;
         if (frames.get(sprite) === pose) return;
         frames.set(sprite, pose);
         sprite.style.setProperty("background-position", `${pose % 4 * 100 / 3}% ${pose >= 4 ? 100 : 0}%`);
