@@ -63,11 +63,14 @@ export function createBadgeGallery(root: HTMLElement, onSound?: () => void) {
   root.appendChild(scrim);
   let returnFocus: HTMLElement | null = null;
   const isOpen = (): boolean => !scrim.classList.contains("hidden");
+  // Capture phase: the gallery sits over the result popup, whose own Esc handler must not also fire.
   document.addEventListener("keydown", (event) => {
     if (!isOpen()) return;
+    // Game shortcuts (1–3, G, Enter on the report…) and the dialogs underneath must not react while it is open.
+    event.stopImmediatePropagation();
+    if (event.key === "Escape") { event.preventDefault(); close(); return; }
     trapTab(event, dialog);
-    if (event.key === "Escape") { event.preventDefault(); close(); }
-  });
+  }, true);
   scrim.addEventListener("click", (event) => { if (event.target === scrim) close(); });
 
   function open(earnedIds: readonly string[]): void {

@@ -42,6 +42,9 @@
 /* ---------- Moves left: under the HUD, never over a dialog; urgent near the end ---------- */
 #app .move-countdown { top: calc(var(--hud-bottom, 64px) + 10px); transform: translateX(-50%); padding: 8px 20px; font-size: clamp(1.25rem, 2.6cqw, 1.9rem); animation: gae-drop .4s cubic-bezier(.2,1.4,.4,1) both; }
 #app .move-countdown.urgent { color: #fff; border-color: #ffd36b; background: linear-gradient(180deg, #c3311f, #7d1712); animation: gae-drop .4s cubic-bezier(.2,1.4,.4,1) both, gae-pulse .9s ease-in-out .4s 2; }
+#app .hud-move.urgent { border-radius: 10px; padding: 2px 8px; color: #fff; background: linear-gradient(180deg, #c3311f, #7d1712); box-shadow: 0 0 0 2px #ffd36b; animation: gae-urgent 1.4s ease-in-out infinite; }
+#app .hud-move.urgent b, #app .hud-move.urgent span { color: #fff; }
+@keyframes gae-urgent { 50% { box-shadow: 0 0 0 2px #ffd36b, 0 0 14px 4px #ff8a5a99; } }
 #app:has(.flow-scrim:not(.hidden)) .move-countdown, #app:has(.tutorial-scrim:not(.hidden)) .move-countdown,
 #app:has(#tutorial-coach:not(.hidden)) .move-countdown, #app:has(#tutorial-coach:not(.hidden)) .milestone { visibility: hidden; }
 
@@ -159,7 +162,7 @@
 @keyframes gae-star { from { opacity: 0; transform: scale(.2) rotate(-40deg); } 70% { opacity: 1; transform: scale(1.25) rotate(8deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
 @keyframes gae-confetti { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 0; transform: translateY(420px) rotate(calc(var(--i) * 97deg)); } }
 @media (prefers-reduced-motion: reduce) {
-  #app .tutorial-coach[data-step], #app .milestone[data-kind="built"].visible, #app .move-countdown, #app .move-countdown.urgent, #app .result-stars span.on, #app .badge-reveal, #app .badge-reveal li, #app .advisor-tip, #app .cheer, #app .badge-dialog, #app .fight-button, #app #tutorial-start, #app .tutorial-glow, #app .build-card.tutorial-pick { animation: none !important; }
+  #app .hud-move.urgent, #app .tutorial-coach[data-step], #app .milestone[data-kind="built"].visible, #app .move-countdown, #app .move-countdown.urgent, #app .result-stars span.on, #app .badge-reveal, #app .badge-reveal li, #app .advisor-tip, #app .cheer, #app .badge-dialog, #app .fight-button, #app #tutorial-start, #app .tutorial-glow, #app .build-card.tutorial-pick { animation: none !important; }
   #app .confetti { display: none; }
 }
 
@@ -199,4 +202,6 @@
   #app .tutorial-kicker, #app .tutorial-reassurance { display: none; }
   #app .tutorial-hero .advisor { width: 48px; height: 48px; }
   #app .milestone[data-kind="built"] { left: 12px; transform: none; }
+  /* No free strip for the countdown here; the HUD's Move chip carries the urgency instead. */
+  #app .move-countdown { display: none; }
 }

@@ -1,5 +1,17 @@
 # QA results
 
+## v0.16.1 (2026-11-05): full test pass of 0.16.0, with fixes
+
+Whole QA suite run against 0.16.0, then the fixes, then the affected checks again on the 0.16.1 release ZIP.
+
+- Fixed: Esc in the badge gallery also closed the result popup beneath (gallery keys now captured and isolated); advisor tips covered the move report on phones (tips now wait for the tray to close and appear while builders work); the countdown overlapped the tray in short landscape (hidden there; the HUD Move chip turns red for the last 3 moves).
+- Unit: TypeScript, ESLint, **359 tests / 36 files** pass (one run under heavy parallel browser load had a single timing-sensitive failure; two idle reruns pass).
+- Dev server: `gameplay.py` ALL PASS, `tutorial_polish.py`, `ui_tray.py`, `text_budget.py`, `platform_sdk.py`, `frame_fit.py`, `city_motion.py`, `character_atlases.py` pass. New `features_016.py` **ALL PASS**: badge reveal, gallery from result and map, Tab trap, Esc and focus return, persistence across reload, no repeat reveal, tips once, reduced motion (no animation, no confetti), camera runs at 1920×1080, 390×844, 844×390 and 960×540, returning player earns 9 progress badges, Campaign 25 played with all 24 buildings, no page errors.
+- Preview build: `campaign_map.py`, `campaign_rating.py`, `context_loss.py`, `load_time.py` (1.87 MB to playable, 9.95 s on Slow 4G), `fault_injection.py` (16 scenarios) pass.
+- Release ZIP 0.16.1 on the portal simulator: `portal_iframe.py`, `sdk_v2.py`, `boot_csp.py`, `loading_state.py`, `assets_audio.py` pass; `journey.py` (0.16.0 ZIP, updated for five lessons) completes with no errors; `player_leaderboard.py` pass.
+- `viewports.py`: all pass except the pre-existing 3 px map overlap at 667×375 (also on 0.15.0).
+- `pnpm package`: all bundle checks pass, **18,428,681 bytes**, **159 entries**, SHA-256 `79A3698CDE2487664A7100338A4F6357751A894666321A474D2536209DBFBED9`.
+
 ## v0.16.0 (2026-11-05): logical city plan, growing camera, clearer popups, five-lesson tutorial, badges
 
 - TypeScript, ESLint and **359 tests / 36 files** pass. New: city-quarter logic and spacing (`functionalCity.test.ts`), growing-city camera bounds (`cameraFit.test.ts`), badge rules (`badges.test.ts`), badge save read/merge (`badgeSave.test.ts`).

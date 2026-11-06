@@ -108,6 +108,7 @@ export function createHud(callbacks: HudCallbacks) {
   function showMovesLeft(left: number): void {
     window.clearTimeout(countdownTimer);
     moveCountdown.classList.toggle("urgent", left > 0 && left <= 3);
+    moveCounter.classList.toggle("urgent", left > 0 && left <= 3);
     moveCountdown.textContent = left === 0 ? "The enemy is here!" : left <= 3 ? `Only ${left} ${left === 1 ? "move" : "moves"} left!` : `${left} moves left`;
     moveCountdown.classList.remove("hidden");
     countdownTimer = window.setTimeout(() => moveCountdown.classList.add("hidden"), 2200);
@@ -540,6 +541,7 @@ export function createHud(callbacks: HudCallbacks) {
     appendChoiceHelp();
     buildPanel.classList.add("reporting");
     buildPanel.classList.remove("hidden");
+    tip.classList.add("hidden");
     buildPanel.scrollTop = 0;
     chromeOpen = false;
     syncPresentation();
@@ -711,6 +713,7 @@ export function createHud(callbacks: HudCallbacks) {
     appendChoiceHelp();
     moveSummary.classList.add("hidden");
     buildPanel.classList.remove("hidden");
+    tip.classList.add("hidden");
     chromeOpen = false;
     syncPresentation();
     const optionCount = buildOptions.childElementCount;
@@ -733,6 +736,8 @@ export function createHud(callbacks: HudCallbacks) {
     buildPanel.classList.add("hidden");
     chromeOpen = false;
     syncPresentation();
+    const next = tipQueue.shift();
+    if (next) showTip(next.id, next.title, next.copy);
   }
 
   /** Disables the choice cards while a selection is being prepared (prevents double-clicks). */
@@ -793,6 +798,8 @@ export function createHud(callbacks: HudCallbacks) {
   function setCampaign(campaign: CampaignDefinition, index: number): void {
     window.clearTimeout(countdownTimer);
     moveCountdown.classList.add("hidden");
+    moveCounter.classList.remove("urgent");
+    tipQueue.length = 0;
     campaignMoveLimit = campaign.moveLimit;
     for (const node of document.querySelectorAll<HTMLElement>("[data-move-limit]")) node.textContent = String(campaign.moveLimit);
     [...levelPips.children].forEach((pip, pipIndex) => { (pip as HTMLElement).hidden = pipIndex > campaignMoveLimit; });
@@ -999,11 +1006,15 @@ export function createHud(callbacks: HudCallbacks) {
   function tipsSeen(): Set<string> {
     try { return new Set(JSON.parse(window.localStorage.getItem(TIP_KEY) ?? "[]") as string[]); } catch { return new Set(); }
   }
+  // Tips wait while the build tray (report or cards) is up, so they never cover what the player must read;
+  // they appear while the builders work and the city is in view.
+  const tipQueue: Array<{ id: string; title: string; copy: string }> = [];
   /** Shows an advisor tip once per browser; returns false if it was already seen or the tutorial is running. */
   function showTip(id: string, title: string, copy: string): boolean {
     if (tutorialActive) return false;
     const seen = tipsSeen();
-    if (seen.has(id)) return false;
+    if (seen.has(id) || tipQueue.some((queued) => queued.id === id)) return false;
+    if (!buildPanel.classList.contains("hidden")) { tipQueue.push({ id, title, copy }); return true; }
     seen.add(id);
     try { window.localStorage.setItem(TIP_KEY, JSON.stringify([...seen])); } catch { /* Storage unavailable: the tip may show again. */ }
     window.clearTimeout(tipTimer);

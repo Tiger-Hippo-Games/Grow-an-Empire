@@ -115,8 +115,12 @@ with sync_playwright() as p:
     shot(pg, "c1_coach1")
     speed8(pg)  # 8x: the software renderer is slow
     note("move 1:", play_move(pg, "best"))
-    pg.wait_for_selector("#tutorial-next:not(.hidden)", timeout=240000); shot(pg, "c1_coach2")
-    note("coach step 2:", pg.inner_text("#tutorial-coach-title")); pg.click("#tutorial-next")
+    # 0.16.0 lessons: 2 watch it rise, 3 the real report, 4 plan your city, 5 win the battle.
+    pg.wait_for_selector("#tutorial-coach[data-step=report]:not(.hidden)", timeout=240000); shot(pg, "c1_coach_report")
+    note("coach report:", pg.inner_text("#tutorial-step"), "|", pg.inner_text("#tutorial-coach-title")); pg.click(".report-continue")
+    pg.wait_for_selector("#tutorial-next:not(.hidden)", timeout=30000); shot(pg, "c1_coach2")
+    note("coach step 4:", pg.inner_text("#tutorial-step"), "|", pg.inner_text("#tutorial-coach-title")); pg.click("#tutorial-next")
+    note("coach step 5:", pg.inner_text("#tutorial-step"), "|", pg.inner_text("#tutorial-coach-title")); shot(pg, "c1_coach5"); pg.click("#tutorial-next")
     # controls: idle state toggle, pause/play, speed, mute
     wait_choice_or_muster(pg)
     note("app state while choosing:", pg.evaluate("document.getElementById('app').className"))
