@@ -42,3 +42,28 @@ export function trapTab(event: KeyboardEvent, container: HTMLElement): void {
   else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 }
+
+/**
+ * 0.16.2: grows a popup until its content fits without scrolling, as far as
+ * the stage allows: first wider (layouts reflow into columns at wider sizes,
+ * via container queries on the dialog), then denser spacing. On a small
+ * screen where nothing helps, the popup still scrolls.
+ */
+const FIT_WIDTHS = [880, 1020, 1160, 1240];
+export function fitDialog(dialog: HTMLElement): void {
+  if (!dialog.isConnected || dialog.offsetParent === null) return;
+  dialog.style.removeProperty("--fit-width");
+  dialog.classList.remove("dense");
+  const overflowing = (): boolean => dialog.scrollHeight > dialog.clientHeight + 1;
+  if (!overflowing()) return;
+  const parent = dialog.parentElement;
+  const pad = parent ? getComputedStyle(parent) : null;
+  const room = parent && pad ? Math.floor(parent.clientWidth - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight)) : 0;
+  const current = dialog.offsetWidth;
+  const widths = [...FIT_WIDTHS.filter((width) => width < room), room].filter((width) => width > current + 20);
+  for (const width of widths) {
+    dialog.style.setProperty("--fit-width", `${width}px`);
+    if (!overflowing()) return;
+  }
+  dialog.classList.add("dense");
+}

@@ -7,6 +7,7 @@ import { isRegisteredPlayer, leaderboardEntry, type LeaderboardEntry } from "./g
 import { AiRealmSource, campedAt, conquerorsByCampaign, newRealmState, realmStanding, readRealmState, recordBattle, standingFromStars, visitRealm, type RealmState } from "./game/realm";
 import { awardBadges, BADGES, mergeBadges, progressBadges, readBadges } from "./game/badges";
 import { createBadgeGallery } from "./ui/badges";
+import { installIconHelp } from "./ui/iconHelp";
 import { createPlatform } from "./platform/adapters";
 import { createScoreSubmission } from "./platform/scoreSubmission";
 import type { PlayerInfo } from "./platform/types";
@@ -392,6 +393,8 @@ function openRealmBoard(): void {
 }
 const campaignMap = createCampaignMap(selectCampaign, openRealmBoard);
 const badgeGallery = createBadgeGallery(document.getElementById("app") ?? document.body, () => sound.play("click"));
+// 0.16.2: tap any game icon to see what it means.
+installIconHelp(document.getElementById("app") ?? document.body, (name, properties) => track(name, properties));
 const openBadges = (): void => { badgeGallery.open(badges); track("ux_badges_opened", { earned: badges.length }); };
 campaignMap.setBadges([], BADGES.length, openBadges);
 document.getElementById("realm-toggle")?.addEventListener("click", openRealmBoard);

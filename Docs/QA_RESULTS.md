@@ -1,5 +1,12 @@
 # QA results
 
+## v0.16.2 (2026-11-06): popups without scrolling, tap-to-explain icons
+
+- Unit: TypeScript, ESLint, **360 tests / 37 files** pass (new: every game icon has an explanation).
+- New `Tools/qa/popups_fit.py` **ALL PASS**: briefing, tutorial, building details, muster, result and badge gallery show everything with **no scrolling at 1280×720 and 1920×1080** (result grows into two columns). Phones scroll only where the screen is too short (result and gallery at 390×844; muster, result, gallery and briefing at 844×390); the phone gallery is about half its former height. Icon help: a card's cost icon explains without building, the rest of the card still builds, muster army chips explain.
+- Regression: `tutorial_polish`, `gameplay`, `frame_fit`, `features_016`, `text_budget`, `ui_tray` (updated: the countdown is hidden on short landscape since 0.16.1) pass on the dev server and preview; `portal_iframe`, `sdk_v2`, `assets_audio` pass on the 0.16.2 release ZIP. `viewports.py`: only the pre-existing 3 px map overlap at 667×375.
+- `pnpm package`: all bundle checks pass, **18,431,760 bytes**, **159 entries**, SHA-256 `43CEBCB449C0C842D0EDF6ABB31F5F01FA74EBE2B9FD2E08ACB2BA28866278A3`.
+
 ## v0.16.1 (2026-11-05): full test pass of 0.16.0, with fixes
 
 Whole QA suite run against 0.16.0, then the fixes, then the affected checks again on the 0.16.1 release ZIP.

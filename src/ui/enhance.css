@@ -205,3 +205,58 @@
   /* No free strip for the countdown here; the HUD's Move chip carries the urgency instead. */
   #app .move-countdown { display: none; }
 }
+
+/* ---------- 0.16.2: popups grow to avoid scrolling (ui/dom.ts fitDialog) ---------- */
+#app .flow-dialog { width: min(var(--fit-width, 720px), 100%); container: dialog / inline-size; transition: width .18s ease; }
+#app .badge-dialog, #app .tutorial-dialog { width: min(var(--fit-width, 860px), 100%); }
+#app .tutorial-dialog { width: min(var(--fit-width, 640px), 100%); }
+@container dialog (min-width: 860px) {
+  #app .result-columns { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 4px 28px; align-items: start; }
+  #app .result-columns .badge-reveal { margin-top: 4px; }
+  #app .result-columns .result-side > :first-child { margin-top: 4px; }
+  #app .muster-columns:has(.muster-side .market) { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0 24px; align-items: start; }
+  #app .muster-columns .muster-side .market { margin-top: 14px; }
+  #app .flow-dialog[data-kind="briefing"] .flow-extra { columns: 2; column-gap: 28px; }
+}
+/* Last resort before scrolling: tighter spacing. */
+#app .flow-dialog.dense { padding-block: 14px; }
+#app .flow-dialog.dense p, #app .flow-dialog.dense ul { margin-block: 4px; }
+#app .flow-dialog.dense .result-banner { padding-top: 4px; }
+#app .flow-dialog.dense .result-banner h2 { font-size: 2.3rem; }
+#app .flow-dialog.dense .result-stars { font-size: 2.4rem; }
+#app .flow-dialog.dense .verdict { margin-block: 8px 4px; padding-block: 8px; }
+#app .flow-dialog.dense .badge-reveal { padding-block: 8px; }
+#app .badge-dialog.dense { padding-block: 12px; }
+#app .badge-dialog.dense .badge-grid li { padding-block: 6px; gap: 2px; }
+#app .badge-dialog.dense .badge-grid li small { font-size: .82rem; }
+#app .badge-dialog.dense .badge-progress { margin-block: 6px 8px; }
+
+/* ---------- 0.16.2: tap an icon to learn what it means ---------- */
+#app .has-help { cursor: help; }
+#app button .has-help { cursor: inherit; }
+#app .build-card .build-costs .has-help, #app .build-card .build-effect .has-help, #app .build-card .build-unlock .has-help { cursor: help; }
+#app .icon-help { position: absolute; z-index: 80; display: flex; gap: 12px; align-items: flex-start; width: min(340px, calc(100% - 16px)); padding: 12px 14px; color: var(--parchment-ink); background: var(--parchment); border: 2px solid #c9952b; border-radius: 14px; box-shadow: 0 12px 30px #0009; pointer-events: auto; animation: gae-pop .22s cubic-bezier(.2,1.4,.4,1) both; }
+#app .icon-help.hidden { display: none; }
+#app .icon-help-art { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #2a2f72; }
+#app .icon-help-art .gi { width: 32px; height: 32px; }
+#app .icon-help strong { display: block; font-size: 1.08rem; color: #2a1608; }
+#app .icon-help span > span { display: block; margin-top: 2px; font-size: .98rem; line-height: 1.4; }
+@media (prefers-reduced-motion: reduce) { #app .icon-help, #app .flow-dialog { animation: none !important; transition: none !important; } }
+
+/* Phones: a compact badge grid (three across, smaller medals) so the whole set needs far less scrolling. */
+@container app (max-width: 700px) {
+  #app .badge-dialog { padding: 14px; }
+  #app .badge-head h2 { font-size: 1.6rem; }
+  #app .badge-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+  #app .badge-grid li { padding: 8px 4px; gap: 2px; }
+  #app .badge-grid li .medal { width: 42px; height: 42px; }
+  #app .badge-grid li b { font-size: .86rem; line-height: 1.2; }
+  #app .badge-grid li small { font-size: .78rem; line-height: 1.25; }
+}
+@container app (orientation: landscape) and (max-height: 540px) {
+  #app .badge-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+  #app .badge-grid li { padding: 6px 4px; gap: 2px; }
+  #app .badge-grid li .medal { width: 40px; height: 40px; }
+  #app .badge-grid li small { font-size: .78rem; line-height: 1.25; }
+  #app .badge-head h2 { font-size: 1.5rem; }
+}

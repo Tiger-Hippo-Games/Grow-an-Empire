@@ -1,5 +1,5 @@
 import { BADGES, badgeById, type BadgeDefinition, type BadgeEmblem } from "../game/badges";
-import { escapeHtml, focusFirst, trapTab } from "./dom";
+import { escapeHtml, fitDialog, focusFirst, trapTab } from "./dom";
 
 /**
  * 0.16.0 medals: inline SVG (no downloads, sharp at any scale), a gallery
@@ -87,6 +87,7 @@ export function createBadgeGallery(root: HTMLElement, onSound?: () => void) {
     const active = document.activeElement;
     returnFocus = active instanceof HTMLElement && active !== document.body ? active : null;
     scrim.classList.remove("hidden");
+    fitDialog(dialog);
     onSound?.();
     dialog.querySelector<HTMLButtonElement>("[data-action=close]")?.focus({ preventScroll: true });
   }

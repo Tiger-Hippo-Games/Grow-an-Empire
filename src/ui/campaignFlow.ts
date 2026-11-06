@@ -8,7 +8,7 @@ import { playBattle } from "../render/popupBattle";
 import { buildingFilename } from "../render/constructionView";
 import { assetUrl } from "../render/assetCatalog";
 import { BUILDINGS } from "../game/content";
-import { escapeHtml, focusFirst, trapTab } from "./dom";
+import { escapeHtml, fitDialog, focusFirst, trapTab } from "./dom";
 import { amount, icon } from "./icons";
 import { badgeRevealHtml } from "./badges";
 
@@ -188,6 +188,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
   dialog.setAttribute("aria-modal", "true");
   scrim.appendChild(dialog);
   root.appendChild(scrim);
+  // 0.16.2: popups grow (wider, into columns) to show everything without scrolling where the stage has room.
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (open) fitDialog(dialog); }).observe(scrim);
   let stopBattle: (() => void) | null = null;
   let open = false;
   let lastResult: ResultView | null = null;
@@ -223,6 +225,8 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       dialog.setAttribute("aria-labelledby", "flow-title");
     } else dialog.removeAttribute("aria-labelledby");
     scrim.classList.remove("hidden");
+    fitDialog(dialog);
+    requestAnimationFrame(() => fitDialog(dialog));
     if (!open) {
       const active = document.activeElement;
       returnFocus = active instanceof HTMLElement && active !== document.body ? active : null;
@@ -239,6 +243,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       if (showing) callbacks.onUxEvent?.("ux_details_opened", { dialog: kind });
       button.setAttribute("aria-expanded", String(showing));
       button.setAttribute("aria-label", showing ? "Less" : "Details");
+      fitDialog(dialog);
     });
   }
 
@@ -325,9 +330,10 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       ${mods.militiaStrength && view.militia ? `<p class="flow-note defences"><span aria-hidden="true">${amount("militia", view.militia)}${amount("strength", "×2", {})}</span><span class="ws"> The Burj: militia fight at full strength</span></p>` : ""}
       ${bonus ? `<p class="flow-note defences"><span aria-hidden="true">${amount("strength", `${Math.round(bonus * 100)}%`, { sign: "+" })}</span><span class="ws"> The Dharma Stambha: the army fights ${Math.round(bonus * 100)}% stronger</span></p>` : ""}
       ${view.deserted ? `<p class="flow-note deserted"><span aria-hidden="true">${icon("warning")}${amount("people", view.deserted, { sign: "−", className: "loss" })}${icon("rations")}</span><span class="ws"> ${view.deserted} soldiers deserted for lack of rations (an older save)</span></p>` : ""}
+      <div class="muster-columns"><div class="muster-main">
       <div class="verdict" data-verdict aria-live="polite"></div>
       <div class="forecast"><div class="forecast-labels" aria-hidden="true"><span>${icon("strength")} You</span><span>Enemy</span></div><div class="forecast-bar"><i data-bar></i></div><p data-forecast></p></div>
-      ${market}
+      </div><div class="muster-side">${market}</div></div>
       <div class="flow-actions"><button type="button" class="fight-button" data-primary data-action="fight">${icon("swordsmen")}<span>Fight!</span></button></div>`);
     const ours = dialog.querySelector<HTMLElement>("[data-ours]")!;
     const verdict = dialog.querySelector<HTMLElement>("[data-verdict]")!;
@@ -441,9 +447,11 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
         <h2 class="${report.win ? "good" : "bad"}">${report.win ? "Victory!" : "The city has fallen"}</h2>
         <p class="result-stars${quiet ? " quiet" : ""}" role="img" aria-label="${report.stars} of 3 stars">${[0, 1, 2].map((i) => `<span class="${i < report.stars ? "on" : "off"}" style="--i:${i}">${i < report.stars ? "★" : "☆"}</span>`).join("")}</p>
       </div>
-      ${badgeRevealHtml(result.newBadges ?? [])}
+      <div class="result-columns"><div class="result-main">
       ${resultGoals(report)}
+      ${badgeRevealHtml(result.newBadges ?? [])}
       ${result.newRecord && report.stars > 0 ? `<p class="flow-note good">New best!</p>` : result.bestStars > report.stars ? `<p class="flow-note">Best: ${starText(result.bestStars)}</p>` : ""}
+      </div><div class="result-side">
       ${result.realm ? realmLine(result.realm) : ""}
       <p class="flow-lead"><span aria-hidden="true">${strengthLine(report.playerStrength, report.enemyStrength)}</span><span class="sr">Your strength ${report.playerStrength.toFixed(1)} against ${report.enemyStrength.toFixed(1)}</span></p>
       <div class="army-chips">${armyChips(report.units, false)}</div>
@@ -452,6 +460,7 @@ export function createCampaignFlow(root: HTMLElement, callbacks: FlowCallbacks) 
       ${extra(`${report.win ? `<p class="flow-note">${escapeHtml(winText(report.margin))}</p>` : ""}<ul class="result-notes">${report.explanations.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
       <p class="result-order-text"><span>Build order</span> ${result.buildOrder.map(escapeHtml).join(" → ")}</p>${result.realm ? realmDetails(result.realm) : ""}`)}
       ${lockedNote}
+      </div></div>
       ${result.askClarity && !quiet ? `<div class="clarity" data-clarity><span>Easy to follow?</span><button type="button" data-vote="up" aria-label="Yes, easy to follow" title="Yes">${icon("thumbup")}</button><button type="button" data-vote="down" aria-label="No, hard to follow" title="No">${icon("thumbdown")}</button></div>` : ""}
       <div class="flow-actions">${nextButton}<button type="button" ${nextButton ? "class=\"quiet icon-button\"" : "data-primary"} data-action="replay" aria-label="${replayLabel}" title="${replayLabel}">${icon("restart")}<span class="${nextButton ? "w" : ""}">${report.win ? "Replay" : "Try again"}</span></button><button type="button" class="quiet icon-button" data-action="map" aria-label="Campaign map" title="Campaign map">${icon("map")}<span class="w">Campaign map</span></button><button type="button" class="quiet icon-button" data-action="city" aria-label="View the city" title="View the city">${icon("eye")}<span class="w">View the city</span></button>${callbacks.onBadges ? `<button type="button" class="quiet icon-button badge-button" data-action="badges" aria-label="Badges: ${result.badgeCount ?? 0} earned" title="Badges">🏅<b>${result.badgeCount ?? 0}</b></button>` : ""}</div>`);
     dialog.querySelector("[data-action=badges]")?.addEventListener("click", () => callbacks.onBadges?.());

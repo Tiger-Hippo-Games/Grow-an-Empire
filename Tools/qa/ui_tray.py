@@ -50,8 +50,9 @@ with sync_playwright() as p:
         resources()
         flow.play_move(page)
         assert page.is_visible("#move")
-        page.wait_for_selector(".move-countdown:not(.hidden)", timeout=60000)
-        assert page.inner_text(".move-countdown") == "11 moves left"
+        # Short landscape frames hide the countdown (no free strip, 0.16.1); it is still announced in the DOM.
+        page.wait_for_selector(".move-countdown:not(.hidden)", state="attached", timeout=60000)
+        assert page.locator(".move-countdown").text_content() == "11 moves left"
         page.screenshot(path=str(OUT / f"countdown-{w}x{h}.png"))
         page.wait_for_selector("#build-panel .report-continue")
         resources()

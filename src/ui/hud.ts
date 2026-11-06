@@ -12,7 +12,7 @@ import type { MoveSummary, SimulationMode, ResourceLedger, TrainedUnits } from "
 import { assetUrl } from "../render/assetCatalog";
 import { buildingFilename } from "../render/constructionView";
 import { effectHtml } from "./cardEffect";
-import { escapeHtml, focusFirst, requireElement, trapTab } from "./dom";
+import { escapeHtml, fitDialog, focusFirst, requireElement, trapTab } from "./dom";
 import { amount, icon, iconWord, type IconName } from "./icons";
 import { createLoadingScreen } from "./loadingScreen";
 import type { CampaignDefinition } from "../game/campaigns";
@@ -664,6 +664,7 @@ export function createHud(callbacks: HudCallbacks) {
         scrim.className = "flow-scrim card-info-scrim";
         scrim.innerHTML = `<section class="flow-dialog" role="dialog" aria-modal="true" aria-labelledby="card-info-title"><h2 id="card-info-title" tabindex="-1">${escapeHtml(building.name)}</h2><p>Costs ${escapeHtml(formatBag(building.cost))}.</p><p>${escapeHtml(building.benefit)}</p><p>${escapeHtml(building.unlocks)}</p><div class="flow-actions"><button type="button">Back to choices</button></div></section>`;
         app.appendChild(scrim);
+        fitDialog(scrim.querySelector<HTMLElement>(".flow-dialog")!);
         callbacks.onTutorialModalChange(true);
         const close = (): void => {
           scrim.remove();
@@ -938,6 +939,7 @@ export function createHud(callbacks: HudCallbacks) {
     tutorialNext.classList.add("hidden");
     buildPanel.classList.remove("tutorial-focus");
     tutorialScrim.classList.remove("hidden");
+    fitDialog(tutorialScrim.querySelector<HTMLElement>(".tutorial-dialog")!);
     callbacks.onTutorialModalChange(true);
     tutorialStart.focus(); // Move focus into the dialog (QA_CHECKLIST §13: focus handling).
   }
