@@ -1,20 +1,20 @@
+import { combatFrame, formationDepth } from "./battlePresentation";
 import type { BattleRound } from "../game/battle";
 import { iconStyle, type IconKind } from "./combatScene";
 import { assetUrl } from "./assetCatalog";
 
 const ORDER: IconKind[] = ["elephants", "swordsmen", "horsemen", "archers", "militia"];
-const MAX_ICONS = 6;
 const APPROACH_MS = 1000;
 const ROUND_MS = 1350;
 type Counts = Record<IconKind, number>;
 export interface BattleSide { title: string; start: Counts }
 
-/** A bounded formation; exact head counts stay in the popup's army chips. */
-function formation(side: BattleSide, enemy: boolean) {
+/** One actor per actual soldier; kinds with zero recruits never create actors. */
+function formation(side: BattleSide, enemy: boolean, columns: number) {
   const element = document.createElement("section");
   element.className = `battle-formation${enemy ? " enemy" : ""}`;
   element.setAttribute("aria-label", side.title);
-  const rows = new Map<IconKind, { icons: HTMLElement[]; more: HTMLElement; row: HTMLElement }>();
+  const rows = new Map<IconKind, { icons: HTMLElement[]; sprites: HTMLElement[]; more: HTMLElement; row: HTMLElement }>();
   for (const kind of ORDER) {
     const count = side.start[kind] ?? 0;
     if (!count) continue;
@@ -23,7 +23,9 @@ function formation(side: BattleSide, enemy: boolean) {
     row.style.setProperty("--rank", String(rows.size));
     row.setAttribute("aria-label", `${kind}: ${count}`);
     const icons: HTMLElement[] = [];
-    for (let index = 0; index < Math.min(count, MAX_ICONS); index++) {
+    const sprites: HTMLElement[] = [];
+    row.style.setProperty("--columns", String(Math.min(count, columns)));
+    for (let index = 0; index < count; index++) {
       const actor = document.createElement("span");
       actor.className = `battle-actor actor-${kind}`;
       actor.style.setProperty("--beat", `${index * -137}ms`);
@@ -35,22 +37,22 @@ function formation(side: BattleSide, enemy: boolean) {
       actor.appendChild(sprite);
       row.appendChild(actor);
       icons.push(actor);
+      sprites.push(sprite);
     }
     const more = document.createElement("b");
     more.className = "unit-more";
-    more.textContent = count > MAX_ICONS ? `+${count - MAX_ICONS}` : "";
+    more.textContent = "";
     more.setAttribute("aria-hidden", "true");
     row.appendChild(more);
     element.appendChild(row);
-    rows.set(kind, { icons, more, row });
+    rows.set(kind, { icons, sprites, more, row });
   }
   return { element, start: side.start, rows };
 }
 
 /**
  * Presents the already-resolved battle in the muster popup without changing
- * game state. Hidden tabs pause playback; large armies use bounded sprites
- * while head counts and casualties remain exact.
+ * game state. Hidden tabs pause playback; each displayed actor is one unit of the recorded army, with exact casualties.
  */
 export function playBattle(container: HTMLElement, player: BattleSide, enemy: BattleSide, rounds: BattleRound[], callbacks: { onRound?(index: number, round: BattleRound): void; onDone(): void; isPaused?(): boolean }): () => void {
   container.replaceChildren();
@@ -58,7 +60,9 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
   arena.className = "popup-battlefield approaching";
   arena.style.backgroundImage = `linear-gradient(#12152a66, #30211666), url("${assetUrl("village-empty-terrain-16x9-v2.png")}")`;
   arena.setAttribute("aria-label", "The two armies approach and fight round by round");
-  const sides = [formation(player, false), formation(enemy, true)];
+  const columns = Math.min(16, Math.max(1, ...Object.values(player.start), ...Object.values(enemy.start)));
+  arena.style.setProperty("--army-depth", String(Math.max(formationDepth(player.start, columns), formationDepth(enemy.start, columns))));
+  const sides = [formation(player, false, columns), formation(enemy, true, columns)];
   sides.forEach(side => arena.appendChild(side.element));
   for (const [index, side] of [player, enemy].entries()) {
     const label = document.createElement("span");
@@ -84,6 +88,8 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
   let elapsed = 0;
   let previous = performance.now();
   let shown = 0;
+  let lastVolley = -1;
+  const frames = new WeakMap<HTMLElement, number>();
   let stopped = false;
   let resolvedAt: number | null = noOpposition ? 0 : null;
   if (noOpposition) {
@@ -115,20 +121,15 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
         sides.forEach((side, sideIndex) => {
           for (const [kind, row] of side.rows) {
             const left = counts[sideIndex][kind];
-            const standing = left > 0 ? Math.max(1, Math.ceil(left / Math.max(1, side.start[kind]) * row.icons.length)) : 0;
+            const standing = Math.min(left, row.icons.length);
             row.icons.forEach((actor, index) => actor.classList.toggle("fallen", index >= standing));
-            row.more.textContent = left > standing ? `+${left - standing}` : "";
+            row.more.textContent = "";
             row.row.setAttribute("aria-label", `${kind}: ${left} of ${side.start[kind]} standing`);
           }
         });
         if (resolvedAt === null) {
           status.textContent = `Round ${shown + 1} of ${rounds.length}`;
-          clash.replaceChildren(document.createElement("i"));
-          if (counts.some(side => side.archers > 0)) {
-            const arrows = document.createElement("span");
-            arrows.className = "battle-volley";
-            clash.appendChild(arrows);
-          }
+
         }
         if (counts.some(side => Object.values(side).every(count => count === 0))) {
           resolvedAt ??= elapsed;
@@ -140,6 +141,28 @@ export function playBattle(container: HTMLElement, player: BattleSide, enemy: Ba
         }
         callbacks.onRound?.(shown, round);
         shown++;
+      }
+      // Quantized poses, attack/recovery and arrows use the same paused playback clock.
+      const fighting = resolvedAt === null && elapsed >= approach && !reduced;
+      const phase = ((elapsed - approach) % step) / step;
+      arena.classList.toggle("striking", fighting && phase >= .35 && phase < .65);
+      for (const side of sides) for (const [kind, row] of side.rows) row.sprites.forEach((sprite, index) => {
+        const pose = fighting && !row.icons[index].classList.contains("fallen") ? combatFrame(kind, phase) : 0;
+        if (frames.get(sprite) === pose) return;
+        frames.set(sprite, pose);
+        sprite.style.setProperty("background-position", `${pose % 4 * 100 / 3}% ${pose >= 4 ? 100 : 0}%`);
+      });
+      const volley = Math.floor((elapsed - approach) / step);
+      if (fighting && phase >= .40 && volley !== lastVolley) {
+        lastVolley = volley;
+        clash.replaceChildren(document.createElement("i"));
+        sides.forEach((side, sideIndex) => {
+          const archers = side.rows.get("archers");
+          if (!archers?.icons.some(actor => !actor.classList.contains("fallen"))) return;
+          const arrows = document.createElement("span");
+          arrows.className = `battle-volley${sideIndex ? " enemy-volley" : ""}`;
+          clash.appendChild(arrows);
+        });
       }
       if (elapsed >= (resolvedAt ?? approach + step * rounds.length) + (reduced ? 120 : 800)) {
         finished = true;

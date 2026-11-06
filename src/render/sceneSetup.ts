@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CITY_ZOOM, cityZoomIndex } from "./cityZoom";
 import { blendCamera, CITY_WORLD, fitCityCamera, focusCityCamera, growingCityBounds, type ScreenArea, type WorldBounds } from "./cameraFit";
 
 /**
@@ -27,9 +28,9 @@ function freeArea(width: number, height: number): ScreenArea {
   const scale = box && box.width > 0 ? width / box.width : 1;
   const area = { left: 12, right: width - 12, top: 12, bottom: height - 12 };
   if (!box) return area;
-  for (const selector of ["#resource-hud", ".speed-control", ".hud", "#build-panel", ".controls", "#city-ui-toggle"]) {
+  for (const selector of ["#resource-hud", ".speed-control", ".hud", "#build-panel", ".controls", "#city-ui-toggle", ".city-zoom"]) {
     const element = document.querySelector<HTMLElement>(selector);
-    if (!element || element.offsetParent === null || getComputedStyle(element).opacity === "0") continue;
+    if (!element || element.offsetParent === null || getComputedStyle(element).opacity === "0" || getComputedStyle(element).visibility === "hidden") continue;
     const rect = element.getBoundingClientRect();
     if (rect.right <= box.left || rect.left >= box.right || rect.bottom <= box.top || rect.top >= box.bottom) continue;
     const lowerPanel = selector === "#build-panel" || selector === ".controls" || (selector === "#city-ui-toggle" && rect.top > box.top + box.height / 2);
@@ -73,6 +74,7 @@ export function createSceneSetup(viewport: HTMLElement) {
    */
   let focus: { x: number; y: number; zoom: number } | null = null;
   let cityBounds: WorldBounds = CITY_WORLD;
+  let zoomIndex = 1;
   let current: { width: number; height: number; x: number; y: number } | null = null;
   let target: { width: number; height: number; x: number; y: number } | null = null;
   const reducedMotion = (): boolean => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -83,6 +85,12 @@ export function createSceneSetup(viewport: HTMLElement) {
     if (width === 0 || height === 0) return false;
     const area = freeArea(width, height);
     target = focus ? focusCityCamera(width, height, area, focus, focus.zoom, cityBounds) : fitCityCamera(width, height, area, cityBounds);
+    if (!focus) {
+      const factor = CITY_ZOOM[zoomIndex];
+      const cx = (cityBounds.left + cityBounds.right) / 2, cy = (cityBounds.bottom + cityBounds.top) / 2;
+      target.x = cx + (target.x - cx) / factor; target.y = cy + (target.y - cy) / factor;
+      target.width /= factor; target.height /= factor;
+    }
     return true;
   }
   function applyView(view: { width: number; height: number; x: number; y: number }): void {
@@ -144,5 +152,6 @@ export function createSceneSetup(viewport: HTMLElement) {
     return { width: camera.right - camera.left, height: camera.top - camera.bottom, centerX: camera.position.x, centerY: camera.position.y };
   }
 
-  return { renderer, scene, camera, resize, quality, viewBounds, setFocus, setCityBounds, updateCamera };
+  function setZoom(index: number): void { zoomIndex = cityZoomIndex(index); resize(); }
+  return { renderer, scene, camera, resize, quality, viewBounds, setFocus, setCityBounds, updateCamera, setZoom };
 }

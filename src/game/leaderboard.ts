@@ -5,7 +5,7 @@ import { CAMPAIGNS } from "./campaigns";
  *
  * - **level**: the highest campaign won (1–25; 0 before the first win).
  *   Campaigns open in order, so this is how far up the road the player is.
- * - **score**: one point per distinct campaign won. Replays and stars do not add points.
+ * - **score**: the highest campaign number won. Replays and stars do not add points.
  * - **reachedAt**: when the score last went up. The portal breaks a tie by
  *   who got there first.
  *
@@ -13,7 +13,7 @@ import { CAMPAIGNS } from "./campaigns";
  * submits it to the SDK leaderboard at battle end. Analytics are diagnostic.
  */
 export const SCORE_PER_LEVEL = 100;
-export const LEADERBOARD_SCHEMA = 2;
+export const LEADERBOARD_SCHEMA = 3;
 
 export interface LeaderboardEntry {
   schema: number;
@@ -24,7 +24,7 @@ export interface LeaderboardEntry {
   campaignName: string | null;
   /** Best stars summed over every campaign, 0–75. */
   totalStars: number;
-  /** One point for each distinct campaign won, 0–25. Stars do not change the score. */
+  /** Highest campaign number won, 0–25. Stars do not change the score. */
   score: number;
   /** ISO time the score last increased; null while it is 0. */
   reachedAt: string | null;
@@ -44,11 +44,9 @@ export function leaderboardEntry(
   let campaignId: string | null = null;
   let campaignName: string | null = null;
   let totalStars = 0;
-  let completedCampaigns = 0;
   for (const campaign of CAMPAIGNS) {
     const stars = campaignStars[campaign.id] ?? 0;
     if (!Number.isFinite(stars) || Math.floor(stars) < 1) continue;
-    completedCampaigns += 1;
     totalStars += Math.min(3, Math.floor(stars));
     if (campaign.number > level) {
       level = campaign.number;
@@ -56,7 +54,7 @@ export function leaderboardEntry(
       campaignName = campaign.name;
     }
   }
-  const score = completedCampaigns;
+  const score = level;
   const unchanged = previous?.schema === LEADERBOARD_SCHEMA && previous.score === score && typeof previous.reachedAt === "string";
   return {
     schema: LEADERBOARD_SCHEMA, level, campaignId, campaignName, totalStars, score,

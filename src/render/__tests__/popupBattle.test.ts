@@ -38,6 +38,18 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("popup battle playback", () => {
+  it("uses the trained city character identity and never invents absent unit kinds", () => {
+    for (const [kind, role] of [["archers", "archer"], ["swordsmen", "swordsman"], ["horsemen", "horseman"]] as const) {
+      expect(iconStyle(kind, false)).toContain(`${role}-work8-master-v1`);
+    }
+    const container = new Element();
+    const ours = { title: "Only archers", start: { archers: 9, swordsmen: 0, horsemen: 0, elephants: 0, militia: 0 } };
+    const stop = playBattle(container as unknown as HTMLElement, ours, { ...enemy, start: { ...ours.start, archers: 3 } }, [], { onDone() {} });
+    expect(container.all().filter(e => e.classList.contains("actor-archers"))).toHaveLength(12);
+    expect(container.all().filter(e => e.classList.contains("actor-swordsmen") || e.classList.contains("actor-horsemen") || e.classList.contains("actor-elephants") || e.classList.contains("actor-militia"))).toHaveLength(0);
+    stop();
+  });
+
   it("shows distinct enemy cavalry, archers and swordsmen", () => {
     const sheets = ["archers", "horsemen", "swordsmen"] as const;
     expect(new Set(sheets.map(kind => iconStyle(kind, true))).size).toBe(3);
@@ -67,11 +79,11 @@ describe("popup battle playback", () => {
     vi.advanceTimersByTime(900);
     expect(onDone).toHaveBeenCalledTimes(1);
   });
-  it("caps sprite counts while keeping full army labels and exact round survivors", () => {
+  it("shows every actual soldier while keeping exact round survivors", () => {
     const container = new Element();
     const onRound = vi.fn(), onDone = vi.fn();
     playBattle(container as unknown as HTMLElement, player, enemy, rounds, { onRound, onDone });
-    expect(container.all().filter(e => e.classList.contains("battle-actor"))).toHaveLength(42);
+    expect(container.all().filter(e => e.classList.contains("battle-actor"))).toHaveLength(280);
     expect(container.all().some(e => e.attributes.get("aria-label") === "swordsmen: 40")).toBe(true);
     vi.advanceTimersByTime(7500);
     expect(onRound.mock.calls.map(call => call[0])).toEqual([0, 1, 2, 3]);

@@ -36,7 +36,7 @@ export function createScoreSubmission(platform: PlatformAdapter) {
       const result = await platform.submitScore(entry.score, {
         level: entry.level, campaignId: entry.campaignId,
         totalStars: entry.totalStars, reachedAt: entry.reachedAt,
-        completedCampaigns: entry.score,
+        highestCampaign: entry.level,
       });
       if (result === "ok" && sendingPeriod === leaderboardWeek()) postedScore = Math.max(postedScore, entry.score);
       // A rejection is non-fatal. The next battle can try again; do not

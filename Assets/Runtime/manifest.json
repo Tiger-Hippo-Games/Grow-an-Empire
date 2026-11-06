@@ -869,10 +869,10 @@
   },
   "swine-farm-level-1-2x-v1.webp": {
     "source": "Assets/Art/Production/Buildings/SwineFarm/Runtime2x/swine-farm-level-1-2x-v1.png",
-    "sha256": "35c091b002e3a95779963eca7f5b2b80c45e24ce0a2211909af8f0150150aaac",
+    "sha256": "892d60b61ad261f00cb49019661aa244f648bc516cb2b2e63ec8a815152e95da",
     "exportRevision": 3,
-    "sourceBytes": 621916,
-    "bytes": 84186
+    "sourceBytes": 2466331,
+    "bytes": 84748
   },
   "swordsman-combat-south8-master-v1.webp": {
     "source": "Assets/Art/Production/Characters/CombatLoops/swordsman-combat-south8-master-v1.png",

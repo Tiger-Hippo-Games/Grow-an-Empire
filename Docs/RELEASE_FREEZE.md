@@ -1,4 +1,17 @@
-# Release freeze: v0.15.0
+# Release freeze: v0.16.3
+
+6 November 2026. Highest-campaign leaderboard score, including all recent UX improvements. Built locally; not uploaded or published.
+
+- Artifact: `release/grow-an-empire-0.16.3.zip`, **18,431,767 bytes**, **159 entries**.
+- SHA-256: `40159C863EC86D533FE06FEC9036C616D222092FC9E49CCD588A972678E0C96C`.
+- `strongplayer` score is the highest campaign number won (0–25). First positive and later higher scores post at battle end, at least 30 seconds apart. Equal/lower scores are skipped within the session; a new week permits reposting. Leaderboard schema 3 recalculates older count scores from campaign stars; settlement schema remains 7. The portal board must use Highest Score Wins.
+- Includes 0.16.0–0.16.2: functional city quarters and southern military frontier, growing-city/construction camera easing, five-lesson advisor tutorial, 18 saved achievement badges, stronger build/battle feedback, popup width/column/spacing fitting, and tap-to-explain icons. One civilian per completed building and the army exemption remain.
+- TypeScript, ESLint and **362 tests / 37 files** pass. All **16 bundle checks** pass. Release ZIP, production output and the extraction used for browser checks match byte for byte. Evidence: `Tools/qa/out/highest-campaign-check.txt`, `highest-campaign-package.txt`, `highest-campaign-release.json`.
+- Browser checks use an isolated local SDK stand-in; they do not establish live portal receipt. See [QA results](QA_RESULTS.md).
+
+Keep this ZIP immutable; further delivered builds require a new version.
+
+## Historical release freeze: v0.15.0
 
 25 October 2026. Campaign mastery stars. Built locally; not uploaded or published.
 

@@ -6,6 +6,8 @@
 **Purpose:** a complete design reference for this game and a worked example for future GROW games.  
 **Companion:** [Reusable GROW game design template](GROW_GAME_TEMPLATE.md).
 
+**6 November 2026 addendum (v0.16.3):** The detailed baseline below predates the 0.16 UI pass. Current differences: functional quarters and southern frontier ([city plan](CITY_PLAN.md)); camera frames the growing city and focuses temporarily on construction; five advisor lessons; 18 saved progress/battle badges; popups widen/reflow before scrolling; icon explanation bubbles. Campaign/economy rules and schema 7 remain. Portal leaderboard schema 3 now scores the highest campaign won, including sparse progress ([contract](LEADERBOARD.md)). See [changelog](../CHANGELOG.md) and [current release](RELEASE_FREEZE.md).
+
 > A GROW game gives the player a set of choices on every move. Each choice changes a growing world and the possibilities of later moves. When the campaign's move budget ends, a final challenge tests the consequences of those choices. The campaign is won by preparing the right combination, sequence and timing for that challenge.
 
 This definition is the series foundation. Cities, armies, resources, three-card trays and stars are particular design choices made by Grow an Empire; future GROW games can express the same foundation through other settings and systems.
@@ -515,7 +517,7 @@ Realm score is `100 × highest campaign won + total best stars`. Higher score ra
 
 ### 9.2 Strongest Player
 
-The portal's separate `strongplayer` board ranks registered players by distinct campaigns won, 0–25. Stars and highest campaign are metadata, not additional score. Higher is better; the weekly period resets Monday at 00:00 UTC, or 05:30 IST.
+The portal's separate `strongplayer` board ranks registered players by highest campaign number won, 0–25 (leaderboard schema 3, from v0.16.3). Stars remain metadata, not additional score. Higher is better; the weekly period resets Monday at 00:00 UTC, or 05:30 IST.
 
 At a battle end, accumulated campaign wins can be posted even if that particular battle was a defeat. A new weekly period allows the unchanged accumulated score to be reposted at the next battle. This board does not count only victories newly earned during the current week.
 

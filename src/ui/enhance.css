@@ -260,3 +260,44 @@
   #app .badge-grid li small { font-size: .78rem; line-height: 1.25; }
   #app .badge-head h2 { font-size: 1.5rem; }
 }
+
+/* 0.17: explicit observation zoom, available even with city chrome folded. */
+.city-zoom { position:absolute;z-index:26;right:12px;top:calc(var(--hud-bottom,60px) + 8px);display:flex;align-items:center;gap:3px;padding:3px;border:1px solid var(--gold);border-radius:12px;background:#16193ef0;color:var(--cream); }
+.city-zoom button { min-width:44px;min-height:44px;border:0;border-radius:8px;background:#303553;color:#ffe4a3;font-size:1.35rem;cursor:pointer; }
+.city-zoom button:disabled { opacity:.35;cursor:default; }
+.city-zoom output { min-width:36px;text-align:center;font:700 .8rem var(--reading-font); }
+#app.ui-open .city-zoom { top:calc(var(--settlement-bottom,140px) + 8px); }
+:root:not([data-booted]) .city-zoom,
+#app:has(.campaign-map:not(.hidden)) .city-zoom,
+#app:has(.flow-scrim:not(.hidden)) .city-zoom,
+#app:has(.tutorial-scrim:not(.hidden)) .city-zoom,
+#app:has(.tutorial-coach:not(.hidden)) .city-zoom,
+#app:has(.realm-scrim:not(.hidden)) .city-zoom,
+#app:has(.badge-scrim:not(.hidden)) .city-zoom { visibility:hidden; }
+/* Real formation sizes: every soldier occupies a slot, rather than a token plus +N. */
+#app .popup-battlefield { height:360px;container-type:inline-size;--army-height:140px; }
+#app .battle-formation { inset:32px 12px 52%;display:flex;flex-direction:column-reverse;align-items:center;justify-content:flex-start;gap:0;transition:translate 900ms ease;--unit-size:min(40px,calc((100cqw - 48px) / 16),calc(var(--army-height) / var(--army-depth))); }
+#app .battle-formation.enemy { inset:52% 12px 32px;flex-direction:column; }
+#app .battle-rank, #app .battle-formation.enemy .battle-rank { position:relative;top:auto;left:auto;width:auto;display:grid;grid-template-columns:repeat(var(--columns),var(--unit-size));gap:0;transform:none!important; }
+#app .battle-actor { position:relative;width:var(--unit-size);height:var(--unit-size);transition:opacity 350ms,filter 350ms,transform 350ms;animation:none!important; }
+#app .battle-actor .unit-icon { width:100%;height:100%;background-size:400% 200%;background-color:transparent;animation:none!important;transition:none; }
+#app .battle-actor .unit-icon.enemy { filter:drop-shadow(0 2px 1px #0008); }
+#app .battle-actor::after { content:"";position:absolute;bottom:0;left:25%;width:50%;height:8%;border-radius:50%;background:#15140b55;z-index:-1; }
+#app .battle-rank .unit-more { display:none; }
+#app .approaching .battle-formation { translate:0 -24px; }
+#app .approaching .battle-formation.enemy { translate:0 24px; }
+#app .striking .battle-actor:not(.fallen) { translate:0 3px; }
+#app .striking .battle-formation.enemy .battle-actor:not(.fallen) { translate:0 -3px; }
+#app .striking .actor-archers:not(.fallen) { translate:0 0; }
+#app .battle-actor.fallen { opacity:.15;translate:0 0;transform:rotate(65deg) scale(.8); }
+#app .enemy-volley { rotate:180deg; }
+#app .reduced-motion .battle-formation { transition:none;translate:none; }
+@container app (orientation:landscape) and (max-height:540px) {
+  #app .popup-battlefield { height:220px;--army-height:70px; }
+}
+
+#app .battle-actor .unit-icon { width:88%;margin-inline:auto; }
+#app .battle-actor .unit-icon.enemy, #app .actor-elephants .unit-icon { width:100%; }
+@container app (orientation:landscape) and (max-height:540px) {
+  #app .flow-dialog[data-kind="battle"] .popup-battlefield { height:auto;flex:1;min-height:0; }
+}

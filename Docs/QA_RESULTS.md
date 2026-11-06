@@ -1,5 +1,14 @@
 # QA results
 
+## v0.16.3 (2026-11-06): highest-campaign portal score
+
+- Fresh review of unchanged 0.16.2: **360 tests / 37 files** pass; archive hash matches the existing QA record (`recent-review-check.txt`).
+- New score derives the maximum winning campaign number, including sparse progress. Leaderboard schema 3 recalculates schema-1/2 entries from stars. Filling lower gaps or earning more stars retains the score and reached time. Snapshot schema 7, badge merges, city/camera/tutorial, economy and balance are unchanged.
+- `pnpm check`: **362 tests / 37 files**, TypeScript and ESLint pass. New regression checks cover sparse Campaign 7 → score 7, schema-2 conversion, lower-gap timestamp retention, first positive submission, equal/lower suppression and later Campaign 25 → score 25. Existing cooldown, weekly reset, failures, guests/PREVIEW and exact `strongplayer` SDK-argument tests pass. Log: `Tools/qa/out/highest-campaign-check.txt`.
+- Packaged-ZIP browser checks **ALL PASS** using the local portal simulator: rankings at 1920×1080, 390×844 and 844×390; escaped names, empty/error recovery, guest restrictions; real first victory posts `strongplayer`, score 1, `highestCampaign: 1`; full 25-move Campaign 25 with reload at move 14 completes without page errors. The build-first journey loses and correctly posts its previously won highest Campaign 24, preserving earned progress. Sparse-score and higher-only behavior are covered by the unit tests above. Evidence: `Tools/qa/out/highest-campaign-browser.txt`, `Tools/qa/out/leaderboard/results.json`. This does not contact the live board.
+- `pnpm package`: all **16 bundle checks** pass. Every ZIP entry matches `dist/` and the local simulator extraction. Archive metadata: `Tools/qa/out/highest-campaign-release.json`.
+
+
 ## v0.16.2 (2026-11-06): popups without scrolling, tap-to-explain icons
 
 - Unit: TypeScript, ESLint, **360 tests / 37 files** pass (new: every game icon has an explanation).

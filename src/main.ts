@@ -432,7 +432,7 @@ function createSceneOrExplain(): ReturnType<typeof createSceneSetup> {
     throw error;
   }
 }
-const { renderer, scene, camera, resize: resizeCamera, quality, viewBounds, setFocus: setCameraFocus, setCityBounds, updateCamera } = createSceneOrExplain();
+const { renderer, scene, camera, resize: resizeCamera, quality, viewBounds, setFocus: setCameraFocus, setCityBounds, updateCamera, setZoom } = createSceneOrExplain();
 /** 0.16.0: frames the city that exists now (plus a plot under construction and the parade ground). */
 function frameCity(): void {
   const ids = [...simulation.state.builtBuildingIds];
@@ -450,6 +450,21 @@ function resize(): void {
   const view = viewBounds();
   terrain?.fit(view.width, view.height, view.centerX, view.centerY);
 }
+let cityZoomLevel = 1;
+function changeCityZoom(change: number): void {
+  cityZoomLevel = Math.max(0, Math.min(2, cityZoomLevel + change));
+  // Manual observation supersedes a temporary construction close-up.
+  focusReleaseAt = 0;
+  setCameraFocus(null);
+  setZoom(cityZoomLevel);
+  document.getElementById("city-zoom-level")!.textContent = ["0.8×", "1×", "1.4×"][cityZoomLevel];
+  (document.getElementById("city-zoom-out") as HTMLButtonElement).disabled = cityZoomLevel === 0;
+  (document.getElementById("city-zoom-in") as HTMLButtonElement).disabled = cityZoomLevel === 2;
+  resize();
+  requestRender();
+}
+document.getElementById("city-zoom-out")!.addEventListener("click", () => changeCityZoom(-1));
+document.getElementById("city-zoom-in")!.addEventListener("click", () => changeCityZoom(1));
 const cityLayout = createCityLayout(scene);
 const civicCenter = createCivicCenter(scene, requestRender);
 const characterAssets = createCharacterAssets(requestRender);

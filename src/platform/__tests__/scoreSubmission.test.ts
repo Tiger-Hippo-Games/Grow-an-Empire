@@ -25,10 +25,27 @@ describe("completed-result score submission", () => {
     await vi.advanceTimersByTimeAsync(29_999);
     expect(submitScore).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
-    expect(submitScore).toHaveBeenLastCalledWith(3, expect.objectContaining({ level: 3, completedCampaigns: 3 }));
+    expect(submitScore).toHaveBeenLastCalledWith(3, expect.objectContaining({ level: 3, highestCampaign: 3 }));
     queue.submit(entry(2), player);
     await vi.advanceTimersByTimeAsync(30_000);
     expect(submitScore).toHaveBeenCalledTimes(2);
+  });
+
+  it("posts a first sparse highest campaign, then only a higher campaign", async () => {
+    const submitScore = vi.fn().mockResolvedValue("ok");
+    const queue = createScoreSubmission({ ...createLocalPlatform(), submitScore });
+    const highest = (number: number) => leaderboardEntry({ [CAMPAIGNS[number - 1].id]: 1 });
+    queue.submit(highest(7), player);
+    await Promise.resolve();
+    expect(submitScore).toHaveBeenLastCalledWith(7, expect.objectContaining({ highestCampaign: 7 }));
+    queue.submit(highest(7), player);
+    queue.submit(highest(2), player);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(submitScore).toHaveBeenCalledTimes(1);
+    queue.submit(highest(25), player);
+    await Promise.resolve();
+    expect(submitScore).toHaveBeenCalledTimes(2);
+    expect(submitScore).toHaveBeenLastCalledWith(25, expect.objectContaining({ highestCampaign: 25 }));
   });
 
   it("allows an unchanged score in a new UTC week, preserving rate limits", async () => {
