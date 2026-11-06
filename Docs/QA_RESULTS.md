@@ -1,5 +1,13 @@
 # QA results
 
+## v0.17.0 (2026-11-06): cows, exact battle armies and three city zoom levels
+
+- TypeScript, ESLint and **366 tests / 38 files** pass. Added coverage for exact soldier counts (280 actors for the large unit fixture), zero-kind exclusion, shared trained-role character assets, valid discrete pose cells, recovery, formation depth and bounded three-level zoom. Existing pause/skip/reduced-motion/final-survivor, all-25 three-star-route and balance checks pass. Log: `Tools/qa/out/city-battle-check.txt`.
+- `presentation_017.py` **ALL PASS**: 0.8×/1×/1.4× views at 1280×720, 390×844 and 844×390 while paused; zoom buttons inside frame and disabled at limits; canvas views differ; resources and moves stay unchanged. Isolated archer-only, swordsman-only, horseman-only, elephant-only, mixed phone and large-army cases show exactly the recorded actor counts with no absent kinds. Every actor stays inside the battlefield; attack frames advance; no page errors. Evidence/screenshots: `Tools/qa/out/presentation-017/`, `presentation-017.txt`.
+- Goshala production PNG and WebP depict dairy cattle. Construction stages have no animals and remain unchanged. Old completed PNG archived. `pnpm art:export` succeeds using the bundled Python on PATH. Existing `character_atlases.py` and `city_motion.py` pass, including 24 civilians / 24 completed buildings and the exempt 42-soldier city garrison, all images loaded and no request/page errors. Evidence: `presentation-atlases.txt`, `presentation-motion.txt`, `cow-art-export.txt`.
+- `pnpm package`: **16 bundle checks pass**, **18,433,674 bytes**, **159 entries**. SHA-256 `6EA0948A9FE4180CB32E808D592265FB59455E92F43183F44C58D97A2A3AEC55`. ZIP matches the browser-tested production build byte for byte (`presentation-017/release.json`). This is local QA; the archive is not uploaded to the live portal.
+
+
 ## v0.16.3 (2026-11-06): highest-campaign portal score
 
 - Fresh review of unchanged 0.16.2: **360 tests / 37 files** pass; archive hash matches the existing QA record (`recent-review-check.txt`).

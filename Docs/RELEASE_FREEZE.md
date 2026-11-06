@@ -1,4 +1,18 @@
-# Release freeze: v0.16.3
+# Release freeze: v0.17.0
+
+6 November 2026. Goshala cattle, consistent battle armies and three city zoom views. Built locally; not uploaded or published.
+
+- Artifact: `release/grow-an-empire-0.17.0.zip`, **18,433,674 bytes**, **159 entries**.
+- SHA-256: `6EA0948A9FE4180CB32E808D592265FB59455E92F43183F44C58D97A2A3AEC55`.
+- Goshala completed sprite now has two dairy cows, retaining stable production/save IDs. Replaced art archived; built-in image generation prompts and provenance: `Assets/Art/Production/Buildings/SwineFarm/GOSHAlA_0_17_0.md`.
+- Player battle sprites reuse the trained city role character sheets, with one actor per recorded soldier, exact round survivors, adaptive ranks, front-rank melee, ranged volleys and discrete attack/recovery poses. Hired troops and citizen militia remain part of the existing resolved roster. No battle strength, recruitment, casualty or economy rule changed.
+- City zoom has three bounded views (0.8×, 1×, 1.4×), works while paused, refits terrain and reserves measured screen space. Manual zoom releases construction focus. Civilian density and the army exemption remain unchanged; snapshot schema 7 and leaderboard schema 3 retained.
+- TypeScript, ESLint and **366 tests / 38 files** pass; presentation browser checks, character atlas and city-motion regressions pass. All **16 portal bundle checks** pass. Every ZIP entry matches the browser-tested build byte for byte.
+- Evidence: `Tools/qa/out/presentation-017/`, `city-battle-check.txt`, `presentation-package.txt`, `presentation-atlases.txt`, `presentation-motion.txt`. See [QA results](QA_RESULTS.md).
+
+Keep this ZIP immutable; further delivered builds require a new version.
+
+## Historical release freeze: v0.16.3
 
 6 November 2026. Highest-campaign leaderboard score, including all recent UX improvements. Built locally; not uploaded or published.
 

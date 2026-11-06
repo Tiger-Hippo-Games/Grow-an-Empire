@@ -57,3 +57,7 @@ All scripts share `flow.py` (campaign map → briefing → city, play a move, pl
 ### Campaign ratings (0.15.0)
 
 `campaign_rating.py` plays a real clean campaign and checks all rating combinations, victory gating, best-rating preservation and schema-6 migration in isolated browser storage across desktop and phone frames. Evidence: `out/campaign-rating/`. `Tools/balance/clean_campaign_routes.ts` searches legal build/Gather witnesses without changing balance; `threeStarRoutes.test.ts` replays committed witnesses for all 25 campaigns through the real simulation.
+
+### Presentation 0.17.0
+
+Generate isolated snapshots with `Tools/qa/presentation_fixtures.ts` (run through the existing vite-node/tsx runner, like the balance tools), then run `presentation_017.py` against the HTTP production build with `GAE_URL`. Snapshots use legal early/complete campaigns plus explicit army fixtures solely for rendering checks. Checks cover three paused zoom views, button bounds, unchanged moves/resources, exact actor counts and absent kinds, atlas pose samples, and keeping every actor in the battlefield at desktop/phone sizes. Evidence: `out/presentation-017/`. These fixtures never modify a real player's save.

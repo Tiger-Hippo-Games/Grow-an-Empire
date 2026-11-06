@@ -3,6 +3,8 @@
 **Document version:** 1.5  
 **Date:** 25 October 2026  
 **Implementation baseline:** Grow an Empire 0.15.0  
+**6 November 2026 presentation addendum (v0.17.0):** Goshala depicts dairy cows. City zoom has three bounded choices: 0.8×, 1× and 1.4×, available while paused. Battles show one actor per actual recorded unit, preserve the city-trained character identities, use exact round casualties, and stage front-rank attacks and archer volleys with discrete poses. Combat/economy/save rules are unchanged.
+
 **Purpose:** a complete design reference for this game and a worked example for future GROW games.  
 **Companion:** [Reusable GROW game design template](GROW_GAME_TEMPLATE.md).
 

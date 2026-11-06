@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 import flow
 OUT=Path('Tools/qa/out/presentation-017');OUT.mkdir(parents=True,exist_ok=True)
 URL=os.environ.get('GAE_URL','http://127.0.0.1:4184/api/v1/games/grow/play/')
-fixtures=json.loads(Path('.tmp/presentation-fixtures.json').read_text())
+fixtures=json.loads(Path('Tools/qa/out/presentation-fixtures.json').read_text())
 errors=[];results=[]
 def seed(ctx,game):
  ctx.add_init_script("if(!localStorage.getItem('qa-seeded')){localStorage.setItem('grow-an-empire:save:v1',"+json.dumps(json.dumps(game))+");localStorage.setItem('qa-seeded','1');}")
