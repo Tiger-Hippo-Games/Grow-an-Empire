@@ -1,5 +1,14 @@
 # QA results
 
+## v0.18.0 (2026-11-09): varied campaign lengths and nearby opponents
+
+- `pnpm check`: **388 tests / 38 files**, TypeScript and ESLint pass. Checks enforce 12 moves for Campaign 1, 15 for Campaign 2, and different move limits, enemy names, factions and unit mixes from both predecessors. All 25 campaigns reach their exact horizon and round-trip through saves. Older Campaign 2 muster continues from 12 to 15; completed older battle reports are preserved. Protected v4 fixture unchanged. Log: `Tools/qa/out/campaign-variation-check.txt`.
+- Enemy calibration uses exhaustive 12-move orders and 4,096 seeded build-first journeys for each of the other 12 active horizons. All campaign win shares remain within the original difficulty-plan tolerances; AI Realm fields match the current rules. Campaign 25 retains its unchanged calibration, reverified by the fresh tests. Evidence: `campaign-variation-calibration.txt` / `.json`.
+- All **25 legal shortage-free three-star routes** regenerated and replayed through the real simulation (`campaign-variation-routes.txt`, committed `three-star-routes.json`). Economy and combat formulas remain unchanged.
+- `campaign_variation.py`: **ALL PASS**. Visible briefing limits and actual enemy unit kinds checked for Campaigns 1, 2, 3, 22 and 25, including phone layouts. Actual Campaign 2 reaches the muster after 15 moves and earns three stars. Older 12-move muster resumes at 13/15 and reaches 15/15 after three new moves. No page errors. Evidence/screenshots: `Tools/qa/out/campaign-variation/`, `campaign-variation-browser.txt`.
+- `pnpm package`: **16 bundle checks pass**, **18,433,730 bytes**, **159 entries**, SHA-256 `880DDBB7A6F64D21770D0340654C890835BFF482B7587714370F23F5EE8C7894`. ZIP matches the browser-tested production build byte for byte (`campaign-variation/release.json`). This is local validation, not a live portal upload.
+
+
 ## v0.17.0 (2026-11-06): cows, exact battle armies and three city zoom levels
 
 - TypeScript, ESLint and **366 tests / 38 files** pass. Added coverage for exact soldier counts (280 actors for the large unit fixture), zero-kind exclusion, shared trained-role character assets, valid discrete pose cells, recovery, formation depth and bounded three-level zoom. Existing pause/skip/reduced-motion/final-survivor, all-25 three-star-route and balance checks pass. Log: `Tools/qa/out/city-battle-check.txt`.

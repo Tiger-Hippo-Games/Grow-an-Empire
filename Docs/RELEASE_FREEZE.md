@@ -1,4 +1,18 @@
-# Release freeze: v0.17.0
+# Release freeze: v0.18.0
+
+9 November 2026. Varied campaign preparation and opponents. Built locally; not uploaded or published.
+
+- Artifact: `release/grow-an-empire-0.18.0.zip`, **18,433,730 bytes**, **159 entries**.
+- SHA-256: `880DDBB7A6F64D21770D0340654C890835BFF482B7587714370F23F5EE8C7894`.
+- Move limits by chapter: **12,15,14,16,18 / 17,19,16,18,20 / 19,21,18,20,22 / 19,23,21,22,24 / 21,23,22,24,25**. No move limit, enemy name, faction or active unit mix repeats from either of the previous two campaigns.
+- Campaign 3 is now Vajradanta Riders (stable slug retained); Campaign 22 has swordsmen and horsemen. Enemy sizes and the AI Realm fields are calibrated for the new horizons. Campaign 25's unchanged reference is retained and freshly reverified.
+- **388 tests / 38 files**, TypeScript and ESLint pass. Every campaign reaches its exact limit and survives save reloads; all 25 have verified legal three-star routes. Older unfinished musters gain moves, while completed reports and best ratings remain intact. Snapshot schema 7 and leaderboard schema 3 remain.
+- Browser checks pass: early/late briefings, full 15-move three-star Campaign 2, and prior 12-move muster resuming at 13/15 and completing after three more moves. No page errors. All **16 bundle checks** pass; every ZIP entry matches the tested build.
+- Evidence: `Tools/qa/out/campaign-variation/`, `campaign-variation-check.txt`, `campaign-variation-routes.txt`, `campaign-variation-calibration.json`, `campaign-variation-browser.txt`, `campaign-variation-package.txt`.
+
+See [full campaign specification](GAME_DESIGN_DOCUMENT.md) and [QA results](QA_RESULTS.md). Keep this ZIP immutable; further delivered builds require a new version.
+
+## Historical release freeze: v0.17.0
 
 6 November 2026. Goshala cattle, consistent battle armies and three city zoom views. Built locally; not uploaded or published.
 
