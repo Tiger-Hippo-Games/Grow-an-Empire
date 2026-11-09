@@ -455,11 +455,13 @@ That hint is a counterfactual final-army requirement, not a proof that the same 
 
 | Chapter | Campaigns | Setting and progression role | Moves |
 |---|---|---|---|
-| Vanavasa | 1–5 | Forest exile, first fire and early threats | 12 |
-| Ganga-tira | 6–10 | River kingdoms, fords and mercenary forts | 14 |
-| Dandakaranya | 11–15 | Dark forest and oath-bound armies | 15 |
-| Himavat | 16–20 | Mountain passes, fens and celestial woods | 16 |
-| Dharmakshetra | 21–25 | The final road to Durjaya | 18, 18, 20, 20, 25 |
+| Vanavasa | 1–5 | Forest exile, first fire and early threats | 12, 15, 14, 16, 18 |
+| Ganga-tira | 6–10 | River kingdoms, fords and mercenary forts | 17, 19, 16, 18, 20 |
+| Dandakaranya | 11–15 | Dark forest and oath-bound armies | 19, 21, 18, 20, 22 |
+| Himavat | 16–20 | Mountain passes, fens and celestial woods | 19, 23, 21, 22, 24 |
+| Dharmakshetra | 21–25 | The final road to Durjaya | 21, 23, 22, 24, 25 |
+
+From v0.18.0, each campaign has a different move limit, enemy name, faction and troop mix from both of the previous two. Horizons vary within 12–25 moves; Campaigns 1 and 2 use 12 and 15. Enemies and the AI Realm field are recalibrated for each horizon.
 
 Every campaign currently offers the same 24-building ruleset and starting stockpile. Enemy composition, veterancy, narrative framing and preparation horizon distinguish its problem. A whitelist exists in the campaign data model for future restrictions, but current campaigns do not use separate faction tech trees.
 
@@ -470,29 +472,29 @@ Every campaign currently offers the same 24-building ruleset and starting stockp
 | # | Campaign | Enemy | Moves | S/A/H | Veterancy | Legacy AI bands | Reference win share |
 |---:|---|---|---:|---|---:|---|---:|
 | 1 | The First Fire | The Nagadanta Scout | 12 | 1/0/0 | 1 | 50% / 100% | 100% |
-| 2 | Kusha Marsh | The Kantaka Bowmen | 12 | 0/10/0 | 1.06 | 50% / 100% | 88% |
-| 3 | Nagadanta Riders | The Nagadanta Riders | 12 | 0/0/6 | 1.1 | 50% / 100% | 84% |
-| 4 | Vindhya Gate | The Pashana Brigands | 12 | 7/6/0 | 1 | 40% / 100% | 80% |
-| 5 | Yaksha Wood | The Yaksha Host | 12 | 4/3/4 | 1.06 | 30% / 75% | 65% |
-| 6 | Agnikshetra | The Dahana Riders | 14 | 0/0/11 | 1.02 | 50% / 100% | 88% |
-| 7 | Matsya Ford | The Bhimakaya Clansmen | 14 | 24/0/0 | 1.08 | 50% / 100% | 76% |
-| 8 | Kampilya Reeds | The Shabdabhedi Hunters | 14 | 0/8/8 | 1.06 | 50% / 90% | 72% |
-| 9 | The Nagadanta Warband | The Nagadanta Warband | 14 | 0/24/0 | 1 | 50% / 95% | 68% |
-| 10 | Lohagarh | The Lohakaya Company | 14 | 11/0/12 | 1.08 | 30% / 55% | 50% |
-| 11 | Kaka Ridge | The Crow-Banner Company | 15 | 15/14/0 | 1 | 50% / 100% | 76% |
-| 12 | Sandhya River | The Sandhya Raiders | 15 | 0/0/20 | 1 | 50% / 75% | 64% |
-| 13 | The Oath of Blood | The Samshaptakas | 15 | 47/0/0 | 1.02 | 25% / 40% | 60% |
-| 14 | Meru Heights | The Shringa Lancers | 15 | 16/0/16 | 1.02 | 30% / 45% | 56% |
-| 15 | Raktadhvaja | The Red-Banner Akshauhini | 15 | 14/14/14 | 1.02 | 10% / 20% | 35% |
-| 16 | Shiladanta | The Shiladanta Archers | 16 | 0/47/0 | 1 | 30% / 50% | 64% |
-| 17 | Tamasa Fen | The Tamasa Stalkers | 16 | 21/0/22 | 1.02 | 20% / 30% | 52% |
-| 18 | Twin Nagas | The Twin-Naga Cavalry | 16 | 0/0/29 | 1.18 | 20% / 25% | 48% |
-| 19 | The Pashana Horde | The Pashana Horde | 16 | 42/21/0 | 1.02 | 15% / 20% | 44% |
-| 20 | Rajata Vana | The Gandharva Rangers | 16 | 0/25/25 | 1.04 | 5% / 10% | 20% |
-| 21 | The Nagadanta Council | The Nagadanta War Council | 18 | 92/0/0 | 1.02 | 10% / 25% | 52% |
-| 22 | Ghora Fields | The Ghora Horde | 18 | 0/30/31 | 1.02 | 15% / 25% | 40% |
-| 23 | Sahasra-ashva | The Thousand Hooves | 20 | 0/0/76 | 1.02 | 10% / 20% | 36% |
-| 24 | The Ember Throne | The Angara Raja | 20 | 64/63/0 | 1.06 | 5% / 15% | 32% |
+| 2 | Kusha Marsh | The Kantaka Bowmen | 15 | 0/21/0 | 1 | 50% / 100% | 88% |
+| 3 | Vajradanta Riders | The Vajradanta Riders | 14 | 0/0/12 | 1 | 50% / 100% | 84% |
+| 4 | Vindhya Gate | The Pashana Brigands | 16 | 18/17/0 | 1.02 | 50% / 100% | 80% |
+| 5 | Yaksha Wood | The Yaksha Host | 18 | 20/19/20 | 1.02 | 20% / 35% | 65% |
+| 6 | Agnikshetra | The Dahana Riders | 17 | 0/0/20 | 1.08 | 50% / 100% | 88% |
+| 7 | Matsya Ford | The Bhimakaya Clansmen | 19 | 91/0/0 | 1.04 | 25% / 40% | 76% |
+| 8 | Kampilya Reeds | The Shabdabhedi Hunters | 16 | 0/14/14 | 1.02 | 50% / 75% | 72% |
+| 9 | The Nagadanta Warband | The Nagadanta Warband | 18 | 0/69/0 | 1 | 20% / 45% | 68% |
+| 10 | Lohagarh | The Lohakaya Company | 20 | 41/0/41 | 1.1 | 15% / 25% | 50% |
+| 11 | Kaka Ridge | The Crow-Banner Company | 19 | 43/43/0 | 1 | 25% / 45% | 76% |
+| 12 | Sandhya River | The Sandhya Raiders | 21 | 0/0/76 | 1.02 | 15% / 30% | 64% |
+| 13 | The Oath of Blood | The Samshaptakas | 18 | 89/0/0 | 1 | 15% / 30% | 60% |
+| 14 | Meru Heights | The Shringa Lancers | 20 | 38/0/39 | 1.12 | 15% / 25% | 56% |
+| 15 | Raktadhvaja | The Red-Banner Akshauhini | 22 | 45/45/45 | 1.02 | 5% / 15% | 35% |
+| 16 | Shiladanta | The Shiladanta Archers | 19 | 0/79/0 | 1.06 | 20% / 40% | 64% |
+| 17 | Tamasa Fen | The Tamasa Stalkers | 23 | 44/0/87 | 1.02 | 10% / 20% | 52% |
+| 18 | Twin Nagas | The Twin-Naga Cavalry | 21 | 0/0/85 | 1 | 10% / 25% | 48% |
+| 19 | The Pashana Horde | The Pashana Horde | 22 | 87/86/0 | 1 | 5% / 15% | 44% |
+| 20 | Rajata Vana | The Gandharva Rangers | 24 | 0/85/85 | 1.02 | 5% / 20% | 20% |
+| 21 | The Nagadanta Council | The Nagadanta War Council | 21 | 152/0/0 | 1 | 10% / 25% | 52% |
+| 22 | Ghora Fields | The Ghora Horde | 23 | 71/0/72 | 1.06 | 10% / 15% | 40% |
+| 23 | Sahasra-ashva | The Thousand Hooves | 22 | 0/0/99 | 1.06 | 5% / 15% | 36% |
+| 24 | The Ember Throne | The Angara Raja | 24 | 120/120/0 | 1.02 | 5% / 15% | 32% |
 | 25 | Dharmakshetra | Durjaya the Unconquered | 25 | 80/80/80 | 1 | 5% / 15% | 5% |
 
 ### 8.3 Unlocks and replay

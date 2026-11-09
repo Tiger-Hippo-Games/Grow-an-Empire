@@ -7,10 +7,11 @@
  * tries the mix in even and 2:1 proportions and veterancy 1.0–1.2 in 0.02 steps, never
  * repeating an army, and keeps the one whose share of winning build orders
  * is closest to the target. The 12-move reference is exhaustive; longer
- * lengths use 4,096 seeded journeys each (see referenceEndings). Star margins come from how far the winners win
- * by (2 stars ≈ the better half of winners, 3 stars ≈ the top 15%, capped at
+ * lengths use 4,096 seeded journeys each (see referenceEndings). Legacy AI bands come from how far the winners win
+ * by (middle band ≈ the better half of winners, upper band ≈ the top 15%, capped at
  * 50% and 100%); `field` is the share of all build orders reaching 1, 2 and 3
- * stars (the AI rivals in realm.ts use it). Prints values for CAMPAIGN_SEEDS.
+ * strength bands (the AI rivals in realm.ts use it). Player mastery stars use
+ * campaignRating.ts instead. Prints values for CAMPAIGN_SEEDS.
  *
  *   npx tsx Tools/balance/calibrate.ts
  */

@@ -18,7 +18,7 @@ describe("campaign balance: exhaustive early orders and seeded long journeys", (
   it("never leaves a player with no legal move", () => {
     expect(deadEnds).toBe(0);
     expect(endings.length).toBeGreaterThan(5000);
-    for (const limit of [14,15,16,18,20,25]) {
+    for (const limit of [...new Set(CAMPAIGNS.map(c => c.moveLimit))].filter(limit => limit !== 12)) {
       const reference = referenceEndings(CAMPAIGNS.find(c => c.moveLimit === limit)!);
       expect(reference.deadEnds, `${limit} moves`).toBe(0);
       expect(reference.endings).toHaveLength(4096);

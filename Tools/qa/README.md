@@ -61,3 +61,7 @@ All scripts share `flow.py` (campaign map → briefing → city, play a move, pl
 ### Presentation 0.17.0
 
 Generate isolated snapshots with `Tools/qa/presentation_fixtures.ts` (run through the existing vite-node/tsx runner, like the balance tools), then run `presentation_017.py` against the HTTP production build with `GAE_URL`. Snapshots use legal early/complete campaigns plus explicit army fixtures solely for rendering checks. Checks cover three paused zoom views, button bounds, unchanged moves/resources, exact actor counts and absent kinds, atlas pose samples, and keeping every actor in the battlefield at desktop/phone sizes. Evidence: `out/presentation-017/`. These fixtures never modify a real player's save.
+
+### Campaign variation 0.18.0
+
+Generate `campaign_variation_fixtures.ts` through the existing vite-node/tsx runner, then run `campaign_variation.py` against the production HTTP preview (`GAE_URL`). Checks cover early/late enemy and move briefings, a full 15-move three-star Campaign 2, and a prior 12-move muster gaining three preparation moves. Isolated browser storage only. `combatRules.test.ts` enforces the previous-two rule; all 25 horizons round-trip through saves in `longCampaigns.test.ts`; `threeStarRoutes.test.ts` verifies committed mastery witnesses.

@@ -43,7 +43,7 @@ describe("battle strength", () => {
 describe("the 25 campaigns", () => {
   it("has 25 distinct campaigns on standard rules", () => {
     expect(CAMPAIGNS).toHaveLength(25);
-    expect(CAMPAIGNS.map(c => c.moveLimit)).toEqual([12,12,12,12,12,14,14,14,14,14,15,15,15,15,15,16,16,16,16,16,18,18,20,20,25]);
+    expect(CAMPAIGNS.map(c => c.moveLimit)).toEqual([12,15,14,16,18,17,19,16,18,20,19,21,18,20,22,19,23,21,22,24,21,23,22,24,25]);
     expect(new Set(CAMPAIGNS.map((campaign) => campaign.id)).size).toBe(25);
     expect(CAMPAIGNS[0].id).toBe("campaign-1-first-muster");
     for (const campaign of CAMPAIGNS) {
@@ -51,6 +51,18 @@ describe("the 25 campaigns", () => {
       expect(campaignById(campaign.id)).toBe(campaign);
       expect(campaign.objective.enemyName.length).toBeGreaterThan(0);
       expect(campaign.stars.two).toBeLessThanOrEqual(campaign.stars.three);
+    }
+  });
+
+  it("varies move limits and enemy identities/mixes against the preceding two campaigns", () => {
+    expect(CAMPAIGNS[0].moveLimit).toBe(12);
+    expect(CAMPAIGNS[1].moveLimit).toBe(15);
+    const mix = (army: typeof CAMPAIGNS[number]["objective"]["army"]) => `${army.swordsmen ? "S" : ""}${army.archers ? "A" : ""}${army.horsemen ? "H" : ""}`;
+    for (const [index, campaign] of CAMPAIGNS.entries()) for (const earlier of CAMPAIGNS.slice(Math.max(0, index - 2), index)) {
+      expect(campaign.moveLimit, `moves: ${campaign.number} vs ${earlier.number}`).not.toBe(earlier.moveLimit);
+      expect(campaign.objective.enemyName).not.toBe(earlier.objective.enemyName);
+      expect(campaign.objective.kingdomName).not.toBe(earlier.objective.kingdomName);
+      expect(mix(campaign.objective.army), `enemy mix: ${campaign.number} vs ${earlier.number}`).not.toBe(mix(earlier.objective.army));
     }
   });
 
